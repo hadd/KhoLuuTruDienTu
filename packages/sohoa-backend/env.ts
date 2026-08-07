@@ -199,6 +199,14 @@ function createEnvObject() {
         KAFKA_BROKER: Deno.env.get("KAFKA_BROKER") ?? "10.10.6.134:9092",
         KAFKA_GROUP_ID: Deno.env.get("KAFKA_GROUP_ID") ?? "sohoa-backend-group",
         KAFKA_METADATA_TOPIC: Deno.env.get("KAFKA_METADATA_TOPIC") ?? "metadata-completed",
+        KAFKA_MERGE_FINISHED_WAIT_TOPIC:
+            Deno.env.get("KAFKA_MERGE_FINISHED_WAIT_TOPIC") ?? "merge-finished-wait",
+        KAFKA_MERGE_COMPLETED_TOPIC:
+            Deno.env.get("KAFKA_MERGE_COMPLETED_TOPIC") ?? "merge-completed",
+        KAFKA_START_METADATA_TT05_TOPIC:
+            Deno.env.get("KAFKA_START_METADATA_TT05_TOPIC") ?? "start-metadata-tt05",
+        KAFKA_TT05_METADATA_TOPIC:
+            Deno.env.get("KAFKA_TT05_METADATA_TOPIC") ?? "tt05-metadata-completed",
         SCANNER_ENABLED: getBooleanEnv("SCANNER_ENABLED", false),
         SCANNER_INTERVAL_MS: getPositiveIntEnv("SCANNER_INTERVAL_MS", 10_000),
         SOCKET_ENABLED: getBooleanEnv("SOCKET_ENABLED", true),

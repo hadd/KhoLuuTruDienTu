@@ -52,6 +52,7 @@ type DossierRow = {
   folderPath: string;
   status: string;
   currentMetadataKey: string | null;
+  fondId: string | null;
   files?: Array<{ fileName: string; filePath: string }>;
 };
 

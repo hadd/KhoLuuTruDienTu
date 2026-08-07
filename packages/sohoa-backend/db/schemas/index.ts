@@ -62,6 +62,19 @@ export {
     metadataPermissionSlots,
     metadataPermissionSlotsRelations,
 } from "./metadata_permission_slot.ts";
+export {
+    MetadataExtractMode,
+    METADATA_EXTRACT_MODE_VALUES,
+    metadataExtractModeSchema,
+    MetadataExtractTriggerMode,
+    metadataExtractTriggerModeSchema,
+    metadataExtractSettings,
+    metadataExtractSettingsRelations,
+} from "./metadata-extract-settings.ts";
+export type {
+    MetadataExtractSettings,
+    NewMetadataExtractSettings,
+} from "./metadata-extract-settings.ts";
 
 // ========================================
 // Workflow (folders, dossiers, assignments)
@@ -291,11 +304,13 @@ export {
     disposalReviewCouncils,
     disposalReviewCouncilMembers,
     disposalReviewCouncilMemberHistory,
+    disposalReviewCouncilItemEvaluations,
     disposalProposalCatalogsRelations,
     disposalProposalItemsRelations,
     disposalReviewCouncilsRelations,
     disposalReviewCouncilMembersRelations,
     disposalReviewCouncilMemberHistoryRelations,
+    disposalReviewCouncilItemEvaluationsRelations,
     type DuplicateDetectionRule,
     type DisposalProposalCatalog,
     type DisposalProposalItem,
@@ -303,6 +318,7 @@ export {
     type DisposalReviewCouncil,
     type DisposalReviewCouncilMember,
     type DisposalReviewCouncilMemberHistory,
+    type DisposalReviewCouncilItemEvaluation,
 } from "./archive-disposal.ts";
 export {
     DisposalProposalCatalogStatus,
@@ -325,26 +341,42 @@ export {
     archiveBorrowRequests,
     archiveBorrowItems,
     archiveBorrowDipPackages,
+    archiveBorrowReadingProgress,
+    archiveBorrowAnnotations,
     archiveBorrowRequestsRelations,
     archiveBorrowItemsRelations,
     archiveBorrowDipPackagesRelations,
+    archiveBorrowReadingProgressRelations,
+    archiveBorrowAnnotationsRelations,
     type ArchiveBorrowRequest,
     type NewArchiveBorrowRequest,
     type ArchiveBorrowItem,
     type NewArchiveBorrowItem,
     type ArchiveBorrowDipPackage,
     type NewArchiveBorrowDipPackage,
+    type ArchiveBorrowReadingProgress,
+    type NewArchiveBorrowReadingProgress,
+    type ArchiveBorrowAnnotation,
+    type NewArchiveBorrowAnnotation,
     type ArchiveBorrowDipManifest,
     type ArchiveBorrowDipManifestEntry,
 } from "./archive-borrow.ts";
+export {
+    archiveBorrowApprovalClearances,
+    archiveBorrowApprovalClearancesRelations,
+    type ArchiveBorrowApprovalClearance,
+    type NewArchiveBorrowApprovalClearance,
+} from "./archive-borrow-approval-clearance.ts";
 export {
     ArchiveBorrowMedium,
     ArchiveBorrowStatus,
     ArchiveBorrowItemKind,
     ArchiveBorrowDipStatus,
     ArchiveBorrowDipLayout,
+    ArchiveBorrowAnnotationKind,
     ARCHIVE_BORROW_ELECTRONIC_OPEN_STATUSES,
     ELECTRONIC_ITEM_KINDS,
+    type ArchiveBorrowAnnotationBbox,
 } from "./archive-borrow-constants.ts";
 export {
     archiveBorrowMediumEnum,
@@ -352,4 +384,5 @@ export {
     archiveBorrowItemKindEnum,
     archiveBorrowDipStatusEnum,
     archiveBorrowDipLayoutEnum,
+    archiveBorrowAnnotationKindEnum,
 } from "./archive-borrow-enums.ts";

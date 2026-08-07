@@ -280,6 +280,38 @@ Deno.test({
             assertExists(marked.readAt);
         });
 
+        await t.step("Disposal council assigned notifies council members", async () => {
+            await NotificationConfigService.create({
+                notificationType: NotificationType.DISPOSAL_COUNCIL_ASSIGNED,
+                channels: [NotificationChannel.SYSTEM],
+                roleIds: [AuthRole.ADMIN],
+            }, admin.id);
+
+            const catalogId = crypto.randomUUID();
+            await NotificationDeliveryService.dispatchDisposalCouncilAssigned({
+                councilId: crypto.randomUUID(),
+                catalogId,
+                catalogName: "DM-HĐH-TEST",
+                memberUserIds: [editor1.id, editor2.id],
+            });
+
+            const editor1Inbox = await NotificationInboxService.list(editor1.id, {});
+            const editor2Inbox = await NotificationInboxService.list(editor2.id, {});
+            const n1 = editor1Inbox.find((item) =>
+                item.type === NotificationType.DISPOSAL_COUNCIL_ASSIGNED &&
+                item.body.includes("DM-HĐH-TEST")
+            );
+            const n2 = editor2Inbox.find((item) =>
+                item.type === NotificationType.DISPOSAL_COUNCIL_ASSIGNED
+            );
+            assertExists(n1);
+            assertExists(n2);
+            assertEquals(
+                n1.actionUrl,
+                `/app/archive-warehouse?tab=expiryReview&disposalView=proposal&disposalCatalogId=${catalogId}`,
+            );
+        });
+
         await t.step("Create config with email channel returns warning when sender not ready", async () => {
             await deleteEmailSenderConfig();
 

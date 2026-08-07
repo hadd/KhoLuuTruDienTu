@@ -87,7 +87,8 @@ import { getRawStoragePrefix, normalizeStorageKey, storageBasename, toSearchable
 import { isProtectedArchivalKey } from "../dossier/dossier-delete-utils.ts"
 import { DossierService } from "../dossier/dossier-service.ts"
 import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts"
-import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts"
+import { assertActiveSecurityLevelId, getLowestActiveLevel } from "../security-level/security-clearance.ts"
+import { securityLevels } from "../../db/schemas/security-level.ts"
 import {
   assertSecurityResourceAccess,
   SecurityRequestCache,
@@ -190,6 +191,86 @@ export async function resolveWarehouseScope(profile: UserWithRoles) {
   return {
     scope,
     fondScope: scope.mode === "global" ? null : scope.mode === "scoped" || scope.mode === "fond" ? scope.fondIds : [],
+  }
+}
+
+export type BrowseContext = "warehouse" | "exploitation"
+
+export async function resolveExploitationScope(profile: UserWithRoles) {
+  const allowed =
+    userRolesHavePermission(profile.userRoles, Permission.LIBRARY_EXPLOITATION_READ) ||
+    userRolesHavePermission(profile.userRoles, Permission.SEARCH_GLOBAL)
+  if (!allowed) {
+    throw httpError.forbidden("Bạn không có quyền khai thác hồ sơ thư viện")
+  }
+  const scope: ArchiveDataScope = {
+    mode: "global",
+    fondIds: [],
+    dossierTypeIds: [],
+    documentTypeIds: [],
+  }
+  return { scope, fondScope: null }
+}
+
+export async function loadShareEligibleSecurityLevelIds(
+  securityCache?: SecurityRequestCache,
+): Promise<{ eligibleLevelIds: string[]; allowUnassigned: boolean }> {
+  const cache = securityCache ?? new SecurityRequestCache()
+  const activeLevels = await db
+    .select({ id: securityLevels.id })
+    .from(securityLevels)
+    .where(and(eq(securityLevels.isActive, true), isNull(securityLevels.deletedAt)))
+
+  const eligibleLevelIds: string[] = []
+  for (const level of activeLevels) {
+    const isShareAllowed = await cache.getEffectiveBool(level.id, PermissionRuleKey.share)
+    if (isShareAllowed) {
+      eligibleLevelIds.push(level.id)
+    }
+  }
+
+  const lowestLevel = await getLowestActiveLevel()
+  let allowUnassigned = false
+  if (lowestLevel) {
+    allowUnassigned = await cache.getEffectiveBool(lowestLevel.id, PermissionRuleKey.share)
+  }
+
+  return { eligibleLevelIds, allowUnassigned }
+}
+
+export function buildShareEligibleWhere(eligibleInfo: { eligibleLevelIds: string[]; allowUnassigned: boolean }): SQL | undefined {
+  const { eligibleLevelIds, allowUnassigned } = eligibleInfo
+  if (eligibleLevelIds.length === 0 && !allowUnassigned) {
+    return sql`1 = 0`
+  }
+
+  const conditions: SQL[] = []
+  if (eligibleLevelIds.length > 0) {
+    conditions.push(inArray(dossiers.securityLevelId, eligibleLevelIds))
+  }
+  if (allowUnassigned) {
+    conditions.push(isNull(dossiers.securityLevelId))
+  }
+
+  return or(...conditions)
+}
+
+export async function assertDossierShareEligible(
+  dossierSecurityLevelId: string | null | undefined,
+  securityCache?: SecurityRequestCache,
+): Promise<void> {
+  const cache = securityCache ?? new SecurityRequestCache()
+  let levelId = dossierSecurityLevelId
+  if (!levelId) {
+    const lowest = await getLowestActiveLevel()
+    levelId = lowest?.id
+  }
+  if (!levelId) {
+    throw httpError.forbidden("Hồ sơ không thuộc cấp độ bảo mật cho phép chia sẻ")
+  }
+  const isShareAllowed = await cache.getEffectiveBool(levelId, PermissionRuleKey.share)
+  if (!isShareAllowed) {
+    throw httpError.forbidden("Hồ sơ không thuộc cấp độ bảo mật cho phép chia sẻ")
   }
 }
 
@@ -314,6 +395,7 @@ function resolveWarehouseStatus(status?: string): WarehouseDossierStatus {
  */
 async function filterDossierHitsAgainstDb<T extends { entityId: string }>(
   hits: T[],
+  shareEligibleWhere?: SQL,
 ): Promise<{ hits: T[]; staleCount: number; deniedCount: number }> {
   if (hits.length === 0) {
     return { hits, staleCount: 0, deniedCount: 0 }
@@ -323,6 +405,7 @@ async function filterDossierHitsAgainstDb<T extends { entityId: string }>(
   const archivedWhere = activeDossierWhere(
     inArray(dossiers.id, ids),
     eq(dossiers.status, DossierStatus.ARCHIVED),
+    ...(shareEligibleWhere ? [shareEligibleWhere] : []),
   )
 
   const archivedRows = await db
@@ -468,12 +551,14 @@ async function loadActivePhysicalPlacements(
 }
 
 function buildArchivedDossierWhere(
-  fondId: string,
+  fondId: string | undefined,
   status: WarehouseDossierStatus,
   search?: string,
   year?: number,
   dossierTypeIds?: string[],
   documentTypeIds?: string[],
+  shareEligibleWhere?: SQL,
+  scopedFondIds?: string[],
 ) {
   const searchTerm = search?.trim()
   const searchCondition = searchTerm
@@ -484,12 +569,16 @@ function buildArchivedDossierWhere(
     : undefined
 
   return activeDossierWhere(
-    eq(dossiers.fondId, fondId),
+    ...(fondId ? [eq(dossiers.fondId, fondId)] : []),
+    ...(!fondId && scopedFondIds && scopedFondIds.length > 0
+      ? [fondScopeDossierCondition(scopedFondIds)]
+      : []),
     eq(dossiers.status, status),
     ...(dossierTypeIds && dossierTypeIds.length > 0 ? [dossierTypeScopeCondition(dossierTypeIds)] : []),
     ...(documentTypeIds && documentTypeIds.length > 0 ? [documentTypeScopeCondition(documentTypeIds)] : []),
     ...(year != null ? [yearFilterCondition(year)] : []),
     ...(searchCondition ? [searchCondition] : []),
+    ...(shareEligibleWhere ? [shareEligibleWhere] : []),
   )
 }
 
@@ -498,6 +587,7 @@ function buildUnassignedArchivedDossierWhere(
   search?: string,
   dossierTypeIds?: string[],
   documentTypeIds?: string[],
+  shareEligibleWhere?: SQL,
 ) {
   const searchTerm = search?.trim()
   const searchCondition = searchTerm
@@ -513,6 +603,7 @@ function buildUnassignedArchivedDossierWhere(
     ...(dossierTypeIds && dossierTypeIds.length > 0 ? [dossierTypeScopeCondition(dossierTypeIds)] : []),
     ...(documentTypeIds && documentTypeIds.length > 0 ? [documentTypeScopeCondition(documentTypeIds)] : []),
     ...(searchCondition ? [searchCondition] : []),
+    ...(shareEligibleWhere ? [shareEligibleWhere] : []),
   )
 }
 
@@ -533,6 +624,7 @@ function buildArchivedDossierWhereByDossierType(
   year?: number,
   fondIds?: string[],
   documentTypeIds?: string[],
+  shareEligibleWhere?: SQL,
 ) {
   const searchTerm = search?.trim()
   const searchCondition = searchTerm
@@ -549,6 +641,7 @@ function buildArchivedDossierWhereByDossierType(
     ...(documentTypeIds && documentTypeIds.length > 0 ? [documentTypeScopeCondition(documentTypeIds)] : []),
     ...(year != null ? [yearFilterCondition(year)] : []),
     ...(searchCondition ? [searchCondition] : []),
+    ...(shareEligibleWhere ? [shareEligibleWhere] : []),
   )
 }
 
@@ -557,6 +650,7 @@ function buildWarehouseDocumentsWhereByDocumentType(
   search?: string,
   fondIds?: string[],
   dossierTypeIds?: string[],
+  shareEligibleWhere?: SQL,
 ) {
   const searchTerm = search?.trim()
   const searchCondition = searchTerm
@@ -572,18 +666,21 @@ function buildWarehouseDocumentsWhereByDocumentType(
       eq(dossiers.status, DossierStatus.ARCHIVED),
       ...(fondIds && fondIds.length > 0 ? [fondScopeDossierCondition(fondIds)] : []),
       ...(dossierTypeIds && dossierTypeIds.length > 0 ? [dossierTypeScopeCondition(dossierTypeIds)] : []),
+      ...(shareEligibleWhere ? [shareEligibleWhere] : []),
     ),
     ...(searchCondition ? [searchCondition] : []),
   )
 }
 
 async function loadAvailableYears(
-  fondId: string,
+  fondId: string | undefined,
   status: WarehouseDossierStatus,
+  shareEligibleWhere?: SQL,
 ) {
   const whereClause = activeDossierWhere(
-    eq(dossiers.fondId, fondId),
+    ...(fondId ? [eq(dossiers.fondId, fondId)] : []),
     eq(dossiers.status, status),
+    ...(shareEligibleWhere ? [shareEligibleWhere] : []),
   )
 
   const rows = await db
@@ -648,7 +745,7 @@ async function loadAvailableYearsByDossierType(
     .filter((year): year is number => year != null)
 }
 
-function buildWarehouseListScopeWhere(scope: ArchiveDataScope): SQL | null {
+function buildWarehouseListScopeWhere(scope: ArchiveDataScope, shareEligibleWhere?: SQL): SQL | null {
   if (scope.mode === "none") return null
 
   const conditions: SQL[] = [eq(dossiers.status, DossierStatus.ARCHIVED)]
@@ -663,14 +760,18 @@ function buildWarehouseListScopeWhere(scope: ArchiveDataScope): SQL | null {
   if (scope.mode === "scoped" && scope.documentTypeIds.length > 0) {
     conditions.push(documentTypeScopeCondition(scope.documentTypeIds))
   }
+  if (shareEligibleWhere) {
+    conditions.push(shareEligibleWhere)
+  }
 
   return activeDossierWhere(...conditions)
 }
 
 async function loadArchivedDossierCountsByFond(
   scope: ArchiveDataScope,
+  shareEligibleWhere?: SQL,
 ): Promise<Map<string, number>> {
-  const scopeWhere = buildWarehouseListScopeWhere(scope)
+  const scopeWhere = buildWarehouseListScopeWhere(scope, shareEligibleWhere)
   const map = new Map<string, number>()
   if (!scopeWhere) return map
 
@@ -692,6 +793,7 @@ async function loadArchivedDossierCountsByFond(
 async function loadArchivedDossierCountForType(
   scope: ArchiveDataScope,
   dossierTypeId: string,
+  shareEligibleWhere?: SQL,
 ): Promise<number> {
   const fondIds = resolveScopedFondIds(scope)
   if (fondIds && fondIds.length === 0) return 0
@@ -705,6 +807,7 @@ async function loadArchivedDossierCountForType(
     scope.mode === "scoped" && scope.documentTypeIds.length > 0
       ? scope.documentTypeIds
       : undefined,
+    shareEligibleWhere,
   )
 
   const [row] = await db
@@ -718,6 +821,7 @@ async function loadArchivedDossierCountForType(
 async function loadArchivedDocumentCountsByDocumentType(
   scope: ArchiveDataScope,
   documentTypeIds: string[],
+  shareEligibleWhere?: SQL,
 ): Promise<Map<string, number>> {
   const map = new Map<string, number>()
   if (documentTypeIds.length === 0) return map
@@ -731,6 +835,7 @@ async function loadArchivedDocumentCountsByDocumentType(
     ...(scope.mode === "scoped" && scope.dossierTypeIds.length > 0
       ? [dossierTypeScopeCondition(scope.dossierTypeIds)]
       : []),
+    ...(shareEligibleWhere ? [shareEligibleWhere] : []),
   )
 
   const rows = await db
@@ -753,11 +858,19 @@ async function loadArchivedDocumentCountsByDocumentType(
 }
 
 export const ArchiveWarehouseService = {
-  async listFonds(profile: UserWithRoles) {
-    const { scope } = await resolveWarehouseScope(profile)
+  async listFonds(profile: UserWithRoles, context: BrowseContext = "warehouse") {
+    const { scope } = context === "exploitation"
+      ? await resolveExploitationScope(profile)
+      : await resolveWarehouseScope(profile)
+
     if (scope.mode === "none") {
       return { items: [] as Array<typeof fonds.$inferSelect> }
     }
+
+    const eligibleInfo = context === "exploitation"
+      ? await loadShareEligibleSecurityLevelIds()
+      : undefined
+    const shareEligibleWhere = eligibleInfo ? buildShareEligibleWhere(eligibleInfo) : undefined
 
     const conditions = [
       eq(fonds.isActive, true),
@@ -776,24 +889,37 @@ export const ArchiveWarehouseService = {
       .where(and(...conditions))
       .orderBy(fonds.fondName)
 
-    const dossierCountsByFond = await loadArchivedDossierCountsByFond(scope)
+    const dossierCountsByFond = await loadArchivedDossierCountsByFond(scope, shareEligibleWhere)
 
-    return {
-      items: items.map((fond) => ({
-        ...fond,
-        warehouseDossierCount: dossierCountsByFond.get(fond.id) ?? 0,
-      })),
+    const mapped = items.map((fond) => ({
+      ...fond,
+      warehouseDossierCount: dossierCountsByFond.get(fond.id) ?? 0,
+    }))
+
+    if (context === "exploitation") {
+      return { items: mapped.filter((fond) => fond.warehouseDossierCount > 0) }
     }
+
+    return { items: mapped }
   },
 
   async getFondSummary(
     profile: UserWithRoles,
     fondId: string,
     statusInput?: string,
+    context: BrowseContext = "warehouse",
   ) {
-    const { scope, fondScope } = await resolveWarehouseScope(profile)
+    const { scope, fondScope } = context === "exploitation"
+      ? await resolveExploitationScope(profile)
+      : await resolveWarehouseScope(profile)
     const effectiveFondId = assertFondAccess(scope, fondId)
     const status = resolveWarehouseStatus(statusInput)
+
+    const eligibleInfo = context === "exploitation"
+      ? await loadShareEligibleSecurityLevelIds()
+      : undefined
+    const shareEligibleWhere = eligibleInfo ? buildShareEligibleWhere(eligibleInfo) : undefined
+
     const whereClause = buildArchivedDossierWhere(
       effectiveFondId,
       status,
@@ -801,6 +927,7 @@ export const ArchiveWarehouseService = {
       undefined,
       scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
       scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
+      shareEligibleWhere,
     )
 
     const dossierRows = await db
@@ -821,6 +948,7 @@ export const ArchiveWarehouseService = {
     const availableYears = await loadAvailableYears(
       effectiveFondId,
       status,
+      shareEligibleWhere,
     )
 
     return {
@@ -833,15 +961,102 @@ export const ArchiveWarehouseService = {
     }
   },
 
-  async browseDossiers(profile: UserWithRoles, query: BrowseArchiveWarehouseQuery) {
+  /**
+   * Thống kê tổng hợp hồ sơ khai thác (mọi phông, hoặc lọc theo fondId tùy chọn).
+   */
+  async getExploitationSummary(
+    profile: UserWithRoles,
+    query: { fondId?: string; status?: string } = {},
+  ) {
+    const { scope, fondScope } = await resolveExploitationScope(profile)
+    if (scope.mode === "none") {
+      throw httpError.forbidden("Bạn không có quyền truy cập kho khai thác")
+    }
+
+    const trimmedFondId = query.fondId?.trim()
+    const effectiveFondId = trimmedFondId
+      ? assertFondAccess(scope, trimmedFondId)
+      : undefined
+    const status = resolveWarehouseStatus(query.status)
+
+    const eligibleInfo = await loadShareEligibleSecurityLevelIds()
+    const shareEligibleWhere = buildShareEligibleWhere(eligibleInfo)
+
+    const whereClause = buildArchivedDossierWhere(
+      effectiveFondId,
+      status,
+      undefined,
+      undefined,
+      scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
+      scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
+      shareEligibleWhere,
+      resolveScopedFondIds(scope),
+    )
+
+    const dossierRows = await db
+      .select({ id: dossiers.id })
+      .from(dossiers)
+      .where(whereClause)
+
+    const dossierIds = dossierRows.map((row) => row.id)
+    const docStats = await loadDocumentStatsByDossierIds(dossierIds)
+
+    let documentCount = 0
+    let totalSizeKb = 0
+    for (const stats of docStats.values()) {
+      documentCount += stats.documentCount
+      totalSizeKb += stats.totalSizeKb
+    }
+
+    const availableYears = await loadAvailableYears(
+      effectiveFondId,
+      status,
+      shareEligibleWhere,
+    )
+
+    return {
+      fondId: effectiveFondId ?? null,
+      dossierCount: dossierIds.length,
+      documentCount,
+      totalSizeKb,
+      availableYears,
+      fondScope,
+    }
+  },
+
+  async browseDossiers(
+    profile: UserWithRoles,
+    query: BrowseArchiveWarehouseQuery,
+    context: BrowseContext = "warehouse",
+  ) {
     const page = Math.max(1, query.page ?? 1)
     const limit = Math.min(100, Math.max(1, query.limit ?? 20))
     const offset = (page - 1) * limit
 
-    const { scope, fondScope } = await resolveWarehouseScope(profile)
-    const effectiveFondId = assertFondAccess(scope, query.fondId)
+    const { scope, fondScope } = context === "exploitation"
+      ? await resolveExploitationScope(profile)
+      : await resolveWarehouseScope(profile)
+
+    let effectiveFondId: string | undefined
+    if (context === "exploitation") {
+      if (scope.mode === "none") {
+        throw httpError.forbidden("Bạn không có quyền truy cập kho khai thác")
+      }
+      const trimmedFondId = query.fondId?.trim()
+      effectiveFondId = trimmedFondId
+        ? assertFondAccess(scope, trimmedFondId)
+        : undefined
+    } else {
+      effectiveFondId = assertFondAccess(scope, query.fondId)
+    }
+
     const status = resolveWarehouseStatus(query.status)
     const year = query.year != null && !Number.isNaN(query.year) ? query.year : undefined
+
+    const eligibleInfo = context === "exploitation"
+      ? await loadShareEligibleSecurityLevelIds()
+      : undefined
+    const shareEligibleWhere = eligibleInfo ? buildShareEligibleWhere(eligibleInfo) : undefined
 
     const whereClause = buildArchivedDossierWhere(
       effectiveFondId,
@@ -850,6 +1065,8 @@ export const ArchiveWarehouseService = {
       year,
       scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
       scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
+      shareEligibleWhere,
+      context === "exploitation" ? resolveScopedFondIds(scope) : undefined,
     )
 
     const [rows, countRows] = await Promise.all([
@@ -865,6 +1082,8 @@ export const ArchiveWarehouseService = {
           fondName: fonds.fondName,
           dossierTypeId: dossiers.dossierTypeId,
           dossierTypeName: dossierTypes.name,
+          securityLevelId: dossiers.securityLevelId,
+          securityLevelName: securityLevels.name,
           updatedAt: dossiers.updatedAt,
         })
         .from(dossiers)
@@ -873,6 +1092,13 @@ export const ArchiveWarehouseService = {
           and(eq(fonds.id, dossiers.fondId), isNull(fonds.deletedAt)),
         )
         .leftJoin(dossierTypes, eq(dossierTypes.id, dossiers.dossierTypeId))
+        .leftJoin(
+          securityLevels,
+          and(
+            eq(securityLevels.id, dossiers.securityLevelId),
+            isNull(securityLevels.deletedAt),
+          ),
+        )
         .where(whereClause)
         .orderBy(desc(dossiers.updatedAt))
         .limit(limit)
@@ -913,27 +1139,39 @@ export const ArchiveWarehouseService = {
       total,
       totalPages: Math.ceil(total / limit),
       fondScope,
-      fondId: effectiveFondId,
+      fondId: effectiveFondId ?? null,
     }
   },
 
   async browseUnassignedDossiers(
     profile: UserWithRoles,
     query: { page?: number; limit?: number; search?: string; status?: string },
+    context: BrowseContext = "warehouse",
   ) {
     const page = Math.max(1, query.page ?? 1)
     const limit = Math.min(100, Math.max(1, query.limit ?? 20))
     const offset = (page - 1) * limit
 
-    const { scope, fondScope } = await resolveWarehouseScope(profile)
-    assertUnassignedWarehouseAccess(scope)
+    const { scope, fondScope } = context === "exploitation"
+      ? await resolveExploitationScope(profile)
+      : await resolveWarehouseScope(profile)
+
+    if (context !== "exploitation") {
+      assertUnassignedWarehouseAccess(scope)
+    }
+
     const status = resolveWarehouseStatus(query.status)
+    const eligibleInfo = context === "exploitation"
+      ? await loadShareEligibleSecurityLevelIds()
+      : undefined
+    const shareEligibleWhere = eligibleInfo ? buildShareEligibleWhere(eligibleInfo) : undefined
 
     const whereClause = buildUnassignedArchivedDossierWhere(
       status,
       query.search,
       scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
       scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
+      shareEligibleWhere,
     )
 
     const [rows, countRows] = await Promise.all([
@@ -1001,20 +1239,31 @@ export const ArchiveWarehouseService = {
     profile: UserWithRoles,
     dossierTypeId: string,
     statusInput?: string,
+    context: BrowseContext = "warehouse",
   ) {
     const trimmedTypeId = dossierTypeId?.trim()
     if (!trimmedTypeId) {
       throw httpError.badRequest("dossierTypeId là bắt buộc")
     }
 
-    const { scope, fondScope } = await resolveWarehouseScope(profile)
+    const { scope, fondScope } = context === "exploitation"
+      ? await resolveExploitationScope(profile)
+      : await resolveWarehouseScope(profile)
+
     if (scope.mode === "none") {
       throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này")
     }
 
-    assertDossierTypeAccess(scope, trimmedTypeId)
+    if (context !== "exploitation") {
+      assertDossierTypeAccess(scope, trimmedTypeId)
+    }
+
     const status = resolveWarehouseStatus(statusInput)
     const fondIds = resolveScopedFondIds(scope)
+    const eligibleInfo = context === "exploitation"
+      ? await loadShareEligibleSecurityLevelIds()
+      : undefined
+    const shareEligibleWhere = eligibleInfo ? buildShareEligibleWhere(eligibleInfo) : undefined
 
     if (fondIds && fondIds.length === 0) {
       return {
@@ -1034,6 +1283,7 @@ export const ArchiveWarehouseService = {
       undefined,
       fondIds,
       scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
+      shareEligibleWhere,
     )
 
     const dossierRows = await db
@@ -1070,6 +1320,7 @@ export const ArchiveWarehouseService = {
   async browseDossiersByDossierType(
     profile: UserWithRoles,
     query: BrowseArchiveWarehouseByDossierTypeQuery,
+    context: BrowseContext = "warehouse",
   ) {
     const page = Math.max(1, query.page ?? 1)
     const limit = Math.min(100, Math.max(1, query.limit ?? 20))
@@ -1080,15 +1331,25 @@ export const ArchiveWarehouseService = {
       throw httpError.badRequest("dossierTypeId là bắt buộc")
     }
 
-    const { scope, fondScope } = await resolveWarehouseScope(profile)
+    const { scope, fondScope } = context === "exploitation"
+      ? await resolveExploitationScope(profile)
+      : await resolveWarehouseScope(profile)
+
     if (scope.mode === "none") {
       throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này")
     }
 
-    assertDossierTypeAccess(scope, trimmedTypeId)
+    if (context !== "exploitation") {
+      assertDossierTypeAccess(scope, trimmedTypeId)
+    }
+
     const status = resolveWarehouseStatus(query.status)
     const year = query.year != null && !Number.isNaN(query.year) ? query.year : undefined
     const fondIds = resolveScopedFondIds(scope)
+    const eligibleInfo = context === "exploitation"
+      ? await loadShareEligibleSecurityLevelIds()
+      : undefined
+    const shareEligibleWhere = eligibleInfo ? buildShareEligibleWhere(eligibleInfo) : undefined
 
     if (fondIds && fondIds.length === 0) {
       return {
@@ -1109,6 +1370,7 @@ export const ArchiveWarehouseService = {
       year,
       fondIds,
       scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
+      shareEligibleWhere,
     )
 
     const [rows, countRows] = await Promise.all([
@@ -1318,8 +1580,11 @@ export const ArchiveWarehouseService = {
     profile: UserWithRoles,
     dossierId: string,
     accessHeaders: SecurityAccessHeaders = {},
+    context: BrowseContext = "warehouse",
   ) {
-    const { scope } = await resolveWarehouseScope(profile)
+    const { scope } = context === "exploitation"
+      ? await resolveExploitationScope(profile)
+      : await resolveWarehouseScope(profile)
 
     const [dossier] = await db
       .select({
@@ -1358,7 +1623,20 @@ export const ArchiveWarehouseService = {
       throw httpError.notFound("Hồ sơ chưa được lưu kho")
     }
 
-    assertWarehouseDossierAccess(scope, dossier)
+    const securityCache = new SecurityRequestCache()
+    securityCache.seedDossier({
+      id: dossier.id,
+      securityLevelId: dossier.securityLevelId,
+      accessPasswordEnabled: dossier.accessPasswordEnabled,
+      accessPasswordHash: dossier.accessPasswordHash ?? null,
+      passwordVersion: dossier.passwordVersion ?? 1,
+    })
+
+    if (context === "exploitation") {
+      await assertDossierShareEligible(dossier.securityLevelId, securityCache)
+    } else {
+      assertWarehouseDossierAccess(scope, dossier)
+    }
 
     const [submissionMap, docStatsMap, placementMap, effectiveRetention] = await Promise.all([
       loadLatestApprovedSubmissions([dossier.id]),
@@ -1367,13 +1645,16 @@ export const ArchiveWarehouseService = {
       resolveDossierEffectiveRetention(dossier.id),
     ])
     const submission = submissionMap.get(dossier.id)
-    assertDossierTypeAccess(
-      scope,
-      dossier.dossierTypeId ??
-        resolveDossierTypeIdFromFieldValues(submission?.fieldValues),
-    )
+    if (context !== "exploitation") {
+      assertDossierTypeAccess(
+        scope,
+        dossier.dossierTypeId ??
+          resolveDossierTypeIdFromFieldValues(submission?.fieldValues),
+      )
+    }
 
     if (
+      context !== "exploitation" &&
       scope.mode === "scoped" &&
       scope.documentTypeIds.length > 0
     ) {
@@ -1393,15 +1674,6 @@ export const ArchiveWarehouseService = {
     }
     const docStats = docStatsMap.get(dossier.id)
 
-    const securityCache = new SecurityRequestCache()
-    securityCache.seedDossier({
-      id: dossier.id,
-      securityLevelId: dossier.securityLevelId,
-      accessPasswordEnabled: dossier.accessPasswordEnabled,
-      accessPasswordHash: dossier.accessPasswordHash ?? null,
-      passwordVersion: dossier.passwordVersion ?? 1,
-    })
-
     await assertSecurityResourceAccess({
       userId: profile.id,
       resourceSecurityLevelId: dossier.securityLevelId,
@@ -1415,7 +1687,7 @@ export const ArchiveWarehouseService = {
       cache: securityCache,
     })
 
-    const fileRows = await db
+    let fileRows = await db
       .select({
         id: dossierFiles.id,
         fileName: dossierFiles.fileName,
@@ -1436,6 +1708,26 @@ export const ArchiveWarehouseService = {
       )
       .where(eq(dossierFiles.dossierId, dossier.id))
       .orderBy(dossierFiles.fileName)
+
+    if (context === "exploitation") {
+      const shareEligibleFiles = []
+      for (const file of fileRows) {
+        const effectiveLevelId = file.securityLevelId ?? dossier.securityLevelId
+        let isShareAllowed = false
+        if (!effectiveLevelId) {
+          const lowest = await getLowestActiveLevel()
+          if (lowest) {
+            isShareAllowed = await securityCache.getEffectiveBool(lowest.id, PermissionRuleKey.share)
+          }
+        } else {
+          isShareAllowed = await securityCache.getEffectiveBool(effectiveLevelId, PermissionRuleKey.share)
+        }
+        if (isShareAllowed) {
+          shareEligibleFiles.push(file)
+        }
+      }
+      fileRows = shareEligibleFiles
+    }
 
     for (const file of fileRows) {
       securityCache.seedFile({
@@ -1596,6 +1888,14 @@ export const ArchiveWarehouseService = {
       resolveWarehouseFondActions(profile, dossier.fondId),
     ])
 
+    if (context === "exploitation") {
+      actions.edit = false
+      actions.delete = false
+      actions.reupload = false
+      actions.download = false
+      actions.configureSecurity = false
+    }
+
     const {
       currentMetadataKey: _currentMetadataKey,
       ocrMetadataKey: _ocrMetadataKey,
@@ -1605,15 +1905,14 @@ export const ArchiveWarehouseService = {
     } = dossier
 
     // Tính quyền download: role dossiers.export + cấp bảo mật cho phép download
-    if (userRolesHavePermission(profile.userRoles, Permission.DOSSIERS_EXPORT)) {
+    if (context !== "exploitation" && userRolesHavePermission(profile.userRoles, Permission.DOSSIERS_EXPORT)) {
       const secLevelId = dossier.securityLevelId
       if (secLevelId) {
-        const [blocked, allowOriginal, allowWatermark] = await Promise.all([
+        const [blocked, allowDownload] = await Promise.all([
           securityCache.getEffectiveBool(secLevelId, FlagRuleKey.blockExportDownload),
-          securityCache.getEffectiveBool(secLevelId, permissionRuleKey("download_original")),
-          securityCache.getEffectiveBool(secLevelId, permissionRuleKey("download_watermark")),
+          securityCache.getEffectiveBool(secLevelId, permissionRuleKey("download")),
         ])
-        actions.download = !blocked && (allowOriginal || allowWatermark)
+        actions.download = !blocked && allowDownload
       } else {
         actions.download = true
       }
@@ -1689,25 +1988,34 @@ export const ArchiveWarehouseService = {
     profile: UserWithRoles,
     input: {
       q?: string
-      fondId?: string
+      fondId?: string | string[]
       limit?: number
       offset?: number
       groupCode?: string
       trangThaiHoSo?: string
-      dossierTypeId?: string
-      documentTypeId?: string
+      dossierTypeId?: string | string[]
+      documentTypeId?: string | string[]
       editorName?: string
       editCompletedAtFrom?: string
       editCompletedAtTo?: string
       archivedAtFrom?: string
       archivedAtTo?: string
+      searchFields?: string | string[]
     },
+    context: BrowseContext = "warehouse",
   ) {
     const q = input.q?.trim() ?? ""
     const limit = Math.min(input.limit ?? 20, 50)
     const offset = input.offset ?? 0
 
-    const { scope, fondScope } = await resolveWarehouseScope(profile)
+    const { scope, fondScope } = context === "exploitation"
+      ? await resolveExploitationScope(profile)
+      : await resolveWarehouseScope(profile)
+    const eligibleInfo = context === "exploitation"
+      ? await loadShareEligibleSecurityLevelIds()
+      : undefined
+    const shareEligibleWhere = eligibleInfo ? buildShareEligibleWhere(eligibleInfo) : undefined
+
     if (!q || scope.mode === "none") {
       return {
         items: [],
@@ -1720,8 +2028,8 @@ export const ArchiveWarehouseService = {
 
     let fondIds: string[] | undefined
     if (input.fondId) {
-      const effectiveFondId = assertFondAccess(scope, input.fondId)
-      fondIds = [effectiveFondId]
+      const fIds = Array.isArray(input.fondId) ? input.fondId : [input.fondId]
+      fondIds = fIds.map(fid => assertFondAccess(scope, fid))
     } else if (scope.mode === "scoped" || scope.mode === "fond") {
       fondIds = scope.fondIds
     }
@@ -1737,14 +2045,24 @@ export const ArchiveWarehouseService = {
     }
 
     if (
-      input.dossierTypeId?.trim() &&
+      input.dossierTypeId &&
       scope.mode === "scoped" &&
-      scope.dossierTypeIds.length > 0 &&
-      !scope.dossierTypeIds.includes(input.dossierTypeId.trim())
+      scope.dossierTypeIds.length > 0
     ) {
-      throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho")
+      const dTypeIds = Array.isArray(input.dossierTypeId) ? input.dossierTypeId : [input.dossierTypeId]
+      for (const dId of dTypeIds) {
+        if (!scope.dossierTypeIds.includes(dId.trim())) {
+          throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho")
+        }
+      }
     }
-    assertDocumentTypeFilterAccess(scope, input.documentTypeId)
+    
+    if (input.documentTypeId) {
+      const docTypeIds = Array.isArray(input.documentTypeId) ? input.documentTypeId : [input.documentTypeId]
+      for (const dId of docTypeIds) {
+        assertDocumentTypeFilterAccess(scope, dId)
+      }
+    }
 
     const result = await searchDocuments({
       q,
@@ -1770,6 +2088,7 @@ export const ArchiveWarehouseService = {
 
     const { hits, staleCount, deniedCount } = await filterDossierHitsAgainstDb(
       result.hits,
+      shareEligibleWhere,
     )
     const total = Math.max(result.total - staleCount - deniedCount, 0)
 
@@ -1809,25 +2128,34 @@ export const ArchiveWarehouseService = {
     profile: UserWithRoles,
     input: {
       q?: string
-      fondId?: string
+      fondId?: string | string[]
       limit?: number
       offset?: number
       groupCode?: string
       trangThaiHoSo?: string
-      dossierTypeId?: string
-      documentTypeId?: string
+      dossierTypeId?: string | string[]
+      documentTypeId?: string | string[]
       editorName?: string
       editCompletedAtFrom?: string
       editCompletedAtTo?: string
       archivedAtFrom?: string
       archivedAtTo?: string
+      searchFields?: string | string[]
     },
+    context: BrowseContext = "warehouse",
   ) {
     const q = input.q?.trim() ?? ""
     const limit = Math.min(input.limit ?? 20, 50)
     const offset = input.offset ?? 0
 
-    const { scope, fondScope } = await resolveWarehouseScope(profile)
+    const { scope, fondScope } = context === "exploitation"
+      ? await resolveExploitationScope(profile)
+      : await resolveWarehouseScope(profile)
+    const eligibleInfo = context === "exploitation"
+      ? await loadShareEligibleSecurityLevelIds()
+      : undefined
+    const shareEligibleWhere = eligibleInfo ? buildShareEligibleWhere(eligibleInfo) : undefined
+
     if (!q || scope.mode === "none") {
       return {
         items: [],
@@ -1840,8 +2168,8 @@ export const ArchiveWarehouseService = {
 
     let fondIds: string[] | undefined
     if (input.fondId) {
-      const effectiveFondId = assertFondAccess(scope, input.fondId)
-      fondIds = [effectiveFondId]
+      const fIds = Array.isArray(input.fondId) ? input.fondId : [input.fondId]
+      fondIds = fIds.map(fid => assertFondAccess(scope, fid))
     } else if (scope.mode === "scoped" || scope.mode === "fond") {
       fondIds = scope.fondIds
     }
@@ -1857,14 +2185,24 @@ export const ArchiveWarehouseService = {
     }
 
     if (
-      input.dossierTypeId?.trim() &&
+      input.dossierTypeId &&
       scope.mode === "scoped" &&
-      scope.dossierTypeIds.length > 0 &&
-      !scope.dossierTypeIds.includes(input.dossierTypeId.trim())
+      scope.dossierTypeIds.length > 0
     ) {
-      throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho")
+      const dTypeIds = Array.isArray(input.dossierTypeId) ? input.dossierTypeId : [input.dossierTypeId]
+      for (const dId of dTypeIds) {
+        if (!scope.dossierTypeIds.includes(dId.trim())) {
+          throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho")
+        }
+      }
     }
-    assertDocumentTypeFilterAccess(scope, input.documentTypeId)
+    
+    if (input.documentTypeId) {
+      const docTypeIds = Array.isArray(input.documentTypeId) ? input.documentTypeId : [input.documentTypeId]
+      for (const dId of docTypeIds) {
+        assertDocumentTypeFilterAccess(scope, dId)
+      }
+    }
 
     const result = await searchUnifiedDocuments({
       q,
@@ -1877,6 +2215,11 @@ export const ArchiveWarehouseService = {
       editCompletedAtTo: input.editCompletedAtTo,
       archivedAtFrom: input.archivedAtFrom,
       archivedAtTo: input.archivedAtTo,
+      searchFields: input.searchFields
+        ? Array.isArray(input.searchFields)
+          ? input.searchFields
+          : [input.searchFields]
+        : undefined,
       filters: {
         entityTypes: [DOSSIER_ENTITY_TYPE],
         dossierStatus: DossierStatus.ARCHIVED,
@@ -1888,7 +2231,7 @@ export const ArchiveWarehouseService = {
       size: limit,
     })
 
-    const { hits, staleCount } = await filterDossierHitsAgainstDb(result.hits)
+    const { hits, staleCount } = await filterDossierHitsAgainstDb(result.hits, shareEligibleWhere)
     const total = Math.max(result.total - staleCount, 0)
 
     return {
@@ -1928,9 +2271,9 @@ export const ArchiveWarehouseService = {
     input: {
       dossierName?: string
       documentName?: string
-      fondId?: string
-      dossierTypeId?: string
-      documentTypeId?: string
+      fondId?: string | string[]
+      dossierTypeId?: string | string[]
+      documentTypeId?: string | string[]
       editorName?: string
       editCompletedAtFrom?: string
       editCompletedAtTo?: string
@@ -1939,10 +2282,17 @@ export const ArchiveWarehouseService = {
       limit?: number
       offset?: number
     },
+    context: BrowseContext = "warehouse",
   ) {
     const limit = Math.min(input.limit ?? 20, 50)
     const offset = input.offset ?? 0
-    const { scope, fondScope } = await resolveWarehouseScope(profile)
+    const { scope, fondScope } = context === "exploitation"
+      ? await resolveExploitationScope(profile)
+      : await resolveWarehouseScope(profile)
+    const eligibleInfo = context === "exploitation"
+      ? await loadShareEligibleSecurityLevelIds()
+      : undefined
+    const shareEligibleWhere = eligibleInfo ? buildShareEligibleWhere(eligibleInfo) : undefined
 
     if (scope.mode === "none") {
       return {
@@ -1957,14 +2307,14 @@ export const ArchiveWarehouseService = {
     const hasCriteria = Boolean(
       input.dossierName?.trim() ||
         input.documentName?.trim() ||
-        input.dossierTypeId?.trim() ||
-        input.documentTypeId?.trim() ||
+        (Array.isArray(input.dossierTypeId) ? input.dossierTypeId.length > 0 : input.dossierTypeId?.trim()) ||
+        (Array.isArray(input.documentTypeId) ? input.documentTypeId.length > 0 : input.documentTypeId?.trim()) ||
         input.editorName?.trim() ||
         input.editCompletedAtFrom?.trim() ||
         input.editCompletedAtTo?.trim() ||
         input.archivedAtFrom?.trim() ||
         input.archivedAtTo?.trim() ||
-        input.fondId?.trim(),
+        (Array.isArray(input.fondId) ? input.fondId.length > 0 : input.fondId?.trim()),
     )
 
     if (!hasCriteria) {
@@ -1978,9 +2328,9 @@ export const ArchiveWarehouseService = {
     }
 
     let fondIds: string[] | undefined
-    if (input.fondId?.trim()) {
-      const effectiveFondId = assertFondAccess(scope, input.fondId.trim())
-      fondIds = [effectiveFondId]
+    if (input.fondId) {
+      const fIds = Array.isArray(input.fondId) ? input.fondId : [input.fondId]
+      fondIds = fIds.map(fid => assertFondAccess(scope, fid.trim()))
     } else if (scope.mode === "scoped" || scope.mode === "fond") {
       fondIds = scope.fondIds
     }
@@ -1996,14 +2346,24 @@ export const ArchiveWarehouseService = {
     }
 
     if (
-      input.dossierTypeId?.trim() &&
+      input.dossierTypeId &&
       scope.mode === "scoped" &&
-      scope.dossierTypeIds.length > 0 &&
-      !scope.dossierTypeIds.includes(input.dossierTypeId.trim())
+      scope.dossierTypeIds.length > 0
     ) {
-      throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho")
+      const dTypeIds = Array.isArray(input.dossierTypeId) ? input.dossierTypeId : [input.dossierTypeId]
+      for (const dId of dTypeIds) {
+        if (!scope.dossierTypeIds.includes(dId.trim())) {
+          throw httpError.forbidden("Bạn không có quyền truy cập loại hồ sơ này trong kho")
+        }
+      }
     }
-    assertDocumentTypeFilterAccess(scope, input.documentTypeId)
+    
+    if (input.documentTypeId) {
+      const docTypeIds = Array.isArray(input.documentTypeId) ? input.documentTypeId : [input.documentTypeId]
+      for (const dId of docTypeIds) {
+        assertDocumentTypeFilterAccess(scope, dId)
+      }
+    }
 
     const result = await searchMetadataDocuments({
       dossierName: input.dossierName,
@@ -2028,6 +2388,7 @@ export const ArchiveWarehouseService = {
 
     const { hits, staleCount, deniedCount } = await filterDossierHitsAgainstDb(
       result.hits,
+      shareEligibleWhere,
     )
     const total = Math.max(result.total - staleCount - deniedCount, 0)
 
@@ -2061,14 +2422,19 @@ export const ArchiveWarehouseService = {
     }
   },
 
-  async listDossierTypes(profile: UserWithRoles) {
-    const { scope } = await resolveWarehouseScope(profile)
+  async listDossierTypes(profile: UserWithRoles, context: BrowseContext = "warehouse") {
+    const { scope } = context === "exploitation"
+      ? await resolveExploitationScope(profile)
+      : await resolveWarehouseScope(profile)
     if (scope.mode === "none") {
       return { items: [] as Array<{ id: string; name: string; dossierCount: number }> }
     }
 
-    // Dropdown: danh mục loại hồ sơ đang hoạt động (giống loại tài liệu).
-    // Kết quả lọc vẫn qua ACL + dossierTypeScopeCondition khi search.
+    const eligibleInfo = context === "exploitation"
+      ? await loadShareEligibleSecurityLevelIds()
+      : undefined
+    const shareEligibleWhere = eligibleInfo ? buildShareEligibleWhere(eligibleInfo) : undefined
+
     let rows: Array<{ id: string; name: string }>
     if (scope.mode === "scoped" && scope.dossierTypeIds.length > 0) {
       rows = await db
@@ -2096,7 +2462,7 @@ export const ArchiveWarehouseService = {
     const counts = await Promise.all(
       rows.map(async (row) => ({
         id: row.id,
-        count: await loadArchivedDossierCountForType(scope, row.id),
+        count: await loadArchivedDossierCountForType(scope, row.id, shareEligibleWhere),
       })),
     )
     const countMap = new Map(counts.map((entry) => [entry.id, entry.count]))
@@ -2109,14 +2475,19 @@ export const ArchiveWarehouseService = {
     }
   },
 
-  async listDocumentTypes(profile: UserWithRoles) {
-    const { scope } = await resolveWarehouseScope(profile)
+  async listDocumentTypes(profile: UserWithRoles, context: BrowseContext = "warehouse") {
+    const { scope } = context === "exploitation"
+      ? await resolveExploitationScope(profile)
+      : await resolveWarehouseScope(profile)
     if (scope.mode === "none") {
       return { items: [] as Array<{ id: string; name: string; documentCount: number }> }
     }
 
-    // Dropdown: toàn bộ catalog (lọc kết quả vẫn qua ACL khi search).
-    // Khi scoped type-only thì chỉ trả loại được gán.
+    const eligibleInfo = context === "exploitation"
+      ? await loadShareEligibleSecurityLevelIds()
+      : undefined
+    const shareEligibleWhere = eligibleInfo ? buildShareEligibleWhere(eligibleInfo) : undefined
+
     let rows: Array<{ id: string; name: string }>
     if (scope.mode === "scoped" && scope.documentTypeIds.length > 0) {
       rows = await db
@@ -2144,6 +2515,7 @@ export const ArchiveWarehouseService = {
     const documentCountsByType = await loadArchivedDocumentCountsByDocumentType(
       scope,
       rows.map((row) => row.id),
+      shareEligibleWhere,
     )
 
     return {
@@ -2491,19 +2863,67 @@ export const ArchiveWarehouseService = {
       disposition?: "inline" | "attachment"
     },
     accessHeaders: SecurityAccessHeaders = {},
+    context: BrowseContext = "warehouse",
   ) {
-    const { dossier, file } = await loadArchivedFileForWarehouse(
-      profile,
-      input.dossierId,
-      input.fileId,
-      Permission.ARCHIVE_WAREHOUSE_READ,
-    )
+    if (context === "exploitation") {
+      await resolveExploitationScope(profile)
+    }
+
+    const [dossier] = await db
+      .select({
+        id: dossiers.id,
+        name: dossiers.name,
+        folderPath: dossiers.folderPath,
+        status: dossiers.status,
+        projectCode: dossiers.projectCode,
+        fondId: dossiers.fondId,
+        dossierTypeId: dossiers.dossierTypeId,
+        securityLevelId: dossiers.securityLevelId,
+      })
+      .from(dossiers)
+      .where(activeDossierWhere(eq(dossiers.id, input.dossierId)))
+      .limit(1)
+
+    if (!dossier || !(WAREHOUSE_DOSSIER_STATUSES as ReadonlyArray<string>).includes(dossier.status)) {
+      throw httpError.notFound("Không tìm thấy hồ sơ")
+    }
+
+    if (context !== "exploitation") {
+      const scope = (await resolveWarehouseScope(profile)).scope
+      assertWarehouseDossierAccess(scope, dossier)
+      assertDossierTypeAccess(scope, dossier.dossierTypeId)
+    }
+
+    const [file] = await db
+      .select({
+        id: dossierFiles.id,
+        fileName: dossierFiles.fileName,
+        filePath: dossierFiles.filePath,
+        fileSizeKb: dossierFiles.fileSizeKb,
+        dossierId: dossierFiles.dossierId,
+        securityLevelId: dossierFiles.securityLevelId,
+      })
+      .from(dossierFiles)
+      .where(and(
+        eq(dossierFiles.id, input.fileId),
+        eq(dossierFiles.dossierId, dossier.id),
+      ))
+      .limit(1)
+
+    if (!file) {
+      throw httpError.notFound("Không tìm thấy văn bản trong hồ sơ")
+    }
+
+    if (context === "exploitation") {
+      await assertDossierShareEligible(dossier.securityLevelId)
+      await assertDossierShareEligible(file.securityLevelId ?? dossier.securityLevelId)
+    }
 
     const effectiveSecurityLevelId =
       file.securityLevelId ?? dossier.securityLevelId
     const disposition = input.disposition ?? "inline"
     const permissionDefKey =
-      disposition === "attachment" ? "download_original" : "view"
+      disposition === "attachment" ? "download" : "view"
 
     await assertSecurityResourceAccess({
       userId: profile.id,

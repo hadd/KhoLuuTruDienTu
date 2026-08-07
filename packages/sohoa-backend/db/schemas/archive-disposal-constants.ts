@@ -99,6 +99,21 @@ export const DISPOSAL_COUNCIL_REVIEW_RESULT_VALUES = Object.values(
     DisposalCouncilReviewResult,
 ) as [DisposalCouncilReviewResultType, DisposalCouncilReviewResultType];
 
+export const DisposalCouncilEvaluationDecision = {
+    DESTROY: "DESTROY",
+    KEEP: "KEEP",
+} as const;
+
+export type DisposalCouncilEvaluationDecisionType =
+    (typeof DisposalCouncilEvaluationDecision)[keyof typeof DisposalCouncilEvaluationDecision];
+
+export const DISPOSAL_COUNCIL_EVALUATION_DECISION_VALUES = Object.values(
+    DisposalCouncilEvaluationDecision,
+) as [
+    DisposalCouncilEvaluationDecisionType,
+    DisposalCouncilEvaluationDecisionType,
+];
+
 export const MIN_DISPOSAL_COUNCIL_MEMBERS = 5;
 
 export const MANDATORY_DISPOSAL_COUNCIL_REPRESENTATION_TYPES = [

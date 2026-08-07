@@ -90,3 +90,24 @@ export const ELECTRONIC_ITEM_KINDS = [
     ArchiveBorrowItemKind.FILE,
     ArchiveBorrowItemKind.DOSSIER,
 ] as const;
+
+export const ArchiveBorrowAnnotationKind = {
+    BOOKMARK: "BOOKMARK",
+    /** @deprecated Kept for Postgres enum stability; app no longer creates/returns HIGHLIGHT. */
+    HIGHLIGHT: "HIGHLIGHT",
+    NOTE: "NOTE",
+} as const;
+
+export type ArchiveBorrowAnnotationKindType =
+    (typeof ArchiveBorrowAnnotationKind)[keyof typeof ArchiveBorrowAnnotationKind];
+
+export const ARCHIVE_BORROW_ANNOTATION_KIND_VALUES = Object.values(
+    ArchiveBorrowAnnotationKind,
+) as [
+    ArchiveBorrowAnnotationKindType,
+    ArchiveBorrowAnnotationKindType,
+    ArchiveBorrowAnnotationKindType,
+];
+
+/** Bbox as [x0, y0, x1, y1] in PDF/source coordinates. */
+export type ArchiveBorrowAnnotationBbox = [number, number, number, number];

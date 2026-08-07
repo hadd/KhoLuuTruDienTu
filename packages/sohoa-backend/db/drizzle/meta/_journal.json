@@ -323,6 +323,41 @@
       "when": 1785824087663,
       "tag": "0045_milky_makkari",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1785900205726,
+      "tag": "0046_silent_darkhawk",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1786311000000,
+      "tag": "0047_metadata_extract_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1785990531518,
+      "tag": "0048_alter_position_role_to_varchar",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1786072923619,
+      "tag": "0049_rare_madrox",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1786080000000,
+      "tag": "0050_council_evaluation_us",
+      "breakpoints": true
     }
   ]
 }

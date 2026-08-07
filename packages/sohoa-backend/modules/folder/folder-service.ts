@@ -21,7 +21,7 @@ import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { folders } from "../../db/schemas/folder.ts";
-import { AssignmentStatus } from "../../db/schemas/workflow-constants.ts";
+import { AssignmentStatus, DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts";
 import {
   findWorkableEditorAssignment,
@@ -448,29 +448,36 @@ async function listAllFirstSubfolders(
       }
     }
 
-    const children = subfolders.map((folder) => {
-      const totalSizeKb = sizeKbByFolderId.get(folder.id) ?? 0;
-      const isAssigned = isFolderSubtreeFullyAssigned(
-        folder.id,
-        childrenByParentId,
-        dossiersByFolderId,
-        dossierIdsWithAssignments,
-        descendantCache,
-      );
-      const directDossier = directDossierByFolderId.get(folder.id);
+    const children = subfolders
+      .map((folder) => {
+        const totalSizeKb = sizeKbByFolderId.get(folder.id) ?? 0;
+        const isAssigned = isFolderSubtreeFullyAssigned(
+          folder.id,
+          childrenByParentId,
+          dossiersByFolderId,
+          dossierIdsWithAssignments,
+          descendantCache,
+        );
+        const directDossier = directDossierByFolderId.get(folder.id);
 
-      if (!directDossier) {
-        return { ...folder, totalSizeKb, isAssigned };
-      }
+        if (!directDossier) {
+          return { ...folder, totalSizeKb, isAssigned };
+        }
 
-      return {
-        ...folder,
-        dossierId: directDossier.id,
-        status: directDossier.status,
-        isAssigned,
-        totalSizeKb,
-      };
-    });
+        // Hồ sơ đã lưu kho không còn hiện trên cây số hóa / quản lý dữ liệu
+        if (directDossier.status === DossierStatus.ARCHIVED) {
+          return null;
+        }
+
+        return {
+          ...folder,
+          dossierId: directDossier.id,
+          status: directDossier.status,
+          isAssigned,
+          totalSizeKb,
+        };
+      })
+      .filter((child): child is NonNullable<typeof child> => child != null);
 
     return {
       nodeType: FolderBrowseNodeType.FOLDER,
@@ -485,6 +492,7 @@ async function listAllFirstSubfolders(
     where: activeDossierWhere(
       eq(dossiers.folderId, folderId),
       dossierBrowseWhere(scope),
+      ne(dossiers.status, DossierStatus.ARCHIVED),
     ),
     orderBy: asc(dossiers.name),
   });
@@ -627,6 +635,7 @@ async function listDossierFiles(
               fileUrl: "",
               searchablePdfPath: null,
               searchablePdfUrl: null,
+              signedFileUrl: null,
             };
           }
           throw error;
@@ -634,12 +643,17 @@ async function listDossierFiles(
       }
 
       const searchablePdfPath = toSearchablePdfKey(file.filePath);
-      const [fileUrl, searchablePdfUrl] = await Promise.all([
+      const [fileUrl, searchablePdfUrl, signedFileUrl] = await Promise.all([
         buildLinkGet(file.filePath, {
           expirySeconds: isArchived ? ACCESS_TTL_SEC : undefined,
         }),
         searchablePdfPath
           ? buildLinkGet(searchablePdfPath, {
+            expirySeconds: isArchived ? ACCESS_TTL_SEC : undefined,
+          })
+          : Promise.resolve(null),
+        file.signedFilePath
+          ? buildLinkGet(file.signedFilePath, {
             expirySeconds: isArchived ? ACCESS_TTL_SEC : undefined,
           })
           : Promise.resolve(null),
@@ -650,6 +664,7 @@ async function listDossierFiles(
         fileUrl: fileUrl ?? "",
         searchablePdfPath,
         searchablePdfUrl: searchablePdfUrl ?? null,
+        signedFileUrl: signedFileUrl ?? null,
       };
     }),
   );

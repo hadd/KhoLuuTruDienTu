@@ -69,14 +69,15 @@ export type SearchRequest = {
   groupCode?: string;
   trangThaiHoSo?: string;
   /** Optional AND filters alongside OCR full-text. */
-  dossierTypeId?: string;
-  documentTypeId?: string;
+  dossierTypeId?: string | string[];
+  documentTypeId?: string | string[];
   editorName?: string;
   editCompletedAtFrom?: string;
   editCompletedAtTo?: string;
   archivedAtFrom?: string;
   archivedAtTo?: string;
   filters?: SearchFilter;
+  searchFields?: string[];
   from?: number;
   size?: number;
 };
@@ -86,8 +87,8 @@ export type MetadataSearchRequest = {
   dossierName?: string;
   documentName?: string;
   fondIds?: string[];
-  dossierTypeId?: string;
-  documentTypeId?: string;
+  dossierTypeId?: string | string[];
+  documentTypeId?: string | string[];
   editorName?: string;
   editCompletedAtFrom?: string;
   editCompletedAtTo?: string;
