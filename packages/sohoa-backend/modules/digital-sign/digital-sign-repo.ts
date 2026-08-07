@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
@@ -6,12 +6,10 @@ import { digitalSignatures } from "../../db/schemas/digital-signature.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 
+/** PDF files eligible for first-time sign or re-sign (includes already-signed). */
 export async function findSignableFilesByDossierId(dossierId: string) {
     return await db.query.dossierFiles.findMany({
-        where: and(
-            eq(dossierFiles.dossierId, dossierId),
-            isNull(dossierFiles.signedFilePath),
-        ),
+        where: eq(dossierFiles.dossierId, dossierId),
         orderBy: asc(dossierFiles.fileName),
     });
 }
@@ -20,10 +18,7 @@ export async function findSignableFilesByDossierIds(dossierIds: string[]) {
     if (!dossierIds.length) return [];
 
     return await db.query.dossierFiles.findMany({
-        where: and(
-            inArray(dossierFiles.dossierId, dossierIds),
-            isNull(dossierFiles.signedFilePath),
-        ),
+        where: inArray(dossierFiles.dossierId, dossierIds),
         orderBy: asc(dossierFiles.fileName),
     });
 }
