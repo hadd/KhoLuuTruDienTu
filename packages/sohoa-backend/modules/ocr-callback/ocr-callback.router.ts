@@ -6,7 +6,8 @@ const ocrCallbackBodySchema = t.Object({
     ho_so_id: t.String({ minLength: 1, description: "Folder name / hồ sơ ID từ MinIO" }),
     output_path: t.String({
         minLength: 1,
-        description: 'S3 key của file metadata tổng hợp, dạng "processed/<root>/<ho_so_id>/<ho_so_id>.json"',
+        description:
+            'S3 key metadata tổng hợp: "processed/.../<ho_so_id>.json" hoặc "tt05_metadata/.../<ho_so_id>.json"',
     }),
 });
 

@@ -163,3 +163,16 @@ Legacy one-off migrations và tiện ích ad-hoc: `scripts/custom/`. Script **m�
 ---
 
 **Last Updated**: April 2026
+
+## Xuất Phụ lục II/III (đề xuất hủy)
+
+- **Mẫu gốc**: `assets/Phu luc kem Thong tu 06.2025.TT-BNV.docx`
+- **Tạo lại template in** (đã bỏ «Hướng dẫn cách ghi»):
+
+  ```bash
+  cd packages/sohoa-backend
+  deno run --allow-read --allow-write scripts/build-disposal-appendix-templates.ts
+  ```
+
+- **PDF**: backend gọi LibreOffice (`soffice --headless`). Cài [LibreOffice](https://www.libreoffice.org/) trên máy chạy API hoặc đặt biến `LIBREOFFICE_PATH` (Windows: `.../program/soffice.exe`).
+- **Thông tư hiển thị**: tuỳ chọn `DISPOSAL_APPENDIX_CIRCULAR_LABEL` (mặc định `06/2025/TT-BNV ...`).

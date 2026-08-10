@@ -20,11 +20,10 @@ import {
 import { getMetadataExtractMode } from "./metadata-extract-settings-service.ts";
 
 /**
- * TEMP (2026-08): tắt publish Kafka / cập nhật status từ Event Router + POST /metadata/extract
- * để không đụng luồng upload → OCR → metadata-completed cũ.
- * Đặt true khi sẵn sàng bật lại tích hợp.
+ * Feature flag: Event Router (merge-finished-wait) + POST /metadata/extract.
+ * Set false to fall back to legacy metadata-completed-only flow.
  */
-export const ENABLE_METADATA_EXTRACT_ROUTER = false;
+export const ENABLE_METADATA_EXTRACT_ROUTER = true;
 
 export type MetadataExtractKafkaPayload = {
     ho_so_id: string;

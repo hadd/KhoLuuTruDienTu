@@ -1,14 +1,7 @@
 import { Kafka, logLevel } from "kafkajs";
 import { env } from "../env.ts";
 import { handleOcrCallback } from "../modules/ocr-callback/ocr-callback-service.ts";
-// TEMP: tắt Event Router metadata extract — không ảnh hưởng luồng upload/OCR cũ
-// import { handleMergeFinishedWait } from "../modules/metadata-extract/metadata-extract-router-service.ts";
-
-/**
- * TEMP (2026-08): chỉ giữ consumer metadata-completed như trước.
- * Bật lại khi tích hợp merge-finished-wait / tt05-metadata-completed.
- */
-const ENABLE_METADATA_EXTRACT_KAFKA_ROUTER = false;
+import { handleMergeFinishedWait } from "../modules/metadata-extract/metadata-extract-router-service.ts";
 
 function createKafkaInstance() {
     return new Kafka({
@@ -36,6 +29,11 @@ function asNonEmptyString(value: unknown): string | null {
     return trimmed.length > 0 ? trimmed : null;
 }
 
+/** Prefer ho_so_id; merge worker may send document_id instead. */
+function resolveHoSoId(payload: Record<string, unknown>): string | null {
+    return asNonEmptyString(payload.ho_so_id) ?? asNonEmptyString(payload.document_id);
+}
+
 /** Normalize completed-callback payloads (legacy output_path or json_path). */
 function resolveCompletedOutputPath(payload: Record<string, unknown>): string | null {
     return asNonEmptyString(payload.output_path) ?? asNonEmptyString(payload.json_path);
@@ -45,7 +43,7 @@ async function handleCompletedCallback(
     topic: string,
     payload: Record<string, unknown>,
 ): Promise<void> {
-    const hoSoId = asNonEmptyString(payload.ho_so_id);
+    const hoSoId = resolveHoSoId(payload);
     const outputPath = resolveCompletedOutputPath(payload);
 
     if (!hoSoId || !outputPath) {
@@ -71,36 +69,38 @@ async function handleCompletedCallback(
     }
 }
 
-// TEMP: tắt handler merge-finished-wait
-// async function handleMergeFinished(
-//     topic: string,
-//     payload: Record<string, unknown>,
-// ): Promise<void> {
-//     const hoSoId = asNonEmptyString(payload.ho_so_id);
-//     const jsonPath = asNonEmptyString(payload.json_path);
-//
-//     if (!hoSoId) {
-//         console.warn(`[Kafka] Message missing ho_so_id on ${topic}:`, payload);
-//         return;
-//     }
-//
-//     try {
-//         const result = await handleMergeFinishedWait({
-//             ho_so_id: hoSoId,
-//             json_path: jsonPath ?? undefined,
-//         });
-//         console.info(
-//             `[Kafka] Merge-finished routed — dossierId: ${result.dossierId}, mode: ${result.mode}, topics: ${result.topics.join(",") || "(none)"}`,
-//         );
-//     } catch (err: unknown) {
-//         const message = err instanceof Error ? err.message : String(err);
-//         if (message.includes("not found")) {
-//             console.warn(`[Kafka] Dossier not found for ho_so_id: ${hoSoId}`);
-//         } else {
-//             console.error(`[Kafka] Failed to route merge-finished-wait:`, err);
-//         }
-//     }
-// }
+async function handleMergeFinished(
+    topic: string,
+    payload: Record<string, unknown>,
+): Promise<void> {
+    const hoSoId = resolveHoSoId(payload);
+    const jsonPath = asNonEmptyString(payload.json_path);
+
+    if (!hoSoId) {
+        console.warn(
+            `[Kafka] Message missing ho_so_id/document_id on ${topic}:`,
+            payload,
+        );
+        return;
+    }
+
+    try {
+        const result = await handleMergeFinishedWait({
+            ho_so_id: hoSoId,
+            json_path: jsonPath ?? undefined,
+        });
+        console.info(
+            `[Kafka] Merge-finished routed — dossierId: ${result.dossierId}, mode: ${result.mode}, topics: ${result.topics.join(",") || "(none)"}`,
+        );
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes("not found")) {
+            console.warn(`[Kafka] Dossier not found for ho_so_id: ${hoSoId}`);
+        } else {
+            console.error(`[Kafka] Failed to route merge-finished-wait:`, err);
+        }
+    }
+}
 
 export async function startKafkaConsumer(): Promise<void> {
     console.info(`[Kafka] Connecting to broker: ${env.KAFKA_BROKER}`);
@@ -110,23 +110,15 @@ export async function startKafkaConsumer(): Promise<void> {
     await consumer.connect();
     console.info(`[Kafka] Connected — group: ${env.KAFKA_GROUP_ID}`);
 
-    // Chỉ subscribe metadata-completed (luồng cũ). Topics mới tạm tắt.
-    const topics = [env.KAFKA_METADATA_TOPIC];
-    // TEMP: bật lại khi sẵn sàng tích hợp
-    // if (ENABLE_METADATA_EXTRACT_KAFKA_ROUTER) {
-    //     topics.push(env.KAFKA_TT05_METADATA_TOPIC, env.KAFKA_MERGE_FINISHED_WAIT_TOPIC);
-    // }
-    void ENABLE_METADATA_EXTRACT_KAFKA_ROUTER;
+    const topics = [
+        env.KAFKA_METADATA_TOPIC,
+        env.KAFKA_TT05_METADATA_TOPIC,
+        env.KAFKA_MERGE_FINISHED_WAIT_TOPIC,
+    ];
 
     for (const topic of topics) {
         await consumer.subscribe({ topic, fromBeginning: false });
         console.info(`[Kafka] Subscribed to topic: ${topic}`);
-    }
-
-    if (!ENABLE_METADATA_EXTRACT_KAFKA_ROUTER) {
-        console.info(
-            "[Kafka] Metadata extract Event Router temporarily disabled (legacy metadata-completed only)",
-        );
     }
 
     await consumer.run({
@@ -141,18 +133,15 @@ export async function startKafkaConsumer(): Promise<void> {
             const payload = parseJsonMessage(raw);
             if (!payload) return;
 
-            // TEMP: tắt route merge-finished-wait
-            // if (topic === env.KAFKA_MERGE_FINISHED_WAIT_TOPIC) {
-            //     await handleMergeFinished(topic, payload);
-            //     return;
-            // }
+            if (topic === env.KAFKA_MERGE_FINISHED_WAIT_TOPIC) {
+                await handleMergeFinished(topic, payload);
+                return;
+            }
 
-            // TEMP: chỉ xử lý metadata-completed; tt05-metadata-completed cũng tắt
-            // if (
-            //     topic === env.KAFKA_METADATA_TOPIC ||
-            //     topic === env.KAFKA_TT05_METADATA_TOPIC
-            // ) {
-            if (topic === env.KAFKA_METADATA_TOPIC) {
+            if (
+                topic === env.KAFKA_METADATA_TOPIC ||
+                topic === env.KAFKA_TT05_METADATA_TOPIC
+            ) {
                 await handleCompletedCallback(topic, payload);
                 return;
             }
