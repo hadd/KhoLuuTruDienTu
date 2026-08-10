@@ -84,10 +84,12 @@ export const archiveDataHubSearchSchema = archiveWarehouseIndexSearchSchema.exte
     .catch(undefined),
   disposalEntityKind: z.enum(['dossier', 'document']).optional().catch(undefined),
   disposalCatalogId: z.string().uuid().optional().catch(undefined),
+  /** Chỉ set khi bấm "Chọn từ hết hạn/trùng lặp" — mục tiêu thêm vào danh mục soạn thảo. */
+  disposalAppendCatalogId: z.string().uuid().optional().catch(undefined),
   disposalCouncilId: z.string().uuid().optional().catch(undefined),
   pickerMode: z.coerce.boolean().optional().catch(undefined),
   disposalInventoryId: z.string().uuid().optional().catch(undefined),
-  disposalRetentionPeriodId: z.string().uuid().optional().catch(undefined),
+  disposalRetentionPeriodId: z.string().min(1).optional().catch(undefined),
   physicalItemId: z.string().uuid().optional().catch(undefined),
   disposalDateFrom: z.string().optional().catch(undefined),
   disposalDateTo: z.string().optional().catch(undefined),

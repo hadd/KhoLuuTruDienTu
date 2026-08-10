@@ -63,6 +63,8 @@ import { translateError } from '@/lib/utils/translate-error'
 interface WarehouseManagementTabProps {
   rootId: string
   selectedParentId?: string
+  focusDossierId?: string
+  onClearFocusDossier?: () => void
   onSelectParent: (parentId: string) => void
 }
 
@@ -456,6 +458,8 @@ function getMaxCapacity(
 export function WarehouseManagementTab({
   rootId,
   selectedParentId,
+  focusDossierId,
+  onClearFocusDossier,
   onSelectParent,
 }: WarehouseManagementTabProps) {
   const { t } = useTranslation('physical-warehouse')
@@ -578,6 +582,31 @@ export function WarehouseManagementTab({
     enabled: isBottomSelected && Boolean(parentId) && parentId !== rootId,
     staleTime: 15_000,
   })
+
+  const focusRowId = focusDossierId
+    ? `physical-warehouse-focus-${focusDossierId}`
+    : undefined
+
+  useEffect(() => {
+    if (!focusDossierId || placementsQuery.isPending) return
+    const hasRow = placementsQuery.data?.some(
+      (row) => row.dossierId === focusDossierId,
+    )
+    if (!hasRow || !focusRowId) return
+    document
+      .getElementById(focusRowId)
+      ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    const timer = window.setTimeout(() => {
+      onClearFocusDossier?.()
+    }, 4000)
+    return () => window.clearTimeout(timer)
+  }, [
+    focusDossierId,
+    focusRowId,
+    placementsQuery.data,
+    placementsQuery.isPending,
+    onClearFocusDossier,
+  ])
 
   const usedInBox =
     placementsQuery.data?.reduce((sum, row) => sum + (row.units ?? 1), 0) ??
@@ -1162,7 +1191,18 @@ export function WarehouseManagementTab({
                     </TableRow>
                   ) : (
                     (placementsQuery.data ?? []).map((row) => (
-                      <TableRow key={row.id}>
+                      <TableRow
+                        key={row.id}
+                        id={
+                          row.dossierId === focusDossierId
+                            ? focusRowId
+                            : undefined
+                        }
+                        className={cn(
+                          row.dossierId === focusDossierId &&
+                            'bg-primary/10 ring-2 ring-primary ring-inset',
+                        )}
+                      >
                         <TableCell className="font-medium">
                           {row.dossierName}
                         </TableCell>

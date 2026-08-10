@@ -12,14 +12,27 @@ import { Card } from '@/components/ui/card'
 import { transferToDisposalProposal } from '@/features/archive-disposal/api/archiveDisposalClient'
 import { ArchiveDisposalCandidateFilters } from '@/features/archive-disposal/components/ArchiveDisposalCandidateFilters'
 import { DisposalCandidatesTable } from '@/features/archive-disposal/components/DisposalCandidatesTable'
+import {
+  isAppendToDisposalCatalog,
+  notifyDisposalTransferResult,
+} from '@/features/archive-disposal/lib/disposalTransferNotifications'
 import { DisposalWorkflowConfigSection } from '@/features/archive-disposal-council/components/DisposalWorkflowConfigSection'
 import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
 import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
+import {
+  canSelectItemFond,
+  collectSelectableKeysForFond,
+  resolveSelectionFondIdFromGroups,
+  selectedItemsShareOneFond,
+} from '@/features/archive-disposal/lib/disposalCatalogFondSelection'
+import { isExpiryAppendToCatalogMode } from '@/features/archive-disposal/lib/disposalExpiryPickerMode'
 import { buildDisposalCandidateListParams } from '@/features/archive-disposal/lib/disposalCandidateParams'
 import {
   disposalCandidatesQueryKeyPrefix,
   disposalCandidatesQueryOptions,
+  disposalCatalogDetailQueryOptions,
+  disposalCatalogsQueryOptions,
 } from '@/features/archive-disposal/queries'
 import type {
   DisposalCandidateGroupT,
@@ -63,12 +76,27 @@ function collectSelectedItems(
   return items
 }
 
+function findCandidateItem(
+  groups: Array<DisposalCandidateGroupT>,
+  key: string,
+): DisposalCandidateItemT | null {
+  for (const group of groups) {
+    if (group.dossierItem && itemKey(group.dossierItem) === key) {
+      return group.dossierItem
+    }
+    for (const document of group.documentItems) {
+      if (itemKey(document) === key) return document
+    }
+  }
+  return null
+}
+
 export function ArchiveExpiryDuplicatePage() {
   const { t, i18n } = useTranslation('archive-disposal')
   const search = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
   const queryClient = useQueryClient()
-  const { canCreateDisposal } = useArchiveDisposalAccess()
+  const { canCreateDisposal, canUpdateDisposal } = useArchiveDisposalAccess()
   const { canDestroyDisposal } = useDisposalCouncilAccess()
   const { data: disposalSettings, isPending: isSettingsPending } = useQuery(
     disposalSettingsQueryOptions(),
@@ -84,6 +112,42 @@ export function ArchiveExpiryDuplicatePage() {
 
   const [inputValue, setInputValue] = useState(q)
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set())
+
+  const appendCatalogId = search.disposalAppendCatalogId ?? null
+
+  const { data: appendCatalogDetail } = useQuery({
+    ...disposalCatalogDetailQueryOptions(appendCatalogId),
+    enabled: Boolean(appendCatalogId),
+  })
+  const { data: catalogList } = useQuery({
+    ...disposalCatalogsQueryOptions({ page: 1, limit: 100 }),
+    enabled:
+      Boolean(appendCatalogId) &&
+      appendCatalogDetail?.catalog.status === 'DRAFT' &&
+      !appendCatalogDetail?.catalog.name,
+  })
+
+  const appendMode = isExpiryAppendToCatalogMode({
+    disposalAppendCatalogId: appendCatalogId,
+    catalogStatus: appendCatalogDetail?.catalog.status ?? null,
+    councilReviewEnabled,
+    canUpdateDisposal,
+  })
+
+  const appendCatalogName =
+    appendCatalogDetail?.catalog.name ??
+    catalogList?.items.find((c) => c.id === appendCatalogId)?.name ??
+    ''
+
+  const searchFondFromUrl = (() => {
+    const raw = search.searchFondId
+    if (Array.isArray(raw)) return raw[0]?.trim() || null
+    return raw?.trim() || null
+  })()
+
+  const lockedFondId = appendMode
+    ? appendCatalogDetail?.catalogFondId?.trim() || searchFondFromUrl || null
+    : null
 
   const listParams = useMemo(
     () => buildDisposalCandidateListParams(search),
@@ -106,20 +170,34 @@ export function ArchiveExpiryDuplicatePage() {
   const totalPages = data?.totalPages ?? 1
   const safePage = Math.min(Math.max(page, 1), totalPages)
   const selectedCount = selectedKeys.size
+  const selectionAnchorFondId = useMemo(
+    () => resolveSelectionFondIdFromGroups(groups, selectedKeys, itemKey),
+    [groups, selectedKeys],
+  )
 
   const transferMutation = useMutation({
     mutationFn: transferToDisposalProposal,
-    onSuccess: (result) => {
-      toast.success(t('disposal.transferSuccess'))
+    onSuccess: (result, variables) => {
+      notifyDisposalTransferResult(result, {
+        appendToCatalog: isAppendToDisposalCatalog(variables.catalogId),
+        t,
+      })
       setSelectedKeys(new Set())
       void queryClient.invalidateQueries({ queryKey: disposalCandidatesQueryKeyPrefix })
+      if (appendMode && appendCatalogId) {
+        void queryClient.invalidateQueries({
+          queryKey: ['archive-disposal', 'catalog', appendCatalogId],
+        })
+      }
       void navigate({
         search: (prev) => ({
           ...prev,
           tab: 'expiryReview',
           disposalView: 'proposal',
-          disposalCatalogId: result.catalogId,
+          disposalCatalogId: appendCatalogId ?? result.catalogId,
+          disposalAppendCatalogId: undefined,
           page: 1,
+          pickerMode: undefined,
         }),
       })
     },
@@ -129,7 +207,27 @@ export function ArchiveExpiryDuplicatePage() {
   })
 
   function toggleAll(checked: boolean, keys: Array<string>) {
-    setSelectedKeys(checked ? new Set(keys) : new Set())
+    if (!checked) {
+      setSelectedKeys(new Set())
+      return
+    }
+    const anchor = selectionAnchorFondId ?? lockedFondId
+    if (anchor) {
+      setSelectedKeys(
+        new Set(collectSelectableKeysForFond(groups, itemKey, anchor, 'dossier')),
+      )
+      return
+    }
+    const firstKey = keys[0]
+    const firstItem = firstKey ? findCandidateItem(groups, firstKey) : null
+    const fond = firstItem?.fondId?.trim()
+    if (!fond) {
+      toast.error(t('disposal.missingFond'))
+      return
+    }
+    setSelectedKeys(
+      new Set(collectSelectableKeysForFond(groups, itemKey, fond, 'dossier')),
+    )
   }
 
   function toggleOne(
@@ -137,6 +235,24 @@ export function ArchiveExpiryDuplicatePage() {
     checked: boolean,
     context: { dossierId: string; kind: 'dossier' | 'document' },
   ) {
+    if (checked) {
+      const item = findCandidateItem(groups, key)
+      if (
+        !item ||
+        !canSelectItemFond(
+          item.fondId,
+          selectionAnchorFondId,
+          lockedFondId,
+        )
+      ) {
+        toast.error(
+          !item?.fondId?.trim()
+            ? t('disposal.missingFond')
+            : t('disposal.sameFondRequired'),
+        )
+        return
+      }
+    }
     setSelectedKeys((prev) => {
       const next = new Set(prev)
       if (checked) {
@@ -159,7 +275,17 @@ export function ArchiveExpiryDuplicatePage() {
   function handleTransfer() {
     const selectedItems = collectSelectedItems(groups, selectedKeys)
     if (selectedItems.length === 0) return
+    const fondCheck = selectedItemsShareOneFond(selectedItems)
+    if (!fondCheck.ok) {
+      toast.error(t('disposal.sameFondRequired'))
+      return
+    }
+    if (lockedFondId && fondCheck.fondId !== lockedFondId) {
+      toast.error(t('disposal.sameFondRequired'))
+      return
+    }
     transferMutation.mutate({
+      ...(appendMode && appendCatalogId ? { catalogId: appendCatalogId } : {}),
       items: selectedItems.map((item) => ({
         dossierId: item.dossierId,
         fileId: item.fileId,
@@ -167,6 +293,22 @@ export function ArchiveExpiryDuplicatePage() {
       })),
     })
   }
+
+  function navigateBackToCatalog() {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        tab: 'expiryReview',
+        disposalView: 'proposal',
+        disposalCatalogId: appendCatalogId ?? prev.disposalCatalogId,
+        disposalAppendCatalogId: undefined,
+        page: 1,
+      }),
+    })
+  }
+
+  const showAppendTransfer = appendMode && canUpdateDisposal
+  const showCreateTransfer = !appendMode && showTransferAction
 
   function submitSearch() {
     void navigate({
@@ -189,6 +331,9 @@ export function ArchiveExpiryDuplicatePage() {
     void navigate({
       search: (prev) => ({
         tab: prev.tab,
+        disposalView: prev.disposalView,
+        disposalCatalogId: prev.disposalCatalogId,
+        searchFondId: prev.searchFondId,
         page: 1,
         limit: prev.limit,
       }),
@@ -209,6 +354,11 @@ export function ArchiveExpiryDuplicatePage() {
         settings={disposalSettings}
         isLoading={isSettingsPending}
       />
+      {appendMode && appendCatalogName ? (
+        <p className="text-sm text-muted-foreground">
+          {t('disposal.pickerActiveCatalog', { name: appendCatalogName })}
+        </p>
+      ) : null}
       <ArchiveDisposalCandidateFilters
         search={search}
         inputValue={inputValue}
@@ -218,24 +368,34 @@ export function ArchiveExpiryDuplicatePage() {
         onClearFilters={clearFilters}
         searchPlaceholder={t('disposal.searchPlaceholder')}
         trailing={
-          showTransferAction ? (
-            <Button
-              disabled={selectedCount === 0 || transferMutation.isPending}
-              onClick={handleTransfer}
-            >
-              {transferMutation.isPending ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              ) : (
-                <Send className="mr-2 size-4" />
-              )}
-              {t('disposal.transferAction', { count: selectedCount })}
-            </Button>
-          ) : showDestroyAction ? (
-            <Button variant="destructive" disabled={selectedCount === 0}>
-              <Trash2 className="mr-2 size-4" />
-              {t('disposal.destroyAction', { count: selectedCount })}
-            </Button>
-          ) : null
+          <>
+            {appendMode ? (
+              <Button type="button" variant="outline" onClick={navigateBackToCatalog}>
+                {t('disposal.backToCatalog')}
+              </Button>
+            ) : null}
+            {showAppendTransfer || showCreateTransfer ? (
+              <Button
+                type="button"
+                disabled={selectedCount === 0 || transferMutation.isPending}
+                onClick={handleTransfer}
+              >
+                {transferMutation.isPending ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : (
+                  <Send className="mr-2 size-4" />
+                )}
+                {appendMode
+                  ? t('disposal.addToCatalog', { count: selectedCount })
+                  : t('disposal.transferAction', { count: selectedCount })}
+              </Button>
+            ) : showDestroyAction ? (
+              <Button variant="destructive" disabled={selectedCount === 0}>
+                <Trash2 className="mr-2 size-4" />
+                {t('disposal.destroyAction', { count: selectedCount })}
+              </Button>
+            ) : null}
+          </>
         }
       />
 
@@ -258,6 +418,8 @@ export function ArchiveExpiryDuplicatePage() {
               itemKey={itemKey}
               renderCategoryBadges={categoryBadges}
               dateLocale={dateLocale}
+              lockedFondId={lockedFondId}
+              selectionAnchorFondId={selectionAnchorFondId}
             />
           </div>
         )}

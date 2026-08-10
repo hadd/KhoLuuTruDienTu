@@ -8,6 +8,10 @@ import { toast } from 'sonner'
 import { ArchiveBorrowCreateDialog } from '@/features/archive-borrow/components/ArchiveBorrowCreateDialog'
 import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { transferToDisposalProposal } from '@/features/archive-disposal/api/archiveDisposalClient'
+import {
+  isAppendToDisposalCatalog,
+  notifyDisposalTransferResult,
+} from '@/features/archive-disposal/lib/disposalTransferNotifications'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import {
   shouldShowWarehousePickerSelection,
@@ -170,8 +174,11 @@ export function ArchiveWarehouseDossiersPage({
 
   const pickerTransferMutation = useMutation({
     mutationFn: transferToDisposalProposal,
-    onSuccess: () => {
-      toast.success(tDisposal('disposal.transferSuccess'))
+    onSuccess: (result, variables) => {
+      notifyDisposalTransferResult(result, {
+        appendToCatalog: isAppendToDisposalCatalog(variables.catalogId),
+        t: tDisposal,
+      })
       setSelectedIds(new Set())
       void navigate({
         to: '/app/archive-warehouse',

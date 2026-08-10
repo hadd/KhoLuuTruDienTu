@@ -113,7 +113,6 @@
       "securityLevel": "cấp độ bảo mật",
       "documentType": "Loại tài liệu"
     },
-    "groups": "Quản lý nhóm",
     "library": "Thư viện",
     "digitization": "Số hóa hồ sơ, tài liệu",
     "dataManagement": "Quản lý dữ liệu",
@@ -123,13 +122,22 @@
     "kpi": "Báo cáo KPI",
     "auditLogs": "Lịch sử thao tác",
     "permissions": "Quản lý phân quyền",
+    "groups": {
+      "digitization": "Số hóa",
+      "systemAdmin": "Quản trị hệ thống",
+      "warehouse": "Quản lý kho"
+    },
     "dataConfig": {
       "title": "Cấu hình dữ liệu",
       "documentTypes": "Cấu hình loại tài liệu",
       "documentAssignment": "Cấu hình phân công tài liệu",
       "metadataExportPresets": "Cấu hình mẫu xuất",
+      "documentNaming": "Cấu hình tên tài liệu",
+      "metadataExtractSettings": "Chế độ bóc tách metadata",
       "notificationConfigs": "Cấu hình thông báo",
-      "watermarkConfigs": "Cấu hình Watermark"
+      "watermarkConfigs": "Cấu hình Watermark",
+      "auditLogConfig": "Cấu hình lịch sử thao tác",
+      "borrowApprovalClearance": "Cấu hình duyệt mượn hồ sơ"
     }
   },
   "accessDenied": {

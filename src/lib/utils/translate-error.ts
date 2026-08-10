@@ -362,9 +362,12 @@ export function translateError(error: unknown): string {
   // ==================== THÊM PHẦN 2: MAPPING CÁC LỖI TĨNH KHÁC ====================
   // Map common error messages to translation keys
   const errorTranslations: Record<string, string> = {
-    'School ID is required': i18n.t('errors.schoolIdRequired', {
-      ns: 'common',
-    }),
+    'Hồ sơ đã có trong danh mục': i18n.t(
+      'disposal.catalogDuplicateAlreadyInCatalog',
+      { ns: 'archive-disposal' },
+    ),
+    'Hồ sơ hoặc tài liệu thuộc danh sách hết hạn/trùng lặp — chỉ được xử lý hủy theo quy trình Hội đồng xét hủy':
+      i18n.t('disposal.candidateWarehouseLockHint', { ns: 'archive-warehouse' }),
     'Dossier already has an active MAKER assignment': i18n.t(
       'actionDialog.assignEditor.errors.alreadyHasMaker',
       { ns: 'data-management' },
