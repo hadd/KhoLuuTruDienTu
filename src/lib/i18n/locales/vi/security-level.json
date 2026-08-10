@@ -53,6 +53,8 @@
     "success": "Đã lưu cấu hình bảo mật",
     "successWithCascade": "Đã lưu. Các cấp sau chưa tự cấu hình sẽ kế thừa thay đổi này",
     "cascadeWarning": "Các cấp sau chưa tự cấu hình sẽ kế thừa quyền/cờ từ cấp này. Cấp đã lưu cấu hình riêng sẽ không bị ảnh hưởng. Mật khẩu cấp không kế thừa.",
+    "watermarkRequiresDownload": "Phải bật Tải tài liệu trước khi bật Watermark.",
+    "downloadDependentsRequireDownload": "Phải bật Tải tài liệu trước khi bật Watermark hoặc mã hóa ZIP.",
     "override": "Ghi đè",
     "complexValue": "Giá trị phức tạp — cấu hình chi tiết sau",
     "status": {
