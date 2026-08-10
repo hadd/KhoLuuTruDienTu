@@ -8,8 +8,8 @@ import {
 } from 'lucide-react'
 
 import {
-  ARCHIVE_DATA_HUB_RELATED_PATHS,
   ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS,
+  WAREHOUSE_MANAGEMENT_RELATED_PATHS,
 } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { DIGITIZATION_RELATED_PATHS } from '@/features/digitization/lib/digitizationAccess'
 import { DIGITIZATION_SCREEN_REQUIREMENTS } from '@/features/digitization/lib/digitizationAccess'
@@ -36,6 +36,7 @@ export type NavLabelKey =
   | 'admin.permissions'
   | 'admin.auditLogs'
   | 'admin.groups.warehouse'
+  | 'admin.warehouseManagement'
   | 'admin.physicalWarehouse'
   | 'admin.archiveWarehouse'
   | (typeof DATA_CONFIG_NAV_ITEM_DEFS)[number]['labelKey']
@@ -162,32 +163,19 @@ export const APP_NAV_TREE: Array<NavNode> = [
     ],
   },
   {
-    type: 'group',
-    id: 'warehouse-group',
-    labelKey: 'admin.groups.warehouse',
+    type: 'link',
+    id: 'warehouse-management',
+    to: '/app/warehouse-management',
+    labelKey: 'admin.warehouseManagement',
     icon: Warehouse,
-    children: [
+    requiredPermission: [
+      ...ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS,
       {
-        type: 'link',
-        id: 'physical-warehouse',
-        to: '/app/physical-warehouse',
-        labelKey: 'admin.physicalWarehouse',
-        requiredPermission: {
-          module: 'physical-warehouse',
-          permissionKey: 'physical-warehouse.item.read',
-        },
-        relatedPaths: ['/app/physical-warehouse'],
-      },
-      {
-        type: 'link',
-        id: 'archive-warehouse',
-        to: '/app/archive-warehouse',
-        labelKey: 'admin.archiveWarehouse',
-        requiredPermission: [...ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS],
-        visibilityTag: 'archive-warehouse-admin',
-        relatedPaths: [...ARCHIVE_DATA_HUB_RELATED_PATHS],
+        module: 'physical-warehouse',
+        permissionKey: 'physical-warehouse.item.read',
       },
     ],
+    relatedPaths: [...WAREHOUSE_MANAGEMENT_RELATED_PATHS],
   },
 ]
 
