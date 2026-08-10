@@ -25,6 +25,8 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   createDisposalCatalog,
   deleteDisposalCatalog,
+  downloadDisposalPhuLucII,
+  downloadDisposalPhuLucIII,
   removeDisposalCatalogItem,
   submitDisposalCatalog,
   updateDisposalCatalog,
@@ -75,6 +77,7 @@ export function ArchiveDisposalProposalPage() {
     canCreateDisposal,
     canUpdateDisposal,
     canSubmitDisposal,
+    canReadDisposal,
   } = useArchiveDisposalAccess()
   const {
     canCreateCouncil,
@@ -159,13 +162,17 @@ export function ArchiveDisposalProposalPage() {
     )
   }, [councilDetail?.members, currentUser?.id])
 
-  const isCouncilSecretary = useMemo(() => {
-    if (!currentUser?.id || !councilDetail?.members) return false
-    return councilDetail.members.some(
-      (member) =>
-        member.userId === currentUser.id && member.positionRole === 'SECRETARY',
-    )
-  }, [councilDetail?.members, currentUser?.id])
+  const isCatalogCreator = useMemo(() => {
+    if (!currentUser?.id) return false
+    const creatorId =
+      catalogDetail?.catalog.createdBy ??
+      councilDetail?.council.catalogCreatedBy
+    return Boolean(creatorId && creatorId === currentUser.id)
+  }, [
+    catalogDetail?.catalog.createdBy,
+    councilDetail?.council.catalogCreatedBy,
+    currentUser?.id,
+  ])
 
   const canAccessCouncilEvaluations =
     isPendingReview &&
@@ -409,11 +416,8 @@ export function ArchiveDisposalProposalPage() {
 
   const publishDecisionMutation = useMutation({
     mutationFn: () => publishDisposalCouncilDecision(viewedCouncilId!),
-    onSuccess: (result) => {
+    onSuccess: () => {
       toast.success(t('proposal.publishDecisionSuccess'))
-      if (result.documentUrl) {
-        window.open(result.documentUrl, '_blank', 'noopener,noreferrer')
-      }
       void refetchDecisionDocuments()
       if (viewedCouncilId) {
         void queryClient.invalidateQueries({
@@ -461,6 +465,18 @@ export function ArchiveDisposalProposalPage() {
     onError: (error) => toast.error(translateError(error)),
   })
 
+  const exportPhuLucIIMutation = useMutation({
+    mutationFn: () => downloadDisposalPhuLucII(selectedCatalogId!),
+    onSuccess: () => toast.success(t('proposal.exportAppendixSuccess')),
+    onError: (error) => toast.error(translateError(error)),
+  })
+
+  const exportPhuLucIIIMutation = useMutation({
+    mutationFn: () => downloadDisposalPhuLucIII(selectedCatalogId!),
+    onSuccess: () => toast.success(t('proposal.exportAppendixSuccess')),
+    onError: (error) => toast.error(translateError(error)),
+  })
+
   const catalogs = catalogList?.items ?? []
   const catalogGroups = useMemo(
     () =>
@@ -481,11 +497,23 @@ export function ArchiveDisposalProposalPage() {
   const evaluationProgress = councilEvaluations?.progress
   const showCouncilEvaluationUi =
     isPendingReview && Boolean(viewedCouncilId) && canAccessCouncilEvaluations
+  const directorApprovalReady = Boolean(
+    decisionDocuments?.decisionPublishedAt && decisionDocuments?.hasSignedMinutes,
+  )
+
   const canShowFinalizeActions =
     canFinalizeCouncil &&
     Boolean(evaluationProgress?.isComplete) &&
+    directorApprovalReady &&
     isPendingReview &&
     Boolean(viewedCouncilId)
+
+  const showFinalizeBlockedHint =
+    canFinalizeCouncil &&
+    Boolean(evaluationProgress?.isComplete) &&
+    isPendingReview &&
+    Boolean(viewedCouncilId) &&
+    !directorApprovalReady
 
   const evaluationsLocked = Boolean(
     evaluationProgress?.evaluationsLocked ?? councilDetail?.council.decisionPublishedAt,
@@ -493,11 +521,23 @@ export function ArchiveDisposalProposalPage() {
 
   const canShowPublishActions =
     canPublishCouncil &&
-    isCouncilSecretary &&
+    isCatalogCreator &&
     Boolean(evaluationProgress?.isComplete) &&
     !hasPendingChairDecisions &&
     !evaluationsLocked &&
     isPendingReview &&
+    Boolean(viewedCouncilId)
+
+  const canShowAppendixExport =
+    canReadDisposal &&
+    Boolean(selectedCatalogId) &&
+    (catalogDetail?.items.length ?? 0) > 0
+
+  const canShowViewCouncil =
+    Boolean(selectedCatalogId) &&
+    !canEditDraft &&
+    isPendingReview &&
+    canReadCouncil &&
     Boolean(viewedCouncilId)
 
   return (
@@ -527,6 +567,11 @@ export function ArchiveDisposalProposalPage() {
               }}
             >
               {t('proposal.addFromWarehouse')}
+            </Button>
+          ) : null}
+          {canShowViewCouncil ? (
+            <Button variant="outline" onClick={() => setViewCouncilOpen(true)}>
+              {t('proposal.viewCouncil')}
             </Button>
           ) : null}
           {canShortcutCreateCouncil ? (
@@ -679,10 +724,29 @@ export function ArchiveDisposalProposalPage() {
                 </div>
               ) : null}
 
-              {!canEditDraft && isPendingReview && canReadCouncil ? (
-                <Button variant="outline" onClick={() => setViewCouncilOpen(true)}>
-                  {t('proposal.viewCouncil')}
-                </Button>
+              {canShowAppendixExport ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    disabled={exportPhuLucIIMutation.isPending || exportPhuLucIIIMutation.isPending}
+                    onClick={() => exportPhuLucIIMutation.mutate()}
+                  >
+                    {exportPhuLucIIMutation.isPending ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : null}
+                    {t('proposal.exportPhuLucII')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={exportPhuLucIIMutation.isPending || exportPhuLucIIIMutation.isPending}
+                    onClick={() => exportPhuLucIIIMutation.mutate()}
+                  >
+                    {exportPhuLucIIIMutation.isPending ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : null}
+                    {t('proposal.exportPhuLucIII')}
+                  </Button>
+                </div>
               ) : null}
 
               {showCouncilEvaluationUi && evaluationProgress ? (
@@ -719,20 +783,8 @@ export function ArchiveDisposalProposalPage() {
                 </Button>
               ) : null}
 
-              {decisionDocuments?.decisionDocumentUrl ? (
-                <Button variant="outline" asChild>
-                  <a
-                    href={decisionDocuments.decisionDocumentUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {t('proposal.viewDecisionPdf')}
-                  </a>
-                </Button>
-              ) : null}
-
               {canPublishCouncil &&
-              isCouncilSecretary &&
+              isCatalogCreator &&
               decisionDocuments?.decisionPublishedAt ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <Label htmlFor="signed-minutes-upload" className="text-sm">
@@ -764,6 +816,14 @@ export function ArchiveDisposalProposalPage() {
                     </Button>
                   ) : null}
                 </div>
+              ) : null}
+
+              {showFinalizeBlockedHint ? (
+                <p className="text-sm text-muted-foreground">
+                  {!decisionDocuments?.decisionPublishedAt
+                    ? t('proposal.finalizeAwaitPublish')
+                    : t('proposal.finalizeAwaitDirectorApproval')}
+                </p>
               ) : null}
 
               {canShowFinalizeActions ? (

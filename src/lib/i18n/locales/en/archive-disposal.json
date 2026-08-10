@@ -133,6 +133,12 @@
     "finalizeRejectTitle": "Confirm rejection?",
     "finalizeRejectDescription": "Catalog \"{{name}}\" will return to draft for revision.",
     "finalizeSuccess": "Council decision recorded",
+    "finalizeAwaitPublish": "Publish the council decision (PDF) before approving or rejecting disposal.",
+    "finalizeAwaitDirectorApproval": "Upload the signed council minutes (director approval) before concluding disposal.",
+    "exportPhuLucII": "Export catalog PDF (Appendix II)",
+    "exportPhuLucIII": "Export explanatory report PDF (Appendix III)",
+    "exportAppendixSuccess": "Appendix export downloaded",
+    "exportAppendixFailed": "Could not export appendix",
     "fields": {
       "name": "Catalog name",
       "date": "Catalog date",

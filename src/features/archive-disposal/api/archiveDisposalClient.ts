@@ -142,3 +142,40 @@ export async function transferToDisposalProposal(input: {
   }>('/api/v1/archive-disposal/transfer-to-proposal', input)
   return response.data
 }
+
+function filenameFromContentDisposition(header: string | undefined): string | null {
+  if (!header) return null
+  const match = /filename="([^"]+)"/i.exec(header)
+  return match?.[1] ?? null
+}
+
+function triggerBrowserDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+async function downloadDisposalAppendixExport(
+  catalogId: string,
+  appendix: 'phu-luc-ii' | 'phu-luc-iii',
+): Promise<void> {
+  const response = await apiClient.get<Blob>(
+    `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/export/${appendix}`,
+    { responseType: 'blob' },
+  )
+  const filename =
+    filenameFromContentDisposition(response.headers['content-disposition']) ??
+    `export-${appendix}.pdf`
+  triggerBrowserDownload(response.data, filename)
+}
+
+export function downloadDisposalPhuLucII(catalogId: string): Promise<void> {
+  return downloadDisposalAppendixExport(catalogId, 'phu-luc-ii')
+}
+
+export function downloadDisposalPhuLucIII(catalogId: string): Promise<void> {
+  return downloadDisposalAppendixExport(catalogId, 'phu-luc-iii')
+}

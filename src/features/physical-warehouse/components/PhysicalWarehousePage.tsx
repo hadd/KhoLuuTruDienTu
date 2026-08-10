@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { ArrowLeft, MapPinned, Package } from 'lucide-react'
-import { useEffect } from 'react'
+import { ArrowLeft, MapPin, MapPinned, Package } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { getPhysicalWarehouseItem } from '@/features/physical-warehouse/api/physicalWarehouseClient'
+import { PhysicalWarehouseArchiveSearchPanel } from '@/features/physical-warehouse/components/PhysicalWarehouseArchiveSearchPanel'
 import { LocationListPanel } from '@/features/physical-warehouse/components/LocationListPanel'
 import { WarehouseDiagramTab } from '@/features/physical-warehouse/components/WarehouseDiagramTab'
 import { WarehouseManagementTab } from '@/features/physical-warehouse/components/WarehouseManagementTab'
@@ -15,11 +16,12 @@ import {
   physicalWarehouseStatsQueryOptions,
 } from '@/features/physical-warehouse/queries'
 import type { PhysicalWarehouseItemT } from '@/features/physical-warehouse/types'
+import type { PhysicalWarehouseSearchT } from '@/features/physical-warehouse/schemas'
 import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
 import { WarehousePageShell } from '@/features/warehouse-management/components/WarehousePageShell'
 import {
-  warehouseSubTabsDenseInlineListClassName,
-  warehouseSubTabsDenseTriggerClassName,
+  warehouseTabsListClassName,
+  warehouseTabsTriggerCompactClassName,
 } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 import { cn } from '@/lib/utils/cn'
 
@@ -46,6 +48,58 @@ export function PhysicalWarehousePage() {
   const detailTab: WarehouseDetailTab =
     rawTab === 'manage' ? 'manage' : 'diagram'
   const manageParentId = parentId ?? warehouseId
+  const focusDossierId = search.focusDossierId
+  const highlightPhysicalItemId = search.highlightPhysicalItemId
+  const focusDossierTitle = search.focusDossierTitle
+  const focusPlacementPath = search.focusPlacementPath
+
+  const [hideSearchResults, setHideSearchResults] = useState(false)
+
+  useEffect(() => {
+    if (!warehouseSelected) {
+      setHideSearchResults(false)
+    }
+  }, [warehouseSelected])
+
+  const suppressSearchResults =
+    warehouseSelected && detailTab === 'diagram' && hideSearchResults
+
+  function handleNavigateToPlacement(patch: Partial<PhysicalWarehouseSearchT>) {
+    setHideSearchResults(true)
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        ...patch,
+      }),
+    })
+  }
+
+  function clearFocusDossier() {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        focusDossierId: undefined,
+        highlightPhysicalItemId: undefined,
+        focusDossierTitle: undefined,
+        focusPlacementPath: undefined,
+      }),
+      replace: true,
+    })
+  }
+
+  useEffect(() => {
+    if (!highlightPhysicalItemId) return
+    const timer = window.setTimeout(() => {
+      void navigate({
+        search: (prev) => ({
+          ...prev,
+          highlightPhysicalItemId: undefined,
+        }),
+        replace: true,
+      })
+    }, 12_000)
+    return () => window.clearTimeout(timer)
+  }, [highlightPhysicalItemId, navigate])
 
   const { data: stats } = useQuery({
     ...physicalWarehouseStatsQueryOptions(warehouseId ?? rootId ?? ''),
@@ -152,6 +206,10 @@ export function PhysicalWarehousePage() {
         warehouseId: undefined,
         parentId: undefined,
         tab: undefined,
+        focusDossierId: undefined,
+        highlightPhysicalItemId: undefined,
+        focusDossierTitle: undefined,
+        focusPlacementPath: undefined,
       }),
     })
   }
@@ -161,34 +219,34 @@ export function PhysicalWarehousePage() {
 
   const physicalSubTabs = warehouseSelected ? (
     <nav
-      className={warehouseSubTabsDenseInlineListClassName}
+      className={cn(warehouseTabsListClassName, 'w-full border-b-0')}
       aria-label={t('tabs.ariaLabel')}
     >
       <button
         type="button"
         className={cn(
-          warehouseSubTabsDenseTriggerClassName,
+          warehouseTabsTriggerCompactClassName,
           'inline-flex items-center',
         )}
         data-state={detailTab === 'diagram' ? 'active' : 'inactive'}
         aria-current={detailTab === 'diagram' ? 'page' : undefined}
         onClick={() => setDetailTab('diagram')}
       >
-        <MapPinned className="size-3 shrink-0" aria-hidden />
+        <MapPinned className="size-3.5 shrink-0" aria-hidden />
         {t('tabs.diagram')}
       </button>
       {canUseManageTab ? (
         <button
           type="button"
           className={cn(
-            warehouseSubTabsDenseTriggerClassName,
+            warehouseTabsTriggerCompactClassName,
             'inline-flex items-center',
           )}
           data-state={detailTab === 'manage' ? 'active' : 'inactive'}
           aria-current={detailTab === 'manage' ? 'page' : undefined}
           onClick={() => setDetailTab('manage')}
         >
-          <Package className="size-3 shrink-0" aria-hidden />
+          <Package className="size-3.5 shrink-0" aria-hidden />
           {t('tabs.manage')}
         </button>
       ) : null}
@@ -201,6 +259,12 @@ export function PhysicalWarehousePage() {
       hasSubTabs={warehouseSelected}
       subTabs={physicalSubTabs}
     >
+      <PhysicalWarehouseArchiveSearchPanel
+        onNavigateToPlacement={handleNavigateToPlacement}
+        hideSearchResults={suppressSearchResults}
+        onRevealSearchResults={() => setHideSearchResults(false)}
+      />
+
       {warehouseSelected ? (
         <Tabs
           value={detailTab}
@@ -234,11 +298,36 @@ export function PhysicalWarehousePage() {
             value="diagram"
             className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
+            {focusDossierTitle || focusPlacementPath ? (
+              <div
+                className="mb-2 shrink-0 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5"
+                role="status"
+              >
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('search.diagramFocusHeading')}
+                </p>
+                {focusDossierTitle ? (
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {focusDossierTitle}
+                  </p>
+                ) : null}
+                {focusPlacementPath ? (
+                  <p className="mt-1 flex items-start gap-1.5 text-sm text-muted-foreground">
+                    <MapPin
+                      className="mt-0.5 size-3.5 shrink-0 text-primary"
+                      aria-hidden
+                    />
+                    <span>{focusPlacementPath}</span>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <WarehouseDiagramTab
               rootId={rootId!}
               warehouseId={warehouseId}
               stats={stats}
               compact
+              highlightPhysicalItemId={highlightPhysicalItemId}
             />
           </TabsContent>
 
@@ -250,6 +339,8 @@ export function PhysicalWarehousePage() {
               <WarehouseManagementTab
                 rootId={rootId!}
                 selectedParentId={manageParentId}
+                focusDossierId={focusDossierId}
+                onClearFocusDossier={clearFocusDossier}
                 onSelectParent={(id) => {
                   void navigate({
                     search: (prev) => ({
@@ -257,6 +348,7 @@ export function PhysicalWarehousePage() {
                       parentId: id,
                       tab: 'manage',
                       warehouseId: prev.warehouseId,
+                      focusDossierId: undefined,
                     }),
                   })
                 }}
@@ -265,11 +357,13 @@ export function PhysicalWarehousePage() {
           ) : null}
         </Tabs>
       ) : (
-        <LocationListPanel
-          parentId={locationsViewParentId}
-          onNavigateToItem={navigateToLocationItem}
-          onNavigateBack={navigateBackFromLocationDrillDown}
-        />
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <LocationListPanel
+            parentId={locationsViewParentId}
+            onNavigateToItem={navigateToLocationItem}
+            onNavigateBack={navigateBackFromLocationDrillDown}
+          />
+        </div>
       )}
     </WarehousePageShell>
   )

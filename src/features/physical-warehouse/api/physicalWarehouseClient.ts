@@ -1,6 +1,8 @@
 import type {
   CreateItemPayloadT,
+  GetPhysicalWarehouseSearchParamsT,
   PhysicalWarehouseItemT,
+  PhysicalWarehouseSearchResponseT,
   PhysicalWarehouseStatsT,
   PhysicalWarehouseTreeNodeT,
   PhysicalWarehouseUploadImageResultT,
@@ -217,4 +219,87 @@ export async function removeWarehouseDossierPlacement(payload: {
     placement: PhysicalItemPlacementRowT
   }>('/api/v1/physical-warehouse/placements/remove', payload)
   return response.data
+}
+
+export async function searchPhysicalWarehouse(
+  params: GetPhysicalWarehouseSearchParamsT,
+): Promise<PhysicalWarehouseSearchResponseT> {
+  const searchParams = new URLSearchParams()
+  const hasQ = Boolean(params.q?.trim())
+  const mode = params.mode ?? (hasQ ? 'all' : 'metadata')
+  searchParams.set('mode', mode)
+
+  const appendSharedFilters = () => {
+    if (params.dossierTypeId) {
+      const ids = Array.isArray(params.dossierTypeId)
+        ? params.dossierTypeId
+        : [params.dossierTypeId]
+      ids.forEach((id) => searchParams.append('dossierTypeId', id))
+    }
+    if (params.documentTypeId) {
+      const ids = Array.isArray(params.documentTypeId)
+        ? params.documentTypeId
+        : [params.documentTypeId]
+      ids.forEach((id) => searchParams.append('documentTypeId', id))
+    }
+    if (params.editorName?.trim()) {
+      searchParams.set('editorName', params.editorName.trim())
+    }
+    if (params.searchFields) {
+      const fields = Array.isArray(params.searchFields)
+        ? params.searchFields
+        : [params.searchFields]
+      fields.forEach((f) => searchParams.append('searchFields', f))
+    }
+    if (params.editCompletedAtFrom) {
+      searchParams.set('editCompletedAtFrom', params.editCompletedAtFrom)
+    }
+    if (params.editCompletedAtTo) {
+      searchParams.set('editCompletedAtTo', params.editCompletedAtTo)
+    }
+    if (params.archivedAtFrom) {
+      searchParams.set('archivedAtFrom', params.archivedAtFrom)
+    }
+    if (params.archivedAtTo) {
+      searchParams.set('archivedAtTo', params.archivedAtTo)
+    }
+  }
+
+  if (mode === 'content' || mode === 'all') {
+    if (params.q?.trim()) searchParams.set('q', params.q.trim())
+    if (params.groupCode) searchParams.set('groupCode', params.groupCode)
+    if (params.trangThaiHoSo) {
+      searchParams.set('trangThaiHoSo', params.trangThaiHoSo)
+    }
+    appendSharedFilters()
+  } else {
+    if (params.dossierName?.trim()) {
+      searchParams.set('dossierName', params.dossierName.trim())
+    } else if (params.q?.trim()) {
+      searchParams.set('dossierName', params.q.trim())
+    }
+    if (params.documentName?.trim()) {
+      searchParams.set('documentName', params.documentName.trim())
+    }
+    appendSharedFilters()
+  }
+
+  if (params.fondId) {
+    const fondIds = Array.isArray(params.fondId) ? params.fondId : [params.fondId]
+    fondIds.forEach((id) => searchParams.append('fondId', id))
+  }
+  if (params.limit != null) searchParams.set('limit', String(params.limit))
+  if (params.offset != null) searchParams.set('offset', String(params.offset))
+
+  const response = await apiClient.get<PhysicalWarehouseSearchResponseT>(
+    `/api/v1/physical-warehouse/search?${searchParams.toString()}`,
+  )
+  const data = response.data
+  return {
+    items: data.items ?? [],
+    total: data.total ?? 0,
+    took_ms: data.took_ms ?? 0,
+    fondScope: data.fondScope ?? null,
+    message: data.message ?? null,
+  }
 }

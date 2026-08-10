@@ -133,6 +133,12 @@
     "finalizeRejectTitle": "Xác nhận không đồng ý hủy?",
     "finalizeRejectDescription": "Danh mục \"{{name}}\" sẽ được trả về Soạn thảo để chỉnh sửa.",
     "finalizeSuccess": "Đã ghi nhận kết luận Hội đồng",
+    "finalizeAwaitPublish": "Cần xuất bản Quyết định (PDF) trước khi kết luận đồng ý hoặc không đồng ý hủy.",
+    "finalizeAwaitDirectorApproval": "Cần tải biên bản Hội đồng đã ký (TGĐ duyệt) trước khi kết luận đồng ý hoặc không đồng ý hủy.",
+    "exportPhuLucII": "Xuất PDF Danh mục (Phụ lục II)",
+    "exportPhuLucIII": "Xuất PDF Thuyết minh (Phụ lục III)",
+    "exportAppendixSuccess": "Đã tải file xuất Phụ lục",
+    "exportAppendixFailed": "Không xuất được Phụ lục",
     "fields": {
       "name": "Tên danh mục",
       "date": "Ngày lập",
