@@ -63,6 +63,7 @@ export const ROLE_DEFINITIONS = [
                 "dashboard.qc",
                 "dossiers.assign",
                 "dossiers.export",
+                "archive.warehouse.download",
                 "groups.read",
                 "fonds.read",
             ],

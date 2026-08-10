@@ -1904,8 +1904,8 @@ export const ArchiveWarehouseService = {
       ...dossierPublic
     } = dossier
 
-    // Tính quyền download: role dossiers.export + cấp bảo mật cho phép download
-    if (context !== "exploitation" && userRolesHavePermission(profile.userRoles, Permission.DOSSIERS_EXPORT)) {
+    // Tính quyền download: role archive.warehouse.download + cấp bảo mật cho phép download
+    if (context !== "exploitation" && userRolesHavePermission(profile.userRoles, Permission.ARCHIVE_WAREHOUSE_DOWNLOAD)) {
       const secLevelId = dossier.securityLevelId
       if (secLevelId) {
         const [blocked, allowDownload] = await Promise.all([
