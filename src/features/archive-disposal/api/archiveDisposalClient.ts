@@ -135,11 +135,11 @@ export async function transferToDisposalProposal(input: {
   name?: string
   catalogDate?: string
   items: Array<TransferToProposalItemT>
-}): Promise<{ catalogId: string; items: Array<DisposalProposalItemT> }> {
-  const response = await apiClient.post<{
-    catalogId: string
-    items: Array<DisposalProposalItemT>
-  }>('/api/v1/archive-disposal/transfer-to-proposal', input)
+}): Promise<TransferToProposalResultT> {
+  const response = await apiClient.post<TransferToProposalResultT>(
+    '/api/v1/archive-disposal/transfer-to-proposal',
+    input,
+  )
   return response.data
 }
 
@@ -154,22 +154,40 @@ function triggerBrowserDownload(blob: Blob, filename: string) {
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = filename
+  anchor.style.display = 'none'
+  document.body.appendChild(anchor)
   anchor.click()
-  URL.revokeObjectURL(url)
+  anchor.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
+
+const appendixExportInFlight = new Map<string, Promise<void>>()
 
 async function downloadDisposalAppendixExport(
   catalogId: string,
   appendix: 'phu-luc-ii' | 'phu-luc-iii',
 ): Promise<void> {
-  const response = await apiClient.get<Blob>(
-    `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/export/${appendix}`,
-    { responseType: 'blob' },
-  )
-  const filename =
-    filenameFromContentDisposition(response.headers['content-disposition']) ??
-    `export-${appendix}.pdf`
-  triggerBrowserDownload(response.data, filename)
+  const flightKey = `${catalogId}:${appendix}`
+  const existing = appendixExportInFlight.get(flightKey)
+  if (existing) return existing
+
+  const task = (async () => {
+    const response = await apiClient.get<Blob>(
+      `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/export/${appendix}`,
+      { responseType: 'blob' },
+    )
+    const filename =
+      filenameFromContentDisposition(response.headers['content-disposition']) ??
+      `export-${appendix}.pdf`
+    triggerBrowserDownload(response.data, filename)
+  })()
+
+  appendixExportInFlight.set(flightKey, task)
+  try {
+    await task
+  } finally {
+    appendixExportInFlight.delete(flightKey)
+  }
 }
 
 export function downloadDisposalPhuLucII(catalogId: string): Promise<void> {

@@ -24,7 +24,8 @@
     "subTabList": "Danh sách",
     "subTabProposal": "Đề xuất hủy",
     "subTabListDescription": "Rà soát hồ sơ hết hạn và trùng lặp",
-    "subTabProposalDescription": "Lập danh mục đề xuất hủy và Hội đồng xét hủy"
+    "subTabProposalDescription": "Lập danh mục đề xuất hủy và Hội đồng xét hủy",
+    "candidateWarehouseLockHint": "Hồ sơ hoặc tài liệu thuộc danh sách hết hạn/trùng lặp. Chỉ được xóa hoặc hủy theo quy trình Hội đồng xét hủy — không thể xóa, upload lại hay di chuyển trực tiếp trong kho."
   },
   "browse": {
     "subTabsAriaLabel": "Cách duyệt hồ sơ"

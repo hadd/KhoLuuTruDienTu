@@ -5,9 +5,8 @@ export const USER_MANAGEMENT_SCREEN_REQUIREMENTS = [
   { module: 'roles' },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
-/** Landing + các màn con thuộc menu Quản lý người dùng. */
+/** Các màn thuộc khu vực quản lý người dùng (highlight sidebar). */
 export const USER_MANAGEMENT_RELATED_PATHS = [
   '/app/user-management',
   '/app/users',
-  '/app/permissions/function-matrix',
 ] as const

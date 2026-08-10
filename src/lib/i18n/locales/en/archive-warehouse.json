@@ -24,7 +24,8 @@
     "subTabList": "List",
     "subTabProposal": "Disposal proposal",
     "subTabListDescription": "Review expired and duplicate dossiers",
-    "subTabProposalDescription": "Manage disposal catalogs and review councils"
+    "subTabProposalDescription": "Manage disposal catalogs and review councils",
+    "candidateWarehouseLockHint": "This dossier or its documents appear on the expiry/duplicate list. Removal must follow the disposal council workflow — you cannot delete, re-upload, or move files directly in the warehouse."
   },
   "browse": {
     "subTabsAriaLabel": "Browse dossiers by"

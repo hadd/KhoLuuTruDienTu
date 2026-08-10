@@ -146,9 +146,6 @@ export function ArchiveWarehouseDossierDetailPage({
       resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
     [profile, rolePermissions?.rules.permissions],
   )
-  const canReupload = isExploitation ? false : canReuploadArchiveWarehouse(permissions)
-  const canDelete = isExploitation ? false : canDeleteArchiveWarehouse(permissions)
-  const canMove = isExploitation ? false : canEditArchiveWarehouse(permissions)
   const canManagePhysical = isExploitation ? false : canManageArchiveWarehousePhysical(permissions)
 
   const { data, isPending, isError, error } = useQuery(
@@ -156,6 +153,25 @@ export function ArchiveWarehouseDossierDetailPage({
       ? libraryExploitationDossierDetailQueryOptions(dossierId)
       : archiveWarehouseDossierDetailQueryOptions(dossierId, accessSecurityLevelId),
   )
+
+  const canReupload = isExploitation
+    ? false
+    : (data?.actions?.reupload ?? canReuploadArchiveWarehouse(permissions))
+  const canDelete = isExploitation
+    ? false
+    : (data?.actions?.delete ?? canDeleteArchiveWarehouse(permissions))
+  const canMove = isExploitation
+    ? false
+    : (data?.actions?.edit ?? canEditArchiveWarehouse(permissions))
+  const disposalCandidateLocked =
+    !isExploitation &&
+    Boolean(data?.actions) &&
+    !data.actions.reupload &&
+    !data.actions.delete &&
+    !data.actions.edit &&
+    (canReuploadArchiveWarehouse(permissions) ||
+      canDeleteArchiveWarehouse(permissions) ||
+      canEditArchiveWarehouse(permissions))
   const { data: dossierTypesData } = useQuery(
     isExploitation
       ? libraryExploitationDossierTypesQueryOptions()
@@ -389,6 +405,12 @@ export function ArchiveWarehouseDossierDetailPage({
         ) : null}
 
         {data ? (
+          <>
+            {disposalCandidateLocked ? (
+              <Card className="border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                {t('disposal.candidateWarehouseLockHint')}
+              </Card>
+            ) : null}
           <ArchiveWarehouseFileViewer
             dossierId={data.dossier.id}
             dossierName={data.dossier.name}
@@ -539,6 +561,7 @@ export function ArchiveWarehouseDossierDetailPage({
               </TabsContent>
             </Tabs>
           </ArchiveWarehouseFileViewer>
+          </>
         ) : null}
 
         <SecurityAccessPasswordDialog

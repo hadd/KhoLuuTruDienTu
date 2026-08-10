@@ -76,8 +76,8 @@ export function ArchiveWarehouseUnassignedSection({
   const showDownload = canExportDossiers(permissions) && !pickerMode
 
   const {
-    showPickerSelection,
-    showRowSelection,
+    showPickerSelection: _hookPickerSelection,
+    showRowSelection: hookRowSelection,
     pickerTransferMutation,
     transferItems,
   } = useWarehouseDisposalPicker({
@@ -86,6 +86,8 @@ export function ArchiveWarehouseUnassignedSection({
     showDownload,
     onTransferSuccess: () => setSelectedIds(new Set()),
   })
+  const showPickerSelection = false
+  const showRowSelection = showDownload || showPickerSelection
 
   const { data, isPending, isFetching } = useQuery(
     archiveWarehouseUnassignedDossiersQueryOptions({

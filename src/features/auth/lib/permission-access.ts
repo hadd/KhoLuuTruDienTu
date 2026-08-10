@@ -1,24 +1,25 @@
 import type { QueryClient } from '@tanstack/react-query'
 
-import { DIGITIZATION_RELATED_PATHS } from '@/features/digitization/lib/digitizationAccess'
-import { PROJECT_MANAGEMENT_RELATED_PATHS } from '@/features/project-management/lib/projectManagementAccess'
-import { WAREHOUSE_MANAGEMENT_RELATED_PATHS } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import type { AppRoleT } from '@/features/auth/constants'
 import { getPrimaryAppRole } from '@/features/auth/constants'
 import { profileQueryOptions } from '@/features/auth/queries'
 import type { UserRoleT, UserT } from '@/features/auth/types'
-import { DATA_CONFIG_RELATED_PATHS } from '@/features/data-config/lib/dataConfigAccess'
-import { GENERAL_CATALOG_RELATED_PATHS } from '@/features/general-catalog/lib/generalCatalogAccess'
-import { USER_MANAGEMENT_RELATED_PATHS } from '@/features/user/lib/userManagementAccess'
+import type {
+  NavLinkNode,
+  NavNode,
+} from '@/features/navigation/config/appNavTree'
+import {
+  APP_NAV_TREE,
+  collectNavLinkNodes,
+  getNavRoutesForLink,
+} from '@/features/navigation/config/appNavTree'
+import { isDataConfigNavItemVisible } from '@/features/navigation/config/dataConfigNavItems'
 import type {
   AppScreen,
   AppScreenChild,
   AppScreenPermissionRequirement,
 } from '@/features/navigation/config/appNav'
-import {
-  APP_SCREENS,
-  isAlwaysVisibleScreen,
-} from '@/features/navigation/config/appNav'
+import { isAlwaysVisibleScreen } from '@/features/navigation/config/appNav'
 import { isMetadataSidebarChildGranted } from '@/features/navigation/config/sidebarMetadataPermissions'
 import { parseRoleRules } from '@/features/permissions/api/permissionClient'
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
@@ -124,6 +125,96 @@ export function getPrimaryAppRoleFromProfile(
   }
 
   return getPrimaryAppRole(roleIds)
+}
+
+function dataConfigItemIdFromNavLinkId(navLinkId: string): string | null {
+  const prefix = 'data-config-'
+  if (!navLinkId.startsWith(prefix)) return null
+  return navLinkId.slice(prefix.length)
+}
+
+export function isNavLinkVisibleOnSidebar(
+  link: NavLinkNode,
+  permissions: Array<string>,
+  catalog: Array<PermissionCatalogItemT>,
+  primaryAppRole: AppRoleT | null,
+): boolean {
+  if (link.id === 'library') {
+    return true
+  }
+
+  if (link.visibilityTag === 'data-config') {
+    const itemId = dataConfigItemIdFromNavLinkId(link.id)
+    if (!itemId) return false
+    return isDataConfigNavItemVisible(
+      itemId as Parameters<typeof isDataConfigNavItemVisible>[0],
+      permissions,
+      catalog,
+    )
+  }
+
+  if (
+    link.visibilityTag === 'archive-warehouse-admin' &&
+    (primaryAppRole === 'admin' || primaryAppRole === 'manager')
+  ) {
+    return true
+  }
+
+  if (
+    (link.id === 'physical-warehouse' || link.id === 'archive-warehouse') &&
+    (primaryAppRole === 'admin' || primaryAppRole === 'manager')
+  ) {
+    return true
+  }
+
+  return canAccessAppScreenForSidebar(
+    permissions,
+    link.requiredPermission,
+    catalog,
+  )
+}
+
+export function isNavNodeVisibleOnSidebar(
+  node: NavNode,
+  permissions: Array<string>,
+  catalog: Array<PermissionCatalogItemT>,
+  primaryAppRole: AppRoleT | null,
+): boolean {
+  if (node.type === 'link') {
+    return isNavLinkVisibleOnSidebar(
+      node,
+      permissions,
+      catalog,
+      primaryAppRole,
+    )
+  }
+
+  return node.children.some((child) =>
+    isNavLinkVisibleOnSidebar(child, permissions, catalog, primaryAppRole),
+  )
+}
+
+export function getVisibleNavTree(
+  permissions: Array<string>,
+  catalog: Array<PermissionCatalogItemT>,
+  primaryAppRole: AppRoleT | null,
+): Array<NavNode> {
+  return APP_NAV_TREE.map((node) => {
+    if (node.type === 'group') {
+      return {
+        ...node,
+        children: node.children.filter((child) =>
+          isNavLinkVisibleOnSidebar(
+            child,
+            permissions,
+            catalog,
+            primaryAppRole,
+          ),
+        ),
+      }
+    }
+    return node
+  }).filter((node) => isNavNodeVisibleOnSidebar(node, permissions, catalog, primaryAppRole))
 }
 
 export function isAppScreenChildVisibleOnSidebar(
@@ -328,40 +419,13 @@ export function getFirstAccessibleAppRoute(
   primaryAppRole?: AppRoleT | null,
 ): string | null {
   const resolvedCatalog = catalog ?? []
-
-  for (const screen of APP_SCREENS) {
-    if (
-      !isAppScreenVisibleOnSidebar(
-        screen,
-        permissions,
-        resolvedCatalog,
-        primaryAppRole ?? null,
-      )
-    ) {
-      continue
-    }
-
-    if (screen.children?.length) {
-      const visibleChild = screen.children.find((child) =>
-        isAppScreenChildVisibleOnSidebar(
-          child,
-          permissions,
-          resolvedCatalog,
-          primaryAppRole,
-        ),
-      )
-      if (visibleChild) {
-        return visibleChild.to
-      }
-      continue
-    }
-
-    if (screen.to) {
-      return screen.to
-    }
-  }
-
-  return null
+  const tree = getVisibleNavTree(
+    permissions,
+    resolvedCatalog,
+    primaryAppRole ?? null,
+  )
+  const links = collectNavLinkNodes(tree)
+  return links[0]?.to ?? null
 }
 
 export function getAccessibleSidebarRoutes(
@@ -369,53 +433,16 @@ export function getAccessibleSidebarRoutes(
   catalog: Array<PermissionCatalogItemT>,
   primaryAppRole: AppRoleT | null,
 ): Array<string> {
-  const routes: Array<string> = []
-
-  for (const screen of APP_SCREENS) {
-    if (
-      !isAppScreenVisibleOnSidebar(screen, permissions, catalog, primaryAppRole)
-    ) {
-      continue
-    }
-
-    if (screen.to) {
-      routes.push(screen.to)
-      if (screen.id === 'digitization') {
-        routes.push(...DIGITIZATION_RELATED_PATHS)
-      }
-      if (screen.id === 'project-management') {
-        routes.push(...PROJECT_MANAGEMENT_RELATED_PATHS)
-      }
-      if (screen.id === 'warehouse-management') {
-        routes.push(...WAREHOUSE_MANAGEMENT_RELATED_PATHS)
-      }
-      if (screen.id === 'general-catalog') {
-        routes.push(...GENERAL_CATALOG_RELATED_PATHS)
-      }
-      if (screen.id === 'data-config') {
-        routes.push(...DATA_CONFIG_RELATED_PATHS)
-      }
-      if (screen.id === 'users') {
-        routes.push(...USER_MANAGEMENT_RELATED_PATHS)
-      }
-    }
-
-    if (screen.children?.length) {
-      const childRoutes = screen.children
-        .filter((child) =>
-          isAppScreenChildVisibleOnSidebar(
-            child,
-            permissions,
-            catalog,
-            primaryAppRole,
-          ),
-        )
-        .map((child) => child.to)
-      routes.push(...childRoutes)
+  const tree = getVisibleNavTree(permissions, catalog, primaryAppRole)
+  const links = collectNavLinkNodes(tree)
+  const routes = new Set<string>()
+  for (const link of links) {
+    for (const route of getNavRoutesForLink(link)) {
+      routes.add(route)
     }
   }
-
-  return routes
+  routes.add('/app/warehouse-management')
+  return [...routes]
 }
 
 export function canAccessPathBySidebar(

@@ -10,7 +10,10 @@ import {
   isArchiveDisposalModuleActive,
   resolveArchiveDisposalView,
 } from '@/features/archive-warehouse/lib/resolveArchiveDisposalView'
-import type { ArchiveDisposalViewT } from '@/features/archive-warehouse/schemas'
+import type {
+  ArchiveDataHubSearchT,
+  ArchiveDisposalViewT,
+} from '@/features/archive-warehouse/schemas'
 
 export function useArchiveDisposalSubTabsVisible(): boolean {
   const tab = useRouterState({
@@ -22,12 +25,7 @@ export function useArchiveDisposalSubTabsVisible(): boolean {
 export function ArchiveDisposalSubTabs() {
   const navigate = useNavigate()
   const search = useRouterState({
-    select: (state) =>
-      state.location.search as {
-        tab?: string
-        disposalView?: string
-        limit?: number
-      },
+    select: (state) => state.location.search as ArchiveDataHubSearchT,
   })
   const { canReadDisposal } = useArchiveDisposalAccess()
   const { canReadCouncil } = useDisposalCouncilAccess()
@@ -49,12 +47,19 @@ export function ArchiveDisposalSubTabs() {
   function navigateToDisposalView(view: ArchiveDisposalViewT) {
     void navigate({
       to: '/app/archive-warehouse',
-      search: {
+      search: (prev) => ({
+        ...(prev as ArchiveDataHubSearchT),
         tab: 'expiryReview',
         disposalView: view,
         page: 1,
-        limit: search.limit,
-      },
+        ...(view === 'list'
+          ? {
+              disposalAppendCatalogId: undefined,
+              searchFondId: undefined,
+              pickerMode: undefined,
+            }
+          : {}),
+      }),
     })
   }
 
