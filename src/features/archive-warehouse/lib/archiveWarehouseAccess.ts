@@ -196,16 +196,16 @@ export function canDownloadWatermark(permissions: Array<string>): boolean {
 }
 
 /**
- * @deprecated Role download_* no longer gates export UI.
- * Use canExportDossiers — original/watermark are enforced by security level on BE.
+ * @deprecated Role download_* no longer gates export UI alone.
+ * Prefer canExportDossiers / canDownload (archive.warehouse.download).
  */
 export function canDownloadAny(permissions: Array<string>): boolean {
   return canExportDossiers(permissions)
 }
 
-/** Show download/export actions — matches BE Permission.DOSSIERS_EXPORT. */
+/** Show warehouse download/export actions — archive.warehouse.download. */
 export function canExportDossiers(permissions: Array<string>): boolean {
-  return isPermissionGranted(permissions, 'dossiers.export', 'dossiers')
+  return canDownload(permissions)
 }
 
 /** Gỡ vị trí kho vật lý — khớp BE (edit hoặc delete). */

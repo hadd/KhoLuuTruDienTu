@@ -338,6 +338,18 @@ export function translateError(error: unknown): string {
     })
   }
 
+  if (/ZIP_PIN_REQUIRED/i.test(rawMessage) || /đặt mã PIN cá nhân/i.test(rawMessage)) {
+    return i18n.t('export.zipPinRequired', { ns: 'archive-warehouse' })
+  }
+
+  if (
+    /ZIP_DOSSIER_PASSWORD_REQUIRED/i.test(rawMessage) ||
+    /mã hóa ZIP bằng mật khẩu hồ sơ/i.test(rawMessage)
+  ) {
+    // Strip prefix for cleaner UI when dialog shows the message
+    return rawMessage.replace(/^ZIP_DOSSIER_PASSWORD_REQUIRED:\s*/i, '').trim()
+  }
+
   if (/Export columns must not be empty/i.test(rawMessage)) {
     return i18n.t('metadataExport.validation.noColumns', { ns: 'data-config' })
   }
