@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq, like, or } from "drizzle-orm";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
@@ -33,14 +33,45 @@ async function processedJsonExists(key: string): Promise<boolean> {
 }
 
 /**
- * Derive the dossier folderPath from the MinIO output_path produced by the
- * Python metadata worker.
+ * Prefer Kafka/API ho_so_id; fall back to deriving raw folderPath from output_path
+ * (processed/ or tt05_metadata/, nested or flat like tt05_metadata/documents/documents.json).
+ */
+async function resolveDossierForOcrCallback(input: {
+    ho_so_id: string;
+    output_path: string;
+}) {
+    const hoSoId = input.ho_so_id.trim();
+    if (hoSoId) {
+        const byHoSoId = await db.query.dossiers.findFirst({
+            where: activeDossierWhere(
+                or(
+                    eq(dossiers.name, hoSoId),
+                    eq(dossiers.folderPath, hoSoId),
+                    like(dossiers.folderPath, `%/${hoSoId}`),
+                ),
+            ),
+            orderBy: [desc(dossiers.updatedAt)],
+        });
+        if (byHoSoId) return byHoSoId;
+    }
+
+    const folderPath = deriveFolderPathFromProcessedKey(input.output_path);
+    const byPath = await db.query.dossiers.findFirst({
+        where: activeDossierWhere(eq(dossiers.folderPath, folderPath)),
+    });
+    if (byPath) return byPath;
+
+    throw httpError.notFound(
+        `Dossier not found for ho_so_id=${hoSoId || "(empty)"} output_path=${input.output_path}`,
+    );
+}
+
+/**
+ * Attach worker output to dossier.
  *
- * Convention:
- *   output_path  = "processed/<root_folder>/<ho_so_id>/<ho_so_id>.json"
- *   folderPath   = "<rawPrefix>/<root_folder>/<ho_so_id>"
- *
- * The raw prefix defaults to "raw" and can be overridden via STORAGE_RAW_PREFIX.
+ * Kafka path (preferred): message brings ho_so_id + output_path/json_path
+ *   e.g. output_path = "tt05_metadata/documents/documents.json"
+ * Scanner fallback still derives from storage key under processed/ or tt05_metadata/.
  */
 
 export async function handleOcrCallback(input: {
@@ -49,17 +80,8 @@ export async function handleOcrCallback(input: {
 }) {
     const { output_path } = input;
 
-    const folderPath = deriveFolderPathFromProcessedKey(output_path);
-
-    const dossier = await db.query.dossiers.findFirst({
-        where: activeDossierWhere(eq(dossiers.folderPath, folderPath)),
-    });
-
-    if (!dossier) {
-        throw httpError.notFound(
-            `Dossier not found for folderPath: ${folderPath}`,
-        );
-    }
+    const dossier = await resolveDossierForOcrCallback(input);
+    const folderPath = dossier.folderPath;
 
     const normalizedOutputPath = normalizeStorageKey(output_path);
 

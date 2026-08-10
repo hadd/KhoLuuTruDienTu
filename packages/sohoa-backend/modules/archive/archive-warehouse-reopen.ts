@@ -16,8 +16,8 @@ import {
 import { getS3Client } from "../../libs/s3.ts";
 import {
     expandKeysWithDocJsonMirrors,
+    getMetadataOutputPrefix,
     normalizeStorageKey,
-    PROCESSED_STORAGE_PREFIX,
     storageBasename,
     storageDirname,
     toDocJsonDataLakePrefix,
@@ -55,7 +55,8 @@ async function deleteStorageObjectQuiet(objectName: string): Promise<void> {
 
 async function listProcessedSiblingKeys(canonicalKey: string): Promise<string[]> {
     const normalized = normalizeStorageKey(canonicalKey);
-    if (!normalized.startsWith(`${PROCESSED_STORAGE_PREFIX}/`)) {
+    // Only expand siblings under known metadata roots (processed/, tt05_metadata/).
+    if (!getMetadataOutputPrefix(normalized)) {
         return [normalized];
     }
 

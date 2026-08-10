@@ -3,7 +3,38 @@ import { env } from "../../env.ts";
 
 const DOC_JSON_PREFIX = "doc_json";
 export const PROCESSED_STORAGE_PREFIX = "processed";
+/** TT05 metadata worker output root (parallel to processed/). */
+export const TT05_METADATA_STORAGE_PREFIX = "tt05_metadata";
+export const METADATA_OUTPUT_STORAGE_PREFIXES = [
+    PROCESSED_STORAGE_PREFIX,
+    TT05_METADATA_STORAGE_PREFIX,
+] as const;
+export type MetadataOutputStoragePrefix =
+    (typeof METADATA_OUTPUT_STORAGE_PREFIXES)[number];
 export const SEARCHABLE_PDF_STORAGE_PREFIX = "searchable_pdf";
+
+/** Return processed/ or tt05_metadata/ prefix if present on the key. */
+export function getMetadataOutputPrefix(
+    outputPath: string,
+): MetadataOutputStoragePrefix | null {
+    const normalized = normalizeStorageKey(outputPath);
+    for (const prefix of METADATA_OUTPUT_STORAGE_PREFIXES) {
+        if (normalized === prefix || normalized.startsWith(`${prefix}/`)) {
+            return prefix;
+        }
+    }
+    return null;
+}
+
+function stripMetadataOutputPrefix(normalized: string): string {
+    for (const prefix of METADATA_OUTPUT_STORAGE_PREFIXES) {
+        const withSlash = `${prefix}/`;
+        if (normalized.startsWith(withSlash)) {
+            return normalized.slice(withSlash.length);
+        }
+    }
+    return normalized;
+}
 
 export function normalizeStorageKey(key: string): string {
     return key.replace(/^\/+/, "").replace(/\\/g, "/");
@@ -140,10 +171,13 @@ export function expandKeysWithDocJsonMirrors(keys: Set<string>): void {
 }
 
 /**
- * Mirror a raw/ folder path to processed OCR metadata key.
- * raw/<root>/<ho_so_id> -> processed/<root>/<ho_so_id>/<ho_so_id>.json
+ * Mirror a raw/ folder path to a metadata output key under the given prefix.
+ * raw/<root>/<ho_so_id> -> <prefix>/<root>/<ho_so_id>/<ho_so_id>.json
  */
-export function toProcessedMetadataKey(folderPath: string): string | null {
+export function toMetadataOutputKey(
+    folderPath: string,
+    prefix: MetadataOutputStoragePrefix = PROCESSED_STORAGE_PREFIX,
+): string | null {
     const normalized = normalizeStorageKey(folderPath);
     const rawPrefix = resolveRawStoragePrefix();
     if (!normalized.startsWith(`${rawPrefix}/`)) {
@@ -152,44 +186,59 @@ export function toProcessedMetadataKey(folderPath: string): string | null {
 
     const suffix = normalized.slice(rawPrefix.length + 1);
     const hoSoId = storageBasename(normalized);
-    return `${PROCESSED_STORAGE_PREFIX}/${suffix}/${hoSoId}.json`;
+    return `${prefix}/${suffix}/${hoSoId}.json`;
 }
 
 /**
- * Derive raw folderPath from processed OCR output key.
- * processed/<root>/<ho_so_id>/<ho_so_id>.json -> raw/<root>/<ho_so_id>
+ * Mirror a raw/ folder path to processed OCR metadata key.
+ * raw/<root>/<ho_so_id> -> processed/<root>/<ho_so_id>/<ho_so_id>.json
+ */
+export function toProcessedMetadataKey(folderPath: string): string | null {
+    return toMetadataOutputKey(folderPath, PROCESSED_STORAGE_PREFIX);
+}
+
+/**
+ * Mirror a raw/ folder path to TT05 metadata key.
+ * raw/<root>/<ho_so_id> -> tt05_metadata/<root>/<ho_so_id>/<ho_so_id>.json
+ */
+export function toTt05MetadataKey(folderPath: string): string | null {
+    return toMetadataOutputKey(folderPath, TT05_METADATA_STORAGE_PREFIX);
+}
+
+/**
+ * Derive raw folderPath from metadata output key (processed/ or tt05_metadata/).
+ * processed|tt05_metadata/<root>/<ho_so_id>/<ho_so_id>.json -> raw/<root>/<ho_so_id>
  */
 export function deriveFolderPathFromProcessedKey(outputPath: string): string {
     const rawPrefix = resolveRawStoragePrefix();
     const normalized = normalizeStorageKey(outputPath);
-    const processedPrefix = `${PROCESSED_STORAGE_PREFIX}/`;
-    const relative = normalized.startsWith(processedPrefix)
-        ? normalized.slice(processedPrefix.length)
-        : normalized;
+    const relative = stripMetadataOutputPrefix(normalized);
     const folderSuffix = storageDirname(relative.replace(/\.json$/i, ""));
     return folderSuffix ? `${rawPrefix}/${folderSuffix}` : rawPrefix;
 }
 
-/** Extract ho_so_id (leaf folder name) from a processed OCR output key. */
+/** Extract ho_so_id (leaf folder name) from a metadata output key. */
 export function deriveHoSoIdFromProcessedKey(outputPath: string): string {
     const normalized = normalizeStorageKey(outputPath);
-    const processedPrefix = `${PROCESSED_STORAGE_PREFIX}/`;
-    const relative = normalized.startsWith(processedPrefix)
-        ? normalized.slice(processedPrefix.length)
-        : normalized;
+    const relative = stripMetadataOutputPrefix(normalized);
     return storageBasename(relative).replace(/\.json$/i, "");
 }
 
 /**
- * True only for the canonical OCR worker output:
- * processed/<root>/<ho_so_id>/<ho_so_id>.json
+ * True only for the canonical worker output:
+ * processed|tt05_metadata/<root>/<ho_so_id>/<ho_so_id>.json
  * Excludes derived keys such as _EDITOR, _CHECKER_*, _RESTORED_*.
  */
 export function isCanonicalOcrOutputKey(outputPath: string): boolean {
-    const folderPath = deriveFolderPathFromProcessedKey(outputPath);
-    const expected = toProcessedMetadataKey(folderPath);
+    const normalized = normalizeStorageKey(outputPath);
+    const prefix = getMetadataOutputPrefix(normalized);
+    if (!prefix) {
+        return false;
+    }
+    const folderPath = deriveFolderPathFromProcessedKey(normalized);
+    const expected = toMetadataOutputKey(folderPath, prefix);
     if (!expected) {
         return false;
     }
-    return normalizeStorageKey(outputPath) === expected;
+    return normalized === expected;
 }
