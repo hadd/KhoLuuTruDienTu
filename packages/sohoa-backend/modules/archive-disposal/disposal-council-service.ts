@@ -45,7 +45,7 @@ import {
 } from "./disposal-council-outcomes.ts";
 import {
     assertCouncilChairPosition,
-    assertCouncilSecretaryPosition,
+    assertDisposalCatalogCreator,
 } from "./disposal-council-role-guards.ts";
 import { resolveEvaluationUnitIds } from "./disposal-evaluation-units.ts";
 import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts";
@@ -387,6 +387,7 @@ export const DisposalCouncilService = {
             catalogName: disposalProposalCatalogs.name,
             catalogCode: disposalProposalCatalogs.code,
             catalogStatus: disposalProposalCatalogs.status,
+            catalogCreatedBy: disposalProposalCatalogs.createdBy,
         })
             .from(disposalReviewCouncils)
             .innerJoin(
@@ -405,6 +406,7 @@ export const DisposalCouncilService = {
                 catalogName: row.catalogName,
                 catalogCode: row.catalogCode,
                 catalogStatus: row.catalogStatus,
+                catalogCreatedBy: row.catalogCreatedBy,
             },
             members,
         };
@@ -963,6 +965,24 @@ export const DisposalCouncilService = {
             );
         }
 
+        const [councilRow] = await db.select({
+            decisionPublishedAt: disposalReviewCouncils.decisionPublishedAt,
+            signedMinutesStorageKey: disposalReviewCouncils.signedMinutesStorageKey,
+        })
+            .from(disposalReviewCouncils)
+            .where(eq(disposalReviewCouncils.id, councilId))
+            .limit(1);
+        if (!councilRow?.decisionPublishedAt) {
+            throw httpError.conflict(
+                "Cần xuất bản Quyết định Hội đồng trước khi kết luận đồng ý hoặc không đồng ý hủy",
+            );
+        }
+        if (!councilRow.signedMinutesStorageKey) {
+            throw httpError.conflict(
+                "Cần tải biên bản Hội đồng đã ký (TGĐ duyệt) trước khi kết luận danh mục",
+            );
+        }
+
         await this.finalizeCouncilReview(councilId, result);
 
         const [council] = await db.select({
@@ -1215,7 +1235,7 @@ export const DisposalCouncilService = {
 
     async publishCouncilDecision(profile: UserWithRoles, councilId: string) {
         await assertPendingCouncilCatalog(councilId);
-        await assertCouncilSecretaryPosition(councilId, profile.id);
+        await assertDisposalCatalogCreator(councilId, profile.id);
 
         const detail = await this.getCouncil(councilId);
         if (detail.council.decisionPublishedAt) {
@@ -1327,6 +1347,7 @@ export const DisposalCouncilService = {
         councilId: string,
         file: File,
     ) {
+        await assertDisposalCatalogCreator(councilId, profile.id);
         const detail = await this.getCouncil(councilId);
         if (!detail.council.decisionPublishedAt) {
             throw httpError.conflict("Cần xuất bản Quyết định trước khi tải biên bản ký");
