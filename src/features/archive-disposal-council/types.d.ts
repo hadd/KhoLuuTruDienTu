@@ -31,6 +31,7 @@ export type DisposalCouncilSummaryT = {
   catalogName: string
   catalogCode: string
   catalogStatus: string
+  catalogCreatedBy?: string
   copiedFromCouncilId: string | null
   reviewStartedAt: string | null
   reviewResult: 'APPROVED' | 'REJECTED' | null

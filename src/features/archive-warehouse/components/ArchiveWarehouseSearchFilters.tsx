@@ -286,12 +286,13 @@ export function ArchiveWarehouseSearchFilters({
       </div>
 
       {open ? (
-        <div className="flex flex-col gap-4 rounded-lg border bg-card text-card-foreground shadow-sm animate-in fade-in zoom-in-95 p-4 sm:p-6 w-full">
-          <div className="flex flex-col gap-2 border-b pb-4">
-            <h3 className="font-semibold text-lg">{t('filters.title')}</h3>
+        <div className="flex max-h-[min(70vh,calc(100dvh-8rem))] w-full flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm animate-in fade-in zoom-in-95">
+          <div className="shrink-0 border-b px-4 py-4 sm:px-6">
+            <h3 className="text-lg font-semibold">{t('filters.title')}</h3>
           </div>
-          
-          <div className="flex flex-col overflow-visible gap-6 pt-2">
+
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+            <div className="flex flex-col gap-6">
             {listBrowseFilters ? (
               <div className="space-y-2">
                 <Label htmlFor="warehouse-filter-year">{t('filters.year')}</Label>
@@ -493,9 +494,10 @@ export function ArchiveWarehouseSearchFilters({
                 })}
               </div>
             </div>
+            </div>
           </div>
 
-          <div className="flex flex-row justify-end gap-2 border-t pt-4 mt-2">
+          <div className="flex shrink-0 flex-row justify-end gap-2 border-t bg-card px-4 py-4 sm:px-6">
             <Button type="button" variant="ghost" onClick={handleClear}>
               {t('filters.clear')}
             </Button>
