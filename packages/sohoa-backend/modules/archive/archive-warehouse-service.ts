@@ -21,6 +21,11 @@ import { resolveDossierEffectiveRetention } from "../../libs/retention-dossier.t
 import { formatEffectiveRetentionDisplay } from "../../libs/retention-compare.ts"
 import { metadataTemplates } from "../../db/schemas/metadata_template.ts"
 import { parseFieldCatalog } from "../../libs/metadata-template.ts"
+import { resolveWarehouseScope } from "./archive-warehouse-scope.ts"
+import {
+  applyDisposalCandidateLockToWarehouseActions,
+  assertDisposalCandidateWarehouseUnlocked,
+} from "../archive-disposal/disposal-candidate-warehouse-lock.ts"
 
 export type WarehouseFondActions = {
   edit: boolean
@@ -163,36 +168,7 @@ type LatestSubmissionRow = {
   archiveYear: number | null
 }
 
-export async function resolveWarehouseScope(profile: UserWithRoles) {
-  const candidates = [
-    Permission.ARCHIVE_WAREHOUSE_READ,
-    Permission.ARCHIVE_WAREHOUSE_SEARCH,
-    Permission.ARCHIVE_WAREHOUSE_EDIT,
-    Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
-    Permission.ARCHIVE_WAREHOUSE_DELETE,
-    Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
-    Permission.ARCHIVE_DISPOSAL_READ,
-    Permission.ARCHIVE_DISPOSAL_CREATE,
-    Permission.ARCHIVE_DISPOSAL_UPDATE,
-    Permission.ARCHIVE_DISPOSAL_SUBMIT,
-    Permission.ARCHIVE_DISPOSAL_MANAGE,
-  ] as const
-  const warehousePermission = candidates.find((key) =>
-    hasArchiveWarehousePermission(profile, key) ||
-    userRolesHavePermission(profile.userRoles, key)
-  ) ?? Permission.ARCHIVE_WAREHOUSE_READ
-
-  // List/browse: union mọi ACL resource user có capability — vẫn scoped theo phông được gán,
-  // không bypass global (chỉ search.global mới toàn kho).
-  const scope = await ArchiveScopeResolver.resolve(profile, {
-    warehousePermission,
-    includeAllCapableResources: true,
-  })
-  return {
-    scope,
-    fondScope: scope.mode === "global" ? null : scope.mode === "scoped" || scope.mode === "fond" ? scope.fondIds : [],
-  }
-}
+export { resolveWarehouseScope } from "./archive-warehouse-scope.ts";
 
 export type BrowseContext = "warehouse" | "exploitation"
 
@@ -1894,6 +1870,12 @@ export const ArchiveWarehouseService = {
       actions.reupload = false
       actions.download = false
       actions.configureSecurity = false
+    } else {
+      await applyDisposalCandidateLockToWarehouseActions(
+        profile,
+        dossier.id,
+        actions,
+      )
     }
 
     const {
@@ -2975,6 +2957,11 @@ export const ArchiveWarehouseService = {
       input.fileId,
       Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
     )
+    await assertDisposalCandidateWarehouseUnlocked({
+      profile,
+      dossierId: dossier.id,
+      fileId: file.id,
+    })
 
     const rawPrefix = getRawStoragePrefix()
     const prefix = `${rawPrefix}/warehouse-reupload/${dossier.id}/`
@@ -3012,6 +2999,11 @@ export const ArchiveWarehouseService = {
       input.fileId,
       Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
     )
+    await assertDisposalCandidateWarehouseUnlocked({
+      profile,
+      dossierId: dossier.id,
+      fileId: file.id,
+    })
 
     const rawPrefix = getRawStoragePrefix()
     let nextFilePath = file.filePath
@@ -3087,6 +3079,11 @@ export const ArchiveWarehouseService = {
       input.fileId,
       Permission.ARCHIVE_WAREHOUSE_DELETE,
     )
+    await assertDisposalCandidateWarehouseUnlocked({
+      profile,
+      dossierId: dossier.id,
+      fileId: file.id,
+    })
 
     const [{ value: fileCount }] = await db
       .select({ value: count() })
@@ -3160,6 +3157,13 @@ export const ArchiveWarehouseService = {
         "Một hoặc nhiều file không tồn tại trong hồ sơ này",
       )
     }
+    for (const file of selectedFiles) {
+      await assertDisposalCandidateWarehouseUnlocked({
+        profile,
+        dossierId: dossier.id,
+        fileId: file.id,
+      })
+    }
     if (Number(fileCount) <= selectedFiles.length) {
       throw httpError.badRequest(
         "Không thể xóa toàn bộ file của hồ sơ; phải giữ lại ít nhất một file",
@@ -3215,6 +3219,11 @@ export const ArchiveWarehouseService = {
       input.targetDossierId,
       Permission.ARCHIVE_WAREHOUSE_EDIT,
     )
+    await assertDisposalCandidateWarehouseUnlocked({
+      profile,
+      dossierId: source.id,
+      fileId: file.id,
+    })
 
     const [{ value: sourceCount }] = await db
       .select({ value: count() })
@@ -3320,6 +3329,14 @@ export const ArchiveWarehouseService = {
       throw httpError.badRequest(
         "Không thể chuyển toàn bộ file; hồ sơ nguồn phải còn ít nhất một file",
       )
+    }
+
+    for (const file of selectedFiles) {
+      await assertDisposalCandidateWarehouseUnlocked({
+        profile,
+        dossierId: source.id,
+        fileId: file.id,
+      })
     }
 
     const movedFiles = []
