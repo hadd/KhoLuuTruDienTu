@@ -1,5 +1,6 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, rgb } from "pdf-lib";
 
+import { embedWatermarkFont } from "../../libs/watermark/watermark-font.ts";
 import type { DisposalCouncilEvaluationDecisionType } from "../../db/schemas/archive-disposal-constants.ts";
 
 export type CouncilDecisionPdfRow = {
@@ -22,8 +23,7 @@ export async function buildCouncilDecisionPdf(input: {
     rows: CouncilDecisionPdfRow[];
 }): Promise<Uint8Array> {
     const doc = await PDFDocument.create();
-    const font = await doc.embedFont(StandardFonts.Helvetica);
-    const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+    const font = await embedWatermarkFont(doc);
 
     const pageSize: [number, number] = [595.28, 841.89];
     let page = doc.addPage(pageSize);
@@ -36,14 +36,15 @@ export async function buildCouncilDecisionPdf(input: {
             page = doc.addPage(pageSize);
             y = pageSize[1] - margin;
         }
+        const size = bold ? 12 : 11;
         page.drawText(text, {
             x: margin,
             y,
-            size: 11,
-            font: bold ? fontBold : font,
+            size,
+            font,
             color: rgb(0.1, 0.1, 0.1),
         });
-        y -= lineHeight;
+        y -= bold ? lineHeight + 2 : lineHeight;
     }
 
     drawLine("QUYẾT ĐỊNH HỘI ĐỒNG XÉT HỦY", true);
