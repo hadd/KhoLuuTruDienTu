@@ -1,10 +1,12 @@
 import { Elysia, t } from "elysia";
 import { httpError } from "@shared/common-lib";
+import { createAuditLogPlugin } from "../../libs/plugins/audit-log.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 import { ItemService } from "./physical-warehouse-service.ts";
 import { PlacementService } from "./physical-placement-service.ts";
+import { PhysicalWarehouseSearchService } from "./physical-warehouse-search-service.ts";
 import {
     assertPhysicalWarehouseImageUpload,
     assertPhysicalWarehouseContentsManage,
@@ -326,6 +328,32 @@ export function createPhysicalWarehouseRouter(basePath: string = "/physical-ware
                 summary: "Xóa mục kho (chỉ khi không còn mục con / hồ sơ gắn)",
             },
         },
+    );
+
+    app.group("", (searchApp) =>
+        searchApp
+            .onBeforeHandle(({ request }) => {
+                const mode = new URL(request.url).searchParams.get("mode");
+                (request as Request & { __auditAction?: string }).__auditAction =
+                    mode === "content"
+                        ? "search-physical-warehouse-content"
+                        : "search-physical-warehouse";
+            })
+            .use(createAuditLogPlugin({ logResponseBody: false }))
+            .get(
+                "/search",
+                async ({ profile, urlQuery }) => {
+                    return await PhysicalWarehouseSearchService.search(profile, urlQuery);
+                },
+                {
+                    detail: {
+                        tags,
+                        summary: "Tra cứu hồ sơ (search engine kho dữ liệu) kèm vị trí kho vật lý",
+                        description:
+                            "Cùng phạm vi ACL và logic mode all/metadata/content như /archive-warehouse/search. Mỗi hit có thêm physicalPlacement (null nếu chưa xếp kho).",
+                    },
+                },
+            ),
     );
 
     return app;

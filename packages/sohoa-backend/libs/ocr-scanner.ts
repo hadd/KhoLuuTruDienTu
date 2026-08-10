@@ -6,12 +6,10 @@ import {
     deriveFolderPathFromProcessedKey,
     deriveHoSoIdFromProcessedKey,
     isCanonicalOcrOutputKey,
-    PROCESSED_STORAGE_PREFIX,
+    METADATA_OUTPUT_STORAGE_PREFIXES,
 } from "../modules/dossier/dossier-path-utils.ts";
 import { handleOcrCallback } from "../modules/ocr-callback/ocr-callback-service.ts";
 import { getS3Client } from "./s3.ts";
-
-const PROCESSED_PREFIX = `${PROCESSED_STORAGE_PREFIX}/`;
 
 async function scanAndSync(): Promise<void> {
     const s3 = await getS3Client();
@@ -21,13 +19,18 @@ async function scanAndSync(): Promise<void> {
     }
 
     const config = s3.getConfig();
-    const result = await s3.listFiles({
-        bucket: config.bucket,
-        prefix: PROCESSED_PREFIX,
-        maxKeys: 1000,
-    });
+    const jsonFiles: Array<{ objectName?: string }> = [];
 
-    const jsonFiles = result.files.filter((f) => f.objectName?.endsWith(".json"));
+    for (const prefix of METADATA_OUTPUT_STORAGE_PREFIXES) {
+        const result = await s3.listFiles({
+            bucket: config.bucket,
+            prefix: `${prefix}/`,
+            maxKeys: 1000,
+        });
+        jsonFiles.push(
+            ...result.files.filter((f) => f.objectName?.endsWith(".json")),
+        );
+    }
 
     let updated = 0;
     let skipped = 0;

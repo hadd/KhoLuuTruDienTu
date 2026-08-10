@@ -97,31 +97,139 @@ export async function assertBottomLevelItem(itemId: string) {
 export async function resolvePhysicalItemBreadcrumb(
     itemId: string,
 ): Promise<string | null> {
-    const names: Array<string> = [];
+    const ancestorIds = await resolvePhysicalItemAncestorIds(itemId);
+    if (ancestorIds.length === 0) return null;
+
+    const rows = await db
+        .select({
+            id: physicalWarehouseItems.id,
+            name: physicalWarehouseItems.name,
+        })
+        .from(physicalWarehouseItems)
+        .where(inArray(physicalWarehouseItems.id, ancestorIds));
+
+    const nameById = new Map(rows.map((row) => [row.id, row.name]));
+    const names = ancestorIds
+        .map((id) => nameById.get(id))
+        .filter((name): name is string => Boolean(name));
+
+    return names.length > 0 ? names.join(" > ") : null;
+}
+
+/** Path from location root to item (inclusive), ordered root → … → item. */
+export async function resolvePhysicalItemAncestorIds(
+    itemId: string,
+): Promise<Array<string>> {
+    const ids: Array<string> = [];
     let currentId: string | null = itemId;
     const guard = new Set<string>();
 
     while (currentId && !guard.has(currentId)) {
         guard.add(currentId);
-        const [row]: Array<{
-            id: string;
-            name: string;
-            parentId: string | null;
-        }> = await db
+        const [row]: Array<{ id: string; parentId: string | null }> = await db
             .select({
                 id: physicalWarehouseItems.id,
-                name: physicalWarehouseItems.name,
                 parentId: physicalWarehouseItems.parentId,
             })
             .from(physicalWarehouseItems)
             .where(eq(physicalWarehouseItems.id, currentId))
             .limit(1);
         if (!row) break;
-        names.unshift(row.name);
+        ids.unshift(row.id);
         currentId = row.parentId;
     }
 
-    return names.length > 0 ? names.join(" > ") : null;
+    return ids;
+}
+
+export type PhysicalPlacementSearchEnrichment = {
+    physicalItemId: string;
+    locationRootId: string | null;
+    breadcrumb: string;
+    ancestorIds: Array<string>;
+};
+
+export async function loadPhysicalPlacementEnrichmentByDossierIds(
+    dossierIds: Array<string>,
+): Promise<Map<string, PhysicalPlacementSearchEnrichment>> {
+    const result = new Map<string, PhysicalPlacementSearchEnrichment>();
+    if (dossierIds.length === 0) return result;
+
+    const placementRows = await db
+        .select()
+        .from(dossierPhysicalPlacements)
+        .where(
+            and(
+                inArray(dossierPhysicalPlacements.dossierId, dossierIds),
+                eq(
+                    dossierPhysicalPlacements.status,
+                    DossierPhysicalPlacementStatus.ACTIVE,
+                ),
+            ),
+        );
+
+    if (placementRows.length === 0) return result;
+
+    const ancestorCache = new Map<string, Array<string>>();
+
+    async function getAncestorIds(itemId: string): Promise<Array<string>> {
+        const cached = ancestorCache.get(itemId);
+        if (cached) return cached;
+        const ids = await resolvePhysicalItemAncestorIds(itemId);
+        ancestorCache.set(itemId, ids);
+        for (let i = 0; i < ids.length; i++) {
+            const id = ids[i]!;
+            if (!ancestorCache.has(id)) {
+                ancestorCache.set(id, ids.slice(0, i + 1));
+            }
+        }
+        return ids;
+    }
+
+    const allItemIds = new Set<string>();
+    const placementMeta = new Map<
+        string,
+        { physicalItemId: string; locationRootId: string | null }
+    >();
+
+    for (const placement of placementRows) {
+        placementMeta.set(placement.dossierId, {
+            physicalItemId: placement.physicalItemId,
+            locationRootId: placement.locationRootId,
+        });
+        const ancestorIds = await getAncestorIds(placement.physicalItemId);
+        for (const id of ancestorIds) allItemIds.add(id);
+    }
+
+    const nameRows = allItemIds.size > 0
+        ? await db
+            .select({
+                id: physicalWarehouseItems.id,
+                name: physicalWarehouseItems.name,
+            })
+            .from(physicalWarehouseItems)
+            .where(inArray(physicalWarehouseItems.id, [...allItemIds]))
+        : [];
+
+    const nameById = new Map(nameRows.map((row) => [row.id, row.name]));
+
+    for (const [dossierId, meta] of placementMeta) {
+        const ancestorIds = ancestorCache.get(meta.physicalItemId) ??
+            await getAncestorIds(meta.physicalItemId);
+        const breadcrumb = ancestorIds
+            .map((id) => nameById.get(id))
+            .filter((name): name is string => Boolean(name))
+            .join(" > ");
+
+        result.set(dossierId, {
+            physicalItemId: meta.physicalItemId,
+            locationRootId: meta.locationRootId,
+            breadcrumb,
+            ancestorIds,
+        });
+    }
+
+    return result;
 }
 
 export async function findLocationRootId(
