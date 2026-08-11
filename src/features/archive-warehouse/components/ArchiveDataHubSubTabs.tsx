@@ -6,8 +6,8 @@ import { ARCHIVE_DATA_HUB_TAB_CONFIG } from '@/features/archive-warehouse/lib/ar
 import { useArchiveDataHubAvailableTabs } from '@/features/archive-warehouse/hooks/useArchiveDataHubAvailableTabs'
 import type { ArchiveDataHubTabT } from '@/features/archive-warehouse/schemas'
 import {
-  warehouseTabsListClassName,
-  warehouseTabsTriggerCompactClassName,
+  warehouseUnderlineSubTabsListClassName,
+  warehouseUnderlineSubTabsTriggerClassName,
 } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 import { cn } from '@/lib/utils/cn'
 
@@ -53,7 +53,7 @@ export function ArchiveDataHubSubTabs() {
 
   return (
     <nav
-      className={cn(warehouseTabsListClassName, 'border-b-0')}
+      className={warehouseUnderlineSubTabsListClassName}
       aria-label={t('hub.subTabsAriaLabel')}
     >
       {visibleTabs.map((item) => {
@@ -65,7 +65,7 @@ export function ArchiveDataHubSubTabs() {
             key={item.value}
             type="button"
             className={cn(
-              warehouseTabsTriggerCompactClassName,
+              warehouseUnderlineSubTabsTriggerClassName,
               'inline-flex items-center',
             )}
             data-state={isActive ? 'active' : 'inactive'}
@@ -77,7 +77,6 @@ export function ArchiveDataHubSubTabs() {
                   if (item.value === 'dossiers') {
                     return {
                       tab: 'dossiers',
-                      browseView: 'fonds',
                       page: 1,
                       limit: (prev.limit as number | undefined) ?? search.limit,
                     }

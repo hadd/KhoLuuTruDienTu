@@ -13,7 +13,7 @@ import {
   collectNavLinkNodes,
   getNavRoutesForLink,
 } from '@/features/navigation/config/appNavTree'
-import { isDataConfigNavItemVisible } from '@/features/navigation/config/dataConfigNavItems'
+import { getVisibleDataConfigNavItemDefs } from '@/features/navigation/config/dataConfigNavItems'
 import type {
   AppScreen,
   AppScreenChild,
@@ -127,12 +127,6 @@ export function getPrimaryAppRoleFromProfile(
   return getPrimaryAppRole(roleIds)
 }
 
-function dataConfigItemIdFromNavLinkId(navLinkId: string): string | null {
-  const prefix = 'data-config-'
-  if (!navLinkId.startsWith(prefix)) return null
-  return navLinkId.slice(prefix.length)
-}
-
 export function isNavLinkVisibleOnSidebar(
   link: NavLinkNode,
   permissions: Array<string>,
@@ -144,13 +138,7 @@ export function isNavLinkVisibleOnSidebar(
   }
 
   if (link.visibilityTag === 'data-config') {
-    const itemId = dataConfigItemIdFromNavLinkId(link.id)
-    if (!itemId) return false
-    return isDataConfigNavItemVisible(
-      itemId as Parameters<typeof isDataConfigNavItemVisible>[0],
-      permissions,
-      catalog,
-    )
+    return getVisibleDataConfigNavItemDefs(permissions, catalog).length > 0
   }
 
   if (
@@ -265,29 +253,7 @@ export function isAppScreenVisibleOnSidebar(
   }
 
   if (screen.id === 'data-config') {
-    return (
-      isMetadataSidebarChildGranted('document-types', permissions, catalog) ||
-      isMetadataSidebarChildGranted(
-        'document-assignment',
-        permissions,
-        catalog,
-      ) ||
-      isMetadataSidebarChildGranted(
-        'metadata-export-presets',
-        permissions,
-        catalog,
-      ) ||
-      canAccessScreen(
-        permissions,
-        { module: 'roles', permissionKey: 'roles.manage' },
-        catalog,
-      ) ||
-      canAccessScreen(
-        permissions,
-        { module: 'watermark', permissionKey: 'watermark.config.read' },
-        catalog,
-      )
-    )
+    return getVisibleDataConfigNavItemDefs(permissions, catalog).length > 0
   }
 
   if (isAlwaysVisibleScreen(screen.id)) {

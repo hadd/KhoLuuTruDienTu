@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 
-import { Input } from '@/components/ui/input'
+import { DatePicker } from '@/components/common/date/DatePicker'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -44,34 +44,26 @@ export function AuditLogFilters({
   const eventOptions = getEventOptionsForModule(module, filterOptions)
 
   return (
-    <div
-      className={
-        showDateRange && showModuleFilters
-          ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-4'
-          : 'grid gap-4 md:grid-cols-2'
-      }
-    >
+    <div className="flex flex-col gap-4">
       {showDateRange ? (
-        <>
-          <div className="space-y-2">
-            <Label htmlFor="audit-log-date-from">{t('filter.dateFrom')}</Label>
-            <Input
-              id="audit-log-date-from"
-              type="date"
-              value={dateFrom}
-              onChange={(event) => onDateFromChange(event.target.value)}
+        <div className="space-y-2">
+          <Label>{t('filter.dateRange')}</Label>
+          <div className="flex items-center gap-2">
+            <DatePicker
+              value={dateFrom || undefined}
+              onChange={(value) => onDateFromChange(value ?? '')}
+              placeholder={t('filter.dateFrom')}
+              className="w-full"
+            />
+            <span className="text-muted-foreground">-</span>
+            <DatePicker
+              value={dateTo || undefined}
+              onChange={(value) => onDateToChange(value ?? '')}
+              placeholder={t('filter.dateTo')}
+              className="w-full"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="audit-log-date-to">{t('filter.dateTo')}</Label>
-            <Input
-              id="audit-log-date-to"
-              type="date"
-              value={dateTo}
-              onChange={(event) => onDateToChange(event.target.value)}
-            />
-          </div>
-        </>
+        </div>
       ) : null}
       {showModuleFilters ? (
         <>

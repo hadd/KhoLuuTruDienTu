@@ -119,29 +119,31 @@ export function GroupManagementPage() {
         variant="list"
         className="flex min-h-0 flex-1 flex-col overflow-hidden"
       >
-        <div className="flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-hidden">
           <GroupTable groups={groups} onSelectGroup={handleSelectGroup} />
         </div>
       </Card>
 
-      <ListPagePagination
-        page={safePage}
-        totalPages={totalPages}
-        limit={limit}
-        pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
-        onPageChange={(nextPage) => {
-          void navigate({
-            search: (prev) => ({ ...prev, page: nextPage }),
-            replace: true,
-          })
-        }}
-        onLimitChange={(nextLimit) => {
-          void navigate({
-            search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
-            replace: true,
-          })
-        }}
-      />
+      <div className="shrink-0">
+        <ListPagePagination
+          page={safePage}
+          totalPages={totalPages}
+          limit={limit}
+          pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
+          onPageChange={(nextPage) => {
+            void navigate({
+              search: (prev) => ({ ...prev, page: nextPage }),
+              replace: true,
+            })
+          }}
+          onLimitChange={(nextLimit) => {
+            void navigate({
+              search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
+              replace: true,
+            })
+          }}
+        />
+      </div>
 
       <CreateGroupDialog
         open={createGroupOpen}

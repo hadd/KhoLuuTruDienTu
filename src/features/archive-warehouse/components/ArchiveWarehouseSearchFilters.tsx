@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { SlidersHorizontal } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { DatePicker } from '@/components/common/date/DatePicker'
@@ -16,7 +16,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 
+import { ARCHIVE_WAREHOUSE_BROWSE_TAB_CONFIG } from '@/features/archive-warehouse/lib/archiveWarehouseBrowseTabConfig'
+import type { ArchiveWarehouseBrowseViewT } from '@/features/archive-warehouse/schemas'
 import type { ArchiveWarehouseFondListItemT } from '@/features/archive-warehouse/types'
 import {
   archiveWarehouseDocumentTypesQueryOptions,
@@ -75,9 +84,15 @@ type ArchiveWarehouseSearchFiltersProps = {
   searchInput: string
   onSearchInputChange: (value: string) => void
   onSubmitSearch: () => void
-  onChange: (patch: Partial<ArchiveWarehouseFilterValues>) => void
+  onChange: (
+    patch: Partial<ArchiveWarehouseFilterValues> & {
+      browseView?: ArchiveWarehouseBrowseViewT
+    },
+  ) => void
   onClear: () => void
   fonds?: Array<ArchiveWarehouseFondListItemT>
+  /** Hub "Hồ sơ đã lưu kho": group by fond / type / unassigned via filter. */
+  browseView?: ArchiveWarehouseBrowseViewT
   /** When set, fond filter is locked to this fond (hidden). */
   lockedFondId?: string
   searchPlaceholder?: string
@@ -113,8 +128,10 @@ function toDraft(values: ArchiveWarehouseFilterValues): FilterDraft {
 function countActiveFilters(
   values: ArchiveWarehouseFilterValues,
   listBrowseFilters?: WarehouseListBrowseFilters,
+  browseView?: ArchiveWarehouseBrowseViewT,
 ): number {
   let count = 0
+  if (browseView && browseView !== 'fonds') count += 1
   if (Array.isArray(values.searchFondId) ? values.searchFondId.length > 0 : values.searchFondId) count += 1
   if (Array.isArray(values.dossierTypeId) ? values.dossierTypeId.length > 0 : values.dossierTypeId) count += 1
   if (Array.isArray(values.documentTypeId) ? values.documentTypeId.length > 0 : values.documentTypeId) count += 1
@@ -134,6 +151,7 @@ export function ArchiveWarehouseSearchFilters({
   onChange,
   onClear,
   fonds = [],
+  browseView,
   lockedFondId,
   searchPlaceholder,
   listBrowseFilters,
@@ -146,6 +164,9 @@ export function ArchiveWarehouseSearchFilters({
   const { t } = useTranslation('archive-warehouse')
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<FilterDraft>(() => toDraft(values))
+  const [browseDraft, setBrowseDraft] = useState<
+    ArchiveWarehouseBrowseViewT | undefined
+  >(browseView)
   const [listDraft, setListDraft] = useState<{
     year?: number
     status: WarehouseDossierStatusT
@@ -161,9 +182,13 @@ export function ArchiveWarehouseSearchFilters({
   const documentTypes = documentTypesQuery.data?.items ?? []
 
   const activeFilterCount = useMemo(
-    () => countActiveFilters(values, listBrowseFilters),
-    [values, listBrowseFilters],
+    () => countActiveFilters(values, listBrowseFilters, browseView),
+    [values, listBrowseFilters, browseView],
   )
+
+  useEffect(() => {
+    setBrowseDraft(browseView)
+  }, [browseView])
 
   useEffect(() => {
     setDraft(toDraft(values))
@@ -193,6 +218,7 @@ export function ArchiveWarehouseSearchFilters({
       archivedAtFrom: draft.archivedAtFrom,
       archivedAtTo: draft.archivedAtTo,
       q: searchInput.trim() || undefined,
+      ...(browseView != null ? { browseView: browseDraft ?? 'fonds' } : {}),
     })
     if (listBrowseFilters && onListBrowseFiltersChange) {
       onListBrowseFiltersChange({
@@ -205,6 +231,7 @@ export function ArchiveWarehouseSearchFilters({
 
   function handleClear() {
     setDraft({})
+    if (browseView != null) setBrowseDraft('fonds')
     setListDraft({
       year: undefined,
       status: listBrowseFilters?.status ?? 'ARCHIVED',
@@ -213,65 +240,46 @@ export function ArchiveWarehouseSearchFilters({
     setOpen(false)
   }
 
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent | TouchEvent) {
-      if (!open) return
-      
-      const target = event.target as HTMLElement
-      if (containerRef.current && containerRef.current.contains(target)) {
-        return
+  function handleOpenChange(next: boolean) {
+    if (next) {
+      setDraft(toDraft(values))
+      setBrowseDraft(browseView)
+      if (listBrowseFilters) {
+        setListDraft({
+          year: listBrowseFilters.year,
+          status: listBrowseFilters.status,
+        })
       }
-
-      // Prevent closing when clicking inside portals (like DatePicker, Select)
-      if (
-        target.closest('[role="dialog"]') || 
-        target.closest('[role="listbox"]') ||
-        target.closest('.rdp') ||
-        target.closest('[data-radix-popper-content-wrapper]')
-      ) {
-        return
-      }
-      
-      setOpen(false)
     }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('touchstart', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('touchstart', handleClickOutside)
-    }
-  }, [open])
+    setOpen(next)
+  }
 
   return (
-    <div ref={containerRef} className={cn('flex flex-col gap-2', className)}>
+    <div className={cn('flex flex-col gap-2', className)}>
       <div
         className={cn(
           'flex flex-nowrap items-center gap-2',
           layout === 'compact' && 'min-w-0',
         )}
       >
-        {leading ? (
-          <div className="min-w-0">
-            {leading}
-          </div>
-        ) : null}
+        {leading ? <div className="min-w-0">{leading}</div> : null}
 
         <div className="flex shrink-0 items-center gap-1.5">
           <Button
             type="button"
-            variant={open ? "default" : "outline"}
+            variant={open || activeFilterCount > 0 ? 'default' : 'outline'}
             size="default"
             className="shrink-0 gap-1.5 px-3 sm:px-4"
             aria-label={t('filters.open')}
-            onClick={() => setOpen(!open)}
+            onClick={() => handleOpenChange(true)}
           >
             <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
             <span className="hidden lg:inline">{t('filters.open')}</span>
             {activeFilterCount > 0 ? (
-              <Badge variant={open ? "secondary" : "default"} className="h-5 min-w-5 px-1.5">
+              <Badge
+                variant={open ? 'secondary' : 'default'}
+                className="h-5 min-w-5 px-1.5"
+              >
                 {activeFilterCount}
               </Badge>
             ) : null}
@@ -279,53 +287,83 @@ export function ArchiveWarehouseSearchFilters({
         </div>
 
         {trailing ? (
-          <div className="flex items-center gap-2 sm:ml-auto">
-            {trailing}
-          </div>
+          <div className="flex items-center gap-2 sm:ml-auto">{trailing}</div>
         ) : null}
       </div>
 
-      {open ? (
-        <div className="flex max-h-[min(70vh,calc(100dvh-8rem))] w-full flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm animate-in fade-in zoom-in-95">
-          <div className="shrink-0 border-b px-4 py-4 sm:px-6">
-            <h3 className="text-lg font-semibold">{t('filters.title')}</h3>
-          </div>
+      <Sheet open={open} onOpenChange={handleOpenChange}>
+        <SheetContent
+          side="right"
+          className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+          ariaTitle={t('filters.title')}
+        >
+          <SheetHeader className="shrink-0 border-b px-6 py-4 text-left">
+            <SheetTitle>{t('filters.title')}</SheetTitle>
+          </SheetHeader>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
             <div className="flex flex-col gap-6">
-            {listBrowseFilters ? (
-              <div className="space-y-2">
-                <Label htmlFor="warehouse-filter-year">{t('filters.year')}</Label>
-                <Select
-                  value={
-                    listDraft.year != null ? String(listDraft.year) : ALL_YEARS
-                  }
-                  onValueChange={(next) =>
-                    setListDraft((prev) => ({
-                      ...prev,
-                      year: next === ALL_YEARS ? undefined : Number(next),
-                    }))
-                  }
-                  disabled={listBrowseFilters.disableYear}
-                >
-                  <SelectTrigger id="warehouse-filter-year" className="w-full max-w-sm">
-                    <SelectValue placeholder={t('filters.year')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ALL_YEARS}>{t('filters.allYears')}</SelectItem>
-                    {listBrowseFilters.availableYears.map((itemYear) => (
-                      <SelectItem key={itemYear} value={String(itemYear)}>
-                        {itemYear}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : null}
+              {browseView != null ? (
+                <div className="space-y-2">
+                  <Label htmlFor="warehouse-filter-browse">
+                    {t('filters.browseView')}
+                  </Label>
+                  <Select
+                    value={browseDraft ?? 'fonds'}
+                    onValueChange={(next) =>
+                      setBrowseDraft(next as ArchiveWarehouseBrowseViewT)
+                    }
+                  >
+                    <SelectTrigger id="warehouse-filter-browse" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ARCHIVE_WAREHOUSE_BROWSE_TAB_CONFIG.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {t(item.labelKey)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {listBrowseFilters ? (
+                <div className="space-y-2">
+                  <Label htmlFor="warehouse-filter-year">{t('filters.year')}</Label>
+                  <Select
+                    value={
+                      listDraft.year != null ? String(listDraft.year) : ALL_YEARS
+                    }
+                    onValueChange={(next) =>
+                      setListDraft((prev) => ({
+                        ...prev,
+                        year: next === ALL_YEARS ? undefined : Number(next),
+                      }))
+                    }
+                    disabled={listBrowseFilters.disableYear}
+                  >
+                    <SelectTrigger id="warehouse-filter-year" className="w-full">
+                      <SelectValue placeholder={t('filters.year')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_YEARS}>
+                        {t('filters.allYears')}
+                      </SelectItem>
+                      {listBrowseFilters.availableYears.map((itemYear) => (
+                        <SelectItem key={itemYear} value={String(itemYear)}>
+                          {itemYear}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+
               <div className="space-y-2">
-                <Label htmlFor="warehouse-filter-editor">{t('filters.editorName')}</Label>
+                <Label htmlFor="warehouse-filter-editor">
+                  {t('filters.editorName')}
+                </Label>
                 <Input
                   id="warehouse-filter-editor"
                   value={draft.editorName ?? ''}
@@ -343,11 +381,13 @@ export function ArchiveWarehouseSearchFilters({
                 <div className="flex items-center gap-2">
                   <DatePicker
                     value={draft.editCompletedAtFrom}
-                    onChange={(date) => patchDraft({ editCompletedAtFrom: date })}
+                    onChange={(date) =>
+                      patchDraft({ editCompletedAtFrom: date })
+                    }
                     placeholder="Từ ngày"
                     className="w-full"
                   />
-                  <span>-</span>
+                  <span className="text-muted-foreground">-</span>
                   <DatePicker
                     value={draft.editCompletedAtTo}
                     onChange={(date) => patchDraft({ editCompletedAtTo: date })}
@@ -366,7 +406,7 @@ export function ArchiveWarehouseSearchFilters({
                     placeholder="Từ ngày"
                     className="w-full"
                   />
-                  <span>-</span>
+                  <span className="text-muted-foreground">-</span>
                   <DatePicker
                     value={draft.archivedAtTo}
                     onChange={(date) => patchDraft({ archivedAtTo: date })}
@@ -375,138 +415,140 @@ export function ArchiveWarehouseSearchFilters({
                   />
                 </div>
               </div>
-            </div>
 
-            {!lockedFondId ? (
-              <div className="space-y-3">
-                <Label className="text-base font-semibold">Danh sách Phông</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {fonds.map((fond) => {
-                    const isChecked = Array.isArray(draft.searchFondId) 
-                      ? draft.searchFondId.includes(fond.id)
-                      : draft.searchFondId === fond.id;
-                    return (
-                      <div key={fond.id} className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`fond-${fond.id}`} 
-                          checked={isChecked}
-                          onCheckedChange={(checked) => {
-                            let nextIds = Array.isArray(draft.searchFondId) ? [...draft.searchFondId] : (draft.searchFondId ? [draft.searchFondId] : []);
-                            if (checked) {
-                              nextIds.push(fond.id);
-                            } else {
-                              nextIds = nextIds.filter(id => id !== fond.id);
-                            }
-                            patchDraft({ searchFondId: nextIds.length > 0 ? nextIds : undefined });
-                          }}
-                        />
-                        <Label htmlFor={`fond-${fond.id}`} className="font-normal">{fond.fondName}</Label>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            ) : null}
+              {browseDraft !== 'unassigned' && !lockedFondId ? (
+                <CheckboxGroup
+                  title="Danh sách Phông"
+                  items={fonds.map((fond) => ({
+                    id: fond.id,
+                    label: fond.fondName,
+                  }))}
+                  selected={draft.searchFondId}
+                  onChange={(nextIds) =>
+                    patchDraft({
+                      searchFondId: nextIds.length > 0 ? nextIds : undefined,
+                    })
+                  }
+                  idPrefix="fond"
+                />
+              ) : null}
 
-            <div className="space-y-3">
-              <Label className="text-base font-semibold">Loại Hồ sơ</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {dossierTypes.map((item) => {
-                  const isChecked = Array.isArray(draft.dossierTypeId) 
-                    ? draft.dossierTypeId.includes(item.id)
-                    : draft.dossierTypeId === item.id;
-                  return (
-                    <div key={item.id} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={`dossier-${item.id}`} 
-                        checked={isChecked}
-                        onCheckedChange={(checked) => {
-                          let nextIds = Array.isArray(draft.dossierTypeId) ? [...draft.dossierTypeId] : (draft.dossierTypeId ? [draft.dossierTypeId] : []);
-                          if (checked) {
-                            nextIds.push(item.id);
-                          } else {
-                            nextIds = nextIds.filter(id => id !== item.id);
-                          }
-                          patchDraft({ dossierTypeId: nextIds.length > 0 ? nextIds : undefined });
-                        }}
-                      />
-                      <Label htmlFor={`dossier-${item.id}`} className="font-normal">{item.name}</Label>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+              {browseDraft !== 'unassigned' ? (
+                <>
+                  <CheckboxGroup
+                    title="Loại Hồ sơ"
+                    items={dossierTypes.map((item) => ({
+                      id: item.id,
+                      label: item.name,
+                    }))}
+                    selected={draft.dossierTypeId}
+                    onChange={(nextIds) =>
+                      patchDraft({
+                        dossierTypeId: nextIds.length > 0 ? nextIds : undefined,
+                      })
+                    }
+                    idPrefix="dossier"
+                  />
 
-            <div className="space-y-3">
-              <Label className="text-base font-semibold">Loại Tài liệu</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {documentTypes.map((item) => {
-                  const isChecked = Array.isArray(draft.documentTypeId) 
-                    ? draft.documentTypeId.includes(item.id)
-                    : draft.documentTypeId === item.id;
-                  return (
-                    <div key={item.id} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={`doc-${item.id}`} 
-                        checked={isChecked}
-                        onCheckedChange={(checked) => {
-                          let nextIds = Array.isArray(draft.documentTypeId) ? [...draft.documentTypeId] : (draft.documentTypeId ? [draft.documentTypeId] : []);
-                          if (checked) {
-                            nextIds.push(item.id);
-                          } else {
-                            nextIds = nextIds.filter(id => id !== item.id);
-                          }
-                          patchDraft({ documentTypeId: nextIds.length > 0 ? nextIds : undefined });
-                        }}
-                      />
-                      <Label htmlFor={`doc-${item.id}`} className="font-normal">{item.name}</Label>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+                  <CheckboxGroup
+                    title="Loại Tài liệu"
+                    items={documentTypes.map((item) => ({
+                      id: item.id,
+                      label: item.name,
+                    }))}
+                    selected={draft.documentTypeId}
+                    onChange={(nextIds) =>
+                      patchDraft({
+                        documentTypeId: nextIds.length > 0 ? nextIds : undefined,
+                      })
+                    }
+                    idPrefix="doc"
+                  />
 
-            <div className="space-y-3">
-              <Label className="text-base font-semibold">Trường Metadata (TT05)</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {TT05_SEARCHABLE_FIELDS.map((field) => {
-                  const isChecked = Array.isArray(draft.searchFields) 
-                    ? draft.searchFields.includes(field.value)
-                    : draft.searchFields === field.value;
-                  return (
-                    <div key={field.value} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={`field-${field.value}`} 
-                        checked={isChecked}
-                        onCheckedChange={(checked) => {
-                          let nextFields = Array.isArray(draft.searchFields) ? [...draft.searchFields] : (draft.searchFields ? [draft.searchFields] : []);
-                          if (checked) {
-                            nextFields.push(field.value);
-                          } else {
-                            nextFields = nextFields.filter(f => f !== field.value);
-                          }
-                          patchDraft({ searchFields: nextFields.length > 0 ? nextFields : undefined });
-                        }}
-                      />
-                      <Label htmlFor={`field-${field.value}`} className="font-normal">{field.label}</Label>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+                  <CheckboxGroup
+                    title="Trường Metadata (TT05)"
+                    items={TT05_SEARCHABLE_FIELDS.map((field) => ({
+                      id: field.value,
+                      label: field.label,
+                    }))}
+                    selected={draft.searchFields}
+                    onChange={(nextIds) =>
+                      patchDraft({
+                        searchFields: nextIds.length > 0 ? nextIds : undefined,
+                      })
+                    }
+                    idPrefix="field"
+                  />
+                </>
+              ) : null}
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-row justify-end gap-2 border-t bg-card px-4 py-4 sm:px-6">
+          <SheetFooter className="mt-0 shrink-0 flex-row justify-end gap-2 border-t bg-background px-6 py-4">
             <Button type="button" variant="ghost" onClick={handleClear}>
               {t('filters.clear')}
             </Button>
             <Button type="button" onClick={handleApply}>
               {t('filters.apply')}
             </Button>
-          </div>
-        </div>
-      ) : null}
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+    </div>
+  )
+}
+
+function CheckboxGroup({
+  title,
+  items,
+  selected,
+  onChange,
+  idPrefix,
+}: {
+  title: string
+  items: Array<{ id: string; label: string }>
+  selected: string | string[] | undefined
+  onChange: (ids: Array<string>) => void
+  idPrefix: string
+}) {
+  if (items.length === 0) return null
+
+  return (
+    <div className="space-y-3">
+      <Label className="text-sm font-semibold">{title}</Label>
+      <div className="grid max-h-48 grid-cols-1 gap-2 overflow-y-auto rounded-md border border-border/60 bg-muted/30 p-3 sm:grid-cols-2">
+        {items.map((item) => {
+          const isChecked = Array.isArray(selected)
+            ? selected.includes(item.id)
+            : selected === item.id
+          return (
+            <div key={item.id} className="flex items-start gap-2">
+              <Checkbox
+                id={`${idPrefix}-${item.id}`}
+                className="mt-0.5"
+                checked={isChecked}
+                onCheckedChange={(checked) => {
+                  const current = Array.isArray(selected)
+                    ? [...selected]
+                    : selected
+                      ? [selected]
+                      : []
+                  const nextIds = checked
+                    ? [...current, item.id]
+                    : current.filter((id) => id !== item.id)
+                  onChange(nextIds)
+                }}
+              />
+              <Label
+                htmlFor={`${idPrefix}-${item.id}`}
+                className="font-normal leading-snug"
+              >
+                {item.label}
+              </Label>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

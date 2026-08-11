@@ -127,14 +127,15 @@ export function ArchiveBorrowReadingPage({
   const isEmpty = currentlyReading.length === 0 && saved.length === 0
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1">
-      <div className="space-y-1">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-1">
+      <div className="shrink-0 space-y-1">
         <h3 className="text-base font-semibold">{t('page.readingTitle')}</h3>
         <p className="text-sm text-muted-foreground">
           {t('page.readingDescription')}
         </p>
       </div>
 
+      <div className="min-h-0 flex-1 space-y-4 overflow-auto">
       {isEmpty ? (
         <p className="text-sm text-muted-foreground">{t('reader.emptyReading')}</p>
       ) : null}
@@ -176,6 +177,7 @@ export function ArchiveBorrowReadingPage({
           </div>
         </section>
       ) : null}
+      </div>
     </div>
   )
 }

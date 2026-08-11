@@ -20,8 +20,8 @@ import type { PhysicalWarehouseSearchT } from '@/features/physical-warehouse/sch
 import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
 import { WarehousePageShell } from '@/features/warehouse-management/components/WarehousePageShell'
 import {
-  warehouseTabsListClassName,
-  warehouseTabsTriggerCompactClassName,
+  warehouseUnderlineSubTabsListClassName,
+  warehouseUnderlineSubTabsTriggerClassName,
 } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 import { cn } from '@/lib/utils/cn'
 
@@ -219,13 +219,13 @@ export function PhysicalWarehousePage() {
 
   const physicalSubTabs = warehouseSelected ? (
     <nav
-      className={cn(warehouseTabsListClassName, 'w-full border-b-0')}
+      className={warehouseUnderlineSubTabsListClassName}
       aria-label={t('tabs.ariaLabel')}
     >
       <button
         type="button"
         className={cn(
-          warehouseTabsTriggerCompactClassName,
+          warehouseUnderlineSubTabsTriggerClassName,
           'inline-flex items-center',
         )}
         data-state={detailTab === 'diagram' ? 'active' : 'inactive'}
@@ -239,7 +239,7 @@ export function PhysicalWarehousePage() {
         <button
           type="button"
           className={cn(
-            warehouseTabsTriggerCompactClassName,
+            warehouseUnderlineSubTabsTriggerClassName,
             'inline-flex items-center',
           )}
           data-state={detailTab === 'manage' ? 'active' : 'inactive'}

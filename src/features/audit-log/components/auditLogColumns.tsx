@@ -49,8 +49,18 @@ export function AuditLogStatusCell({ statusCode }: { statusCode: number }) {
   return <StatusBadge status={status} label={label} />
 }
 
-export function AuditLogTimeCell({ value }: { value: string }) {
+export function AuditLogTimeCell({
+  value,
+  compact = false,
+}: {
+  value: string
+  compact?: boolean
+}) {
   const { i18n } = useTranslation()
   const locale = i18n.language === 'vi' ? 'vi' : 'en'
-  return <span>{formatDate(value, 'PP pp', locale)}</span>
+  return (
+    <span>
+      {formatDate(value, compact ? 'dd/MM/yyyy HH:mm' : 'PP pp', locale)}
+    </span>
+  )
 }

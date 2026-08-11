@@ -23,10 +23,8 @@ import {
 import { profileQueryOptions } from '@/features/auth/queries'
 import { getUserRoles } from '@/features/auth/store'
 import { isMetadataSidebarChildGranted } from '@/features/navigation/config/sidebarMetadataPermissions'
-import {
-  sectionBoxedTabsListClassName,
-  sectionBoxedTabsTriggerCompactClassName,
-} from '@/features/navigation/components/SectionBackNav'
+import { ScrollableSectionTabs } from '@/features/navigation/components/ScrollableSectionTabs'
+import { sectionBoxedTabsTriggerCompactClassName } from '@/features/navigation/components/SectionBackNav'
 import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 import {
   permissionsCatalogQueryOptions,
@@ -203,8 +201,8 @@ export function DataConfigSectionTabs({
   }
 
   return (
-    <nav
-      className={cn(sectionBoxedTabsListClassName, 'shrink-0')}
+    <ScrollableSectionTabs
+      activeKey={active}
       aria-label="Data config sections"
     >
       {tabs.map((tab) => {
@@ -217,7 +215,7 @@ export function DataConfigSectionTabs({
             to={tab.to}
             className={cn(
               sectionBoxedTabsTriggerCompactClassName,
-              'inline-flex items-center',
+              'inline-flex shrink-0 items-center whitespace-nowrap',
             )}
             data-state={isActive ? 'active' : 'inactive'}
             aria-current={isActive ? 'page' : undefined}
@@ -227,6 +225,6 @@ export function DataConfigSectionTabs({
           </Link>
         )
       })}
-    </nav>
+    </ScrollableSectionTabs>
   )
 }

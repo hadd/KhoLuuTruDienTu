@@ -26,7 +26,7 @@ export function LibraryPage() {
       id: 'exploitation',
       to: '/app/library/exploitation' as const,
       search: undefined,
-      label: t('tabs.exploitation', 'Hồ sơ khai thác'),
+      label: t('tabs.exploitation'),
       icon: FolderOpen,
     })
   }
@@ -107,21 +107,15 @@ export function LibraryPage() {
 
   return (
     <LibraryPageShell activeTab={activeTab}>
-      <div className="flex-1 overflow-hidden h-full">
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
         {activeTab === 'borrow' && canRequestBorrow ? (
-          <div className="h-full overflow-y-auto">
-            <MyArchiveBorrowRequestsPage source="library" />
-          </div>
+          <MyArchiveBorrowRequestsPage source="library" />
         ) : null}
         {activeTab === 'reading' && canReadExploitation ? (
-          <div className="h-full overflow-y-auto">
-            <ArchiveBorrowReadingPage source="library" />
-          </div>
+          <ArchiveBorrowReadingPage source="library" />
         ) : null}
         {activeTab === 'borrowReview' && canReviewBorrow ? (
-          <div className="h-full overflow-y-auto">
-            <ArchiveBorrowApprovalPage />
-          </div>
+          <ArchiveBorrowApprovalPage />
         ) : null}
       </div>
     </LibraryPageShell>

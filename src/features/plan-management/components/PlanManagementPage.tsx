@@ -11,6 +11,7 @@ import { TextBlock } from '@/components/common/TextBlock'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
+  stickyTableHeaderClassName,
   Table,
   TableBody,
   TableCell,
@@ -182,10 +183,13 @@ export function PlanManagementPage() {
       />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-card shadow-sm">
-        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-muted/50 [&_th]:bg-muted/50">
-              <TableRow className="hover:bg-muted/50">
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <Table
+            className="border-separate border-spacing-0"
+            containerClassName="h-full min-h-0 overflow-auto"
+          >
+            <TableHeader className={stickyTableHeaderClassName}>
+              <TableRow className="hover:bg-muted">
                 <TableHead>{t('table.columns.name')}</TableHead>
                 <TableHead>{t('table.columns.project')}</TableHead>
                 <TableHead>{t('table.columns.duration')}</TableHead>
@@ -239,24 +243,26 @@ export function PlanManagementPage() {
         </div>
       </div>
 
-      <ListPagePagination
-        page={safePage}
-        totalPages={totalPages}
-        limit={limit}
-        pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
-        onPageChange={(nextPage) => {
-          void navigate({
-            search: (prev) => ({ ...prev, page: nextPage }),
-            replace: true,
-          })
-        }}
-        onLimitChange={(nextLimit) => {
-          void navigate({
-            search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
-            replace: true,
-          })
-        }}
-      />
+      <div className="shrink-0">
+        <ListPagePagination
+          page={safePage}
+          totalPages={totalPages}
+          limit={limit}
+          pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
+          onPageChange={(nextPage) => {
+            void navigate({
+              search: (prev) => ({ ...prev, page: nextPage }),
+              replace: true,
+            })
+          }}
+          onLimitChange={(nextLimit) => {
+            void navigate({
+              search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
+              replace: true,
+            })
+          }}
+        />
+      </div>
 
       <PlanEditDialog
         open={editOpen}

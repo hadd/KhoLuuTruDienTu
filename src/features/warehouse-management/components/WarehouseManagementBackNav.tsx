@@ -12,6 +12,10 @@ import {
   sectionBoxedTabsListClassName,
   sectionBoxedTabsTriggerClassName,
   sectionBoxedTabsTriggerCompactClassName,
+  sectionPillTabsListClassName,
+  sectionPillTabsTriggerClassName,
+  sectionUnderlineSubTabsListClassName,
+  sectionUnderlineSubTabsTriggerClassName,
 } from '@/features/navigation/components/SectionBackNav'
 
 export function WarehouseManagementBackNav({
@@ -47,3 +51,9 @@ export const warehouseSubTabsDenseTriggerClassName =
   sectionBoxedSubTabsDenseTriggerClassName
 export const warehouseTabsDenseListClassName = sectionBoxedTabsDenseListClassName
 export const warehouseTabsDenseTriggerClassName = sectionBoxedTabsDenseTriggerClassName
+export const warehouseUnderlineSubTabsListClassName =
+  sectionUnderlineSubTabsListClassName
+export const warehouseUnderlineSubTabsTriggerClassName =
+  sectionUnderlineSubTabsTriggerClassName
+export const warehousePillTabsListClassName = sectionPillTabsListClassName
+export const warehousePillTabsTriggerClassName = sectionPillTabsTriggerClassName

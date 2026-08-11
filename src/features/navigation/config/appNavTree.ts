@@ -21,7 +21,7 @@ import type {
   AppScreenPermissionRequirement,
   AppScreenTo,
 } from '@/features/navigation/config/appNav'
-import { DATA_CONFIG_NAV_ITEM_DEFS } from '@/features/navigation/config/dataConfigNavItems'
+import { DATA_CONFIG_RELATED_PATHS } from '@/features/data-config/lib/dataConfigAccess'
 import { DASHBOARD_SCREEN_REQUIREMENTS } from '@/features/permissions/lib/dashboardAccess'
 
 export type NavLabelKey =
@@ -39,7 +39,7 @@ export type NavLabelKey =
   | 'admin.warehouseManagement'
   | 'admin.physicalWarehouse'
   | 'admin.archiveWarehouse'
-  | (typeof DATA_CONFIG_NAV_ITEM_DEFS)[number]['labelKey']
+  | 'admin.dataConfig.title'
 
 export type NavLinkNode = {
   type: 'link'
@@ -63,17 +63,6 @@ export type NavGroupNode = {
 
 export type NavNode = NavLinkNode | NavGroupNode
 
-const dataConfigNavLinks: Array<NavLinkNode> = DATA_CONFIG_NAV_ITEM_DEFS.map(
-  (item) => ({
-    type: 'link' as const,
-    id: `data-config-${item.id}`,
-    to: item.to,
-    labelKey: item.labelKey,
-    visibilityTag: 'data-config' as const,
-    relatedPaths: [item.to],
-  }),
-)
-
 export const APP_NAV_TREE: Array<NavNode> = [
   {
     type: 'link',
@@ -83,14 +72,6 @@ export const APP_NAV_TREE: Array<NavNode> = [
     icon: LayoutDashboard,
     requiredPermission: [...DASHBOARD_SCREEN_REQUIREMENTS],
     relatedPaths: ['/app/dashboard'],
-  },
-  {
-    type: 'link',
-    id: 'library',
-    to: '/app/library',
-    labelKey: 'admin.library',
-    icon: Library,
-    relatedPaths: ['/app/library', '/app/archive-borrow'],
   },
   {
     type: 'group',
@@ -115,6 +96,29 @@ export const APP_NAV_TREE: Array<NavNode> = [
         relatedPaths: [...DIGITIZATION_RELATED_PATHS],
       },
     ],
+  },
+  {
+    type: 'link',
+    id: 'warehouse-management',
+    to: '/app/warehouse-management',
+    labelKey: 'admin.warehouseManagement',
+    icon: Warehouse,
+    requiredPermission: [
+      ...ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS,
+      {
+        module: 'physical-warehouse',
+        permissionKey: 'physical-warehouse.item.read',
+      },
+    ],
+    relatedPaths: [...WAREHOUSE_MANAGEMENT_RELATED_PATHS],
+  },
+  {
+    type: 'link',
+    id: 'library',
+    to: '/app/library',
+    labelKey: 'admin.library',
+    icon: Library,
+    relatedPaths: ['/app/library', '/app/archive-borrow'],
   },
   {
     type: 'group',
@@ -159,23 +163,15 @@ export const APP_NAV_TREE: Array<NavNode> = [
         },
         relatedPaths: ['/app/audit-logs'],
       },
-      ...dataConfigNavLinks,
-    ],
-  },
-  {
-    type: 'link',
-    id: 'warehouse-management',
-    to: '/app/warehouse-management',
-    labelKey: 'admin.warehouseManagement',
-    icon: Warehouse,
-    requiredPermission: [
-      ...ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS,
       {
-        module: 'physical-warehouse',
-        permissionKey: 'physical-warehouse.item.read',
+        type: 'link',
+        id: 'data-config',
+        to: '/app/data-config',
+        labelKey: 'admin.dataConfig.title',
+        visibilityTag: 'data-config',
+        relatedPaths: [...DATA_CONFIG_RELATED_PATHS],
       },
     ],
-    relatedPaths: [...WAREHOUSE_MANAGEMENT_RELATED_PATHS],
   },
 ]
 
@@ -197,4 +193,43 @@ export function getNavRoutesForLink(link: NavLinkNode): Array<string> {
     routes.push(...link.relatedPaths)
   }
   return routes
+}
+
+export function findActiveNavTrail(pathname: string): {
+  group?: NavGroupNode
+  link: NavLinkNode
+} | null {
+  type Candidate = {
+    group?: NavGroupNode
+    link: NavLinkNode
+    score: number
+  }
+  const candidates: Candidate[] = []
+
+  const scoreLink = (link: NavLinkNode) => {
+    let best = 0
+    for (const route of getNavRoutesForLink(link)) {
+      if (pathname === route || pathname.startsWith(`${route}/`)) {
+        best = Math.max(best, route.length)
+      }
+    }
+    return best
+  }
+
+  for (const node of APP_NAV_TREE) {
+    if (node.type === 'link') {
+      const score = scoreLink(node)
+      if (score > 0) candidates.push({ link: node, score })
+    } else {
+      for (const child of node.children) {
+        const score = scoreLink(child)
+        if (score > 0) candidates.push({ group: node, link: child, score })
+      }
+    }
+  }
+
+  if (candidates.length === 0) return null
+  candidates.sort((a, b) => b.score - a.score)
+  const best = candidates[0]
+  return { group: best.group, link: best.link }
 }

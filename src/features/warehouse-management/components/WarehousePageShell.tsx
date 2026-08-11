@@ -4,11 +4,6 @@ import {
   WarehouseSectionTabs,
   type WarehouseSectionTabT,
 } from '@/features/warehouse-management/components/WarehouseSectionTabs'
-import {
-  WarehouseCollapsibleSubTabsPanel,
-  WarehouseCollapsibleSubTabsToggle,
-} from '@/features/warehouse-management/components/WarehouseCollapsibleSubTabs'
-import { useWarehouseSubTabsExpanded } from '@/features/warehouse-management/hooks/useWarehouseSubTabsExpanded'
 
 type WarehousePageShellProps = {
   section: WarehouseSectionTabT
@@ -23,30 +18,19 @@ export function WarehousePageShell({
   subTabs = null,
   children,
 }: WarehousePageShellProps) {
-  const { expanded, setExpanded } = useWarehouseSubTabsExpanded()
-
   return (
     <div className="-mx-6 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-6">
-      <div className="flex shrink-0 items-end gap-0.5 border-b border-border">
+      <div className="flex shrink-0 items-end">
         <WarehouseSectionTabs
           active={section}
           compact
-          className="min-w-0 flex-1 border-b-0"
+          className="min-w-0 flex-1"
         />
-        {hasSubTabs ? (
-          <WarehouseCollapsibleSubTabsToggle
-            expanded={expanded}
-            onExpandedChange={setExpanded}
-          />
-        ) : null}
       </div>
 
-      <WarehouseCollapsibleSubTabsPanel
-        expanded={expanded}
-        visible={hasSubTabs}
-      >
-        {subTabs}
-      </WarehouseCollapsibleSubTabsPanel>
+      {hasSubTabs && subTabs ? (
+        <div className="flex shrink-0 flex-col">{subTabs}</div>
+      ) : null}
 
       <div className="mt-1.5 flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
         {children}

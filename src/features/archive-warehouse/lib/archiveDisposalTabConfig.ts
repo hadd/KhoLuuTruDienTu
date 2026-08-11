@@ -1,4 +1,4 @@
-import { List, Trash2, type LucideIcon } from 'lucide-react'
+import { FileText, List, type LucideIcon } from 'lucide-react'
 
 import type { ArchiveDisposalViewT } from '@/features/archive-warehouse/schemas'
 
@@ -20,7 +20,7 @@ export const ARCHIVE_DISPOSAL_TAB_CONFIG: Array<ArchiveDisposalTabConfigItem> = 
   },
   {
     value: 'proposal',
-    icon: Trash2,
+    icon: FileText,
     labelKey: 'disposal.subTabProposal',
     descriptionKey: 'disposal.subTabProposalDescription',
   },

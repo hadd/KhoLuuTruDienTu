@@ -18,20 +18,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useWarehouseDisposalPicker } from '@/features/archive-disposal/hooks/useWarehouseDisposalPicker'
-import { buildWarehousePickerRouteSearch } from '@/features/archive-disposal/lib/warehousePickerSelection'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
-import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
 import { buildWarehouseSearchApiParams } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
-import {
-  buildSimplifiedBrowseBreadcrumbSegments,
-} from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
 import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
   archiveWarehouseDocumentTypeSummaryQueryOptions,
-  archiveWarehouseDocumentTypesQueryOptions,
   archiveWarehouseDocumentsByTypeQueryOptions,
   archiveWarehouseSearchQueryOptions,
 } from '@/features/archive-warehouse/queries'
@@ -73,11 +67,6 @@ export function ArchiveWarehouseDocumentsByTypePage() {
     isEsSearchActive,
     onTransferSuccess: () => setSelectedIds(new Set()),
   })
-
-  const { data: documentTypesData } = useQuery(archiveWarehouseDocumentTypesQueryOptions())
-  const documentTypeName =
-    documentTypesData?.items.find((item) => item.id === documentTypeId)?.name ??
-    documentTypeId
 
   const summaryParams = { documentTypeId }
   const searchParams = isEsSearchActive
@@ -155,18 +144,6 @@ export function ArchiveWarehouseDocumentsByTypePage() {
         page: 1,
       }),
       replace: true,
-    })
-  }
-
-  function navigateBackToBrowseList() {
-    void navigate({
-      to: '/app/archive-warehouse',
-      search: {
-        tab: 'dossiers',
-        browseView: 'documentTypes',
-        page: 1,
-        ...buildWarehousePickerRouteSearch({ pickerMode, disposalCatalogId }),
-      },
     })
   }
 
@@ -250,13 +227,6 @@ export function ArchiveWarehouseDocumentsByTypePage() {
     <ArchiveWarehouseDataShell>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto">
         <div className="shrink-0 space-y-3">
-          <ArchiveWarehouseDrillDownHeader
-            segments={buildSimplifiedBrowseBreadcrumbSegments({
-              listLabel: t('page.documentTypeDocumentsTitle', { name: documentTypeName }),
-            })}
-            onBack={navigateBackToBrowseList}
-            backAriaLabel={t('page.backToFonds')}
-          />
           {!forbiddenMessage && summaryData ? (
             <ArchiveWarehouseStatCards summary={summaryData} />
           ) : null}

@@ -92,3 +92,17 @@ export const sectionBoxedSubTabsDenseInlineListClassName =
   'flex h-auto w-auto max-w-full flex-wrap items-end justify-start gap-0.5 rounded-none border-b-0 bg-transparent p-0 pl-0.5 text-muted-foreground'
 
 export const sectionBoxedSubTabsDenseTriggerClassName = `${sectionBoxedTabsTriggerBaseClassName} gap-1 px-2 py-1 text-xs`
+
+/** Level-2 child tabs: text + icon with a primary underline (not boxed). */
+export const sectionUnderlineSubTabsListClassName =
+  'flex h-auto w-full flex-wrap items-center justify-start gap-4 rounded-none border-b border-border bg-transparent p-0 text-muted-foreground'
+
+export const sectionUnderlineSubTabsTriggerClassName =
+  'inline-flex items-center gap-1.5 border-b-2 border-transparent px-0.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:font-semibold data-[state=active]:text-primary'
+
+/** Level-3 nested tabs: compact pills under the underlined child row. */
+export const sectionPillTabsListClassName =
+  'flex h-auto w-full flex-wrap items-center justify-start gap-1.5 rounded-none bg-transparent p-0 pt-1.5'
+
+export const sectionPillTabsTriggerClassName =
+  'inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground shadow-none transition-colors hover:bg-muted/70 hover:text-foreground data-[state=active]:border-primary/30 data-[state=active]:bg-primary/10 data-[state=active]:text-primary'

@@ -33,7 +33,7 @@ import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/data/')({
   staticData: {
-    crumb: () => i18n.t('admin.digitization', { ns: 'common' }),
+    crumb: () => i18n.t('sectionTabs.dataManagement', { ns: 'digitization' }),
   },
   beforeLoad: async ({ location, context }) => {
     requireAuth()

@@ -42,7 +42,7 @@ export function MetadataExtractSettingsPage() {
     currentMode === 'off' ? [...MODE_OPTIONS, 'off'] : MODE_OPTIONS
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-4 sm:p-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto">
       <DataConfigSectionTabs active="metadata-extract-settings" />
 
       <Card className="max-w-xl">

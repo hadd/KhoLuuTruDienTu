@@ -12,6 +12,9 @@ import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissio
 import i18n from '@/lib/i18n/config'
 
 export const Route = createFileRoute('/app/data-config/metadata-export-presets')({
+  staticData: {
+    crumb: () => i18n.t('tiles.metadataExportPresets', { ns: 'data-config' }),
+  },
   beforeLoad: async ({ context }) => {
     await requirePermission(context, APP_SCREEN_ACCESS.dataConfig.metadataExportPresets)
   },

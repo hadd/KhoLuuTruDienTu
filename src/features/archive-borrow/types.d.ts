@@ -90,6 +90,13 @@ export type ArchiveBorrowMineListParamsT = {
   search?: string
 }
 
+export type ArchiveBorrowReviewListParamsT = {
+  page?: number
+  limit?: number
+  search?: string
+  status?: ArchiveBorrowStatusT
+}
+
 export type CreateArchiveBorrowItemInputT =
   | { itemKind: 'FILE'; dossierId: string; fileId: string }
   | { itemKind: 'DOSSIER'; dossierId: string }

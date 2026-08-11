@@ -11,7 +11,7 @@ import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/scan-intake/')({
   staticData: {
-    crumb: () => i18n.t('admin.digitization', { ns: 'common' }),
+    crumb: () => i18n.t('sectionTabs.scanIntake', { ns: 'digitization' }),
   },
   beforeLoad: async ({ context }) => {
     await requirePermission(context, APP_SCREEN_ACCESS.scanIntake)
