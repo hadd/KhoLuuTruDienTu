@@ -298,7 +298,7 @@ export function ArchiveWarehouseFondsPage({
     if (openingDossierId || passwordDialogOpen) return
 
     if (securityLevelId) {
-      rememberDossierSecurityLevel(dossierId, securityLevelId)
+      rememberDossierSecurityLevel('warehouse', dossierId, securityLevelId)
     }
 
     setOpeningDossierId(dossierId)
@@ -333,7 +333,7 @@ export function ArchiveWarehouseFondsPage({
     onSuccess: async (result) => {
       if (!pendingOpen) return
       const { dossierId, securityLevelId, fondId, match } = pendingOpen
-      setDossierAccessToken(dossierId, result.token, result.expiresIn)
+      setDossierAccessToken('warehouse', dossierId, result.token, result.expiresIn)
       setPasswordDialogOpen(false)
       toast.success(tSecurity('access.unlockSuccess'))
       try {
