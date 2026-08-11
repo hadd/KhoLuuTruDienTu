@@ -86,18 +86,20 @@ export function AuditLogStructuredDetails({
   if (entries.length === 0) return null
 
   return (
-    <div>
-      <dt className="mb-2 text-muted-foreground">{t('detail.structuredDetails')}</dt>
-      <dd>
-        <dl className="space-y-2 rounded-md bg-muted p-3 text-sm">
-          {entries.map((entry) => (
-            <div key={entry.key}>
-              <dt className="text-muted-foreground">{entry.label}</dt>
-              <dd className="break-words">{entry.value}</dd>
-            </div>
-          ))}
-        </dl>
-      </dd>
-    </div>
+    <section className="space-y-2">
+      <h3 className="text-sm font-semibold text-foreground">
+        {t('detail.structuredDetails')}
+      </h3>
+      <dl className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-muted/20 p-4 sm:grid-cols-2">
+        {entries.map((entry) => (
+          <div key={entry.key} className="min-w-0">
+            <dt className="text-xs font-medium text-muted-foreground">
+              {entry.label}
+            </dt>
+            <dd className="mt-1 text-sm break-words">{entry.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   )
 }

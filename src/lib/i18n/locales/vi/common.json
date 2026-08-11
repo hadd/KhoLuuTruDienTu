@@ -37,7 +37,13 @@
   },
   "actions": {
     "addNew": "Thêm mới",
-    "toggleSidebar": "Thu gọn/mở rộng thanh bên"
+    "toggleSidebar": "Thu gọn/mở rộng thanh bên",
+    "collapseSidebar": "Thu gọn menu",
+    "expandSidebar": "Mở rộng menu"
+  },
+  "tabs": {
+    "scrollLeft": "Cuộn sang trái",
+    "scrollRight": "Cuộn sang phải"
   },
   "language": {
     "label": "Ngôn ngữ",
@@ -113,7 +119,7 @@
       "securityLevel": "cấp độ bảo mật",
       "documentType": "Loại tài liệu"
     },
-    "library": "Thư viện",
+    "library": "Khai thác dữ liệu",
     "digitization": "Số hóa hồ sơ, tài liệu",
     "dataManagement": "Quản lý dữ liệu",
     "dossierManagement": "Hồ sơ lưu tạm",

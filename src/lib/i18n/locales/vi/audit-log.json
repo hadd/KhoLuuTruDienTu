@@ -7,6 +7,7 @@
     "placeholder": "Tìm theo mô tả, đường dẫn hoặc thao tác..."
   },
   "filter": {
+    "dateRange": "Khoảng thời gian",
     "dateFrom": "Từ ngày",
     "dateTo": "Đến ngày",
     "module": "Chức năng",
@@ -14,6 +15,12 @@
     "eventType": "Thao tác",
     "eventTypePlaceholder": "Tất cả thao tác",
     "all": "Tất cả"
+  },
+  "filters": {
+    "open": "Bộ lọc",
+    "title": "Bộ lọc",
+    "apply": "Áp dụng",
+    "clear": "Xóa bộ lọc"
   },
   "table": {
     "columns": {
@@ -39,6 +46,7 @@
   },
   "detail": {
     "title": "Chi tiết thao tác",
+    "close": "Đóng",
     "loading": "Đang tải...",
     "path": "Yêu cầu",
     "ip": "Địa chỉ IP",

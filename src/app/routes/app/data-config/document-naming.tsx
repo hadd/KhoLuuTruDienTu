@@ -27,10 +27,7 @@ export const Route = createFileRoute('/app/data-config/document-naming')({
     return {}
   },
   staticData: {
-    crumb: () =>
-      i18n.t('pageTitles.documentNaming', {
-        ns: 'document-naming-config',
-      }),
+    crumb: () => i18n.t('tiles.documentNaming', { ns: 'data-config' }),
   },
   head: () => ({
     meta: [

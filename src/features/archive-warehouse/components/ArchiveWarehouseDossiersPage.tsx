@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
+  stickyTableHeaderClassName,
   Table,
   TableBody,
   TableCell,
@@ -34,7 +35,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
-import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import {
   ArchiveWarehouseSearchFilters,
@@ -45,12 +45,10 @@ import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/comp
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
 import { canExportDossiers } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
-import { buildSimplifiedBrowseBreadcrumbSegments } from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
 import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
   archiveWarehouseDossierDetailQueryOptions,
   archiveWarehouseDossiersQueryOptions,
-  archiveWarehouseFondsQueryOptions,
   archiveWarehouseFondSummaryQueryOptions,
   archiveWarehouseSearchQueryOptions,
   archiveWarehouseUnassignedDossiersQueryOptions,
@@ -58,7 +56,6 @@ import {
 import {
   libraryExploitationDossierDetailQueryOptions,
   libraryExploitationDossiersQueryOptions,
-  libraryExploitationFondsQueryOptions,
   libraryExploitationFondSummaryQueryOptions,
   libraryExploitationSearchQueryOptions,
   libraryExploitationUnassignedDossiersQueryOptions,
@@ -194,15 +191,6 @@ export function ArchiveWarehouseDossiersPage({
       toast.error(translateError(error))
     },
   })
-
-  const { data: fondsData } = useQuery(
-    isExploitation
-      ? libraryExploitationFondsQueryOptions()
-      : archiveWarehouseFondsQueryOptions(),
-  )
-  const fondName = isUnassigned
-    ? t('page.unassignedDossiersTitle')
-    : (fondsData?.items.find((fond) => fond.id === fondId)?.fondName ?? fondId)
 
   const filterValues = {
     q,
@@ -428,23 +416,6 @@ export function ArchiveWarehouseDossiersPage({
     })
   }
 
-  function navigateBackToBrowseList() {
-    void navigate({
-      to: (isExploitation ? '/app/library/exploitation' : '/app/archive-warehouse') as any,
-      search: {
-        tab: 'dossiers',
-        browseView: isUnassigned ? 'unassigned' : 'fonds',
-        page: 1,
-        ...(pickerMode
-          ? {
-              pickerMode: true,
-              disposalCatalogId,
-            }
-          : {}),
-      },
-    })
-  }
-
   function navigateToDossierDetail(
     dossierId: string,
     match?: DossierOpenMatchT,
@@ -568,13 +539,8 @@ export function ArchiveWarehouseDossiersPage({
       : null
 
   const pageContent = (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
       <div className="shrink-0 space-y-3 overflow-visible">
-        <ArchiveWarehouseDrillDownHeader
-          segments={buildSimplifiedBrowseBreadcrumbSegments({ listLabel: fondName })}
-          onBack={navigateBackToBrowseList}
-          backAriaLabel={t('page.backToFonds')}
-        />
         {!forbiddenMessage && summaryData ? (
           <ArchiveWarehouseStatCards summary={summaryData} />
         ) : null}
@@ -703,7 +669,7 @@ export function ArchiveWarehouseDossiersPage({
         </div>
 
         {!forbiddenMessage ? (
-          <div className="flex flex-col gap-3">
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
             {listLoading && items.length === 0 && searchItems.length === 0 ? (
               <div className="flex flex-1 items-center justify-center py-16">
                 <Loader2 className="size-8 animate-spin text-muted-foreground" />
@@ -739,7 +705,7 @@ export function ArchiveWarehouseDossiersPage({
             ) : null}
 
             {isEsSearchActive ? (
-              <div>
+              <div className="min-h-0 flex-1 overflow-auto">
                 <ArchiveWarehouseSearchResults
                   items={searchItems}
                   isLoading={listLoading}
@@ -754,10 +720,13 @@ export function ArchiveWarehouseDossiersPage({
             ) : null}
 
           {!isEsSearchActive && items.length > 0 ? (
-            <div className="overflow-hidden rounded-lg border">
-              <Table className="w-full table-fixed">
-                <TableHeader>
-                  <TableRow>
+            <div className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-card">
+              <Table
+                className="w-full table-fixed border-separate border-spacing-0"
+                containerClassName="h-full min-h-0 overflow-auto"
+              >
+                <TableHeader className={stickyTableHeaderClassName}>
+                  <TableRow className="hover:bg-muted">
                     {showRowSelection ? (
                       <TableHead className="w-10">
                         <Checkbox

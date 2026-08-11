@@ -92,7 +92,9 @@ export async function getArchiveWarehouseDossiers(
     limit: params.limit ?? 20,
     search: params.search,
   })
-  searchParams.set('fondId', params.fondId)
+  if (params.fondId) {
+    searchParams.set('fondId', params.fondId)
+  }
   if (params.year != null) {
     searchParams.set('year', String(params.year))
   }

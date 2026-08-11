@@ -170,7 +170,27 @@ export function WatermarkConfigPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <DataConfigSectionTabs active="watermark-configs" />
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+        <div className="relative min-w-[240px] flex-1 sm:max-w-md">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            ref={searchInputRef}
+            className="pl-9"
+            defaultValue={search.q ?? ''}
+            placeholder={t('search.placeholder')}
+            onChange={(event) => {
+              const value = event.target.value
+              void navigate({
+                search: (prev) => ({
+                  ...prev,
+                  q: value.length > 0 ? value : undefined,
+                }),
+                replace: true,
+              })
+            }}
+          />
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           <Button
             type="button"
             variant="outline"
@@ -186,31 +206,8 @@ export function WatermarkConfigPage() {
               {t('actions.create')}
             </Button>
           ) : null}
+        </div>
       </div>
-
-      <Card>
-        <CardContent className="flex flex-wrap items-center gap-3 pt-6">
-          <div className="relative min-w-[240px] flex-1">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              ref={searchInputRef}
-              className="pl-9"
-              defaultValue={search.q ?? ''}
-              placeholder={t('search.placeholder')}
-              onChange={(event) => {
-                const value = event.target.value
-                void navigate({
-                  search: (prev) => ({
-                    ...prev,
-                    q: value.length > 0 ? value : undefined,
-                  }),
-                  replace: true,
-                })
-              }}
-            />
-          </div>
-        </CardContent>
-      </Card>
 
       <Dialog open={pdfSecurityOpen} onOpenChange={setPdfSecurityOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">

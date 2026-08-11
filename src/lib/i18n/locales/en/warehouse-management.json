@@ -6,7 +6,7 @@
   },
   "sectionTabs": {
     "physical": "Physical warehouse",
-    "data": "Data"
+    "data": "Data warehouse"
   },
   "subTabs": {
     "show": "Show module tabs",

@@ -172,11 +172,13 @@ function EmailSenderFormDialog({
     schema: emailSenderFormSchema,
     defaultValues: getDefaultEmailSenderValues(emailStatus),
     onSubmit: async ({ value }) => {
-      if (requiresPassword && !value.password?.trim()) {
+      const password = value.password ?? ''
+      if (requiresPassword && !password.trim()) {
         toast.error(t('emailSender.errors.passwordRequired'))
         return
       }
-      if (value.password === '') {
+      // Chỉ báo lỗi khi người dùng nhập toàn khoảng trắng; để trống = giữ mật khẩu hiện tại.
+      if (password.length > 0 && !password.trim()) {
         toast.error(t('emailSender.errors.passwordEmpty'))
         return
       }
@@ -199,7 +201,7 @@ function EmailSenderFormDialog({
         fromEmail: value.fromEmail,
         fromName: value.fromName?.trim() ? value.fromName.trim() : null,
         replyTo: value.replyTo?.trim() ? value.replyTo.trim() : null,
-        ...(value.password?.trim() ? { password: value.password } : {}),
+        ...(password.trim() ? { password: password.trim() } : {}),
       }
 
       await saveMutation.mutateAsync(payload)

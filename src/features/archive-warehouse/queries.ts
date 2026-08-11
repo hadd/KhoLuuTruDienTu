@@ -153,7 +153,8 @@ export function archiveWarehouseDossiersQueryOptions(
     queryKey: [...archiveWarehouseDossiersQueryKeyPrefix, params ?? {}],
     queryFn: () => getArchiveWarehouseDossiers(params!),
     enabled:
-      Boolean(params?.fondId) && !isUnassignedWarehouseFondId(params?.fondId),
+      params != null &&
+      (!params.fondId || !isUnassignedWarehouseFondId(params.fondId)),
   })
 }
 

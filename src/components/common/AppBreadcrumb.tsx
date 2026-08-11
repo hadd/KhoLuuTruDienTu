@@ -1,5 +1,4 @@
-import { Link, useMatches } from '@tanstack/react-router'
-import { Home } from 'lucide-react'
+import { Link, useMatches, useRouterState } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -12,21 +11,29 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
+import { findActiveNavTrail } from '@/features/navigation/config/appNavTree'
+import {
+  getHubTabBreadcrumb,
+  normalizeAppPath,
+} from '@/features/navigation/lib/hubTabBreadcrumb'
 
 export function AppBreadcrumb() {
   const matches = useMatches()
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const search = useRouterState({ select: (s) => s.location.search })
   const { t } = useTranslation('common')
+  useTranslation('digitization')
+  useTranslation('project-management')
+  useTranslation('archive-warehouse')
+  useTranslation('data-config')
+  useTranslation('general-catalog')
 
-  // Helper function to translate breadcrumb labels
   const translateLabel = (label: string): string => {
-    // Try to translate using breadcrumbs namespace
     const translationKey = `breadcrumbs.${label}`
     const translated = t(translationKey, { defaultValue: label })
-    // If translation returns the key itself (not found), return original label
     return translated === translationKey ? label : translated
   }
 
-  // First, collect all matches with crumbs and their processed data
   const matchesWithCrumbs = matches
     .map((match) => {
       const staticData = match.staticData as { crumb?: unknown } | undefined
@@ -40,7 +47,6 @@ export function AppBreadcrumb() {
           ? (crumb as (loaderData: unknown) => unknown)(match.loaderData)
           : crumb
 
-      // Support both simple string crumbs and object-based crumbs with optional parent
       if (typeof crumbResult === 'string') {
         return {
           match,
@@ -70,7 +76,6 @@ export function AppBreadcrumb() {
         }>
       }
 
-      // Support both single parent (backward compatible) and array of parents
       const parents = objectCrumb.parents
         ? objectCrumb.parents.map((p) => ({
             ...p,
@@ -99,28 +104,21 @@ export function AppBreadcrumb() {
     })
     .filter((item): item is NonNullable<typeof item> => item !== null)
 
-  // Reverse to process from deepest (most specific) to shallowest (least specific)
   const reversedMatches = [...matchesWithCrumbs].reverse()
-
-  // Track which parent paths have been included in child routes' parents arrays
   const includedParentPaths = new Set<string>()
 
-  // Collect all parent paths from child routes
   reversedMatches.forEach(({ crumbData }) => {
     crumbData.parents.forEach((parent) => {
       includedParentPaths.add(parent.to)
     })
   })
 
-  // Filter out parent matches that are already represented in child matches' parents arrays
   const crumbs = matchesWithCrumbs
     .filter(({ match, crumbData }) => {
-      // Always include the most specific (deepest) match
       if (match.id === reversedMatches[0]?.match.id) {
         return true
       }
 
-      // Skip parent matches if their pathname or crumb path is already in a child's parents array
       const matchPathname = match.pathname
       const crumbPath = crumbData.path
       return (
@@ -130,25 +128,97 @@ export function AppBreadcrumb() {
     })
     .map(({ crumbData }) => crumbData)
 
-  if (crumbs.length === 0) {
+  const navTrail = findActiveNavTrail(pathname)
+  const navGroupLabel = navTrail?.group
+    ? t(navTrail.group.labelKey)
+    : undefined
+  const navLinkLabel = navTrail ? t(navTrail.link.labelKey) : undefined
+  const currentPath = normalizeAppPath(pathname)
+  const navLinkPath = navTrail ? normalizeAppPath(navTrail.link.to) : undefined
+  const navLinkIsCurrent = Boolean(navLinkPath && currentPath === navLinkPath)
+
+  const existingLabels = new Set(
+    crumbs.flatMap((crumb) => [
+      crumb.label,
+      ...crumb.parents.map((parent) => parent.label),
+    ]),
+  )
+
+  let displayCrumbs =
+    crumbs.length > 0
+      ? crumbs
+      : navLinkLabel
+        ? [
+            {
+              id: 'nav-current',
+              label: navLinkLabel,
+              path: navTrail?.link.to ?? pathname,
+              parents: [] as Array<{
+                label: string
+                to: string
+                search?: Record<string, unknown>
+              }>,
+            },
+          ]
+        : []
+
+  if (
+    navTrail &&
+    navLinkLabel &&
+    !navLinkIsCurrent &&
+    !existingLabels.has(navLinkLabel) &&
+    displayCrumbs.every((crumb) => crumb.label !== navLinkLabel)
+  ) {
+    displayCrumbs = [
+      {
+        id: 'nav-hub',
+        label: navLinkLabel,
+        path: navTrail.link.to,
+        parents: [],
+      },
+      ...displayCrumbs,
+    ]
+  }
+
+  const extraCrumbs = getHubTabBreadcrumb(pathname, search)
+  for (const [index, tabCrumb] of extraCrumbs.entries()) {
+    if (displayCrumbs.some((crumb) => crumb.label === tabCrumb.label)) {
+      continue
+    }
+    displayCrumbs = [
+      ...displayCrumbs,
+      {
+        id: `hub-tab-${index}`,
+        label: tabCrumb.label,
+        path: pathname,
+        parents: [],
+      },
+    ]
+  }
+
+  const showGroupParent =
+    Boolean(navGroupLabel) &&
+    !existingLabels.has(navGroupLabel!) &&
+    displayCrumbs.every((crumb) => crumb.label !== navGroupLabel)
+
+  if (displayCrumbs.length === 0 && !showGroupParent) {
     return null
   }
 
   return (
-    <Breadcrumb>
-      <BreadcrumbList>
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link to="/" className="flex items-center">
-              <Home className="h-4 w-4" />
-            </Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
+    <Breadcrumb className="min-w-0">
+      <BreadcrumbList className="flex-nowrap overflow-hidden">
+        {showGroupParent ? (
+          <>
+            <BreadcrumbItem className="shrink-0">
+              <span className="text-muted-foreground">{navGroupLabel}</span>
+            </BreadcrumbItem>
+            {displayCrumbs.length > 0 ? <BreadcrumbSeparator /> : null}
+          </>
+        ) : null}
 
-        {crumbs.length > 0 && <BreadcrumbSeparator />}
-
-        {crumbs.map((crumb, index) => {
-          const isLast = index === crumbs.length - 1
+        {displayCrumbs.map((crumb, index) => {
+          const isLast = index === displayCrumbs.length - 1
           const parents =
             (
               crumb as {
@@ -164,7 +234,7 @@ export function AppBreadcrumb() {
             <Fragment key={crumb.id}>
               {parents.map((parent, parentIndex) => (
                 <Fragment key={parentIndex}>
-                  <BreadcrumbItem>
+                  <BreadcrumbItem className="shrink-0">
                     <BreadcrumbLink asChild>
                       <Link to={parent.to} search={parent.search}>
                         {parent.label}
@@ -174,9 +244,9 @@ export function AppBreadcrumb() {
                   <BreadcrumbSeparator />
                 </Fragment>
               ))}
-              <BreadcrumbItem>
+              <BreadcrumbItem className={isLast ? 'min-w-0' : 'shrink-0'}>
                 {isLast ? (
-                  <BreadcrumbPage className="flex items-center gap-1.5">
+                  <BreadcrumbPage className="flex items-center gap-1.5 truncate font-semibold text-foreground">
                     {(crumb as { icon?: ReactNode }).icon}
                     {crumb.label}
                   </BreadcrumbPage>

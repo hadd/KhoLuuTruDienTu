@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 
 import {
+  stickyTableHeaderClassName,
   Table,
   TableBody,
   TableCell,
@@ -19,9 +20,12 @@ export function GroupTable({ groups, onSelectGroup }: GroupTableProps) {
   const { t } = useTranslation('group')
 
   return (
-    <Table className="w-full min-w-[720px] table-fixed">
-      <TableHeader>
-        <TableRow className="bg-muted/50 hover:bg-muted/50">
+    <Table
+      className="w-full min-w-[720px] table-fixed border-separate border-spacing-0"
+      containerClassName="h-full min-h-0 overflow-auto"
+    >
+      <TableHeader className={stickyTableHeaderClassName}>
+        <TableRow className="hover:bg-muted">
           <TableHead className="w-[22%]">{t('table.columns.name')}</TableHead>
           <TableHead className="w-[20%]">{t('table.columns.project')}</TableHead>
           <TableHead className="w-[12%] text-center">
