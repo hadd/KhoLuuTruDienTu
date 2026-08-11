@@ -19,6 +19,7 @@ import type {
   DataDossierStatus,
   DataTreeNodeT,
 } from '@/features/data-management/types'
+import { translateError } from '@/lib/utils/translate-error'
 
 function FolderDetailCard({
   node,
@@ -82,8 +83,14 @@ function FolderDetailCard({
         })
         toast.success(t('recordDetail.exportExcelSuccess'))
         setDialogOpen(false)
-      } catch {
-        toast.error(t('recordDetail.exportExcelError'))
+      } catch (error) {
+        toast.error(
+          translateError(
+            error instanceof Error
+              ? error
+              : new Error(t('recordDetail.exportExcelError')),
+          ),
+        )
       } finally {
         setIsExporting(false)
         setExportingMode(null)

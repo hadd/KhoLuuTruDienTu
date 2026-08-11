@@ -1,12 +1,10 @@
 // WarehouseDiagramTab.tsx
 import { useQuery } from '@tanstack/react-query'
-import { Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { physicalWarehouseTreeQueryOptions } from '@/features/physical-warehouse/queries'
 import type {
   PhysicalWarehouseStatsT,
@@ -37,7 +35,13 @@ const GAP_T = 2
 const SHELF_GAP = 3
 const CELL_PAD = 2
 
-const colWOf = (cap: number) => 2 * PAD_X + cap * BOX_W + (cap - 1) * SLOT_GAP
+/** Cột mặt cắt đủ rộng để ghi tên hộp/cặp (sp, Hộp 1, …) */
+const ELEV_MIN_COL_W = 56
+const colWOf = (cap: number) =>
+  Math.max(
+    ELEV_MIN_COL_W,
+    2 * PAD_X + cap * BOX_W + Math.max(0, cap - 1) * SLOT_GAP,
+  )
 const bayHOf = (cap: number) => 2 * PAD_T + cap * BOX_TOP_H + (cap - 1) * GAP_T
 
 const E_UP_W = 6
@@ -137,6 +141,19 @@ function usageFill(used: number, total: number): string {
   return '#74b655'
 }
 
+function elevationBoxLabel(name: string, boxWidth: number): { text: string; fontSize: number } {
+  const label = name.trim()
+  if (!label) return { text: '', fontSize: 9 }
+  const fontSize = boxWidth >= 52 ? 11 : boxWidth >= 36 ? 10 : 9
+  const charW = fontSize * 0.58
+  const maxChars = Math.max(2, Math.floor(boxWidth / charW))
+  if (label.length <= maxChars) return { text: label, fontSize }
+  return {
+    text: `${label.slice(0, Math.max(1, maxChars - 1))}…`,
+    fontSize,
+  }
+}
+
 /** Hộp tượng trưng top-down (không tô theo độ đầy) */
 const BOX_SYMBOL_FILL = '#c4a574'
 
@@ -149,30 +166,6 @@ function heatColor(used: number, total: number): string {
   const [c1, c2, t] = r < 0.5 ? [G, Y, r * 2] : [Y, R, (r - 0.5) * 2]
   const rgb = c1.map((v, i) => Math.round(v + (c2[i] - v) * t))
   return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`
-}
-
-function matchesQuery(node: PhysicalWarehouseTreeNodeT, q: string): boolean {
-  if (!q) return true
-  const needle = q.toLowerCase()
-  if (node.name.toLowerCase().includes(needle)) return true
-  if (node.address?.toLowerCase().includes(needle)) return true
-  return node.children.some((child) => matchesQuery(child, q))
-}
-
-function filterTree(
-  node: PhysicalWarehouseTreeNodeT,
-  q: string,
-): PhysicalWarehouseTreeNodeT | null {
-  if (!q) return node
-  if (!matchesQuery(node, q)) return null
-  const children = node.children
-    .map((child) => filterTree(child, q))
-    .filter((child): child is PhysicalWarehouseTreeNodeT => child != null)
-  const selfMatch =
-    node.name.toLowerCase().includes(q.toLowerCase()) ||
-    Boolean(node.address?.toLowerCase().includes(q.toLowerCase()))
-  if (!selfMatch && children.length === 0) return null
-  return { ...node, children, childCount: children.length }
 }
 
 /* ================= LAYOUT ================= */
@@ -446,11 +439,15 @@ function elevationModel(row: MapRow) {
   const k = Math.max(1, ...cols.map((c) => c.tiers.length), 1)
   const gridW = Math.max(colWOf(SLOT_CAP), cx - E_UP_W - E_LEFT)
   const levelNames = Array.from({ length: k }, (_, idx) => {
+    let label: string | null = null
     for (const c of cols) {
       const tier = c.tiers[idx]
-      if (tier) return tier.node.name
+      if (!tier) continue
+      // Ô chứa (hộp/cặp): tên hiển thị trong cột kệ, không gắn nhãn bên phải sơ đồ
+      if (isStorageUnitNode(tier.node)) return null
+      if (label == null) label = tier.node.name
     }
-    return `${idx + 1}`
+    return label ?? `${idx + 1}`
   })
   return {
     cols,
@@ -463,15 +460,37 @@ function elevationModel(row: MapRow) {
   }
 }
 
+function findRowScopeForPhysicalItem(
+  layout: ReturnType<typeof buildWarehouseLayout>,
+  itemId: string,
+): { zoneId: string | null; rowId: string } | null {
+  for (const row of layout.rows) {
+    for (const cell of row.cells) {
+      const candidateIds = new Set<string>()
+      if (cell.node?.id) candidateIds.add(cell.node.id)
+      for (const leaf of cell.leaves) candidateIds.add(leaf.id)
+      for (const shelf of cell.shelves) {
+        for (const leaf of shelf.leafNodes) candidateIds.add(leaf.id)
+      }
+      if (candidateIds.has(itemId)) {
+        return { zoneId: row.zoneId, rowId: row.node.id }
+      }
+    }
+  }
+  return null
+}
+
 /* ================= CANVAS 1 KHO ================= */
 function WarehouseMapCanvas({
   warehouse,
   height,
   fill = false,
+  highlightPhysicalItemId,
 }: {
   warehouse: PhysicalWarehouseTreeNodeT
   height: number | string
   fill?: boolean
+  highlightPhysicalItemId?: string
 }) {
   const { t } = useTranslation('physical-warehouse')
   const layout = useMemo(() => buildWarehouseLayout(warehouse), [warehouse])
@@ -493,6 +512,14 @@ function WarehouseMapCanvas({
 
   const scopeZone = layout.zoneRects.find((z) => z.node.id === scope.zoneId)
   const scopeRow = layout.rows.find((r) => r.node.id === scope.rowId)
+
+  useEffect(() => {
+    if (!highlightPhysicalItemId) return
+    const found = findRowScopeForPhysicalItem(layout, highlightPhysicalItemId)
+    if (found) {
+      setScope({ zoneId: found.zoneId, rowId: found.rowId })
+    }
+  }, [highlightPhysicalItemId, layout])
 
   useEffect(() => {
     const el = wrapRef.current
@@ -692,15 +719,29 @@ function WarehouseMapCanvas({
                                 const leaf = isUnit
                                   ? tier.node
                                   : tier.leaves[bi]
-                                const sx = isUnit
+                                const singleInTier =
+                                  isUnit ||
+                                  (filled === 1 && tier.leaves.length === 1)
+                                const sx = singleInTier
                                   ? col.x + PAD_X
                                   : slotX(bi)
-                                const sw = isUnit ? col.w - 2 * PAD_X : BOX_W
+                                const sw = singleInTier
+                                  ? col.w - 2 * PAD_X
+                                  : BOX_W
                                 const used = leaf.usedCapacity ?? 0
                                 const total = leaf.capacity ?? 0
+                                const displayName =
+                                  leaf.name?.trim() ||
+                                  (isUnit ? tier.node.name : '')
+                                const boxLabel = elevationBoxLabel(
+                                  displayName,
+                                  sw,
+                                )
                                 const label = isUnit
                                   ? `${col.node.name} • ${tier.node.name}`
                                   : `${col.node.name} • ${tier.node.name} • ${leaf.name}`
+                                const isHighlighted =
+                                  leaf.id === highlightPhysicalItemId
                                 return (
                                   <Group key={leaf.id}>
                                     <Rect
@@ -716,8 +757,15 @@ function WarehouseMapCanvas({
                                       y={palletY - E_BOX_H}
                                       width={sw}
                                       height={E_BOX_H}
-                                      fill={usageFill(used, total)}
-                                      stroke="#c9a06a"
+                                      fill={
+                                        isHighlighted
+                                          ? '#bfdbfe'
+                                          : usageFill(used, total)
+                                      }
+                                      stroke={
+                                        isHighlighted ? '#2563eb' : '#c9a06a'
+                                      }
+                                      strokeWidth={isHighlighted ? 3 : 0.6}
                                       onMouseEnter={(e: any) => {
                                         setCursor(e, 'pointer')
                                         hoverAt(
@@ -732,6 +780,25 @@ function WarehouseMapCanvas({
                                         setHover(null)
                                       }}
                                     />
+                                    {boxLabel.text ? (
+                                      <Text
+                                        x={sx}
+                                        y={palletY - E_BOX_H + 6}
+                                        width={sw}
+                                        align="center"
+                                        text={boxLabel.text}
+                                        fontSize={
+                                          isHighlighted
+                                            ? boxLabel.fontSize + 1
+                                            : boxLabel.fontSize
+                                        }
+                                        fontStyle={
+                                          isHighlighted ? 'bold' : 'normal'
+                                        }
+                                        fill={isHighlighted ? '#1d4ed8' : '#1e293b'}
+                                        listening={false}
+                                      />
+                                    ) : null}
                                   </Group>
                                 )
                               })}
@@ -776,7 +843,8 @@ function WarehouseMapCanvas({
                           listening={false}
                         />
                       ))}
-                      {Array.from({ length: b.k }, (_, idx) => (
+                      {b.levelNames.map((levelName, idx) =>
+                        levelName == null ? null : (
                         <Text
                           key={idx}
                           x={E_LEFT + b.gridW + 12}
@@ -788,11 +856,12 @@ function WarehouseMapCanvas({
                             E_BOX_H +
                             8
                           }
-                          text={b.levelNames[idx]}
+                          text={levelName}
                           fontSize={12}
                           listening={false}
                         />
-                      ))}
+                      ),
+                      )}
                     </>
                   )
                 })()}
@@ -1088,6 +1157,7 @@ interface WarehouseDiagramTabProps {
   warehouseId?: string
   stats?: PhysicalWarehouseStatsT | null
   compact?: boolean
+  highlightPhysicalItemId?: string
 }
 
 function OverviewSidebar({ stats }: { stats: PhysicalWarehouseStatsT }) {
@@ -1142,24 +1212,19 @@ export function WarehouseDiagramTab({
   warehouseId,
   stats,
   compact = false,
+  highlightPhysicalItemId,
 }: WarehouseDiagramTabProps) {
   const { t } = useTranslation('physical-warehouse')
-  const [draft, setDraft] = useState('')
-  const [query, setQuery] = useState('')
   const { data: tree, isPending } = useQuery(
     physicalWarehouseTreeQueryOptions(rootId),
   )
 
   const filteredWarehouses = useMemo(() => {
     if (!tree) return []
-    const q = query.trim()
-    const nodes = warehouseId
+    return warehouseId
       ? tree.children.filter((child) => child.id === warehouseId)
       : tree.children
-    return nodes
-      .map((child) => filterTree(child, q))
-      .filter((child): child is PhysicalWarehouseTreeNodeT => child != null)
-  }, [tree, query, warehouseId])
+  }, [tree, warehouseId])
 
   if (isPending) {
     return <p className="text-sm text-muted-foreground">...</p>
@@ -1176,24 +1241,6 @@ export function WarehouseDiagramTab({
     <div
       className={cn('flex min-h-0 flex-1 flex-col', compact ? 'gap-2' : 'gap-3')}
     >
-      <form
-        className="flex shrink-0 flex-wrap items-center gap-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-          setQuery(draft.trim())
-        }}
-      >
-        <Input
-          className={compact ? 'h-8 max-w-sm flex-1 text-sm' : 'h-9 max-w-xs'}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={t('diagram.searchPlaceholder')}
-        />
-        <Button type="submit" variant="secondary" size="sm">
-          <Search className="size-3.5" />
-          <span className="sr-only">{t('diagram.search')}</span>
-        </Button>
-      </form>
       <div
         className={cn(
           'grid min-h-0 flex-1 gap-3 overflow-hidden',
@@ -1204,19 +1251,14 @@ export function WarehouseDiagramTab({
         )}
       >
         <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
-          {filteredWarehouses.length === 0 ? (
-            <Card className="p-4 text-sm text-muted-foreground">
-              {t('diagram.noSearchResult')}
-            </Card>
-          ) : (
-            filteredWarehouses.map((warehouse) => (
+          {filteredWarehouses.map((warehouse) => (
               <WarehouseMapCanvas
                 key={warehouse.id}
                 warehouse={warehouse}
-                height= "100%"
+                height="100%"
+                highlightPhysicalItemId={highlightPhysicalItemId}
               />
-            ))
-          )}
+          ))}
         </div>
         {stats && !compact ? <OverviewSidebar stats={stats} /> : null}
       </div>

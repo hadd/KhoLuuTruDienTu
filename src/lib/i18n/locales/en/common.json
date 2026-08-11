@@ -113,7 +113,6 @@
       "securityLevel": "Security level",
       "documentType": "Document type"
     },
-    "groups": "Group management",
     "library": "Library",
     "digitization": "Dossier & document digitization",
     "dataManagement": "Data Management ",
@@ -123,13 +122,22 @@
     "kpi": "KPI Report",
     "auditLogs": "System activity log",
     "permissions": "Permission management",
+    "groups": {
+      "digitization": "Digitization",
+      "systemAdmin": "System administration",
+      "warehouse": "Warehouse management"
+    },
     "dataConfig": {
       "title": "Data configuration",
       "documentTypes": "Document type configuration",
       "documentAssignment": "Document assignment configuration",
       "metadataExportPresets": "Metadata export configuration",
+      "documentNaming": "Document naming configuration",
+      "metadataExtractSettings": "Metadata extraction settings",
       "notificationConfigs": "Notification configuration",
-      "watermarkConfigs": "Watermark configuration"
+      "watermarkConfigs": "Watermark configuration",
+      "auditLogConfig": "Audit log configuration",
+      "borrowApprovalClearance": "Borrow approval configuration"
     }
   },
   "accessDenied": {

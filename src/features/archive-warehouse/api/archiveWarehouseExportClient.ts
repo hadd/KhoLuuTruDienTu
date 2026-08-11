@@ -1,13 +1,26 @@
 import { apiClient } from '@/lib/api/apiClient'
+import { notifyZipPasswordLocked } from '@/features/security-level/lib/zipPasswordToast'
 
 export type ArchiveWarehouseExportModeT = 'metadata' | 'dip'
 
 export interface ArchiveWarehouseMetadataExportConfigT {
   presetId?: string
   applyWatermark?: boolean
+  dossierAccessPassword?: string
+  /** Per-dossier passwords for multi export (overrides single dossierAccessPassword). */
+  dossierAccessPasswords?: Record<string, string>
 }
 
 export interface ArchiveWarehouseDipExportConfigT {
+  applyWatermark?: boolean
+  dossierAccessPassword?: string
+  dossierAccessPasswords?: Record<string, string>
+}
+
+export type ExportCheckResultT = {
+  ok: true
+  zipPasswordSource: 'personal_pin' | 'dossier' | 'none'
+  needsDossierPassword: boolean
   applyWatermark?: boolean
 }
 
@@ -49,6 +62,23 @@ function saveExportBlob(
 }
 
 const EXPORT_TIMEOUT_MS = 600_000
+const MULTI_DOWNLOAD_GAP_MS = 400
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function resolvePasswordForDossier(
+  dossierId: string,
+  config?: {
+    dossierAccessPassword?: string
+    dossierAccessPasswords?: Record<string, string>
+  },
+): string | undefined {
+  const fromMap = config?.dossierAccessPasswords?.[dossierId]?.trim()
+  if (fromMap) return fromMap
+  return config?.dossierAccessPassword?.trim() || undefined
+}
 
 async function postExportZip(
   path: string,
@@ -63,6 +93,7 @@ async function postExportZip(
     timeout: EXPORT_TIMEOUT_MS,
     _skipGlobalErrorToast: true,
     dossierId: dossierIds[0] ?? null,
+    securityAccessModule: 'warehouse',
   })
 
   saveExportBlob(
@@ -70,8 +101,38 @@ async function postExportZip(
     response.headers['content-disposition'],
     fallbackName,
   )
+  notifyZipPasswordLocked(response.headers as Record<string, unknown>)
 }
 
+/** Probe access + ZIP password needs without downloading. */
+export async function checkDossierExportRequirements(
+  dossierId: string,
+  mode: ArchiveWarehouseExportModeT,
+  dossierAccessPassword?: string,
+): Promise<ExportCheckResultT> {
+  const path =
+    mode === 'dip'
+      ? '/api/v1/dossiers/dip/export'
+      : '/api/v1/dossiers/metadata/export'
+  const body: Record<string, unknown> = {
+    dossierIds: [dossierId],
+    checkOnly: true,
+  }
+  if (dossierAccessPassword?.trim()) {
+    body.dossierAccessPassword = dossierAccessPassword.trim()
+  }
+
+  const response = await apiClient.post<ExportCheckResultT>(path, body, {
+    _skipGlobalErrorToast: true,
+    dossierId,
+    securityAccessModule: 'warehouse',
+  })
+  return response.data
+}
+
+/**
+ * Export one ZIP per dossier (sequential) so each archive can carry its own password.
+ */
 export async function exportDossiersMetadataByIds(
   dossierIds: Array<string>,
   downloadName?: string,
@@ -79,17 +140,22 @@ export async function exportDossiersMetadataByIds(
 ): Promise<void> {
   if (dossierIds.length === 0) return
 
-  const fallbackName = downloadName?.trim()
-    ? `${downloadName.trim()}.zip`
-    : dossierIds.length === 1
-      ? `dossier-${dossierIds[0]}.zip`
-      : 'multi-dossiers-metadata-export.zip'
+  for (let i = 0; i < dossierIds.length; i += 1) {
+    const id = dossierIds[i]!
+    const fallbackName =
+      dossierIds.length === 1 && downloadName?.trim()
+        ? `${downloadName.trim()}.zip`
+        : `dossier-${id}.zip`
 
-  const body: Record<string, unknown> = { dossierIds }
-  if (config?.presetId) body.presetId = config.presetId
-  if (config?.applyWatermark) body.applyWatermark = true
+    const body: Record<string, unknown> = { dossierIds: [id] }
+    if (config?.presetId) body.presetId = config.presetId
+    if (config?.applyWatermark) body.applyWatermark = true
+    const password = resolvePasswordForDossier(id, config)
+    if (password) body.dossierAccessPassword = password
 
-  await postExportZip('/api/v1/dossiers/metadata/export', body, fallbackName)
+    await postExportZip('/api/v1/dossiers/metadata/export', body, fallbackName)
+    if (i < dossierIds.length - 1) await sleep(MULTI_DOWNLOAD_GAP_MS)
+  }
 }
 
 export async function exportDossiersDipByIds(
@@ -99,16 +165,21 @@ export async function exportDossiersDipByIds(
 ): Promise<void> {
   if (dossierIds.length === 0) return
 
-  const fallbackName = downloadName?.trim()
-    ? `${downloadName.trim()}-dip.zip`
-    : dossierIds.length === 1
-      ? `dossier-${dossierIds[0]}-dip.zip`
-      : 'multi-dip-export.zip'
+  for (let i = 0; i < dossierIds.length; i += 1) {
+    const id = dossierIds[i]!
+    const fallbackName =
+      dossierIds.length === 1 && downloadName?.trim()
+        ? `${downloadName.trim()}-dip.zip`
+        : `dossier-${id}-dip.zip`
 
-  const body: Record<string, unknown> = { dossierIds }
-  if (config?.applyWatermark) body.applyWatermark = true
+    const body: Record<string, unknown> = { dossierIds: [id] }
+    if (config?.applyWatermark) body.applyWatermark = true
+    const password = resolvePasswordForDossier(id, config)
+    if (password) body.dossierAccessPassword = password
 
-  await postExportZip('/api/v1/dossiers/dip/export', body, fallbackName)
+    await postExportZip('/api/v1/dossiers/dip/export', body, fallbackName)
+    if (i < dossierIds.length - 1) await sleep(MULTI_DOWNLOAD_GAP_MS)
+  }
 }
 
 export async function exportFoldersMetadataByIds(
@@ -127,6 +198,9 @@ export async function exportFoldersMetadataByIds(
   const body: Record<string, unknown> = { folderIds }
   if (config?.presetId) body.presetId = config.presetId
   if (config?.applyWatermark) body.applyWatermark = true
+  if (config?.dossierAccessPassword?.trim()) {
+    body.dossierAccessPassword = config.dossierAccessPassword.trim()
+  }
 
   await postExportZip('/api/v1/folders/metadata/export', body, fallbackName)
 }

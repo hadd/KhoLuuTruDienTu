@@ -1,7 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
 
-import { Button } from '@/components/ui/button'
 import {
   canAccessScreen,
   getPrimaryAppRoleFromProfile,
@@ -9,10 +7,8 @@ import {
   resolvePermissionFallbackPath,
 } from '@/features/auth/lib/permission-access'
 import { requireAuth } from '@/features/auth/routeGuards'
-import { UserManagementPage } from '@/features/user/components/UserManagementPage'
 import { USER_MANAGEMENT_SCREEN_REQUIREMENTS } from '@/features/user/lib/userManagementAccess'
 import i18n from '@/lib/i18n/config'
-import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/user-management/')({
   staticData: {
@@ -37,6 +33,17 @@ export const Route = createFileRoute('/app/user-management/')({
         ),
       })
     }
+
+    if (
+      canAccessScreen(permissions, {
+        module: 'users',
+        permissionKey: 'users.read',
+      })
+    ) {
+      throw redirect({ to: '/app/users' })
+    }
+
+    throw redirect({ to: '/app/permissions/function-matrix' })
   },
   head: () => ({
     meta: [
@@ -45,35 +52,6 @@ export const Route = createFileRoute('/app/user-management/')({
       },
     ],
   }),
-  component: UserManagementRoute,
-  errorComponent: UserManagementErrorComponent,
+  // Unreachable — beforeLoad always redirects.
+  component: () => null,
 })
-
-function UserManagementRoute() {
-  return <UserManagementPage />
-}
-
-function UserManagementErrorComponent({
-  error,
-  reset,
-}: {
-  error: unknown
-  reset: () => void
-}) {
-  const { t } = useTranslation('user-management')
-  const { t: tCommon } = useTranslation('common')
-
-  return (
-    <div className="rounded-lg border border-destructive bg-card p-8 text-center">
-      <h2 className="mb-2 text-xl font-semibold text-destructive">
-        {t('errors.loadFailed')}
-      </h2>
-      <p className="mb-4 text-sm text-muted-foreground">
-        {error instanceof Error ? translateError(error) : t('errors.loadFailed')}
-      </p>
-      <Button onClick={reset} variant="outline">
-        {tCommon('errors.tryAgain')}
-      </Button>
-    </div>
-  )
-}

@@ -53,6 +53,8 @@
     "success": "Security configuration saved",
     "successWithCascade": "Saved. Higher levels that have not been customized will inherit this change",
     "cascadeWarning": "Higher levels that have not been customized will inherit permissions/flags from this level. Levels with their own saved config are not affected. Level passwords are not inherited.",
+    "watermarkRequiresDownload": "Enable Download documents before enabling Watermark.",
+    "downloadDependentsRequireDownload": "Enable Download documents before enabling Watermark or ZIP encryption.",
     "override": "Override",
     "complexValue": "Complex value — detailed UI later",
     "status": {

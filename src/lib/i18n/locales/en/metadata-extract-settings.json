@@ -1,16 +1,16 @@
 {
   "title": "Metadata extract mode",
-  "description": "System-wide setting for the metadata extraction pipeline after OCR merge. Every dossier follows the selected mode.",
+  "description": "Choose the metadata extraction style for the whole system. After digitization and dossier merge, every dossier follows the selected mode.",
   "mode": {
     "label": "Current mode",
-    "old": "Legacy pipeline",
-    "tt05": "Circular 05 (TT05)",
+    "old": "Judgment enforcement",
+    "tt05": "Circular 05",
     "off": "Manual only"
   },
   "modeHelp": {
-    "old": "After merge, the system publishes to merge-completed (legacy metadata worker).",
-    "tt05": "After merge, the system publishes to start-metadata-tt05 (TT05 worker).",
-    "off": "After merge, only the database is updated — no Kafka. Trigger manually via the extract API."
+    "old": "Dossiers will be extracted using the judgment-enforcement metadata template.",
+    "tt05": "Dossiers will be extracted using the Circular 05 metadata template.",
+    "off": "The system will not extract automatically. Trigger manually when needed."
   },
   "actions": {
     "save": "Save",

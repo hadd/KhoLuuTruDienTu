@@ -13,10 +13,12 @@ import {
   getPhysicalWarehouseStats,
   getPhysicalWarehouseTree,
   reparentPhysicalWarehouseItem,
+  searchPhysicalWarehouse,
   updatePhysicalWarehouseItem,
 } from '@/features/physical-warehouse/api/physicalWarehouseClient'
 import type {
   CreateItemPayloadT,
+  GetPhysicalWarehouseSearchParamsT,
   UpdateItemPayloadT,
 } from '@/features/physical-warehouse/types'
 import i18n from '@/lib/i18n/config'
@@ -58,6 +60,44 @@ export const physicalWarehouseStatsQueryOptions = (rootId: string) =>
     enabled: Boolean(rootId),
     staleTime: 15_000,
   })
+
+export const physicalWarehouseArchiveSearchQueryKeyPrefix = [
+  ...physicalWarehouseQueryKeyPrefix,
+  'archive-search',
+] as const
+
+function hasPhysicalWarehouseSearchParams(
+  params: GetPhysicalWarehouseSearchParamsT,
+): boolean {
+  if (params.mode === 'content' || params.mode === 'all' || params.q?.trim()) {
+    return Boolean(params.q?.trim())
+  }
+  return Boolean(
+    params.dossierName?.trim() ||
+      params.documentName?.trim() ||
+      params.dossierTypeId ||
+      params.documentTypeId ||
+      params.editorName?.trim() ||
+      params.editCompletedAtFrom ||
+      params.editCompletedAtTo ||
+      params.archivedAtFrom ||
+      params.archivedAtTo ||
+      params.fondId ||
+      params.searchFields ||
+      params.q?.trim(),
+  )
+}
+
+export function physicalWarehouseArchiveSearchQueryOptions(
+  params: GetPhysicalWarehouseSearchParamsT | null,
+) {
+  return queryOptions({
+    queryKey: [...physicalWarehouseArchiveSearchQueryKeyPrefix, params ?? {}],
+    queryFn: () => searchPhysicalWarehouse(params!),
+    enabled: params != null && hasPhysicalWarehouseSearchParams(params),
+    staleTime: 15_000,
+  })
+}
 
 function invalidateWarehouseQueries(
   queryClient: ReturnType<typeof useQueryClient>,

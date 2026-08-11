@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { canDownload } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { ChangeDownloadPinDialog } from '@/features/auth/components/ChangeDownloadPinDialog'
 import { ChangePasswordDialog } from '@/features/auth/components/ChangePasswordDialog'
 import { UserProfileDialog } from '@/features/auth/components/UserProfileDialog'
@@ -18,6 +19,7 @@ import {
   MOCK_USER_AVATAR_URL,
   resolveAvatarUrl,
 } from '@/features/auth/constants'
+import { useEffectivePermissions } from '@/features/auth/hooks/useEffectivePermissions'
 import { useLogout } from '@/features/auth/hooks/useLogout'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { getAccessToken } from '@/features/auth/store'
@@ -68,6 +70,8 @@ export function UserAccountMenu({
   const { t } = useTranslation('auth')
   const { t: tCommon, i18n: i18nInstance } = useTranslation('common')
   const logoutMutation = useLogout()
+  const permissions = useEffectivePermissions()
+  const canManageDownloadPin = canDownload(permissions)
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const [changePasswordSessionKey, setChangePasswordSessionKey] = useState(0)
   const [downloadPinOpen, setDownloadPinOpen] = useState(false)
@@ -168,17 +172,19 @@ export function UserAccountMenu({
           <KeyRound />
           {t('userMenu.changePassword')}
         </DropdownMenuItem>
-        <DropdownMenuItem
-          disabled={!user?.id}
-          onSelect={(event) => {
-            event.preventDefault()
-            setDownloadPinSessionKey((current) => current + 1)
-            setDownloadPinOpen(true)
-          }}
-        >
-          <Fingerprint />
-          {t('userMenu.downloadPin')}
-        </DropdownMenuItem>
+        {canManageDownloadPin ? (
+          <DropdownMenuItem
+            disabled={!user?.id}
+            onSelect={(event) => {
+              event.preventDefault()
+              setDownloadPinSessionKey((current) => current + 1)
+              setDownloadPinOpen(true)
+            }}
+          >
+            <Fingerprint />
+            {t('userMenu.downloadPin')}
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-xs text-muted-foreground">
           {tCommon('language.label')}
@@ -219,7 +225,7 @@ export function UserAccountMenu({
           userId={user.id}
         />
       ) : null}
-      {user?.id ? (
+      {user?.id && canManageDownloadPin ? (
         <ChangeDownloadPinDialog
           key={`${user.id}-pin-${downloadPinSessionKey}`}
           open={downloadPinOpen}

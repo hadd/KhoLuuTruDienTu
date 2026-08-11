@@ -30,6 +30,14 @@
     "location": "Location",
     "selectLocation": "Select location..."
   },
+  "search": {
+    "placeholder": "Search archived dossiers (full-text, metadata)...",
+    "applyHint": "Press Filter or Enter to search.",
+    "noPhysicalPlacement": "Not placed in physical warehouse",
+    "noPhysicalPlacementToast": "This dossier has not been placed in a box or compartment yet.",
+    "navigateToBox": "Click to view the box location on the warehouse diagram",
+    "diagramFocusHeading": "Dossier highlighted on diagram"
+  },
   "tabs": {
     "locations": "Location management",
     "diagram": "Warehouse map",

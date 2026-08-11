@@ -338,6 +338,18 @@ export function translateError(error: unknown): string {
     })
   }
 
+  if (/ZIP_PIN_REQUIRED/i.test(rawMessage) || /đặt mã PIN cá nhân/i.test(rawMessage)) {
+    return i18n.t('export.zipPinRequired', { ns: 'archive-warehouse' })
+  }
+
+  if (
+    /ZIP_DOSSIER_PASSWORD_REQUIRED/i.test(rawMessage) ||
+    /mã hóa ZIP bằng mật khẩu hồ sơ/i.test(rawMessage)
+  ) {
+    // Strip prefix for cleaner UI when dialog shows the message
+    return rawMessage.replace(/^ZIP_DOSSIER_PASSWORD_REQUIRED:\s*/i, '').trim()
+  }
+
   if (/Export columns must not be empty/i.test(rawMessage)) {
     return i18n.t('metadataExport.validation.noColumns', { ns: 'data-config' })
   }
@@ -350,9 +362,12 @@ export function translateError(error: unknown): string {
   // ==================== THÊM PHẦN 2: MAPPING CÁC LỖI TĨNH KHÁC ====================
   // Map common error messages to translation keys
   const errorTranslations: Record<string, string> = {
-    'School ID is required': i18n.t('errors.schoolIdRequired', {
-      ns: 'common',
-    }),
+    'Hồ sơ đã có trong danh mục': i18n.t(
+      'disposal.catalogDuplicateAlreadyInCatalog',
+      { ns: 'archive-disposal' },
+    ),
+    'Hồ sơ hoặc tài liệu thuộc danh sách hết hạn/trùng lặp — chỉ được xử lý hủy theo quy trình Hội đồng xét hủy':
+      i18n.t('disposal.candidateWarehouseLockHint', { ns: 'archive-warehouse' }),
     'Dossier already has an active MAKER assignment': i18n.t(
       'actionDialog.assignEditor.errors.alreadyHasMaker',
       { ns: 'data-management' },

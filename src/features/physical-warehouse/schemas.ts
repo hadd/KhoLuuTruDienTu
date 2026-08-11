@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { archiveWarehouseIndexSearchSchema } from '@/features/archive-warehouse/schemas'
 import i18n from '@/lib/i18n/config'
 
 export const itemFormSchema = z
@@ -30,12 +31,15 @@ export const itemFormSchema = z
 
 export type ItemFormValues = z.infer<typeof itemFormSchema>
 
-export const physicalWarehouseSearchSchema = z.object({
+export const physicalWarehouseSearchSchema = archiveWarehouseIndexSearchSchema.extend({
   rootId: z.string().optional().catch(undefined),
   warehouseId: z.string().optional().catch(undefined),
   tab: z.enum(['diagram', 'manage']).optional().catch(undefined),
   parentId: z.string().optional().catch(undefined),
-  q: z.string().optional().catch(undefined),
+  focusDossierId: z.string().uuid().optional().catch(undefined),
+  highlightPhysicalItemId: z.string().uuid().optional().catch(undefined),
+  focusDossierTitle: z.string().optional().catch(undefined),
+  focusPlacementPath: z.string().optional().catch(undefined),
 })
 
 export type PhysicalWarehouseSearchT = z.infer<

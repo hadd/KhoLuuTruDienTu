@@ -96,6 +96,7 @@ import { adminProjectStore } from '@/features/data-management/store'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { editorDraftDossiersQueryKey } from '@/features/editor-dossiers/queries'
 import { cn } from '@/lib/utils/cn'
+import { translateError } from '@/lib/utils/translate-error'
 import { BatchDigitalSignDrawer } from '@/features/digital-sign/components/BatchDigitalSignDrawer'
 import {
   ensureSignAgentReady,
@@ -712,8 +713,14 @@ export function DataManagementPage({
         })
         toast.success(t('recordDetail.exportExcelSuccess'))
         setExportDialogOpen(false)
-      } catch {
-        toast.error(t('recordDetail.exportExcelError'))
+      } catch (error) {
+        toast.error(
+          translateError(
+            error instanceof Error
+              ? error
+              : new Error(t('recordDetail.exportExcelError')),
+          ),
+        )
       } finally {
         setIsExporting(false)
         setExportingMode(null)

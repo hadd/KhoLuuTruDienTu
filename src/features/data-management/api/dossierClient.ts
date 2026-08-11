@@ -1,5 +1,6 @@
 import { applyStoragePathPrefix } from '@/features/data-management/lib/uploadPathPrefix'
 import { toScopedProjectCode } from '@/features/data-management/lib/constants'
+import { notifyZipPasswordLocked } from '@/features/security-level/lib/zipPasswordToast'
 import { apiClient } from '@/lib/api/apiClient'
 import { env } from '@/lib/utils/env'
 
@@ -314,6 +315,7 @@ async function downloadMetadataExport(
     response.headers['content-disposition'],
     fallbackName,
   )
+  notifyZipPasswordLocked(response.headers as Record<string, unknown>)
 }
 
 async function downloadConfiguredMetadataExport(
@@ -334,6 +336,7 @@ async function downloadConfiguredMetadataExport(
     response.headers['content-disposition'],
     fallbackName,
   )
+  notifyZipPasswordLocked(response.headers as Record<string, unknown>)
 }
 
 async function saveMetadataExportBlob(

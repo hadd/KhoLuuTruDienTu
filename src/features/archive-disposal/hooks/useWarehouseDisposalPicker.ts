@@ -6,6 +6,10 @@ import { toast } from 'sonner'
 import { transferToDisposalProposal } from '@/features/archive-disposal/api/archiveDisposalClient'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import {
+  isAppendToDisposalCatalog,
+  notifyDisposalTransferResult,
+} from '@/features/archive-disposal/lib/disposalTransferNotifications'
+import {
   shouldShowWarehousePickerSelection,
   shouldShowWarehouseRowSelection,
 } from '@/features/archive-disposal/lib/warehousePickerSelection'
@@ -43,8 +47,11 @@ export function useWarehouseDisposalPicker(input: UseWarehouseDisposalPickerInpu
 
   const pickerTransferMutation = useMutation({
     mutationFn: transferToDisposalProposal,
-    onSuccess: () => {
-      toast.success(tDisposal('disposal.transferSuccess'))
+    onSuccess: (result, variables) => {
+      notifyDisposalTransferResult(result, {
+        appendToCatalog: isAppendToDisposalCatalog(variables.catalogId),
+        t: tDisposal,
+      })
       input.onTransferSuccess?.()
       void navigate({
         to: '/app/archive-warehouse',

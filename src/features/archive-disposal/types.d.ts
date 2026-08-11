@@ -117,6 +117,12 @@ export type TransferToProposalItemT = {
   source: DisposalProposalItemSourceT
 }
 
+export type TransferToProposalResultT = {
+  catalogId: string
+  items: Array<DisposalProposalItemT>
+  skippedDuplicateCount?: number
+}
+
 export type DisposalCatalogReferenceFileT = {
   fileId: string
   fileName: string
@@ -125,6 +131,8 @@ export type DisposalCatalogReferenceFileT = {
 
 export type DisposalCatalogDetailT = {
   catalog: DisposalProposalCatalogT
+  catalogFondId?: string | null
+  catalogFondName?: string | null
   items: Array<DisposalProposalItemT>
   referenceFilesByDossierId?: Record<string, Array<DisposalCatalogReferenceFileT>>
 }

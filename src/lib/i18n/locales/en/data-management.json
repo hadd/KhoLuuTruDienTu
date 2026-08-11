@@ -557,6 +557,7 @@
   },
   "digitalSign": {
     "action": "Sign digitally",
+    "resignAction": "Sign again",
     "title": "Digital signing",
     "description": "Sign unsigned PDF files in this dossier using a USB token.",
     "descriptionWithName": "Sign dossier {{name}} using a USB token.",
