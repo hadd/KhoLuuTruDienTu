@@ -122,10 +122,10 @@ export function ArchiveWarehouseExportDialog({
 
   function clearExportTokens(ids: Iterable<string>) {
     for (const key of ids) {
-      if (key.startsWith('file:')) clearFileAccessToken(key.slice(5))
+      if (key.startsWith('file:')) clearFileAccessToken('warehouse', key.slice(5))
       else if (key.startsWith('level:'))
-        clearSecurityLevelAccessToken(key.slice(6))
-      else clearDossierAccessToken(key)
+        clearSecurityLevelAccessToken('warehouse', key.slice(6))
+      else clearDossierAccessToken('warehouse', key)
     }
   }
 
@@ -385,6 +385,7 @@ export function ArchiveWarehouseExportDialog({
           password,
         })
         setDossierAccessToken(
+          'warehouse',
           pendingPassword.dossierId,
           result.token,
           result.expiresIn,
@@ -398,6 +399,7 @@ export function ArchiveWarehouseExportDialog({
           password,
         })
         setFileAccessToken(
+          'warehouse',
           pendingPassword.fileId,
           result.token,
           result.expiresIn,
@@ -408,6 +410,7 @@ export function ArchiveWarehouseExportDialog({
           password,
         })
         setSecurityLevelAccessToken(
+          'warehouse',
           pendingPassword.securityLevelId,
           result.token,
           result.expiresIn,

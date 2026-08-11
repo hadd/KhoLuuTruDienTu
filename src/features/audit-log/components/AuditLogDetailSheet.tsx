@@ -111,8 +111,16 @@ function AuditLogDetailContent({ log }: { log: AuditLogT }) {
             />
           ) : null}
         </div>
-      </dl>
-
+      ) : null}
+      //Path and IP are not in the audit log table, so we need to add them here
+      <div>
+      <dt className="text-muted-foreground">{t('detail.path')}</dt>
+        <dd className="break-all font-mono text-xs">{log.method} {log.path}</dd>
+      </div>
+      <div>
+        <dt className="text-muted-foreground">{t('detail.ip')}</dt>
+        <dd>{log.ip ?? t('unknown')}</dd>
+      </div>
       {log.error ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
           <p className="text-xs font-medium text-destructive">{t('detail.error')}</p>

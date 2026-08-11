@@ -5,6 +5,7 @@ import { logout } from '@/features/auth/api/authClient'
 import { authStore } from '@/features/auth/store'
 import { resetDataManagementClientCache } from '@/features/data-management/api/dataManagementClient'
 import { disconnectDossierSocket } from '@/features/data-management/lib/dossierSocket'
+import { clearAllSecurityAccessTokens } from '@/features/security-level/lib/securityAccessTokenStore'
 
 export function useLogout() {
   const queryClient = useQueryClient()
@@ -21,6 +22,7 @@ export function useLogout() {
     onSettled: () => {
       disconnectDossierSocket()
       resetDataManagementClientCache()
+      clearAllSecurityAccessTokens()
       queryClient.cancelQueries()
       queryClient.clear()
       authStore.reset()

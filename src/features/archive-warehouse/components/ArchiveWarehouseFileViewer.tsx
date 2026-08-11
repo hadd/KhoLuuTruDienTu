@@ -31,6 +31,7 @@ import { ArchiveWarehouseReuploadDialog } from '@/features/archive-warehouse/com
 import { ArchiveWarehouseSecurityDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseSecurityDialog'
 import { archiveWarehouseDossierDetailQueryOptions } from '@/features/archive-warehouse/queries'
 import type { ArchiveWarehouseDossierFileT } from '@/features/archive-warehouse/types'
+import { libraryExploitationDossierDetailQueryOptions } from '@/features/library/api/exploitation-queries'
 import { isFieldAllowed } from '@/features/data-config/lib/assignmentHelpers'
 import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import type { MetadataGroup } from '@/features/data-management/lib/metadataHelpers'
@@ -51,6 +52,7 @@ import {
   rememberDossierUnlockedSecurityLevel,
   setFileAccessToken,
   setSecurityLevelAccessToken,
+  type SecurityAccessModule,
 } from '@/features/security-level/lib/securityAccessTokenStore'
 import { activeSecurityLevelsQueryOptions } from '@/features/security-level/queries'
 import { cn } from '@/lib/utils/cn'
@@ -257,6 +259,9 @@ export function ArchiveWarehouseFileViewer({
   const queryClient = useQueryClient()
   const { t } = useTranslation('archive-warehouse')
   const { t: tSecurity } = useTranslation('security-level')
+  const accessModule: SecurityAccessModule = isExploitation
+    ? 'exploitation'
+    : 'warehouse'
   const { canRequestBorrow } = useArchiveBorrowAccess()
   const [borrowDialogOpen, setBorrowDialogOpen] = useState(false)
   const [reuploadOpen, setReuploadOpen] = useState(false)
@@ -404,8 +409,13 @@ export function ArchiveWarehouseFileViewer({
           fileId: lockedFile.id,
           password,
         })
-        setFileAccessToken(lockedFile.id, result.token, result.expiresIn)
-        rememberDossierUnlockedFile(dossierId, lockedFile.id)
+        setFileAccessToken(
+          accessModule,
+          lockedFile.id,
+          result.token,
+          result.expiresIn,
+        )
+        rememberDossierUnlockedFile(accessModule, dossierId, lockedFile.id)
       } else {
         if (!lockedFile.requiredSecurityLevelId) {
           throw new Error(tSecurity('access.unlockFailed'))
@@ -415,17 +425,21 @@ export function ArchiveWarehouseFileViewer({
           password,
         })
         setSecurityLevelAccessToken(
+          accessModule,
           lockedFile.requiredSecurityLevelId,
           result.token,
           result.expiresIn,
         )
         rememberDossierUnlockedSecurityLevel(
+          accessModule,
           dossierId,
           lockedFile.requiredSecurityLevelId,
         )
       }
       await queryClient.fetchQuery(
-        archiveWarehouseDossierDetailQueryOptions(dossierId),
+        isExploitation
+          ? libraryExploitationDossierDetailQueryOptions(dossierId)
+          : archiveWarehouseDossierDetailQueryOptions(dossierId),
       )
       onSelectFile(lockedFile.id)
     },

@@ -93,6 +93,7 @@ async function postExportZip(
     timeout: EXPORT_TIMEOUT_MS,
     _skipGlobalErrorToast: true,
     dossierId: dossierIds[0] ?? null,
+    securityAccessModule: 'warehouse',
   })
 
   saveExportBlob(
@@ -124,6 +125,7 @@ export async function checkDossierExportRequirements(
   const response = await apiClient.post<ExportCheckResultT>(path, body, {
     _skipGlobalErrorToast: true,
     dossierId,
+    securityAccessModule: 'warehouse',
   })
   return response.data
 }

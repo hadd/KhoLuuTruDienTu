@@ -14,7 +14,10 @@ import {
 } from '@/features/auth/store'
 import type { LoginResponseT } from '@/features/auth/types'
 import { isTokenExpired } from '@/features/auth/utils'
-import { buildSecurityAccessHeaders } from '@/features/security-level/lib/securityAccessTokenStore'
+import {
+  buildSecurityAccessHeaders,
+  type SecurityAccessModule,
+} from '@/features/security-level/lib/securityAccessTokenStore'
 import { env } from '@/lib/utils/env'
 
 // Custom error class for authentication failures
@@ -139,6 +142,8 @@ export type RequestConfig = AxiosRequestConfig & {
   securityLevelId?: string | null
   /** Attach x-dossier-access-token / resolve level token via dossier mapping. */
   dossierId?: string | null
+  /** Scope password unlock tokens to Kho vs Thư viện (required to attach headers). */
+  securityAccessModule?: SecurityAccessModule | null
 }
 
 function isSecurityPasswordVerifyUrl(url: string | undefined): boolean {
@@ -172,6 +177,7 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
   }
 
   const securityHeaders = buildSecurityAccessHeaders({
+    module: config.securityAccessModule,
     securityLevelId: config.securityLevelId,
     dossierId: config.dossierId,
   })

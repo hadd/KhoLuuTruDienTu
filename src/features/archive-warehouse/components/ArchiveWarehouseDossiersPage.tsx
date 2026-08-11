@@ -75,6 +75,7 @@ import { getPasswordRequiredFromError } from '@/features/security-level/lib/pass
 import {
   rememberDossierSecurityLevel,
   setDossierAccessToken,
+  type SecurityAccessModule,
 } from '@/features/security-level/lib/securityAccessTokenStore'
 import {
   DEFAULT_LIST_PAGE_LIMIT,
@@ -118,6 +119,9 @@ export function ArchiveWarehouseDossiersPage({
 }: ArchiveWarehouseDossiersPageProps = {}) {
   const activeRouteApi = propRouteApi ?? defaultRouteApi
   const isExploitation = browseMode === 'exploitation'
+  const accessModule: SecurityAccessModule = isExploitation
+    ? 'exploitation'
+    : 'warehouse'
   const { t, i18n } = useTranslation('archive-warehouse')
   const { t: tDisposal } = useTranslation('archive-disposal')
   const { t: tSecurity } = useTranslation('security-level')
@@ -451,7 +455,7 @@ export function ArchiveWarehouseDossiersPage({
     if (openingDossierId || passwordDialogOpen) return
 
     if (securityLevelId) {
-      rememberDossierSecurityLevel(dossierId, securityLevelId)
+      rememberDossierSecurityLevel(accessModule, dossierId, securityLevelId)
     }
 
     setOpeningDossierId(dossierId)
@@ -488,12 +492,14 @@ export function ArchiveWarehouseDossiersPage({
     onSuccess: async (result) => {
       if (!pendingOpen) return
       const { dossierId, securityLevelId, match } = pendingOpen
-      setDossierAccessToken(dossierId, result.token, result.expiresIn)
+      setDossierAccessToken(accessModule, dossierId, result.token, result.expiresIn)
       setPasswordDialogOpen(false)
       toast.success(tSecurity('access.unlockSuccess'))
       try {
         await queryClient.fetchQuery(
-          archiveWarehouseDossierDetailQueryOptions(dossierId, securityLevelId),
+          isExploitation
+            ? libraryExploitationDossierDetailQueryOptions(dossierId)
+            : archiveWarehouseDossierDetailQueryOptions(dossierId, securityLevelId),
         )
         setPendingOpen(null)
         navigateToDossierDetail(dossierId, match)
