@@ -25,8 +25,8 @@ const ROW_LABEL_H = 26
 const FLOOR = '#d8d8d8'
 
 /* ✅ HỘP: KÍCH THƯỚC CỐ ĐỊNH */
-const BOX_W = 18
-const BOX_TOP_H = 7
+const BOX_W = 35
+const BOX_TOP_H = 12
 const SLOT_GAP = 3
 const SLOT_CAP = 3
 const PAD_X = 4
@@ -132,13 +132,33 @@ function giaBoxUsage(node: PhysicalWarehouseTreeNodeT): {
   return { used, total }
 }
 
-function usageFill(used: number, total: number): string {
-  if (total <= 0) return '#74b655'
-  const r = used / total
-  if (r >= 1) return '#ff0000ff'
-  if (r >= 0.5) return '#ffa600ff'
-  if (r > 0) return '#51ff00ff'
-  return '#74b655'
+/** Dải màu heatmap dùng chung: trống -> xanh -> vàng -> cam -> đỏ */
+const HEAT_STOPS: Array<[number, number, number]> = [
+  [255, 255, 255], // 0%   - xanh siêu nhạt (trống)
+  [127, 255, 0], // 25%  - xanh lá
+  [255, 245, 4], // 50%  - vàng
+  [255, 142, 85],  // 75%  - cam
+  [255, 3, 3],   // 100% - đỏ
+]
+
+function heatRgb(used: number, total: number): string {
+  if (total <= 0) {
+    const [r, g, b] = HEAT_STOPS[0]
+    return `rgb(${r},${g},${b})`
+  }
+  const ratio = Math.min(1, Math.max(0, used / total))
+  const segments = HEAT_STOPS.length - 1
+  const pos = ratio * segments
+  const i = Math.min(segments - 1, Math.floor(pos))
+  const t = pos - i
+  const c1 = HEAT_STOPS[i]
+  const c2 = HEAT_STOPS[i + 1]
+  const rgb = c1.map((v, idx) => Math.round(v + (c2[idx] - v) * t))
+  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`
+}
+
+function heatColor(used: number, total: number): string {
+  return heatRgb(used, total)
 }
 
 function elevationBoxLabel(name: string, boxWidth: number): { text: string; fontSize: number } {
@@ -156,17 +176,6 @@ function elevationBoxLabel(name: string, boxWidth: number): { text: string; font
 
 /** Hộp tượng trưng top-down (không tô theo độ đầy) */
 const BOX_SYMBOL_FILL = '#c4a574'
-
-function heatColor(used: number, total: number): string {
-  if (total <= 0) return '#b9e3a6'
-  const r = Math.min(1, Math.max(0, used / total))
-  const G = [185, 227, 166]
-  const Y = [245, 215, 160]
-  const R = [243, 177, 177]
-  const [c1, c2, t] = r < 0.5 ? [G, Y, r * 2] : [Y, R, (r - 0.5) * 2]
-  const rgb = c1.map((v, i) => Math.round(v + (c2[i] - v) * t))
-  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`
-}
 
 /* ================= LAYOUT ================= */
 interface MapShelf {
@@ -691,145 +700,112 @@ function WarehouseMapCanvas({
                         )
                       })()}
                       {b.cols.map((col) =>
-                        col.tiers.map((tier, li) => {
-                          const palletY =
-                            b.floorY - li * E_LEVEL_H - E_BEAM_H - E_PALLET_H
-                          const isUnit = isStorageUnitNode(tier.node)
-                          const slotCap = Math.max(
-                            tier.slotCap,
-                            isUnit ? 1 : tier.leaves.length,
-                          )
-                          const filled = isUnit
-                            ? 1
-                            : Math.min(slotCap, tier.leaves.length)
-                          const empties = isUnit
-                            ? 0
-                            : Math.max(0, slotCap - filled)
-                          const slotOffset = isUnit
-                            ? 0
-                            : (col.cap - slotCap) / 2
-                          const slotX = (i: number) =>
-                            col.x +
-                            PAD_X +
-                            (slotOffset + i) * (BOX_W + SLOT_GAP)
+  col.tiers.map((tier, li) => {
+    const palletY = b.floorY - li * E_LEVEL_H - E_BEAM_H - E_PALLET_H
+    const isUnit = isStorageUnitNode(tier.node)
+    const slotCap = Math.max(
+      tier.slotCap,
+      isUnit ? 1 : tier.leaves.length,
+    )
+    const filled = isUnit ? 1 : Math.min(slotCap, tier.leaves.length)
+    const empties = isUnit ? 0 : Math.max(0, slotCap - filled)
 
-                          return (
-                            <Group key={tier.node.id}>
-                              {Array.from({ length: filled }, (_, bi) => {
-                                const leaf = isUnit
-                                  ? tier.node
-                                  : tier.leaves[bi]
-                                const singleInTier =
-                                  isUnit ||
-                                  (filled === 1 && tier.leaves.length === 1)
-                                const sx = singleInTier
-                                  ? col.x + PAD_X
-                                  : slotX(bi)
-                                const sw = singleInTier
-                                  ? col.w - 2 * PAD_X
-                                  : BOX_W
-                                const used = leaf.usedCapacity ?? 0
-                                const total = leaf.capacity ?? 0
-                                const displayName =
-                                  leaf.name?.trim() ||
-                                  (isUnit ? tier.node.name : '')
-                                const boxLabel = elevationBoxLabel(
-                                  displayName,
-                                  sw,
-                                )
-                                const label = isUnit
-                                  ? `${col.node.name} • ${tier.node.name}`
-                                  : `${col.node.name} • ${tier.node.name} • ${leaf.name}`
-                                const isHighlighted =
-                                  leaf.id === highlightPhysicalItemId
-                                return (
-                                  <Group key={leaf.id}>
-                                    <Rect
-                                      x={sx}
-                                      y={palletY}
-                                      width={sw}
-                                      height={E_PALLET_H}
-                                      fill="#b08050"
-                                      listening={false}
-                                    />
-                                    <Rect
-                                      x={sx}
-                                      y={palletY - E_BOX_H}
-                                      width={sw}
-                                      height={E_BOX_H}
-                                      fill={
-                                        isHighlighted
-                                          ? '#bfdbfe'
-                                          : usageFill(used, total)
-                                      }
-                                      stroke={
-                                        isHighlighted ? '#2563eb' : '#c9a06a'
-                                      }
-                                      strokeWidth={isHighlighted ? 3 : 0.6}
-                                      onMouseEnter={(e: any) => {
-                                        setCursor(e, 'pointer')
-                                        hoverAt(
-                                          total > 0
-                                            ? `${label} • ${t('manage.usedCapacity', { used, total })}`
-                                            : label,
-                                          e,
-                                        )
-                                      }}
-                                      onMouseLeave={(e: any) => {
-                                        setCursor(e, '')
-                                        setHover(null)
-                                      }}
-                                    />
-                                    {boxLabel.text ? (
-                                      <Text
-                                        x={sx}
-                                        y={palletY - E_BOX_H + 6}
-                                        width={sw}
-                                        align="center"
-                                        text={boxLabel.text}
-                                        fontSize={
-                                          isHighlighted
-                                            ? boxLabel.fontSize + 1
-                                            : boxLabel.fontSize
-                                        }
-                                        fontStyle={
-                                          isHighlighted ? 'bold' : 'normal'
-                                        }
-                                        fill={isHighlighted ? '#1d4ed8' : '#1e293b'}
-                                        listening={false}
-                                      />
-                                    ) : null}
-                                  </Group>
-                                )
-                              })}
-                              {Array.from({ length: empties }, (_, ei) => (
-                                <Rect
-                                  key={'e' + ei}
-                                  x={slotX(filled + ei)}
-                                  y={palletY - E_BOX_H}
-                                  width={BOX_W}
-                                  height={E_BOX_H}
-                                  fill="rgba(255,255,255,0.5)"
-                                  stroke="#bbb"
-                                  strokeWidth={1}
-                                  dash={[4, 3]}
-                                  onMouseEnter={(e: any) => {
-                                    setCursor(e, 'pointer')
-                                    hoverAt(
-                                      `${col.node.name} • ${tier.node.name} • ${t('diagram.emptySlot')}`,
-                                      e,
-                                    )
-                                  }}
-                                  onMouseLeave={(e: any) => {
-                                    setCursor(e, '')
-                                    setHover(null)
-                                  }}
-                                />
-                              ))}
-                            </Group>
-                          )
-                        }),
-                      )}
+    // ✅ Hộp tự giãn/co để lấp đầy chiều rộng cột, thay vì BOX_W cố định
+    const innerW = col.w - 2 * PAD_X - Math.max(0, slotCap - 1) * SLOT_GAP
+    const boxW = Math.max(8, innerW / slotCap) // tối thiểu 8px để tránh méo
+    const slotX = (i: number) => col.x + PAD_X + i * (boxW + SLOT_GAP)
+
+    return (
+      <Group key={tier.node.id}>
+        {Array.from({ length: filled }, (_, bi) => {
+          const leaf = isUnit ? tier.node : tier.leaves[bi]
+          const sx = slotX(bi)
+          const sw = boxW
+          const used = leaf.usedCapacity ?? 0
+          const total = leaf.capacity ?? 0
+          const displayName =
+            leaf.name?.trim() || (isUnit ? tier.node.name : '')
+          const boxLabel = elevationBoxLabel(displayName, sw)
+          const label = isUnit
+            ? `${col.node.name} • ${tier.node.name}`
+            : `${col.node.name} • ${tier.node.name} • ${leaf.name}`
+          const isHighlighted = leaf.id === highlightPhysicalItemId
+          return (
+            <Group key={leaf.id}>
+              <Rect
+                x={sx}
+                y={palletY}
+                width={sw}
+                height={E_PALLET_H}
+                fill="#b08050"
+                listening={false}
+              />
+              <Rect
+                x={sx}
+                y={palletY - E_BOX_H}
+                width={sw}
+                height={E_BOX_H}
+                fill={isHighlighted ? '#bfdbfe' : heatColor(used, total)}
+                stroke={isHighlighted ? '#2563eb' : '#c9a06a'}
+                strokeWidth={isHighlighted ? 3 : 0.6}
+                onMouseEnter={(e: any) => {
+                  setCursor(e, 'pointer')
+                  hoverAt(
+                    total > 0
+                      ? `${label} • ${t('manage.usedCapacity', { used, total })}`
+                      : label,
+                    e,
+                  )
+                }}
+                onMouseLeave={(e: any) => {
+                  setCursor(e, '')
+                  setHover(null)
+                }}
+              />
+              {boxLabel.text ? (
+                <Text
+                  x={sx}
+                  y={palletY - E_BOX_H + 6}
+                  width={sw}
+                  align="center"
+                  text={boxLabel.text}
+                  fontSize={isHighlighted ? boxLabel.fontSize + 1 : boxLabel.fontSize}
+                  fontStyle={isHighlighted ? 'bold' : 'normal'}
+                  fill={isHighlighted ? '#1d4ed8' : '#1e293b'}
+                  listening={false}
+                />
+              ) : null}
+            </Group>
+          )
+        })}
+        {Array.from({ length: empties }, (_, ei) => (
+          <Rect
+            key={'e' + ei}
+            x={slotX(filled + ei)}
+            y={palletY - E_BOX_H}
+            width={boxW}
+            height={E_BOX_H}
+            fill="rgba(255,255,255,0.5)"
+            stroke="#bbb"
+            strokeWidth={1}
+            dash={[4, 3]}
+            onMouseEnter={(e: any) => {
+              setCursor(e, 'pointer')
+              hoverAt(
+                `${col.node.name} • ${tier.node.name} • ${t('diagram.emptySlot')}`,
+                e,
+              )
+            }}
+            onMouseLeave={(e: any) => {
+              setCursor(e, '')
+              setHover(null)
+            }}
+          />
+        ))}
+      </Group>
+    )
+  }),
+)}
                       {b.cols.map((col) => (
                         <Text
                           key={col.node.id}
