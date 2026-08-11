@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Loader2, Plus, Save, Send, Trash2 } from 'lucide-react'
+import { Loader2, Plus, Save, Send, Trash2, ListFilter } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -25,6 +25,8 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   createDisposalCatalog,
   deleteDisposalCatalog,
+  downloadDisposalPhuLucII,
+  downloadDisposalPhuLucIII,
   removeDisposalCatalogItem,
   submitDisposalCatalog,
   updateDisposalCatalog,
@@ -60,11 +62,28 @@ import {
   disposalCatalogsQueryKeyPrefix,
   disposalCatalogsQueryOptions,
 } from '@/features/archive-disposal/queries'
+import type {
+  DisposalCatalogDetailT,
+  DisposalProposalCatalogStatusT,
+} from '@/features/archive-disposal/types'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { translateError } from '@/lib/utils/translate-error'
 
 const routeApi = getRouteApi('/app/archive-warehouse/')
+
+function isCatalogStatusKey(
+  status: string,
+): status is DisposalProposalCatalogStatusT {
+  return (
+    status === 'DRAFT' ||
+    status === 'PENDING_SUBMIT' ||
+    status === 'SUBMITTED' ||
+    status === 'APPROVED' ||
+    status === 'REJECTED' ||
+    status === 'DESTROYED'
+  )
+}
 
 export function ArchiveDisposalProposalPage() {
   const { t } = useTranslation('archive-disposal')
@@ -75,6 +94,7 @@ export function ArchiveDisposalProposalPage() {
     canCreateDisposal,
     canUpdateDisposal,
     canSubmitDisposal,
+    canReadDisposal,
   } = useArchiveDisposalAccess()
   const {
     canCreateCouncil,
@@ -96,6 +116,7 @@ export function ArchiveDisposalProposalPage() {
   const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10))
   const [formNotes, setFormNotes] = useState('')
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({})
+  const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [createCouncilOpen, setCreateCouncilOpen] = useState(false)
   const [viewCouncilOpen, setViewCouncilOpen] = useState(false)
@@ -159,13 +180,17 @@ export function ArchiveDisposalProposalPage() {
     )
   }, [councilDetail?.members, currentUser?.id])
 
-  const isCouncilSecretary = useMemo(() => {
-    if (!currentUser?.id || !councilDetail?.members) return false
-    return councilDetail.members.some(
-      (member) =>
-        member.userId === currentUser.id && member.positionRole === 'SECRETARY',
-    )
-  }, [councilDetail?.members, currentUser?.id])
+  const isCatalogCreator = useMemo(() => {
+    if (!currentUser?.id) return false
+    const creatorId =
+      catalogDetail?.catalog.createdBy ??
+      councilDetail?.council.catalogCreatedBy
+    return Boolean(creatorId && creatorId === currentUser.id)
+  }, [
+    catalogDetail?.catalog.createdBy,
+    councilDetail?.council.catalogCreatedBy,
+    currentUser?.id,
+  ])
 
   const canAccessCouncilEvaluations =
     isPendingReview &&
@@ -288,14 +313,38 @@ export function ArchiveDisposalProposalPage() {
   })
 
   const saveMutation = useMutation({
-    mutationFn: () =>
-      updateDisposalCatalog(selectedCatalogId!, {
+    mutationFn: async () => {
+      const catalogId = selectedCatalogId!
+      const items = catalogDetail?.items ?? []
+      const updatedCatalog = await updateDisposalCatalog(catalogId, {
         name: formName,
         catalogDate: formDate,
         notes: formNotes,
-      }),
-    onSuccess: () => {
+      })
+      if (items.length === 0) return updatedCatalog
+      await Promise.all(
+        items.map((item) =>
+          updateDisposalCatalogItem(catalogId, item.id, {
+            reason: (reasonDrafts[item.id] ?? item.reason).trim(),
+          }),
+        ),
+      )
+      return updatedCatalog
+    },
+    onSuccess: (updatedCatalog) => {
       toast.success(t('proposal.saveSuccess'))
+      if (updatedCatalog && selectedCatalogId) {
+        queryClient.setQueryData<DisposalCatalogDetailT>(
+          ['archive-disposal', 'catalog', selectedCatalogId],
+          (old) =>
+            old
+              ? {
+                  ...old,
+                  catalog: { ...old.catalog, ...updatedCatalog },
+                }
+              : old,
+        )
+      }
       void queryClient.invalidateQueries({ queryKey: disposalCatalogsQueryKeyPrefix })
       void queryClient.invalidateQueries({
         queryKey: ['archive-disposal', 'catalog', selectedCatalogId],
@@ -303,6 +352,38 @@ export function ArchiveDisposalProposalPage() {
     },
     onError: (error) => toast.error(translateError(error)),
   })
+
+  function handleSaveCatalog() {
+    const items = catalogDetail?.items ?? []
+    const missingReasonCount = items.filter(
+      (item) => !(reasonDrafts[item.id]?.trim() ?? ''),
+    ).length
+    if (missingReasonCount > 0) {
+      toast.error(
+        t('proposal.missingReasonBeforeSave', { count: missingReasonCount }),
+      )
+      return
+    }
+    saveMutation.mutate()
+  }
+
+  function handleRequestSubmit() {
+    const items = catalogDetail?.items ?? []
+    if (items.length === 0) {
+      toast.error(t('proposal.itemsEmpty'))
+      return
+    }
+    const missingReasonCount = items.filter(
+      (item) => !(reasonDrafts[item.id]?.trim() ?? ''),
+    ).length
+    if (missingReasonCount > 0) {
+      toast.error(
+        t('proposal.missingReasonBeforeSave', { count: missingReasonCount }),
+      )
+      return
+    }
+    setSubmitConfirmOpen(true)
+  }
 
   const submitMutation = useMutation({
     mutationFn: () => submitDisposalCatalog(selectedCatalogId!),
@@ -409,11 +490,8 @@ export function ArchiveDisposalProposalPage() {
 
   const publishDecisionMutation = useMutation({
     mutationFn: () => publishDisposalCouncilDecision(viewedCouncilId!),
-    onSuccess: (result) => {
+    onSuccess: () => {
       toast.success(t('proposal.publishDecisionSuccess'))
-      if (result.documentUrl) {
-        window.open(result.documentUrl, '_blank', 'noopener,noreferrer')
-      }
       void refetchDecisionDocuments()
       if (viewedCouncilId) {
         void queryClient.invalidateQueries({
@@ -461,6 +539,18 @@ export function ArchiveDisposalProposalPage() {
     onError: (error) => toast.error(translateError(error)),
   })
 
+  const exportPhuLucIIMutation = useMutation({
+    mutationFn: () => downloadDisposalPhuLucII(selectedCatalogId!),
+    onSuccess: () => toast.success(t('proposal.exportAppendixSuccess')),
+    onError: (error) => toast.error(translateError(error)),
+  })
+
+  const exportPhuLucIIIMutation = useMutation({
+    mutationFn: () => downloadDisposalPhuLucIII(selectedCatalogId!),
+    onSuccess: () => toast.success(t('proposal.exportAppendixSuccess')),
+    onError: (error) => toast.error(translateError(error)),
+  })
+
   const catalogs = catalogList?.items ?? []
   const catalogGroups = useMemo(
     () =>
@@ -472,20 +562,38 @@ export function ArchiveDisposalProposalPage() {
   )
   const isDraft = catalogDetail?.catalog.status === 'DRAFT'
   const isSubmitted = catalogDetail?.catalog.status === 'SUBMITTED'
+  const catalogStatus = catalogDetail?.catalog.status
+  const catalogStatusDescription =
+    catalogStatus && isCatalogStatusKey(catalogStatus)
+      ? t(`proposal.statusDescription.${catalogStatus}`)
+      : null
   const councilReviewEnabled = disposalSettings?.councilReviewEnabled ?? true
   const canEditDraft = isDraft && canUpdateDisposal
-  const canPickFromWarehouse = canEditDraft && Boolean(selectedCatalogId)
+  const canPickFromExpiryList =
+    canEditDraft && Boolean(selectedCatalogId)
   const canShortcutCreateCouncil =
     councilReviewEnabled && isSubmitted && canCreateCouncil
   const totalPages = catalogList?.totalPages ?? 1
   const evaluationProgress = councilEvaluations?.progress
   const showCouncilEvaluationUi =
     isPendingReview && Boolean(viewedCouncilId) && canAccessCouncilEvaluations
+  const directorApprovalReady = Boolean(
+    decisionDocuments?.decisionPublishedAt && decisionDocuments?.hasSignedMinutes,
+  )
+
   const canShowFinalizeActions =
     canFinalizeCouncil &&
     Boolean(evaluationProgress?.isComplete) &&
+    directorApprovalReady &&
     isPendingReview &&
     Boolean(viewedCouncilId)
+
+  const showFinalizeBlockedHint =
+    canFinalizeCouncil &&
+    Boolean(evaluationProgress?.isComplete) &&
+    isPendingReview &&
+    Boolean(viewedCouncilId) &&
+    !directorApprovalReady
 
   const evaluationsLocked = Boolean(
     evaluationProgress?.evaluationsLocked ?? councilDetail?.council.decisionPublishedAt,
@@ -493,25 +601,58 @@ export function ArchiveDisposalProposalPage() {
 
   const canShowPublishActions =
     canPublishCouncil &&
-    isCouncilSecretary &&
+    isCatalogCreator &&
     Boolean(evaluationProgress?.isComplete) &&
     !hasPendingChairDecisions &&
     !evaluationsLocked &&
     isPendingReview &&
     Boolean(viewedCouncilId)
 
+  const canShowAppendixExport =
+    canReadDisposal &&
+    Boolean(selectedCatalogId) &&
+    (catalogDetail?.items.length ?? 0) > 0 &&
+    isPendingReview &&
+    Boolean(viewedCouncilId) &&
+    Boolean(evaluationProgress?.isComplete) &&
+    !hasPendingChairDecisions
+
+  const canShowViewCouncil =
+    Boolean(selectedCatalogId) &&
+    !canEditDraft &&
+    isPendingReview &&
+    canReadCouncil &&
+    Boolean(viewedCouncilId)
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
       <div className="flex flex-wrap items-center justify-end gap-2">
-          {canUpdateDisposal ? (
+          {canPickFromExpiryList ? (
+            <>
             <Button
               variant="outline"
-              disabled={!canPickFromWarehouse}
-              title={
-                canPickFromWarehouse
-                  ? undefined
-                  : t('proposal.addFromWarehouseDisabledHint')
-              }
+              onClick={() => {
+                if (!selectedCatalogId) return
+                void navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    tab: 'expiryReview',
+                    disposalView: 'list',
+                    disposalCatalogId: selectedCatalogId,
+                    disposalAppendCatalogId: selectedCatalogId,
+                    searchFondId: catalogDetail?.catalogFondId ?? undefined,
+                    pickerMode: undefined,
+                    browseView: undefined,
+                    page: 1,
+                  }),
+                })
+              }}
+            >
+              <ListFilter className="mr-2 size-4" />
+              {t('proposal.addFromExpiryList')}
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => {
                 if (!selectedCatalogId) return
                 void navigate({
@@ -521,12 +662,19 @@ export function ArchiveDisposalProposalPage() {
                     browseView: 'fonds',
                     pickerMode: true,
                     disposalCatalogId: selectedCatalogId,
+                    searchFondId: catalogDetail?.catalogFondId ?? undefined,
                     page: 1,
                   }),
                 })
               }}
             >
               {t('proposal.addFromWarehouse')}
+            </Button>
+            </>
+          ) : null}
+          {canShowViewCouncil ? (
+            <Button variant="outline" onClick={() => setViewCouncilOpen(true)}>
+              {t('proposal.viewCouncil')}
             </Button>
           ) : null}
           {canShortcutCreateCouncil ? (
@@ -618,6 +766,18 @@ export function ArchiveDisposalProposalPage() {
             </div>
           ) : catalogDetail ? (
             <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3">
+                <Badge variant="secondary">
+                  {catalogStatus && isCatalogStatusKey(catalogStatus)
+                    ? t(`proposal.status.${catalogStatus}`)
+                    : catalogStatus}
+                </Badge>
+                {catalogStatusDescription ? (
+                  <p className="text-sm text-muted-foreground">
+                    {catalogStatusDescription}
+                  </p>
+                ) : null}
+              </div>
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-1">
                   <Label htmlFor="catalog-name">{t('proposal.fields.name')}</Label>
@@ -652,23 +812,26 @@ export function ArchiveDisposalProposalPage() {
               {canEditDraft ? (
                 <div className="flex flex-wrap gap-2">
                   <Button
+                    type="button"
                     variant="outline"
                     disabled={saveMutation.isPending}
-                    onClick={() => saveMutation.mutate()}
+                    onClick={handleSaveCatalog}
                   >
                     <Save className="mr-2 size-4" />
                     {t('proposal.save')}
                   </Button>
                   {canSubmitDisposal ? (
                     <Button
+                      type="button"
                       disabled={submitMutation.isPending}
-                      onClick={() => submitMutation.mutate()}
+                      onClick={handleRequestSubmit}
                     >
                       <Send className="mr-2 size-4" />
                       {t('proposal.submit')}
                     </Button>
                   ) : null}
                   <Button
+                    type="button"
                     variant="destructive"
                     disabled={deleteCatalogMutation.isPending}
                     onClick={() => setDeleteDialogOpen(true)}
@@ -679,10 +842,31 @@ export function ArchiveDisposalProposalPage() {
                 </div>
               ) : null}
 
-              {!canEditDraft && isPendingReview && canReadCouncil ? (
-                <Button variant="outline" onClick={() => setViewCouncilOpen(true)}>
-                  {t('proposal.viewCouncil')}
-                </Button>
+              {canShowAppendixExport ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={exportPhuLucIIMutation.isPending || exportPhuLucIIIMutation.isPending}
+                    onClick={() => exportPhuLucIIMutation.mutate()}
+                  >
+                    {exportPhuLucIIMutation.isPending ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : null}
+                    {t('proposal.exportPhuLucII')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={exportPhuLucIIMutation.isPending || exportPhuLucIIIMutation.isPending}
+                    onClick={() => exportPhuLucIIIMutation.mutate()}
+                  >
+                    {exportPhuLucIIIMutation.isPending ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : null}
+                    {t('proposal.exportPhuLucIII')}
+                  </Button>
+                </div>
               ) : null}
 
               {showCouncilEvaluationUi && evaluationProgress ? (
@@ -719,20 +903,8 @@ export function ArchiveDisposalProposalPage() {
                 </Button>
               ) : null}
 
-              {decisionDocuments?.decisionDocumentUrl ? (
-                <Button variant="outline" asChild>
-                  <a
-                    href={decisionDocuments.decisionDocumentUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {t('proposal.viewDecisionPdf')}
-                  </a>
-                </Button>
-              ) : null}
-
               {canPublishCouncil &&
-              isCouncilSecretary &&
+              isCatalogCreator &&
               decisionDocuments?.decisionPublishedAt ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <Label htmlFor="signed-minutes-upload" className="text-sm">
@@ -766,6 +938,14 @@ export function ArchiveDisposalProposalPage() {
                 </div>
               ) : null}
 
+              {showFinalizeBlockedHint ? (
+                <p className="text-sm text-muted-foreground">
+                  {!decisionDocuments?.decisionPublishedAt
+                    ? t('proposal.finalizeAwaitPublish')
+                    : t('proposal.finalizeAwaitDirectorApproval')}
+                </p>
+              ) : null}
+
               {canShowFinalizeActions ? (
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -796,9 +976,17 @@ export function ArchiveDisposalProposalPage() {
                     onReasonDraftChange={(itemId, reason) =>
                       setReasonDrafts((prev) => ({ ...prev, [itemId]: reason }))
                     }
-                    onReasonSave={(itemId, reason) =>
+                    onReasonSave={(itemId, reason) => {
+                      if (!reason.trim()) {
+                        toast.error(t('proposal.reasonRequired'))
+                        const saved =
+                          catalogDetail?.items.find((item) => item.id === itemId)
+                            ?.reason ?? ''
+                        setReasonDrafts((prev) => ({ ...prev, [itemId]: saved }))
+                        return
+                      }
                       saveReasonMutation.mutate({ itemId, reason })
-                    }
+                    }}
                     onRemoveItem={(itemId) => removeItemMutation.mutate(itemId)}
                     isSavingReason={saveReasonMutation.isPending}
                     isRemoving={removeItemMutation.isPending}
@@ -853,6 +1041,36 @@ export function ArchiveDisposalProposalPage() {
           ) : null}
         </Card>
       </div>
+
+      <AlertDialog open={submitConfirmOpen} onOpenChange={setSubmitConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('proposal.submitConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('proposal.submitConfirmDescription')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitMutation.isPending}>
+              {t('proposal.cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={submitMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault()
+                submitMutation.mutate(undefined, {
+                  onSettled: () => setSubmitConfirmOpen(false),
+                })
+              }}
+            >
+              {submitMutation.isPending ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : null}
+              {t('proposal.submit')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

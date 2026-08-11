@@ -252,9 +252,13 @@ export function DisposalCatalogItemsTable({
         onChange={(event) => onReasonDraftChange(item.id, event.target.value)}
         onBlur={() => {
           const reason = reasonDrafts[item.id]?.trim() ?? ''
-          if (reason !== item.reason) {
+          if (reason === item.reason.trim()) return
+          if (!reason) {
+            onReasonDraftChange(item.id, item.reason)
             onReasonSave(item.id, reason)
+            return
           }
+          onReasonSave(item.id, reason)
         }}
         disabled={isSavingReason}
       />

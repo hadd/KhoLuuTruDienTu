@@ -13,10 +13,17 @@ import {
   countDisposalCandidateFilters,
   hasDisposalCandidateFilters,
 } from '@/features/archive-disposal/lib/disposalCandidateParams'
+import { archiveDataHubSearchSchema } from '@/features/archive-warehouse/schemas'
 import {
   shouldShowWarehousePickerSelection,
   shouldShowWarehouseRowSelection,
 } from '@/features/archive-disposal/lib/warehousePickerSelection'
+import {
+  canSelectItemFond,
+  selectedItemsShareOneFond,
+} from '@/features/archive-disposal/lib/disposalCatalogFondSelection'
+import { isExpiryAppendToCatalogMode } from '@/features/archive-disposal/lib/disposalExpiryPickerMode'
+import type { DisposalCandidateItemT } from '@/features/archive-disposal/types'
 
 function buildCandidateParams(category: DisposalCandidateCategoryT) {
   return {
@@ -144,6 +151,21 @@ describe('archive disposal candidate params', () => {
     })
   })
 
+  it('preserves permanent retention id (PERMANENT) in URL search and API params', () => {
+    const parsed = archiveDataHubSearchSchema.parse({
+      tab: 'expiryReview',
+      disposalRetentionPeriodId: 'PERMANENT',
+    })
+    expect(parsed.disposalRetentionPeriodId).toBe('PERMANENT')
+
+    expect(
+      buildDisposalCandidateListParams({
+        tab: 'expiryReview',
+        disposalRetentionPeriodId: parsed.disposalRetentionPeriodId,
+      }).retentionPeriodId,
+    ).toBe('PERMANENT')
+  })
+
   it('always requests grouped candidates for expiry review', () => {
     expect(
       buildDisposalCandidateListParams({
@@ -195,5 +217,92 @@ describe('disposal selection keys', () => {
 
     expect(key('d1')).toBe('d1')
     expect(key('d1', 'f1')).toBe('d1:f1')
+  })
+})
+
+describe('disposal catalog fond selection', () => {
+  it('requires same fond when anchor is set', () => {
+    expect(canSelectItemFond('fond-a', 'fond-a', null)).toBe(true)
+    expect(canSelectItemFond('fond-b', 'fond-a', null)).toBe(false)
+    expect(canSelectItemFond(null, 'fond-a', null)).toBe(false)
+  })
+
+  it('respects locked catalog fond', () => {
+    expect(canSelectItemFond('fond-a', null, 'fond-a')).toBe(true)
+    expect(canSelectItemFond('fond-b', null, 'fond-a')).toBe(false)
+  })
+
+  it('validates selected items share one fond', () => {
+    const base = {
+      dossierName: 'HS',
+      fondName: 'F',
+      dossierTypeId: null,
+      dossierTypeName: null,
+      retentionPeriodId: null,
+      retentionPeriodName: null,
+      archivedAt: '',
+      expiresAt: null,
+      retentionStatus: 'EXPIRED' as const,
+      categories: ['expired' as const],
+      duplicateGroupId: null,
+      duplicateCriteria: [],
+      duplicatePeerCount: 0,
+      disposalCatalogStatus: null,
+      disposalCatalogId: null,
+    }
+    const items: Array<DisposalCandidateItemT> = [
+      {
+        ...base,
+        entityKind: 'dossier',
+        dossierId: 'd1',
+        fileId: null,
+        fileName: null,
+        fondId: 'fond-a',
+      },
+      {
+        ...base,
+        entityKind: 'dossier',
+        dossierId: 'd2',
+        fileId: null,
+        fileName: null,
+        fondId: 'fond-a',
+      },
+    ]
+    expect(selectedItemsShareOneFond(items)).toEqual({ ok: true, fondId: 'fond-a' })
+    expect(
+      selectedItemsShareOneFond([
+        ...items,
+        { ...items[0]!, dossierId: 'd3', fondId: 'fond-b' },
+      ]),
+    ).toEqual({ ok: false })
+  })
+})
+
+describe('expiry append picker mode', () => {
+  it('requires explicit append catalog id, draft status and update permission', () => {
+    expect(
+      isExpiryAppendToCatalogMode({
+        disposalAppendCatalogId: 'cat-1',
+        catalogStatus: 'DRAFT',
+        councilReviewEnabled: true,
+        canUpdateDisposal: true,
+      }),
+    ).toBe(true)
+    expect(
+      isExpiryAppendToCatalogMode({
+        disposalAppendCatalogId: 'cat-1',
+        catalogStatus: 'SUBMITTED',
+        councilReviewEnabled: true,
+        canUpdateDisposal: true,
+      }),
+    ).toBe(false)
+    expect(
+      isExpiryAppendToCatalogMode({
+        disposalAppendCatalogId: null,
+        catalogStatus: 'DRAFT',
+        councilReviewEnabled: true,
+        canUpdateDisposal: true,
+      }),
+    ).toBe(false)
   })
 })

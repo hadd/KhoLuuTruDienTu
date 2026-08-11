@@ -23,11 +23,16 @@ import {
 } from '@/components/ui/select'
 import type { ArchiveWarehouseExportModeT } from '@/features/archive-warehouse/api/archiveWarehouseExportClient'
 import {
+  checkDossierExportRequirements,
   exportDossiersDipByIds,
   exportDossiersMetadataByIds,
 } from '@/features/archive-warehouse/api/archiveWarehouseExportClient'
 import { metadataExportPresetOptionsQueryOptions } from '@/features/data-config/queries'
-import { verifyDossierAccess, verifyFileAccess, verifySecurityLevelAccess } from '@/features/security-level/api/securityLevelClient'
+import {
+  verifyDossierAccess,
+  verifyFileAccess,
+  verifySecurityLevelAccess,
+} from '@/features/security-level/api/securityLevelClient'
 import { SecurityAccessPasswordDialog } from '@/features/security-level/components/SecurityAccessPasswordDialog'
 import { getPasswordRequiredFromError } from '@/features/security-level/lib/passwordRequired'
 import {
@@ -51,6 +56,7 @@ type PendingPasswordChallengeT =
   | { scope: 'dossier'; dossierId: string }
   | { scope: 'file'; fileId: string; securityLevelId?: string }
   | { scope: 'level'; securityLevelId: string }
+  | { scope: 'zip'; dossierId: string }
 
 export function ArchiveWarehouseExportDialog({
   open,
@@ -78,6 +84,12 @@ export function ArchiveWarehouseExportDialog({
   const [passwordError, setPasswordError] = useState<string>()
   const [isVerifyingPassword, setIsVerifyingPassword] = useState(false)
   const unlockedDuringExportRef = useRef(new Set<string>())
+  /** Passwords collected before download (dossierId → plaintext). */
+  const passwordByDossierRef = useRef<Map<string, string>>(new Map())
+  /** Dossiers still needing a ZIP password before download starts. */
+  const zipPassQueueRef = useRef<Array<string>>([])
+  /** Resume point after unlocking access mid-check. */
+  const checkResumeIndexRef = useRef(0)
 
   const { data: presets = [], isLoading: isLoadingPresets } = useQuery({
     ...metadataExportPresetOptionsQueryOptions(),
@@ -94,6 +106,9 @@ export function ArchiveWarehouseExportDialog({
     setPasswordError(undefined)
     setIsVerifyingPassword(false)
     unlockedDuringExportRef.current.clear()
+    passwordByDossierRef.current = new Map()
+    zipPassQueueRef.current = []
+    checkResumeIndexRef.current = 0
   }, [open, dossierIds])
 
   if (dossierIds.length === 0) return null
@@ -107,15 +122,19 @@ export function ArchiveWarehouseExportDialog({
 
   function clearExportTokens(ids: Iterable<string>) {
     for (const key of ids) {
-      if (key.startsWith('file:')) clearFileAccessToken(key.slice(5))
-      else if (key.startsWith('level:')) clearSecurityLevelAccessToken(key.slice(6))
-      else clearDossierAccessToken(key)
+      if (key.startsWith('file:')) clearFileAccessToken('warehouse', key.slice(5))
+      else if (key.startsWith('level:'))
+        clearSecurityLevelAccessToken('warehouse', key.slice(6))
+      else clearDossierAccessToken('warehouse', key)
     }
   }
 
   function stopExportFlow() {
     clearExportTokens(unlockedDuringExportRef.current)
     unlockedDuringExportRef.current.clear()
+    passwordByDossierRef.current = new Map()
+    zipPassQueueRef.current = []
+    checkResumeIndexRef.current = 0
     setExportRequest(null)
     setPendingPassword(null)
     setPasswordError(undefined)
@@ -125,77 +144,181 @@ export function ArchiveWarehouseExportDialog({
 
   function challengeKey(challenge: PendingPasswordChallengeT): string {
     if (challenge.scope === 'dossier') return challenge.dossierId
+    if (challenge.scope === 'zip') return `zip:${challenge.dossierId}`
     if (challenge.scope === 'file') return `file:${challenge.fileId}`
     return `level:${challenge.securityLevelId}`
   }
 
-  async function attemptExport(request: ExportRequestT) {
+  function dossierLabel(dossierId: string): string {
+    const index = dossierIds.indexOf(dossierId)
+    if (index >= 0 && dossierNames?.[index]) return dossierNames[index]!
+    return `dossier-${dossierId}`
+  }
+
+  function promptNextZipPassword() {
+    const nextId = zipPassQueueRef.current[0]
+    if (!nextId) {
+      void downloadAll(exportRequest!)
+      return
+    }
+    setPendingPassword({ scope: 'zip', dossierId: nextId })
+    setPasswordError(undefined)
+  }
+
+  async function downloadAll(request: ExportRequestT) {
     setIsExporting(true)
     setExportingMode(request.mode)
+    setPendingPassword(null)
+
+    const passwords = Object.fromEntries(passwordByDossierRef.current)
 
     try {
       if (request.mode === 'metadata') {
         await exportDossiersMetadataByIds(dossierIds, downloadName, {
           presetId: request.presetId,
+          dossierAccessPasswords: passwords,
         })
       } else {
-        await exportDossiersDipByIds(dossierIds, downloadName)
+        await exportDossiersDipByIds(dossierIds, downloadName, {
+          dossierAccessPasswords: passwords,
+        })
       }
       clearExportTokens(unlockedDuringExportRef.current)
       unlockedDuringExportRef.current.clear()
+      passwordByDossierRef.current = new Map()
+      zipPassQueueRef.current = []
       setExportRequest(null)
-      setPendingPassword(null)
-      toast.success(t('export.success'))
+      toast.success(
+        dossierIds.length > 1
+          ? t('export.successMulti', { count: dossierIds.length })
+          : t('export.success'),
+      )
       onExported?.()
       onOpenChange(false)
     } catch (error) {
-      const passwordRequired = getPasswordRequiredFromError(error)
-      let challenge: PendingPasswordChallengeT | null = null
+      stopExportFlow()
+      const message = translateError(
+        error instanceof Error ? error : new Error(t('export.failed')),
+      )
       if (
-        passwordRequired?.scope === 'dossier' &&
-        passwordRequired.dossierId &&
-        dossierIds.includes(passwordRequired.dossierId)
+        message.includes('ZIP_PIN_REQUIRED') ||
+        /đặt mã PIN cá nhân/i.test(message)
       ) {
-        challenge = { scope: 'dossier', dossierId: passwordRequired.dossierId }
-      } else if (
-        passwordRequired?.scope === 'file' &&
-        passwordRequired.fileId
-      ) {
-        challenge = {
-          scope: 'file',
-          fileId: passwordRequired.fileId,
-          securityLevelId: passwordRequired.securityLevelId,
-        }
-      } else if (
-        passwordRequired?.scope === 'level' &&
-        passwordRequired.securityLevelId
-      ) {
-        challenge = {
-          scope: 'level',
-          securityLevelId: passwordRequired.securityLevelId,
-        }
-      }
-
-      if (challenge) {
-        const key = challengeKey(challenge)
-        if (unlockedDuringExportRef.current.has(key)) {
-          stopExportFlow()
-          toast.error(t('export.passwordRetryFailed'))
-          return
-        }
-        setPendingPassword(challenge)
-        setPasswordError(undefined)
+        toast.error(t('export.zipPinRequired'))
         return
       }
-      stopExportFlow()
-      toast.error(
-        translateError(
-          error instanceof Error ? error : new Error(t('export.failed')),
-        ),
-      )
+      toast.error(message)
     } finally {
       setIsExporting(false)
       setExportingMode(null)
+    }
+  }
+
+  /**
+   * Phase 1: check each dossier (no download). Collect ZIP password needs.
+   * Phase 2: prompt for each needed password.
+   * Phase 3: download all ZIPs.
+   */
+  async function collectPasswordsThenExport(request: ExportRequestT) {
+    setIsExporting(true)
+    setExportingMode(request.mode)
+    setPasswordError(undefined)
+
+    const needZip: Array<string> = [...zipPassQueueRef.current]
+
+    try {
+      for (let i = checkResumeIndexRef.current; i < dossierIds.length; i += 1) {
+        const id = dossierIds[i]!
+        checkResumeIndexRef.current = i
+        const known = passwordByDossierRef.current.get(id)
+
+        try {
+          const check = await checkDossierExportRequirements(
+            id,
+            request.mode,
+            known,
+          )
+          if (check.needsDossierPassword && !known) {
+            if (!needZip.includes(id)) needZip.push(id)
+          }
+        } catch (error) {
+          const passwordRequired = getPasswordRequiredFromError(error)
+          if (passwordRequired) {
+            let challenge: PendingPasswordChallengeT | null = null
+            if (
+              passwordRequired.scope === 'dossier' &&
+              passwordRequired.dossierId
+            ) {
+              challenge = {
+                scope: 'dossier',
+                dossierId: passwordRequired.dossierId,
+              }
+            } else if (
+              passwordRequired.scope === 'file' &&
+              passwordRequired.fileId
+            ) {
+              challenge = {
+                scope: 'file',
+                fileId: passwordRequired.fileId,
+                securityLevelId: passwordRequired.securityLevelId,
+              }
+            } else if (
+              passwordRequired.scope === 'level' &&
+              passwordRequired.securityLevelId
+            ) {
+              challenge = {
+                scope: 'level',
+                securityLevelId: passwordRequired.securityLevelId,
+              }
+            }
+
+            if (challenge) {
+              const key = challengeKey(challenge)
+              if (unlockedDuringExportRef.current.has(key)) {
+                stopExportFlow()
+                toast.error(t('export.passwordRetryFailed'))
+                return
+              }
+              zipPassQueueRef.current = needZip
+              setPendingPassword(challenge)
+              setIsExporting(false)
+              setExportingMode(null)
+              return
+            }
+          }
+
+          const message = translateError(
+            error instanceof Error ? error : new Error(t('export.failed')),
+          )
+          if (
+            message.includes('ZIP_PIN_REQUIRED') ||
+            /đặt mã PIN cá nhân/i.test(message)
+          ) {
+            stopExportFlow()
+            toast.error(t('export.zipPinRequired'))
+            return
+          }
+          stopExportFlow()
+          toast.error(message)
+          return
+        }
+      }
+
+      checkResumeIndexRef.current = dossierIds.length
+      zipPassQueueRef.current = needZip.filter(
+        (id) => !passwordByDossierRef.current.has(id),
+      )
+
+      if (zipPassQueueRef.current.length > 0) {
+        setIsExporting(false)
+        setExportingMode(null)
+        promptNextZipPassword()
+        return
+      }
+
+      await downloadAll(request)
+    } finally {
+      // downloadAll / stopExportFlow manage flags; leave alone if waiting for password
     }
   }
 
@@ -209,47 +332,100 @@ export function ArchiveWarehouseExportDialog({
           ? selectedPresetId
           : undefined,
     }
+    passwordByDossierRef.current = new Map()
+    zipPassQueueRef.current = []
+    checkResumeIndexRef.current = 0
     setExportRequest(request)
-    await attemptExport(request)
+    await collectPasswordsThenExport(request)
   }
 
   async function submitAccessPassword(password: string) {
-    if (!pendingPassword || !exportRequest) return
+    if (!exportRequest || !pendingPassword) return
 
     setIsVerifyingPassword(true)
     setPasswordError(undefined)
     try {
+      if (pendingPassword.scope === 'zip') {
+        passwordByDossierRef.current.set(pendingPassword.dossierId, password)
+
+        // Same shared level password often unlocks the rest — verify quietly.
+        const remaining = zipPassQueueRef.current.filter(
+          (id) => id !== pendingPassword.dossierId,
+        )
+        for (const otherId of remaining) {
+          try {
+            const check = await checkDossierExportRequirements(
+              otherId,
+              exportRequest.mode,
+              password,
+            )
+            if (!check.needsDossierPassword) {
+              passwordByDossierRef.current.set(otherId, password)
+            }
+          } catch {
+            // keep in queue
+          }
+        }
+
+        zipPassQueueRef.current = zipPassQueueRef.current.filter(
+          (id) => !passwordByDossierRef.current.has(id),
+        )
+        setPendingPassword(null)
+        if (zipPassQueueRef.current.length > 0) {
+          promptNextZipPassword()
+        } else {
+          await downloadAll(exportRequest)
+        }
+        return
+      }
+
       if (pendingPassword.scope === 'dossier') {
         const result = await verifyDossierAccess({
           dossierId: pendingPassword.dossierId,
           password,
         })
         setDossierAccessToken(
+          'warehouse',
           pendingPassword.dossierId,
           result.token,
           result.expiresIn,
         )
+        // Same plaintext often unlocks ZIP for dossier-password mode.
+        passwordByDossierRef.current.set(pendingPassword.dossierId, password)
       } else if (pendingPassword.scope === 'file') {
         const result = await verifyFileAccess({
           fileId: pendingPassword.fileId,
           securityLevelId: pendingPassword.securityLevelId,
           password,
         })
-        setFileAccessToken(pendingPassword.fileId, result.token, result.expiresIn)
+        setFileAccessToken(
+          'warehouse',
+          pendingPassword.fileId,
+          result.token,
+          result.expiresIn,
+        )
       } else {
         const result = await verifySecurityLevelAccess({
           securityLevelId: pendingPassword.securityLevelId,
           password,
         })
         setSecurityLevelAccessToken(
+          'warehouse',
           pendingPassword.securityLevelId,
           result.token,
           result.expiresIn,
         )
+        // Level shared password — apply to all dossiers not yet set.
+        for (const id of dossierIds) {
+          if (!passwordByDossierRef.current.has(id)) {
+            passwordByDossierRef.current.set(id, password)
+          }
+        }
       }
+
       unlockedDuringExportRef.current.add(challengeKey(pendingPassword))
       setPendingPassword(null)
-      await attemptExport(exportRequest)
+      await collectPasswordsThenExport(exportRequest)
     } catch (error) {
       setPasswordError(
         translateError(
@@ -261,15 +437,27 @@ export function ArchiveWarehouseExportDialog({
     }
   }
 
-  const passwordDossierIndex =
-    pendingPassword?.scope === 'dossier'
-      ? dossierIds.indexOf(pendingPassword.dossierId)
-      : -1
-  const passwordDossierName =
-    passwordDossierIndex >= 0
-      ? dossierNames?.[passwordDossierIndex] ||
-        `dossier-${pendingPassword?.scope === 'dossier' ? pendingPassword.dossierId : ''}`
-      : ''
+  const passwordDossierId =
+    pendingPassword?.scope === 'dossier' || pendingPassword?.scope === 'zip'
+      ? pendingPassword.dossierId
+      : null
+  const passwordDossierIndex = passwordDossierId
+    ? dossierIds.indexOf(passwordDossierId)
+    : -1
+  const passwordDossierName = passwordDossierId
+    ? dossierLabel(passwordDossierId)
+    : ''
+  const zipQueueTotal =
+    zipPassQueueRef.current.length +
+    (pendingPassword?.scope === 'zip' ? 1 : 0)
+  const zipQueueCurrent =
+    pendingPassword?.scope === 'zip'
+      ? Math.max(
+          1,
+          dossierIds.filter((id) => passwordByDossierRef.current.has(id))
+            .length + 1,
+        )
+      : 1
   const exportFlowActive = Boolean(exportRequest)
 
   return (
@@ -386,31 +574,36 @@ export function ArchiveWarehouseExportDialog({
       </Dialog>
 
       <SecurityAccessPasswordDialog
-        key={
-          pendingPassword
-            ? challengeKey(pendingPassword)
-            : 'closed'
-        }
+        key={pendingPassword ? challengeKey(pendingPassword) : 'closed'}
         open={Boolean(pendingPassword)}
         onOpenChange={(nextOpen) => {
           if (!nextOpen && !isVerifyingPassword) stopExportFlow()
         }}
         title={
-          pendingPassword?.scope === 'file'
-            ? t('export.filePasswordTitle')
-            : pendingPassword?.scope === 'level'
-              ? t('export.levelPasswordTitle')
-              : t('export.passwordTitle', {
-                  current: Math.max(passwordDossierIndex + 1, 1),
-                  total: dossierIds.length,
-                })
+          pendingPassword?.scope === 'zip'
+            ? t('export.zipPasswordCollectTitle', {
+                current: zipQueueCurrent,
+                total: Math.max(zipQueueTotal, zipQueueCurrent),
+              })
+            : pendingPassword?.scope === 'file'
+              ? t('export.filePasswordTitle')
+              : pendingPassword?.scope === 'level'
+                ? t('export.levelPasswordTitle')
+                : t('export.passwordTitle', {
+                    current: Math.max(passwordDossierIndex + 1, 1),
+                    total: dossierIds.length,
+                  })
         }
         description={
-          pendingPassword?.scope === 'dossier'
-            ? t('export.passwordDescription', { name: passwordDossierName })
-            : pendingPassword?.scope === 'file'
-              ? t('export.filePasswordDescription')
-              : t('export.levelPasswordDescription')
+          pendingPassword?.scope === 'zip'
+            ? t('export.zipPasswordCollectDescription', {
+                name: passwordDossierName,
+              })
+            : pendingPassword?.scope === 'dossier'
+              ? t('export.passwordDescription', { name: passwordDossierName })
+              : pendingPassword?.scope === 'file'
+                ? t('export.filePasswordDescription')
+                : t('export.levelPasswordDescription')
         }
         errorMessage={passwordError}
         onSubmit={submitAccessPassword}

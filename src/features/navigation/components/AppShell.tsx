@@ -11,32 +11,72 @@ import { useTranslation } from 'react-i18next'
 
 import { AppHeader } from '@/components/common/AppHeader'
 import { Button } from '@/components/ui/button'
-import { DIGITIZATION_RELATED_PATHS } from '@/features/digitization/lib/digitizationAccess'
-import { PROJECT_MANAGEMENT_RELATED_PATHS } from '@/features/project-management/lib/projectManagementAccess'
-import { USER_MANAGEMENT_RELATED_PATHS } from '@/features/user/lib/userManagementAccess'
-import { WAREHOUSE_MANAGEMENT_RELATED_PATHS } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
-import type { AppRoleT } from '@/features/auth/constants'
 import {
   getPrimaryAppRoleFromProfile,
-  isAppScreenChildVisibleOnSidebar,
-  isAppScreenVisibleOnSidebar,
+  getVisibleNavTree,
 } from '@/features/auth/lib/permission-access'
 import { useEffectivePermissions } from '@/features/auth/hooks/useEffectivePermissions'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { getAccessToken } from '@/features/auth/store'
-import { DATA_CONFIG_RELATED_PATHS } from '@/features/data-config/lib/dataConfigAccess'
-import { GENERAL_CATALOG_RELATED_PATHS } from '@/features/general-catalog/lib/generalCatalogAccess'
 import type {
-  AppScreen,
-  AppScreenChild,
-  AppScreenTo,
-} from '@/features/navigation/config/appNav'
-import { APP_SCREENS } from '@/features/navigation/config/appNav'
-import {
-  permissionsCatalogQueryOptions,
-} from '@/features/permissions/queries'
-import type { PermissionCatalogItemT } from '@/features/permissions/types'
+  NavLinkNode,
+  NavNode,
+} from '@/features/navigation/config/appNavTree'
+import type { AppScreenTo } from '@/features/navigation/config/appNav'
+import { permissionsCatalogQueryOptions } from '@/features/permissions/queries'
 import { cn } from '@/lib/utils/cn'
+
+function isArchiveBorrowPath(pathname: string) {
+  return (
+    pathname === '/app/archive-borrow' ||
+    pathname.startsWith('/app/archive-borrow/')
+  )
+}
+
+function getArchiveBorrowFrom(
+  search: unknown,
+): 'library' | 'warehouse' | undefined {
+  if (!search || typeof search !== 'object' || !('from' in search)) {
+    return undefined
+  }
+  const from = (search as { from?: unknown }).from
+  if (from === 'library' || from === 'warehouse') return from
+  return undefined
+}
+
+function isNavLinkActive(
+  link: NavLinkNode,
+  pathname: string,
+  search: unknown,
+): boolean {
+  const archiveBorrowFrom = getArchiveBorrowFrom(search)
+  const archiveBorrowFromLibrary =
+    isArchiveBorrowPath(pathname) && archiveBorrowFrom === 'library'
+
+  const routes = [link.to, ...(link.relatedPaths ?? [])]
+  const pathMatch = routes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  )
+  if (!pathMatch) return false
+
+  if (
+    link.id === 'library' &&
+    isArchiveBorrowPath(pathname) &&
+    !archiveBorrowFromLibrary
+  ) {
+    return false
+  }
+
+  if (
+    link.id === 'warehouse-management' &&
+    isArchiveBorrowPath(pathname) &&
+    archiveBorrowFromLibrary
+  ) {
+    return false
+  }
+
+  return true
+}
 
 export function AppShell() {
   const { t } = useTranslation('common')
@@ -45,7 +85,14 @@ export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const search = useRouterState({ select: (s) => s.location.search })
   const lockContentScroll = useMemo(() => {
-    const isDigitizationSubPage = DIGITIZATION_RELATED_PATHS.some(
+    const digitizationPaths = [
+      '/app/digitization',
+      '/app/scan-intake',
+      '/app/data',
+      '/app/dossiers',
+      '/app/ocr-control',
+    ]
+    const isDigitizationSubPage = digitizationPaths.some(
       (route) =>
         route !== '/app/digitization' &&
         (pathname === route || pathname.startsWith(`${route}/`)),
@@ -64,7 +111,17 @@ export function AppShell() {
   }, [pathname, search])
   const useWarehouseCompactPadding = useMemo(
     () =>
-      WAREHOUSE_MANAGEMENT_RELATED_PATHS.some(
+      [
+        '/app/warehouse-management',
+        '/app/physical-warehouse',
+        '/app/archive-warehouse',
+        '/app/archive-dossiers',
+        '/app/archive-submission',
+        '/app/archive-review',
+        '/app/archive-borrow',
+        '/app/archive-config',
+        '/app/archive-permission',
+      ].some(
         (route) => pathname === route || pathname.startsWith(`${route}/`),
       ),
     [pathname],
@@ -85,16 +142,11 @@ export function AppShell() {
     () => getPrimaryAppRoleFromProfile(user),
     [user],
   )
-  const visibleNavItems = useMemo(() => {
-    return APP_SCREENS.filter((item) =>
-      isAppScreenVisibleOnSidebar(
-        item,
-        permissions,
-        catalog ?? [],
-        primaryAppRole,
-      ),
-    )
-  }, [permissions, catalog, primaryAppRole])
+  const visibleNavTree = useMemo(
+    () =>
+      getVisibleNavTree(permissions, catalog ?? [], primaryAppRole),
+    [permissions, catalog, primaryAppRole],
+  )
 
   return (
     <div className="flex h-screen min-h-0 w-full overflow-hidden bg-background">
@@ -139,27 +191,16 @@ export function AppShell() {
             collapsed ? 'px-2' : 'px-3',
           )}
         >
-          {visibleNavItems.map((item) =>
-            item.children?.length ? (
-              <AppNavGroup
-                key={item.id}
-                item={item}
-                label={t(item.labelKey)}
-                collapsed={collapsed}
-                permissions={permissions}
-                catalog={catalog ?? []}
-                primaryAppRole={primaryAppRole}
-              />
-            ) : (
-              <AppNavLink
-                key={item.id}
-                to={item.to!}
-                label={t(item.labelKey)}
-                icon={item.icon}
-                collapsed={collapsed}
-              />
-            ),
-          )}
+          {visibleNavTree.map((node) => (
+            <AppNavNode
+              key={node.type === 'link' ? node.id : node.id}
+              node={node}
+              collapsed={collapsed}
+              depth={0}
+              pathname={pathname}
+              search={search}
+            />
+          ))}
         </nav>
       </aside>
 
@@ -195,39 +236,67 @@ export function AppShell() {
   )
 }
 
-function AppNavGroup({
-  item,
-  label,
+function AppNavNode({
+  node,
   collapsed,
-  permissions,
-  catalog,
-  primaryAppRole,
+  depth,
+  pathname,
+  search,
 }: {
-  item: AppScreen
-  label: string
-  collapsed?: boolean
-  permissions: Array<string>
-  catalog: Array<PermissionCatalogItemT>
-  primaryAppRole: AppRoleT | null
+  node: NavNode
+  collapsed: boolean
+  depth: number
+  pathname: string
+  search: unknown
 }) {
   const { t } = useTranslation('common')
-  const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const visibleChildren = useMemo(
-    () =>
-      (item.children ?? []).filter((child) =>
-        isAppScreenChildVisibleOnSidebar(
-          child,
-          permissions,
-          catalog,
-          primaryAppRole,
-        ),
-      ),
-    [item.children, permissions, catalog, primaryAppRole],
+
+  if (node.type === 'link') {
+    return (
+      <AppNavLink
+        link={node}
+        label={t(node.labelKey)}
+        collapsed={collapsed}
+        depth={depth}
+        pathname={pathname}
+        search={search}
+      />
+    )
+  }
+
+  return (
+    <AppNavGroup
+      group={node}
+      label={t(node.labelKey)}
+      collapsed={collapsed}
+      depth={depth}
+      pathname={pathname}
+      search={search}
+    />
   )
-  const childRoutes = visibleChildren.map((child) => child.to)
-  const isChildActive = childRoutes.some((route) => pathname.startsWith(route))
+}
+
+function AppNavGroup({
+  group,
+  label,
+  collapsed,
+  depth,
+  pathname,
+  search,
+}: {
+  group: Extract<NavNode, { type: 'group' }>
+  label: string
+  collapsed: boolean
+  depth: number
+  pathname: string
+  search: unknown
+}) {
+  const { t } = useTranslation('common')
+  const isChildActive = group.children.some((child) =>
+    isNavLinkActive(child, pathname, search),
+  )
   const [isOpen, setIsOpen] = useState(isChildActive)
-  const Icon = item.icon
+  const Icon = group.icon
 
   useEffect(() => {
     if (isChildActive) {
@@ -235,7 +304,7 @@ function AppNavGroup({
     }
   }, [isChildActive])
 
-  if (visibleChildren.length === 0) {
+  if (group.children.length === 0) {
     return null
   }
 
@@ -256,16 +325,15 @@ function AppNavGroup({
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         className={cn(
-          'flex w-full items-center gap-2 rounded-md border border-transparent px-3 py-2 text-sm transition-colors',
+          'flex w-full items-center gap-2 rounded-md border border-transparent py-2 text-sm transition-colors',
+          depth === 0 ? 'px-3' : 'px-2',
           isChildActive
             ? 'bg-accent/50 text-foreground'
             : 'text-muted-foreground hover:bg-muted/80',
         )}
       >
         <Icon className="size-4 shrink-0" />
-        <span className="min-w-0 flex-1 text-left leading-snug">
-          {label}
-        </span>
+        <span className="min-w-0 flex-1 text-left leading-snug">{label}</span>
         {isOpen ? (
           <ChevronDown className="size-4 shrink-0" />
         ) : (
@@ -273,12 +341,16 @@ function AppNavGroup({
         )}
       </button>
       {isOpen ? (
-        <div className="space-y-0.5 pl-3">
-          {visibleChildren.map((child) => (
-            <AppNavChildLink
+        <div className={cn('space-y-0.5', depth === 0 ? 'pl-3' : 'pl-2')}>
+          {group.children.map((child) => (
+            <AppNavLink
               key={child.id}
-              child={child}
+              link={child}
               label={t(child.labelKey)}
+              collapsed={false}
+              depth={depth + 1}
+              pathname={pathname}
+              search={search}
             />
           ))}
         </div>
@@ -287,110 +359,27 @@ function AppNavGroup({
   )
 }
 
-function AppNavChildLink({
-  child,
-  label,
-}: {
-  child: AppScreenChild
-  label: string
-}) {
-  return (
-    <Link
-      to={child.to}
-      className="block"
-      activeProps={{
-        className:
-          '[&>div]:bg-accent [&>div]:text-accent-foreground [&>div]:border-border',
-      }}
-      inactiveProps={{
-        className: '[&>div]:hover:bg-muted/80',
-      }}
-    >
-      {({ isActive }) => (
-        <div
-          className={cn(
-            'rounded-md border border-transparent px-3 py-2 text-sm transition-colors',
-            isActive ? 'text-foreground' : 'text-muted-foreground',
-          )}
-        >
-          <span className="block leading-snug">{label}</span>
-        </div>
-      )}
-    </Link>
-  )
-}
-
-function isArchiveBorrowPath(pathname: string) {
-  return (
-    pathname === '/app/archive-borrow' ||
-    pathname.startsWith('/app/archive-borrow/')
-  )
-}
-
-function getArchiveBorrowFrom(
-  search: unknown,
-): 'library' | 'warehouse' | undefined {
-  if (!search || typeof search !== 'object' || !('from' in search)) {
-    return undefined
-  }
-  const from = (search as { from?: unknown }).from
-  if (from === 'library' || from === 'warehouse') return from
-  return undefined
-}
-
 function AppNavLink({
-  to,
+  link,
   label,
-  icon: Icon,
   collapsed,
+  depth,
+  pathname,
+  search,
 }: {
-  to: AppScreenTo
+  link: NavLinkNode
   label: string
-  icon: AppScreen['icon']
-  collapsed?: boolean
+  collapsed: boolean
+  depth: number
+  pathname: string
+  search: unknown
 }) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const search = useRouterState({ select: (s) => s.location.search })
-  const archiveBorrowFrom = getArchiveBorrowFrom(search)
-  const archiveBorrowFromLibrary =
-    isArchiveBorrowPath(pathname) && archiveBorrowFrom === 'library'
-
-  const relatedActive =
-    (to === '/app/digitization' &&
-      DIGITIZATION_RELATED_PATHS.some(
-        (route) => pathname === route || pathname.startsWith(`${route}/`),
-      )) ||
-    (to === '/app/project-management' &&
-      PROJECT_MANAGEMENT_RELATED_PATHS.some(
-        (route) => pathname === route || pathname.startsWith(`${route}/`),
-      )) ||
-    (to === '/app/library' && archiveBorrowFromLibrary) ||
-    (to === '/app/warehouse-management' &&
-      WAREHOUSE_MANAGEMENT_RELATED_PATHS.some((route) => {
-        if (!(pathname === route || pathname.startsWith(`${route}/`))) {
-          return false
-        }
-        if (route === '/app/archive-borrow' && archiveBorrowFromLibrary) {
-          return false
-        }
-        return true
-      })) ||
-    (to === '/app/general-catalog' &&
-      GENERAL_CATALOG_RELATED_PATHS.some(
-        (route) => pathname === route || pathname.startsWith(`${route}/`),
-      )) ||
-    (to === '/app/data-config' &&
-      DATA_CONFIG_RELATED_PATHS.some(
-        (route) => pathname === route || pathname.startsWith(`${route}/`),
-      )) ||
-    (to === '/app/user-management' &&
-      USER_MANAGEMENT_RELATED_PATHS.some(
-        (route) => pathname === route || pathname.startsWith(`${route}/`),
-      ))
+  const Icon = link.icon
+  const relatedActive = isNavLinkActive(link, pathname, search)
 
   return (
     <Link
-      to={to}
+      to={link.to as AppScreenTo}
       className={cn(
         'block',
         relatedActive &&
@@ -408,12 +397,16 @@ function AppNavLink({
       {({ isActive }) => (
         <div
           className={cn(
-            'flex items-center gap-2 rounded-md border border-transparent px-3 py-2 text-sm text-foreground transition-colors',
+            'flex items-center gap-2 rounded-md border border-transparent py-2 text-sm transition-colors',
+            depth === 0 ? 'px-3' : 'px-3 pl-4',
             !(isActive || relatedActive) && 'text-muted-foreground',
-            collapsed && 'justify-center px-2',
+            collapsed && depth === 0 && 'justify-center px-2',
+            collapsed && depth > 0 && 'hidden',
           )}
         >
-          <Icon className="size-4 shrink-0" />
+          {Icon && depth === 0 ? (
+            <Icon className="size-4 shrink-0" />
+          ) : null}
           {!collapsed && (
             <span className="min-w-0 flex-1 leading-snug">{label}</span>
           )}

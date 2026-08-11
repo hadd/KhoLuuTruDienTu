@@ -20,26 +20,30 @@ import {
   resolvePermissionsForUser,
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
-import { isMetadataSidebarChildGranted } from '@/features/navigation/config/sidebarMetadataPermissions'
-import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
+import {
+  getVisibleDataConfigNavItemDefs,
+  type DataConfigNavItemId,
+} from '@/features/navigation/config/dataConfigNavItems'
 import {
   permissionsCatalogQueryOptions,
   rolePermissionsQueryOptions,
 } from '@/features/permissions/queries'
 
-type DataConfigTileTo =
-  | '/app/data-config/document-types'
-  | '/app/data-config/document-assignment'
-  | '/app/data-config/metadata-export-presets'
-  | '/app/data-config/notification-configs'
-  | '/app/data-config/watermark-configs'
-  | '/app/data-config/document-naming'
-  | '/app/data-config/metadata-extract-settings'
-  | '/app/data-config/audit-log-config'
-  | '/app/data-config/borrow-approval-clearance'
+const DATA_CONFIG_TILE_ICONS: Record<DataConfigNavItemId, LucideIcon> = {
+  'document-types': FileType,
+  'document-assignment': UserCog,
+  'metadata-export-presets': FileSpreadsheet,
+  'document-naming': FileText,
+  'metadata-extract-settings': ScanSearch,
+  'notification-configs': Bell,
+  'watermark-configs': Droplets,
+  'audit-log-config': ScrollText,
+  'borrow-approval-clearance': BookOpenCheck,
+}
 
 export function DataConfigHubPage() {
   const { t } = useTranslation('data-config')
+  const { t: tCommon } = useTranslation('common')
   const { data: user } = useQuery(profileQueryOptions)
   const roleId = getCurrentUserRoleId(user)
   const { data: rolePermissions } = useQuery({
@@ -58,115 +62,15 @@ export function DataConfigHubPage() {
   )
 
   const tiles = useMemo(() => {
-    const items: Array<{
-      id: string
-      to: DataConfigTileTo
-      label: string
-      icon: LucideIcon
-    }> = []
-
-    if (isMetadataSidebarChildGranted('document-types', permissions, catalog)) {
-      items.push({
-        id: 'document-types',
-        to: '/app/data-config/document-types',
-        label: t('tiles.documentTypes'),
-        icon: FileType,
-      })
-    }
-    if (
-      isMetadataSidebarChildGranted(
-        'document-assignment',
-        permissions,
-        catalog,
-      )
-    ) {
-      items.push({
-        id: 'document-assignment',
-        to: '/app/data-config/document-assignment',
-        label: t('tiles.documentAssignment'),
-        icon: UserCog,
-      })
-    }
-    if (
-      isMetadataSidebarChildGranted(
-        'metadata-export-presets',
-        permissions,
-        catalog,
-      )
-    ) {
-      items.push({
-        id: 'metadata-export-presets',
-        to: '/app/data-config/metadata-export-presets',
-        label: t('tiles.metadataExportPresets'),
-        icon: FileSpreadsheet,
-      })
-    }
-    if (
-      isMetadataSidebarChildGranted('document-naming', permissions, catalog)
-    ) {
-      items.push({
-        id: 'document-naming',
-        to: '/app/data-config/document-naming',
-        label: t('tiles.documentNaming'),
-        icon: FileText,
-      })
-    }
-    if (
-      isMetadataSidebarChildGranted(
-        'metadata-extract-settings',
-        permissions,
-        catalog,
-      )
-    ) {
-      items.push({
-        id: 'metadata-extract-settings',
-        to: '/app/data-config/metadata-extract-settings',
-        label: t('tiles.metadataExtractSettings'),
-        icon: ScanSearch,
-      })
-    }
-    if (isPermissionGranted(permissions, 'roles.manage', 'roles')) {
-      items.push({
-        id: 'notification-configs',
-        to: '/app/data-config/notification-configs',
-        label: t('tiles.notificationConfigs'),
-        icon: Bell,
-      })
-    }
-    if (
-      isPermissionGranted(permissions, 'watermark.config.read', 'watermark')
-    ) {
-      items.push({
-        id: 'watermark-configs',
-        to: '/app/data-config/watermark-configs',
-        label: t('tiles.watermarkConfigs'),
-        icon: Droplets,
-      })
-    }
-    if (isPermissionGranted(permissions, 'audit_logs.config', 'audit_logs')) {
-      items.push({
-        id: 'audit-log-config',
-        to: '/app/data-config/audit-log-config',
-        label: t('tiles.auditLogConfig'),
-        icon: ScrollText,
-      })
-    }
-    if (
-      isPermissionGranted(
-        permissions,
-        'library.borrow.approval-config.manage',
-        'library',
-      )
-    ) {
-      items.push({
-        id: 'borrow-approval-clearance',
-        to: '/app/data-config/borrow-approval-clearance',
-        label: t('tiles.borrowApprovalClearance'),
-        icon: BookOpenCheck,
-      })
-    }
-    return items
-  }, [permissions, catalog, t])
+    return getVisibleDataConfigNavItemDefs(permissions, catalog).map(
+      (item) => ({
+        id: item.id,
+        to: item.to,
+        label: tCommon(item.labelKey),
+        icon: DATA_CONFIG_TILE_ICONS[item.id],
+      }),
+    )
+  }, [permissions, catalog, tCommon])
 
   if (tiles.length === 0) {
     return (

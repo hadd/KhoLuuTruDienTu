@@ -8,6 +8,10 @@ import { toast } from 'sonner'
 import { ArchiveBorrowCreateDialog } from '@/features/archive-borrow/components/ArchiveBorrowCreateDialog'
 import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { transferToDisposalProposal } from '@/features/archive-disposal/api/archiveDisposalClient'
+import {
+  isAppendToDisposalCatalog,
+  notifyDisposalTransferResult,
+} from '@/features/archive-disposal/lib/disposalTransferNotifications'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import {
   shouldShowWarehousePickerSelection,
@@ -74,6 +78,7 @@ import { getPasswordRequiredFromError } from '@/features/security-level/lib/pass
 import {
   rememberDossierSecurityLevel,
   setDossierAccessToken,
+  type SecurityAccessModule,
 } from '@/features/security-level/lib/securityAccessTokenStore'
 import {
   DEFAULT_LIST_PAGE_LIMIT,
@@ -117,6 +122,9 @@ export function ArchiveWarehouseDossiersPage({
 }: ArchiveWarehouseDossiersPageProps = {}) {
   const activeRouteApi = propRouteApi ?? defaultRouteApi
   const isExploitation = browseMode === 'exploitation'
+  const accessModule: SecurityAccessModule = isExploitation
+    ? 'exploitation'
+    : 'warehouse'
   const { t, i18n } = useTranslation('archive-warehouse')
   const { t: tDisposal } = useTranslation('archive-disposal')
   const { t: tSecurity } = useTranslation('security-level')
@@ -170,8 +178,11 @@ export function ArchiveWarehouseDossiersPage({
 
   const pickerTransferMutation = useMutation({
     mutationFn: transferToDisposalProposal,
-    onSuccess: () => {
-      toast.success(tDisposal('disposal.transferSuccess'))
+    onSuccess: (result, variables) => {
+      notifyDisposalTransferResult(result, {
+        appendToCatalog: isAppendToDisposalCatalog(variables.catalogId),
+        t: tDisposal,
+      })
       setSelectedIds(new Set())
       void navigate({
         to: '/app/archive-warehouse',
@@ -473,7 +484,7 @@ export function ArchiveWarehouseDossiersPage({
     if (openingDossierId || passwordDialogOpen) return
 
     if (securityLevelId) {
-      rememberDossierSecurityLevel(dossierId, securityLevelId)
+      rememberDossierSecurityLevel(accessModule, dossierId, securityLevelId)
     }
 
     setOpeningDossierId(dossierId)
@@ -510,12 +521,14 @@ export function ArchiveWarehouseDossiersPage({
     onSuccess: async (result) => {
       if (!pendingOpen) return
       const { dossierId, securityLevelId, match } = pendingOpen
-      setDossierAccessToken(dossierId, result.token, result.expiresIn)
+      setDossierAccessToken(accessModule, dossierId, result.token, result.expiresIn)
       setPasswordDialogOpen(false)
       toast.success(tSecurity('access.unlockSuccess'))
       try {
         await queryClient.fetchQuery(
-          archiveWarehouseDossierDetailQueryOptions(dossierId, securityLevelId),
+          isExploitation
+            ? libraryExploitationDossierDetailQueryOptions(dossierId)
+            : archiveWarehouseDossierDetailQueryOptions(dossierId, securityLevelId),
         )
         setPendingOpen(null)
         navigateToDossierDetail(dossierId, match)

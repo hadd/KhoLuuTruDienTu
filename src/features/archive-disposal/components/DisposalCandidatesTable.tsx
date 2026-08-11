@@ -16,6 +16,7 @@ import type {
   DisposalCandidateGroupT,
   DisposalCandidateItemT,
 } from '@/features/archive-disposal/types'
+import { canSelectItemFond } from '@/features/archive-disposal/lib/disposalCatalogFondSelection'
 import { cn } from '@/lib/utils/cn'
 import { formatDate } from '@/lib/utils/date'
 
@@ -36,6 +37,8 @@ type DisposalCandidatesTableProps = {
   itemKey: (item: DisposalCandidateItemT) => string
   renderCategoryBadges: (item: DisposalCandidateItemT) => ReactNode
   dateLocale: 'en' | 'vi'
+  lockedFondId?: string | null
+  selectionAnchorFondId?: string | null
 }
 
 export function DisposalCandidatesTable({
@@ -46,6 +49,8 @@ export function DisposalCandidatesTable({
   itemKey,
   renderCategoryBadges,
   dateLocale,
+  lockedFondId,
+  selectionAnchorFondId,
 }: DisposalCandidatesTableProps) {
   const { t } = useTranslation('archive-disposal')
   const [expandedDossierIds, setExpandedDossierIds] = useState<Set<string>>(
@@ -53,7 +58,14 @@ export function DisposalCandidatesTable({
   )
 
   const dossierSelectableKeys = groups.flatMap((group) =>
-    group.dossierItem ? [itemKey(group.dossierItem)] : [],
+    group.dossierItem &&
+    canSelectItemFond(
+      group.dossierItem.fondId,
+      selectionAnchorFondId ?? null,
+      lockedFondId,
+    )
+      ? [itemKey(group.dossierItem)]
+      : [],
   )
 
   const selectedDossierCount = dossierSelectableKeys.filter((key) =>
@@ -120,6 +132,13 @@ export function DisposalCandidatesTable({
                   {dossierItem ? (
                     <Checkbox
                       checked={selectedKeys.has(itemKey(dossierItem))}
+                      disabled={
+                        !canSelectItemFond(
+                          dossierItem.fondId,
+                          selectionAnchorFondId ?? null,
+                          lockedFondId,
+                        )
+                      }
                       onCheckedChange={(checked) =>
                         onToggleOne(itemKey(dossierItem), checked === true, {
                           dossierId: group.dossierId,
@@ -169,6 +188,13 @@ export function DisposalCandidatesTable({
                       <TableCell>
                         <Checkbox
                           checked={selectedKeys.has(itemKey(item))}
+                          disabled={
+                            !canSelectItemFond(
+                              item.fondId,
+                              selectionAnchorFondId ?? null,
+                              lockedFondId,
+                            )
+                          }
                           onCheckedChange={(checked) =>
                             onToggleOne(itemKey(item), checked === true, {
                               dossierId: group.dossierId,

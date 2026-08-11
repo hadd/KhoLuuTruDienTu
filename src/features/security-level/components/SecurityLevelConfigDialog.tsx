@@ -30,6 +30,17 @@ import { translateError } from '@/lib/utils/translate-error'
 
 const REQUIRE_ACCESS_PASSWORD_RULE = 'permission.require_access_password'
 const REQUIRE_FILE_PASSWORD_RULE = 'permission.require_file_password'
+const DOWNLOAD_RULE = 'permission.download'
+const DOWNLOAD_WATERMARK_RULE = 'permission.download_watermark'
+const ENCRYPT_PIN_RULE = 'permission.encrypt_download'
+const ENCRYPT_DOSSIER_RULE = 'permission.encrypt_download_dossier'
+
+/** Rules that require «Tải tài liệu» and turn off when download is off. */
+const DOWNLOAD_DEPENDENT_RULES = new Set([
+  DOWNLOAD_WATERMARK_RULE,
+  ENCRYPT_PIN_RULE,
+  ENCRYPT_DOSSIER_RULE,
+])
 
 function isPermissionRule(ruleKey: string) {
   return ruleKey.startsWith('permission.')
@@ -104,6 +115,9 @@ export function SecurityLevelConfigDialog({
   const requireFilePasswordOn = Boolean(
     drafts.find((d) => d.ruleKey === REQUIRE_FILE_PASSWORD_RULE)?.draftValue,
   )
+  const downloadOn = Boolean(
+    drafts.find((d) => d.ruleKey === DOWNLOAD_RULE)?.draftValue,
+  )
 
   useEffect(() => {
     if (!data) return
@@ -171,12 +185,45 @@ export function SecurityLevelConfigDialog({
   })
 
   function setRuleValue(ruleKey: string, checked: boolean) {
+    if (
+      checked &&
+      DOWNLOAD_DEPENDENT_RULES.has(ruleKey) &&
+      !downloadOn
+    ) {
+      toast.error(t('config.downloadDependentsRequireDownload'))
+      return
+    }
+
     setDrafts((prev) =>
-      prev.map((row) =>
-        row.ruleKey === ruleKey
-          ? { ...row, draftValue: checked, isOverridden: true }
-          : row,
-      ),
+      prev.map((row) => {
+        if (row.ruleKey === ruleKey) {
+          return { ...row, draftValue: checked, isOverridden: true }
+        }
+        // Turning off download also turns off watermark + ZIP encrypt modes
+        if (
+          !checked &&
+          ruleKey === DOWNLOAD_RULE &&
+          DOWNLOAD_DEPENDENT_RULES.has(row.ruleKey)
+        ) {
+          return { ...row, draftValue: false, isOverridden: true }
+        }
+        // Exclusive: PIN vs dossier ZIP encryption
+        if (
+          checked &&
+          ruleKey === ENCRYPT_PIN_RULE &&
+          row.ruleKey === ENCRYPT_DOSSIER_RULE
+        ) {
+          return { ...row, draftValue: false, isOverridden: true }
+        }
+        if (
+          checked &&
+          ruleKey === ENCRYPT_DOSSIER_RULE &&
+          row.ruleKey === ENCRYPT_PIN_RULE
+        ) {
+          return { ...row, draftValue: false, isOverridden: true }
+        }
+        return row
+      }),
     )
     if (ruleKey === REQUIRE_ACCESS_PASSWORD_RULE && checked) {
       setClearPassword(false)
@@ -452,6 +499,9 @@ export function SecurityLevelConfigDialog({
                   rule.ruleKey === REQUIRE_ACCESS_PASSWORD_RULE
                 const isFileRule =
                   rule.ruleKey === REQUIRE_FILE_PASSWORD_RULE
+                const dependsOnDownload = DOWNLOAD_DEPENDENT_RULES.has(
+                  rule.ruleKey,
+                )
 
                 return (
                   <div
@@ -464,9 +514,15 @@ export function SecurityLevelConfigDialog({
                         <p className="text-xs text-muted-foreground">
                           {status}
                         </p>
+                        {dependsOnDownload && !downloadOn ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {t('config.downloadDependentsRequireDownload')}
+                          </p>
+                        ) : null}
                       </div>
                       <Switch
                         checked={Boolean(rule.draftValue)}
+                        disabled={dependsOnDownload && !downloadOn}
                         onCheckedChange={(checked) =>
                           setRuleValue(rule.ruleKey, checked)
                         }

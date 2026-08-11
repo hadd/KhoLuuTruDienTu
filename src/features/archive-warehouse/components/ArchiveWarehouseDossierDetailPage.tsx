@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, useRouter, useRouterState } from '@tanstack/react-router'
 import { FileText, FolderOpen, Loader2 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -49,11 +49,11 @@ import { verifyDossierAccess } from '@/features/security-level/api/securityLevel
 import { SecurityAccessPasswordDialog } from '@/features/security-level/components/SecurityAccessPasswordDialog'
 import { getPasswordRequiredFromError } from '@/features/security-level/lib/passwordRequired'
 import {
-  clearDossierAccessSession,
   getDossierAccessToken,
   getRememberedDossierSecurityLevel,
   rememberDossierSecurityLevel,
   setDossierAccessToken,
+  type SecurityAccessModule,
 } from '@/features/security-level/lib/securityAccessTokenStore'
 import { activeSecurityLevelsQueryOptions } from '@/features/security-level/queries'
 import { warehouseSubTabsTriggerClassName } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
@@ -102,6 +102,9 @@ export function ArchiveWarehouseDossierDetailPage({
 }: ArchiveWarehouseDossierDetailPageProps = {}) {
   const activeRouteApi = propRouteApi ?? defaultRouteApi
   const isExploitation = browseMode === 'exploitation'
+  const accessModule: SecurityAccessModule = isExploitation
+    ? 'exploitation'
+    : 'warehouse'
   const { t, i18n } = useTranslation('archive-warehouse')
   const { t: tSecurity } = useTranslation('security-level')
   const queryClient = useQueryClient()
@@ -127,13 +130,10 @@ export function ArchiveWarehouseDossierDetailPage({
   )
   const [accessSecurityLevelId, setAccessSecurityLevelId] = useState<
     string | null
-  >(() => getRememberedDossierSecurityLevel(dossierId) ?? null)
+  >(() => getRememberedDossierSecurityLevel(accessModule, dossierId) ?? null)
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [securityDialogOpen, setSecurityDialogOpen] = useState(false)
-  const pendingCleanupTimersRef = useRef(
-    new Map<string, ReturnType<typeof setTimeout>>(),
-  )
 
   const { data: profile } = useQuery(profileQueryOptions)
   const roleId = getCurrentUserRoleId(profile)
@@ -146,9 +146,6 @@ export function ArchiveWarehouseDossierDetailPage({
       resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
     [profile, rolePermissions?.rules.permissions],
   )
-  const canReupload = isExploitation ? false : canReuploadArchiveWarehouse(permissions)
-  const canDelete = isExploitation ? false : canDeleteArchiveWarehouse(permissions)
-  const canMove = isExploitation ? false : canEditArchiveWarehouse(permissions)
   const canManagePhysical = isExploitation ? false : canManageArchiveWarehousePhysical(permissions)
 
   const { data, isPending, isError, error } = useQuery(
@@ -156,6 +153,25 @@ export function ArchiveWarehouseDossierDetailPage({
       ? libraryExploitationDossierDetailQueryOptions(dossierId)
       : archiveWarehouseDossierDetailQueryOptions(dossierId, accessSecurityLevelId),
   )
+
+  const canReupload = isExploitation
+    ? false
+    : (data?.actions?.reupload ?? canReuploadArchiveWarehouse(permissions))
+  const canDelete = isExploitation
+    ? false
+    : (data?.actions?.delete ?? canDeleteArchiveWarehouse(permissions))
+  const canMove = isExploitation
+    ? false
+    : (data?.actions?.edit ?? canEditArchiveWarehouse(permissions))
+  const disposalCandidateLocked =
+    !isExploitation &&
+    Boolean(data?.actions) &&
+    !data.actions.reupload &&
+    !data.actions.delete &&
+    !data.actions.edit &&
+    (canReuploadArchiveWarehouse(permissions) ||
+      canDeleteArchiveWarehouse(permissions) ||
+      canEditArchiveWarehouse(permissions))
   const { data: dossierTypesData } = useQuery(
     isExploitation
       ? libraryExploitationDossierTypesQueryOptions()
@@ -190,43 +206,29 @@ export function ArchiveWarehouseDossierDetailPage({
   )
 
   useEffect(() => {
-    setAccessSecurityLevelId(getRememberedDossierSecurityLevel(dossierId) ?? null)
+    setAccessSecurityLevelId(
+      getRememberedDossierSecurityLevel(accessModule, dossierId) ?? null,
+    )
     setPasswordDialogOpen(false)
-  }, [dossierId])
-
-  useEffect(() => {
-    const pendingTimers = pendingCleanupTimersRef.current
-    const existingTimer = pendingTimers.get(dossierId)
-    if (existingTimer != null) {
-      clearTimeout(existingTimer)
-      pendingTimers.delete(dossierId)
-    }
-
-    return () => {
-      const timer = setTimeout(() => {
-        pendingTimers.delete(dossierId)
-        clearDossierAccessSession(dossierId)
-        queryClient.removeQueries({
-          queryKey: ['archive-warehouse', 'dossier-detail', dossierId],
-        })
-      }, 0)
-      pendingTimers.set(dossierId, timer)
-    }
-  }, [dossierId, queryClient])
+  }, [accessModule, dossierId])
 
   useEffect(() => {
     if (!data?.dossier) return
-    rememberDossierSecurityLevel(dossierId, data.dossier.securityLevelId)
+    rememberDossierSecurityLevel(
+      accessModule,
+      dossierId,
+      data.dossier.securityLevelId,
+    )
     if (data.dossier.securityLevelId) {
       setAccessSecurityLevelId(data.dossier.securityLevelId)
     }
-  }, [data?.dossier, dossierId])
+  }, [accessModule, data?.dossier, dossierId])
 
   useEffect(() => {
     if (!passwordRequired || passwordRequired.scope !== 'dossier') return
-    if (getDossierAccessToken(dossierId)) return
+    if (getDossierAccessToken(accessModule, dossierId)) return
     setPasswordDialogOpen(true)
-  }, [dossierId, passwordRequired])
+  }, [accessModule, dossierId, passwordRequired])
 
   const unlockMutation = useMutation({
     mutationFn: async (password: string) => {
@@ -236,15 +238,22 @@ export function ArchiveWarehouseDossierDetailPage({
       })
     },
     onSuccess: async (result) => {
-      setDossierAccessToken(dossierId, result.token, result.expiresIn)
+      setDossierAccessToken(
+        accessModule,
+        dossierId,
+        result.token,
+        result.expiresIn,
+      )
       setPasswordDialogOpen(false)
       toast.success(tSecurity('access.unlockSuccess'))
       try {
         await queryClient.fetchQuery(
-          archiveWarehouseDossierDetailQueryOptions(
-            dossierId,
-            accessSecurityLevelId,
-          ),
+          isExploitation
+            ? libraryExploitationDossierDetailQueryOptions(dossierId)
+            : archiveWarehouseDossierDetailQueryOptions(
+                dossierId,
+                accessSecurityLevelId,
+              ),
         )
       } catch (err) {
         toast.error(translateError(err) || tSecurity('access.unlockFailed'))
@@ -389,12 +398,19 @@ export function ArchiveWarehouseDossierDetailPage({
         ) : null}
 
         {data ? (
+          <>
+            {disposalCandidateLocked ? (
+              <Card className="border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                {t('disposal.candidateWarehouseLockHint')}
+              </Card>
+            ) : null}
           <ArchiveWarehouseFileViewer
             dossierId={data.dossier.id}
             dossierName={data.dossier.name}
             isExploitation={isExploitation}
             fondId={data.dossier.fondId ?? fondId}
             files={visibleFiles}
+            currentMetadataUrl={data.currentMetadataUrl}
             selectedFileId={fileId}
             preferredFileName={preferredFileName}
             highlightPage={highlightPage}
@@ -413,6 +429,7 @@ export function ArchiveWarehouseDossierDetailPage({
             downloadDisabled={downloadDisabled}
             onDownload={() => setExportDialogOpen(true)}
             canConfigureSecurity={canConfigureSecurity}
+            metadataViewAccess={data.metadataViewAccess ?? {}}
             onDossierLeftWarehouse={navigateAfterDossierLeftWarehouse}
           >
             <Tabs
@@ -539,6 +556,7 @@ export function ArchiveWarehouseDossierDetailPage({
               </TabsContent>
             </Tabs>
           </ArchiveWarehouseFileViewer>
+          </>
         ) : null}
 
         <SecurityAccessPasswordDialog

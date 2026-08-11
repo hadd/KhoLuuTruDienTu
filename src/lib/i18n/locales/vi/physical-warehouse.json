@@ -30,6 +30,14 @@
     "location": "Địa điểm",
     "selectLocation": "Chọn địa điểm..."
   },
+  "search": {
+    "placeholder": "Tìm hồ sơ trong kho (toàn văn, metadata)...",
+    "applyHint": "Nhấn Lọc hoặc Enter để tra cứu.",
+    "noPhysicalPlacement": "Chưa xếp kho vật lý",
+    "noPhysicalPlacementToast": "Hồ sơ chưa được xếp vào hộp/cặp trong kho vật lý.",
+    "navigateToBox": "Nhấn để xem vị trí hộp/cặp trên sơ đồ kho",
+    "diagramFocusHeading": "Hồ sơ đang xem trên sơ đồ"
+  },
   "tabs": {
     "locations": "Quản lý địa điểm",
     "diagram": "Sơ đồ kho",

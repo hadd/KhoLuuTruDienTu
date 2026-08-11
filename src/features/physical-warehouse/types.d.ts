@@ -78,3 +78,66 @@ export type UpdateItemPayloadT = {
   /** Dual meaning — see PhysicalWarehouseItemT.capacity. isBottomLevel is immutable after creation. */
   capacity?: number | null
 }
+
+export type PhysicalWarehouseSearchPlacementT = {
+  physicalItemId: string
+  locationRootId: string | null
+  breadcrumb: string
+  ancestorIds: Array<string>
+}
+
+export type PhysicalWarehouseSearchHitT = {
+  entityType: string
+  entityId: string
+  title: string
+  fondId: string | null
+  fondName?: string | null
+  dossierTypeId?: string | null
+  dossierTypeName?: string | null
+  documentTypeIds?: Array<string>
+  documentTypeNames?: Array<string>
+  editorName?: string | null
+  archivedAt?: string | null
+  hoSoId?: string | null
+  snippet?: string
+  score: number
+  matches?: Array<{
+    groupCode: string
+    groupName: string
+    name: string
+    display: string
+    value: string
+    fileName: string | null
+    highlight: string
+  }>
+  metadata: Record<string, unknown>
+  physicalPlacement: PhysicalWarehouseSearchPlacementT | null
+}
+
+export type PhysicalWarehouseSearchResponseT = {
+  items: Array<PhysicalWarehouseSearchHitT>
+  total: number
+  took_ms: number
+  fondScope: Array<string> | null
+  message: string | null
+}
+
+export type GetPhysicalWarehouseSearchParamsT = {
+  mode?: 'all' | 'metadata' | 'content'
+  q?: string
+  dossierName?: string
+  documentName?: string
+  fondId?: string | string[]
+  dossierTypeId?: string | string[]
+  documentTypeId?: string | string[]
+  editorName?: string
+  editCompletedAtFrom?: string
+  editCompletedAtTo?: string
+  archivedAtFrom?: string
+  archivedAtTo?: string
+  limit?: number
+  offset?: number
+  groupCode?: string
+  trangThaiHoSo?: string
+  searchFields?: string | string[]
+}
