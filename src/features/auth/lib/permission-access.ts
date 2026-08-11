@@ -161,7 +161,7 @@ export function isNavLinkVisibleOnSidebar(
   }
 
   if (
-    (link.id === 'physical-warehouse' || link.id === 'archive-warehouse') &&
+    link.id === 'warehouse-management' &&
     (primaryAppRole === 'admin' || primaryAppRole === 'manager')
   ) {
     return true

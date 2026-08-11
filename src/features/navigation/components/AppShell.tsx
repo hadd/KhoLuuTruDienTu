@@ -68,7 +68,7 @@ function isNavLinkActive(
   }
 
   if (
-    link.id === 'archive-warehouse' &&
+    link.id === 'warehouse-management' &&
     isArchiveBorrowPath(pathname) &&
     archiveBorrowFromLibrary
   ) {
