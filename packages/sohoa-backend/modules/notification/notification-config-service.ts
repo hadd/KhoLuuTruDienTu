@@ -102,6 +102,23 @@ async function findDuplicate(
     );
 }
 
+async function assertEmailChannelReady(channels: NotificationChannelValue[]) {
+    if (!channels.includes(NotificationChannel.EMAIL)) {
+        return;
+    }
+    if (!await isEmailConfigured()) {
+        const status = await getEmailConfigStatus();
+        throw httpError.badRequest(
+            `Cannot activate notification config with email channel: missing ${status.missingFields.join(", ")}`,
+        );
+    }
+    if (!env.FRONTEND_URL) {
+        throw httpError.badRequest(
+            "Cannot activate notification config with email channel: FRONTEND_URL is not configured",
+        );
+    }
+}
+
 async function loadConfigById(id: string): Promise<NotificationConfigRecord> {
     const row = await db.query.notificationConfigs.findFirst({
         where: eq(notificationConfigs.id, id),
@@ -184,6 +201,9 @@ export const NotificationConfigService = {
         ]);
         const warnings = [...roleWarnings, ...emailWarnings];
         const active = input.active ?? true;
+        if (active) {
+            await assertEmailChannelReady(channels);
+        }
 
         const [created] = await db.insert(notificationConfigs).values({
             notificationType: input.notificationType,
@@ -220,13 +240,17 @@ export const NotificationConfigService = {
             getEmailChannelWarnings(channels),
         ]);
         const warnings = [...roleWarnings, ...emailWarnings];
+        const active = input.active ?? true;
+        if (active) {
+            await assertEmailChannelReady(channels);
+        }
 
         await db.update(notificationConfigs)
             .set({
                 notificationType: input.notificationType,
                 channels,
                 roleIds,
-                active: input.active ?? true,
+                active,
                 updatedById: actorId,
                 updatedAt: new Date(),
             })
@@ -239,19 +263,7 @@ export const NotificationConfigService = {
     async setActive(id: string, active: boolean, actorId: string) {
         if (active) {
             const config = await loadConfigById(id);
-            if (config.channels.includes(NotificationChannel.EMAIL)) {
-                if (!await isEmailConfigured()) {
-                    const status = await getEmailConfigStatus();
-                    throw httpError.badRequest(
-                        `Cannot activate notification config with email channel: missing ${status.missingFields.join(", ")}`,
-                    );
-                }
-                if (!env.FRONTEND_URL) {
-                    throw httpError.badRequest(
-                        "Cannot activate notification config with email channel: FRONTEND_URL is not configured",
-                    );
-                }
-            }
+            await assertEmailChannelReady(config.channels);
         }
 
         const [row] = await db.update(notificationConfigs)

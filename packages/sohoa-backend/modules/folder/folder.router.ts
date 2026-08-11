@@ -43,6 +43,7 @@ const metadataExportBodySchema = t.Object({
   columns: t.Optional(t.Array(metadataExportColumnSchema, { minItems: 1 })),
   placementId: t.Optional(t.String({ format: "uuid" })),
   applyWatermark: t.Optional(t.Boolean()),
+  dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
 });
 
 const multiFolderMetadataExportBodySchema = t.Object({
@@ -51,6 +52,7 @@ const multiFolderMetadataExportBodySchema = t.Object({
   columns: t.Optional(t.Array(metadataExportColumnSchema, { minItems: 1 })),
   placementId: t.Optional(t.String({ format: "uuid" })),
   applyWatermark: t.Optional(t.Boolean()),
+  dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
 });
 
 async function assertSecurityDownloadForFolders(
@@ -58,7 +60,8 @@ async function assertSecurityDownloadForFolders(
   request: Request,
   folderIds: string[],
 ): Promise<{ applyWatermark: boolean; skippedFileIds: Set<string> }> {
-  const dossierIds = await dossierService.listApprovedExportDossierIds(folderIds);
+  const dossierIds =
+    await dossierService.listApprovedExportDossierIds(folderIds);
   const headers = securityAccessHeadersFromRequest(request);
   return await assertDownloadAllowedForExport({
     userId: profile.id,
@@ -137,9 +140,8 @@ export function createFolderRouter(basePath: string = "/folders") {
   app.get(
     "/dossiers/:dossierId/files",
     async ({ params, query, profile, request }) => {
-      const { securityAccessHeadersFromRequest } = await import(
-        "../security-level/security-enforcement.ts"
-      );
+      const { securityAccessHeadersFromRequest } =
+        await import("../security-level/security-enforcement.ts");
       return await service.listDossierFiles(params.dossierId, {
         actorId: profile.id,
         status: query.status,
@@ -235,13 +237,14 @@ export function createFolderRouter(basePath: string = "/folders") {
     "/metadata/export",
     async ({ body, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      const { applyWatermark, skippedFileIds } = await assertSecurityDownloadForFolders(
-        profile,
-        request,
-        body.folderIds,
-      );
+      const { applyWatermark, skippedFileIds } =
+        await assertSecurityDownloadForFolders(
+          profile,
+          request,
+          body.folderIds,
+        );
       const meta = clientMetaFromRequest(request);
-      const { stream, filename, contentType } = await withDownloadLog(
+      const { stream, filename, contentType, zipPasswordSource } = await withDownloadLog(
         {
           userId: profile.id,
           exportType: "metadata",
@@ -259,7 +262,7 @@ export function createFolderRouter(basePath: string = "/folders") {
             skippedFileIds,
           }),
       );
-      return zipStreamResponse(stream, filename, contentType);
+      return zipStreamResponse(stream, filename, contentType, { zipPasswordSource });
     },
     {
       body: multiFolderMetadataExportBodySchema,
@@ -329,13 +332,10 @@ export function createFolderRouter(basePath: string = "/folders") {
     "/:id/metadata/export",
     async ({ params, body, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      const { applyWatermark, skippedFileIds } = await assertSecurityDownloadForFolders(
-        profile,
-        request,
-        [params.id],
-      );
+      const { applyWatermark, skippedFileIds } =
+        await assertSecurityDownloadForFolders(profile, request, [params.id]);
       const meta = clientMetaFromRequest(request);
-      const { stream, filename, contentType } = await withDownloadLog(
+      const { stream, filename, contentType, zipPasswordSource } = await withDownloadLog(
         {
           userId: profile.id,
           exportType: "metadata",
@@ -353,7 +353,7 @@ export function createFolderRouter(basePath: string = "/folders") {
             skippedFileIds,
           }),
       );
-      return zipStreamResponse(stream, filename, contentType);
+      return zipStreamResponse(stream, filename, contentType, { zipPasswordSource });
     },
     {
       params: t.Object({ id: IdParam("Folder ID") }),
@@ -369,13 +369,10 @@ export function createFolderRouter(basePath: string = "/folders") {
     "/:id/metadata/export",
     async ({ params, query, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      const { applyWatermark, skippedFileIds } = await assertSecurityDownloadForFolders(
-        profile,
-        request,
-        [params.id],
-      );
+      const { applyWatermark, skippedFileIds } =
+        await assertSecurityDownloadForFolders(profile, request, [params.id]);
       const meta = clientMetaFromRequest(request);
-      const { stream, filename, contentType } = await withDownloadLog(
+      const { stream, filename, contentType, zipPasswordSource } = await withDownloadLog(
         {
           userId: profile.id,
           exportType: "metadata",
@@ -390,16 +387,20 @@ export function createFolderRouter(basePath: string = "/folders") {
             placementId: query.placementId,
             applyWatermark,
             userId: profile.id,
+            dossierAccessPassword: query.dossierAccessPassword,
             skippedFileIds,
           }),
       );
-      return zipStreamResponse(stream, filename, contentType);
+      return zipStreamResponse(stream, filename, contentType, { zipPasswordSource });
     },
     {
       params: t.Object({ id: IdParam("Folder ID") }),
       query: t.Object({
         placementId: t.Optional(t.String({ format: "uuid" })),
         applyWatermark: t.Optional(t.Boolean()),
+        dossierAccessPassword: t.Optional(
+          t.String({ minLength: 1, maxLength: 128 }),
+        ),
       }),
       detail: {
         tags,

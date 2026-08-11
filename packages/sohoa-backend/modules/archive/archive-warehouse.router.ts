@@ -208,9 +208,9 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
       {
         detail: {
           tags,
-          summary: "Duyệt hồ sơ đã lưu kho theo phông",
+          summary: "Duyệt hồ sơ đã lưu kho",
           description:
-            "Bắt buộc fondId. Chỉ trả về hồ sơ trong kho theo phạm vi phân quyền. Hỗ trợ lọc năm (inventory.submissionYear), tìm kiếm và phân trang.",
+            "fondId tùy chọn: bỏ trống để lấy toàn bộ hồ sơ trong phạm vi phân quyền. Hỗ trợ lọc năm (inventory.submissionYear), tìm kiếm và phân trang.",
         },
       },
     )

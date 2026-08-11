@@ -40,7 +40,7 @@ function createCorsPlugin() {
       "x-dossier-access-tokens",
       "x-file-access-tokens",
     ],
-    exposeHeaders: ["Content-Disposition"],
+    exposeHeaders: ["Content-Disposition", "X-Zip-Password-Source"],
   })
 }
 

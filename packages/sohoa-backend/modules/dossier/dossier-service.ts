@@ -99,7 +99,7 @@ import {
   applyWatermarkConfigToPdfFiles,
   resolveWatermarkApplyConfig,
 } from "../../libs/watermark/maybe-watermark-pdf-files.ts";
-import { resolveUserDownloadZipPassword } from "../profile/resolve-user-download-zip-password.ts";
+import { resolveExportZipPassword } from "../profile/resolve-export-zip-password.ts";
 import { assertExportFileLimit } from "../../libs/export-file-limit.ts";
 import {
   EXPORT_DOSSIER_CONCURRENCY,
@@ -150,7 +150,6 @@ import { buildAccessPasswordPatch } from "../security-level/access-password-patc
 import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts";
 import {
   resolveApplyWatermarkForDossiers,
-  resolveEncryptDownloadForDossiers,
 } from "../security-level/security-enforcement.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -184,7 +183,7 @@ function mapDossierWithRelations<T>(record: T): T {
   const files = (record as { files?: unknown }).files;
   if (Array.isArray(files)) {
     (mapped as { files?: unknown[] }).files = files.map((file) =>
-      toPublicDossierRecord(file as Record<string, unknown>)
+      toPublicDossierRecord(file as Record<string, unknown>),
     );
   }
   return mapped as T;
@@ -1174,6 +1173,8 @@ type MetadataExportInput = {
   applyWatermark?: boolean;
   /** User performing the export — used for personal ZIP password + encrypt_download check. */
   userId?: string;
+  /** Plaintext dossier/level access password for ZIP encrypt_download_dossier mode. */
+  dossierAccessPassword?: string;
   /** Set of dossier file IDs to skip from the export (due to missing download permissions) */
   skippedFileIds?: Set<string>;
 };
@@ -1194,13 +1195,12 @@ async function buildApprovedMetadataExportZip(
     async (dossier) => {
       const metadata = await loadDossierMetadataFromStorage(dossier);
       const files = input?.skippedFileIds
-        ? (dossier.files ?? []).filter(f => !input.skippedFileIds!.has(f.id))
+        ? (dossier.files ?? []).filter((f) => !input.skippedFileIds!.has(f.id))
         : (dossier.files ?? []);
       return {
         dossier: { ...dossier, files },
         metadata,
-        pdfCount: collectMetadataPdfSources(metadata, files)
-          .length,
+        pdfCount: collectMetadataPdfSources(metadata, files).length,
       };
     },
   );
@@ -1218,13 +1218,14 @@ async function buildApprovedMetadataExportZip(
     applyWatermark,
   );
 
-  const encryptDownload = input?.userId
-    ? await resolveEncryptDownloadForDossiers(dossierIds)
-    : false;
-
-  const zipPassword = input?.userId
-    ? await resolveUserDownloadZipPassword(input.userId, applyWatermark, encryptDownload)
-    : undefined;
+  const zipResolved = input?.userId
+    ? await resolveExportZipPassword({
+        userId: input.userId,
+        dossierIds,
+        dossierAccessPassword: input.dossierAccessPassword,
+      })
+    : { password: undefined, source: "none" as const };
+  const zipPassword = zipResolved.password;
 
   const loaded = await mapInBatches(
     metadataForCount,
@@ -1262,6 +1263,7 @@ async function buildApprovedMetadataExportZip(
       filename: `${item.pdfBundle.dossierFolderName}-metadata-export.zip`,
       contentType: "application/zip" as const,
       exportedCount: 1,
+      zipPasswordSource: zipResolved.source,
     };
   }
 
@@ -1282,6 +1284,7 @@ async function buildApprovedMetadataExportZip(
     filename: `${safeBaseName}-approved-metadata-export.zip`,
     contentType: "application/zip" as const,
     exportedCount: metadataList.length,
+    zipPasswordSource: zipResolved.source,
   };
 }
 
@@ -1566,9 +1569,8 @@ async function runGroupFolderAssignment(input: {
   rootFolder: { id: string; folderPath: string; folderName: string };
   leafFolders: Array<{ id: string; folderPath: string; folderName: string }>;
 }) {
-  const { executeGroupFolderAssignment } = await import(
-    "../group/group-folder-assign.ts"
-  );
+  const { executeGroupFolderAssignment } =
+    await import("../group/group-folder-assign.ts");
   const deps = await buildGroupFolderAssignDeps();
 
   return await executeGroupFolderAssignment({
@@ -1979,7 +1981,9 @@ export const DossierService = {
     const result = await crud.list(query);
     return {
       ...result,
-      items: (result.items as unknown[]).map((item) => mapDossierWithRelations(item)),
+      items: (result.items as unknown[]).map((item) =>
+        mapDossierWithRelations(item),
+      ),
     };
   },
 
@@ -2012,10 +2016,12 @@ export const DossierService = {
       return input.folderId;
     });
 
-    return mapDossierWithRelations(await crud.create({
-      ...input,
-      folderId,
-    }));
+    return mapDossierWithRelations(
+      await crud.create({
+        ...input,
+        folderId,
+      }),
+    );
   },
 
   async update(id: string, input: Static<typeof updateDossierSchema>) {
@@ -2417,20 +2423,30 @@ export const DossierService = {
       .orderBy(asc(dossierFiles.createdAt));
 
     const filtered = pendingFiles.filter((f) => {
-      if (input.projectCode && f.projectCode !== input.projectCode) return false;
-      if (input.folderPath && !f.folderPath?.startsWith(input.folderPath)) return false;
+      if (input.projectCode && f.projectCode !== input.projectCode)
+        return false;
+      if (input.folderPath && !f.folderPath?.startsWith(input.folderPath))
+        return false;
       return true;
     });
 
-    const byDossier = new Map<string, {
-      dossierId: string;
-      dossierName: string;
-      folderPath: string;
-      projectCode: string | null;
-      pendingFileCount: number;
-      oldestPendingAt: Date;
-      pendingFiles: Array<{ id: string; fileName: string; filePath: string; createdAt: Date }>;
-    }>();
+    const byDossier = new Map<
+      string,
+      {
+        dossierId: string;
+        dossierName: string;
+        folderPath: string;
+        projectCode: string | null;
+        pendingFileCount: number;
+        oldestPendingAt: Date;
+        pendingFiles: Array<{
+          id: string;
+          fileName: string;
+          filePath: string;
+          createdAt: Date;
+        }>;
+      }
+    >();
 
     for (const f of filtered) {
       const existing = byDossier.get(f.dossierId);
@@ -2506,28 +2522,33 @@ export const DossierService = {
       .orderBy(desc(dossierFiles.ocrTriggeredAt));
 
     const filtered = triggeredFiles.filter((f) => {
-      if (input.projectCode && f.projectCode !== input.projectCode) return false;
-      if (input.folderPath && !f.folderPath?.startsWith(input.folderPath)) return false;
+      if (input.projectCode && f.projectCode !== input.projectCode)
+        return false;
+      if (input.folderPath && !f.folderPath?.startsWith(input.folderPath))
+        return false;
       return true;
     });
 
-    const byDossier = new Map<string, {
-      dossierId: string;
-      dossierName: string;
-      folderPath: string;
-      folderId: string;
-      projectCode: string | null;
-      status: DossierStatus;
-      ocrMetadataKey: string | null;
-      triggeredFileCount: number;
-      latestTriggeredAt: Date;
-      triggeredFiles: Array<{
-        id: string;
-        fileName: string;
-        filePath: string;
-        ocrTriggeredAt: Date | null;
-      }>;
-    }>();
+    const byDossier = new Map<
+      string,
+      {
+        dossierId: string;
+        dossierName: string;
+        folderPath: string;
+        folderId: string;
+        projectCode: string | null;
+        status: DossierStatus;
+        ocrMetadataKey: string | null;
+        triggeredFileCount: number;
+        latestTriggeredAt: Date;
+        triggeredFiles: Array<{
+          id: string;
+          fileName: string;
+          filePath: string;
+          ocrTriggeredAt: Date | null;
+        }>;
+      }
+    >();
 
     for (const f of filtered) {
       const existing = byDossier.get(f.dossierId);
@@ -2540,7 +2561,11 @@ export const DossierService = {
       if (existing) {
         existing.triggeredFileCount += 1;
         existing.triggeredFiles.push(fileEntry);
-        if (f.ocrTriggeredAt && (!existing.latestTriggeredAt || f.ocrTriggeredAt > existing.latestTriggeredAt)) {
+        if (
+          f.ocrTriggeredAt &&
+          (!existing.latestTriggeredAt ||
+            f.ocrTriggeredAt > existing.latestTriggeredAt)
+        ) {
           existing.latestTriggeredAt = f.ocrTriggeredAt;
         }
       } else {
@@ -2564,9 +2589,15 @@ export const DossierService = {
       uiStatus: deriveManualOcrUiStatus(d.status, d.ocrMetadataKey),
     }));
 
-    const processingCount = allDossiers.filter((d) => d.uiStatus === "processing").length;
-    const completedCount = allDossiers.filter((d) => d.uiStatus === "completed").length;
-    const failedCount = allDossiers.filter((d) => d.uiStatus === "failed").length;
+    const processingCount = allDossiers.filter(
+      (d) => d.uiStatus === "processing",
+    ).length;
+    const completedCount = allDossiers.filter(
+      (d) => d.uiStatus === "completed",
+    ).length;
+    const failedCount = allDossiers.filter(
+      (d) => d.uiStatus === "failed",
+    ).length;
 
     if (input.uiStatus) {
       allDossiers = allDossiers.filter((d) => d.uiStatus === input.uiStatus);
@@ -2643,7 +2674,9 @@ export const DossierService = {
           const response = await fetch(env.NIFI_TRIGGER_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ file_path: normalizeStorageKey(file.filePath) }),
+            body: JSON.stringify({
+              file_path: normalizeStorageKey(file.filePath),
+            }),
           });
 
           if (!response.ok) {
@@ -2904,9 +2937,8 @@ export const DossierService = {
       if (remainingMakers.length > 0) {
         const skipQc = dossier.requiredQcCount === 0;
         if (issueReport) {
-          const { IssueReportService } = await import(
-            "../issue-report/issue-report-service.ts"
-          );
+          const { IssueReportService } =
+            await import("../issue-report/issue-report-service.ts");
           await IssueReportService.createOnMakerSubmit(tx, {
             dossierId,
             reporterId: actorId,
@@ -3271,27 +3303,35 @@ export const DossierService = {
 
   async exportDipHoso(
     dossierId: string,
-    input?: { placementId?: string; applyWatermark?: boolean; userId?: string; skippedFileIds?: Set<string> },
+    input?: {
+      placementId?: string;
+      applyWatermark?: boolean;
+      userId?: string;
+      dossierAccessPassword?: string;
+      skippedFileIds?: Set<string>;
+    },
   ) {
     const applyWatermark = await resolveApplyWatermarkForDossiers([dossierId]);
-    const encryptDownload = await resolveEncryptDownloadForDossiers([dossierId]);
     return await buildDipHosoExport(dossierId, {
       ...input,
       applyWatermark,
-      encryptDownload,
     });
   },
 
   async exportDipHosoBatch(
     dossierIds: string[],
-    input?: { placementId?: string; applyWatermark?: boolean; userId?: string; skippedFileIds?: Set<string> },
+    input?: {
+      placementId?: string;
+      applyWatermark?: boolean;
+      userId?: string;
+      dossierAccessPassword?: string;
+      skippedFileIds?: Set<string>;
+    },
   ) {
     const applyWatermark = await resolveApplyWatermarkForDossiers(dossierIds);
-    const encryptDownload = await resolveEncryptDownloadForDossiers(dossierIds);
     return await buildDipHosoBatchExport(dossierIds, {
       ...input,
       applyWatermark,
-      encryptDownload,
     });
   },
 
@@ -3387,7 +3427,8 @@ export const DossierService = {
     }
 
     const metadataKey = buildSummaryMetadataUpdateKey(dossier.ocrMetadataKey);
-    const previousMetadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
+    const previousMetadataKey =
+      dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
     const storedKey = await uploadJsonToStorage(metadataKey, metadata);
 
     const [updatedDossier] = await db
@@ -3410,7 +3451,10 @@ export const DossierService = {
       s3Key: storedKey,
       previousS3Key: previousMetadataKey,
     }).catch((err) => {
-      console.error("[MetadataHistory] Failed to record summary edit snapshot:", err);
+      console.error(
+        "[MetadataHistory] Failed to record summary edit snapshot:",
+        err,
+      );
     });
 
     const currentMetadataUrl = await buildLinkGet(storedKey);

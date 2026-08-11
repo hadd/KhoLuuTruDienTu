@@ -5,12 +5,13 @@ import {
     exists,
     ilike,
     inArray,
+    isNotNull,
     isNull,
     or,
     sql,
     type SQL,
 } from "drizzle-orm";
-import { httpError } from "@shared/common-lib";
+import { AppError, httpError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import { ArchiveSubmissionStatus } from "../../db/schemas/archive-constants.ts";
 import {
@@ -42,6 +43,7 @@ import {
     detectDuplicateMatches,
     extractDossierCodeFromFieldValues,
     type DuplicateCandidateRecord,
+    type DuplicateMatch,
 } from "../../libs/duplicate-detection.ts";
 import {
     classifyRetentionStatus,
@@ -51,10 +53,24 @@ import {
 } from "../../libs/retention-expiry.ts";
 import { resolveDossierEffectiveRetentionBatch } from "../../libs/retention-dossier.ts";
 import type { ArchiveDataScope } from "../archive-permission/index.ts";
-import { resolveWarehouseScope } from "../archive/archive-warehouse-service.ts";
+import { resolveWarehouseScope } from "../archive/archive-warehouse-scope.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { collectDescendantItemIds } from "../physical-warehouse/physical-warehouse-service.ts";
-import { assertCouncilReviewWorkflowEnabled } from "./disposal-settings-utils.ts";
+import { assertCouncilReviewWorkflowEnabled, getDisposalSettingsRow } from "./disposal-settings-utils.ts";
+import {
+    assertCatalogFondConsistency,
+    resolveCatalogFondMeta,
+} from "./disposal-catalog-fond.ts";
+
+const DISPOSAL_CATALOG_ITEM_DUPLICATE_MESSAGE = "Hồ sơ đã có trong danh mục";
+
+function isDisposalCatalogItemDuplicateError(err: unknown): boolean {
+    return (
+        err instanceof AppError &&
+        err.status === 409 &&
+        err.message === DISPOSAL_CATALOG_ITEM_DUPLICATE_MESSAGE
+    );
+}
 
 export type DisposalCandidateCategory =
     | "all"
@@ -162,6 +178,7 @@ async function buildScopeWhere(
 ): Promise<SQL> {
     const conditions: SQL[] = [
         eq(dossiers.status, DossierStatus.ARCHIVED),
+        isNotNull(dossiers.fondId),
         exists(
             db.select({ one: sql`1` })
                 .from(archiveSubmissions)
@@ -808,6 +825,8 @@ export const ArchiveDisposalService = {
             }
         }
 
+        const { catalogFondId, catalogFondName } = await resolveCatalogFondMeta(catalogId);
+
         return {
             catalog: {
                 ...catalog,
@@ -815,6 +834,8 @@ export const ArchiveDisposalService = {
                 createdAt: catalog.createdAt.toISOString(),
                 updatedAt: catalog.updatedAt.toISOString(),
             },
+            catalogFondId,
+            catalogFondName,
             items,
             referenceFilesByDossierId,
         };
@@ -880,7 +901,13 @@ export const ArchiveDisposalService = {
             .set(patch)
             .where(eq(disposalProposalCatalogs.id, catalogId))
             .returning();
-        return updated!;
+        if (!updated) throw httpError.notFound("Không tìm thấy danh mục");
+        return {
+            ...updated,
+            catalogDate: updated.catalogDate.toISOString().slice(0, 10),
+            createdAt: updated.createdAt.toISOString(),
+            updatedAt: updated.updatedAt.toISOString(),
+        };
     },
 
     async deleteCatalog(_profile: UserWithRoles, catalogId: string) {
@@ -924,8 +951,10 @@ export const ArchiveDisposalService = {
             ),
         });
         if (existing) {
-            throw httpError.conflict("Hồ sơ đã có trong danh mục");
+            throw httpError.conflict(DISPOSAL_CATALOG_ITEM_DUPLICATE_MESSAGE);
         }
+
+        await assertCatalogFondConsistency(catalogId, [input.dossierId]);
 
         const [inserted] = await db.insert(disposalProposalItems).values({
             catalogId,
@@ -1051,19 +1080,176 @@ export const ArchiveDisposalService = {
             }
         }
 
+        const dossierIds = [...new Set(input.items.map((item) => item.dossierId))];
+        await assertCatalogFondConsistency(catalogId, dossierIds);
+
         const insertedItems = [];
+        let skippedDuplicateCount = 0;
         for (const item of input.items) {
             try {
                 const row = await this.upsertCatalogItem(catalogId, item);
                 insertedItems.push(row);
             } catch (err) {
-                if (err instanceof Error && err.message.includes("Hồ sơ đã có")) {
+                if (isDisposalCatalogItemDuplicateError(err)) {
+                    skippedDuplicateCount += 1;
                     continue;
                 }
                 throw err;
             }
         }
 
-        return { catalogId, items: insertedItems };
+        if (insertedItems.length === 0 && skippedDuplicateCount > 0) {
+            throw httpError.conflict(DISPOSAL_CATALOG_ITEM_DUPLICATE_MESSAGE);
+        }
+
+        return { catalogId, items: insertedItems, skippedDuplicateCount };
     },
 };
+
+export type DisposalCandidateWarehouseLockScope = {
+    dossierLocked: boolean;
+    lockedFileIds: Set<string>;
+};
+
+export async function loadDisposalScopeDuplicateMatches(
+    scope: ArchiveDataScope,
+): Promise<Map<string, DuplicateMatch>> {
+    const dossierRows = await loadArchivedDossierRows(scope, {});
+    if (dossierRows.length === 0) {
+        return new Map();
+    }
+
+    const dossierIds = dossierRows.map((r) => r.id);
+    const [fileRows, rules] = await Promise.all([
+        db.select({
+            id: dossierFiles.id,
+            dossierId: dossierFiles.dossierId,
+            fileName: dossierFiles.fileName,
+            fileSizeKb: dossierFiles.fileSizeKb,
+        }).from(dossierFiles).where(inArray(dossierFiles.dossierId, dossierIds)),
+        loadDuplicateRules(),
+    ]);
+
+    const enabledRules = new Set(
+        rules.filter((r) => r.isEnabled).map((r) => r.ruleKey),
+    );
+    const dossierCodeFieldKey = rules.find((r) =>
+        r.ruleKey === "DOSSIER_CODE"
+    )?.dossierCodeFieldKey ?? "dossier_code";
+
+    const duplicateRecords: DuplicateCandidateRecord[] = [];
+    for (const row of dossierRows) {
+        duplicateRecords.push({
+            dossierId: row.id,
+            dossierName: row.name,
+            hoSoId: row.name,
+            dossierCode: extractDossierCodeFromFieldValues(
+                row.fieldValues,
+                dossierCodeFieldKey,
+            ),
+        });
+        for (const file of fileRows.filter((f) => f.dossierId === row.id)) {
+            duplicateRecords.push({
+                dossierId: row.id,
+                fileId: file.id,
+                dossierName: row.name,
+                hoSoId: row.name,
+                dossierCode: extractDossierCodeFromFieldValues(
+                    row.fieldValues,
+                    dossierCodeFieldKey,
+                ),
+                fileName: file.fileName,
+                fileSizeKb: file.fileSizeKb,
+            });
+        }
+    }
+
+    return detectDuplicateMatches(
+        duplicateRecords,
+        enabledRules,
+        dossierCodeFieldKey,
+    );
+}
+
+function buildDisposalCandidateCategories(input: {
+    retentionStatus: RetentionExpiryStatus;
+    dossierDuplicate: boolean;
+    fileDuplicate: boolean;
+}): Array<"expiring_soon" | "expired" | "duplicate"> {
+    const categories: Array<"expiring_soon" | "expired" | "duplicate"> = [];
+    if (input.retentionStatus === "EXPIRING_SOON") {
+        categories.push("expiring_soon");
+    }
+    if (input.retentionStatus === "EXPIRED") {
+        categories.push("expired");
+    }
+    if (input.dossierDuplicate || input.fileDuplicate) {
+        categories.push("duplicate");
+    }
+    return categories;
+}
+
+export async function resolveDisposalCandidateWarehouseLockScope(
+    profile: UserWithRoles,
+    dossierId: string,
+): Promise<DisposalCandidateWarehouseLockScope | null> {
+    const settings = await getDisposalSettingsRow();
+    if (!settings.councilReviewEnabled) {
+        return null;
+    }
+
+    const { scope } = await resolveWarehouseScope(profile);
+    const dossierRows = await loadArchivedDossierRows(scope, {});
+    const row = dossierRows.find((r) => r.id === dossierId);
+    if (!row) {
+        return null;
+    }
+
+    const [retentionByDossier, duplicateMatches, fileRows] = await Promise.all([
+        resolveDossierEffectiveRetentionBatch([dossierId]),
+        loadDisposalScopeDuplicateMatches(scope),
+        db.select({
+            id: dossierFiles.id,
+        }).from(dossierFiles).where(eq(dossierFiles.dossierId, dossierId)),
+    ]);
+
+    const retention = retentionByDossier.get(dossierId) ?? null;
+    const reviewedAt = row.reviewedAt;
+    const expiresAt = retention
+        ? computeRetentionExpiresAt(reviewedAt, retention)
+        : null;
+    const retentionStatus = classifyRetentionStatus(expiresAt, {
+        isPermanent: retention?.isPermanent,
+    });
+
+    const dossierDuplicate = duplicateMatches.has(`dossier:${dossierId}`);
+    const dossierCategories = buildDisposalCandidateCategories({
+        retentionStatus,
+        dossierDuplicate,
+        fileDuplicate: false,
+    });
+
+    const lockedFileIds = new Set<string>();
+    for (const file of fileRows) {
+        const fileDuplicate = duplicateMatches.has(`file:${file.id}`);
+        if (isRetentionCandidateStatus(retentionStatus)) {
+            const fileCategories = buildDisposalCandidateCategories({
+                retentionStatus,
+                dossierDuplicate: false,
+                fileDuplicate,
+            });
+            if (fileCategories.length > 0) {
+                lockedFileIds.add(file.id);
+            }
+        } else if (fileDuplicate) {
+            lockedFileIds.add(file.id);
+        }
+    }
+
+    const dossierLocked = dossierCategories.length > 0;
+    if (!dossierLocked && lockedFileIds.size === 0) {
+        return null;
+    }
+
+    return { dossierLocked, lockedFileIds };
+}

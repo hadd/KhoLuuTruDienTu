@@ -13,10 +13,9 @@ import {
   applyWatermarkConfigToPdfFiles,
   resolveWatermarkApplyConfig,
 } from "../watermark/maybe-watermark-pdf-files.ts";
-import { resolveUserDownloadZipPassword } from "../../modules/profile/resolve-user-download-zip-password.ts";
+import { resolveExportZipPassword } from "../../modules/profile/resolve-export-zip-password.ts";
 import {
   resolveApplyWatermarkForDossiers,
-  resolveEncryptDownloadForDossiers,
 } from "../../modules/security-level/security-enforcement.ts";
 import { assertExportFileLimit } from "../export-file-limit.ts";
 import {
@@ -61,8 +60,8 @@ type DipExportOptions = {
   applyWatermark?: boolean;
   /** User performing the export — used for personal ZIP password. */
   userId?: string;
-  /** When true (from security level rule encrypt_download), PIN is required for all downloads. */
-  encryptDownload?: boolean;
+  /** Plaintext dossier/level access password for ZIP encrypt_download_dossier mode. */
+  dossierAccessPassword?: string;
   /** Set of dossier file IDs to skip from the export (due to missing download permissions) */
   skippedFileIds?: Set<string>;
 };
@@ -280,9 +279,6 @@ export async function exportDipHosoBatch(
 
   const resolvedDossierIds = await resolveIdsIntoDossierIds(uniqueInputIds);
   const applyWatermark = await resolveApplyWatermarkForDossiers(resolvedDossierIds);
-  const encryptDownload =
-    options?.encryptDownload ??
-    (await resolveEncryptDownloadForDossiers(resolvedDossierIds));
   const watermarkConfig = await resolveWatermarkApplyConfig(
     options?.placementId,
     applyWatermark,
@@ -312,9 +308,14 @@ export async function exportDipHosoBatch(
   const totalPdfFiles = contexts.reduce((sum, ctx) => sum + ctx.pdfCount, 0);
   assertExportFileLimit(totalPdfFiles);
 
-  const zipPassword = options?.userId
-    ? await resolveUserDownloadZipPassword(options.userId, applyWatermark, encryptDownload)
-    : undefined;
+  const zipResolved = options?.userId
+    ? await resolveExportZipPassword({
+        userId: options.userId,
+        dossierIds: resolvedDossierIds,
+        dossierAccessPassword: options.dossierAccessPassword,
+      })
+    : { password: undefined, source: "none" as const };
+  const zipPassword = zipResolved.password;
 
   // Phase 2: download + watermark in bounded dossier batches.
   const packages = await mapInBatches(
@@ -334,5 +335,8 @@ export async function exportDipHosoBatch(
     },
   );
 
-  return await buildDipExportZipStream(packages, zipPassword);
+  return await buildDipExportZipStream(packages, zipPassword).then((result) => ({
+    ...result,
+    zipPasswordSource: zipResolved.source,
+  }));
 }

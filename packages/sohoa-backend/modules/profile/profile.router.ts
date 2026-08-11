@@ -4,6 +4,8 @@ import { plugins } from "../../libs/plugins/_index.ts";
 import { updateUserProfileSchema } from "../../db/schemas/user_profile.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
 import { isNull } from "drizzle-orm";
+import { authHelper } from "../auth/auth-helper.ts";
+import { Permission } from "../auth/permission-catalog.ts";
 
 const updateDownloadPasswordSchema = t.Object({
     downloadPassword: t.Optional(t.Nullable(t.String({ maxLength: 128 }))),
@@ -81,6 +83,10 @@ export function createProfileRouter(_basePath: string = "/users") {
         .put(
             "/profile/download-password",
             async ({ profile, body }) => {
+                authHelper.checkPermission(
+                    profile,
+                    Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
+                );
                 const record = await service.updateMyDownloadPassword(
                     profile.id,
                     body,
@@ -94,6 +100,7 @@ export function createProfileRouter(_basePath: string = "/users") {
                     summary: "Update my download password",
                     description:
                         "Set, change, clear, or toggle the personal watermark ZIP download password. " +
+                        "Requires archive.warehouse.download. " +
                         "Omit downloadPassword to keep existing. null or empty string clears it.",
                 },
                 response: {

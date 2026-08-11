@@ -172,9 +172,17 @@ async function buildFondBundles(catalogId: string): Promise<FondBundle[]> {
         }
     }
 
+    const distinctFondIds = [
+        ...new Set(
+            items.map((i) => i.fondId?.trim()).filter((id): id is string => Boolean(id)),
+        ),
+    ];
+    const soleFondId = distinctFondIds.length === 1 ? distinctFondIds[0]! : null;
+
     const byFond = new Map<string, CatalogItemRow[]>();
     for (const item of items) {
-        const key = item.fondId ?? "__none__";
+        const trimmedFondId = item.fondId?.trim();
+        const key = trimmedFondId || (soleFondId ?? "__none__");
         const list = byFond.get(key) ?? [];
         list.push(item as CatalogItemRow);
         byFond.set(key, list);
@@ -303,15 +311,19 @@ export const DisposalAppendixExportService = {
         const metadataByDossier = await loadMetadataMap(dossierIds);
 
         const files: AppendixExportFile[] = [];
+        const usedFilenames = new Set<string>();
         for (const bundle of bundles) {
             const pdfBytes = await renderAppendixIIForFond(bundle, metadataByDossier);
             const fondPart = safeFilenamePart(bundle.fondName);
-            files.push({
-                filename: bundles.length > 1
-                    ? `phu-luc-ii-danh-muc-${catalog.code}-${fondPart}.pdf`
-                    : `phu-luc-ii-danh-muc-${catalog.code}.pdf`,
-                pdfBytes,
-            });
+            let filename = bundles.length > 1
+                ? `phu-luc-ii-danh-muc-${catalog.code}-${fondPart}.pdf`
+                : `phu-luc-ii-danh-muc-${catalog.code}.pdf`;
+            if (usedFilenames.has(filename)) {
+                const suffix = safeFilenamePart(bundle.fondId === "__none__" ? bundle.fondName : bundle.fondId);
+                filename = `phu-luc-ii-danh-muc-${catalog.code}-${fondPart}-${suffix}.pdf`;
+            }
+            usedFilenames.add(filename);
+            files.push({ filename, pdfBytes });
         }
         return packPdfResults(files, catalog.code, "ii");
     },
@@ -328,15 +340,19 @@ export const DisposalAppendixExportService = {
         const catalogDate = catalog.catalogDate.toISOString().slice(0, 10);
 
         const files: AppendixExportFile[] = [];
+        const usedFilenames = new Set<string>();
         for (const bundle of bundles) {
             const pdfBytes = await renderAppendixIIIForFond(bundle, catalogDate);
             const fondPart = safeFilenamePart(bundle.fondName);
-            files.push({
-                filename: bundles.length > 1
-                    ? `phu-luc-iii-thuyet-minh-${catalog.code}-${fondPart}.pdf`
-                    : `phu-luc-iii-thuyet-minh-${catalog.code}.pdf`,
-                pdfBytes,
-            });
+            let filename = bundles.length > 1
+                ? `phu-luc-iii-thuyet-minh-${catalog.code}-${fondPart}.pdf`
+                : `phu-luc-iii-thuyet-minh-${catalog.code}.pdf`;
+            if (usedFilenames.has(filename)) {
+                const suffix = safeFilenamePart(bundle.fondId === "__none__" ? bundle.fondName : bundle.fondId);
+                filename = `phu-luc-iii-thuyet-minh-${catalog.code}-${fondPart}-${suffix}.pdf`;
+            }
+            usedFilenames.add(filename);
+            files.push({ filename, pdfBytes });
         }
         return packPdfResults(files, catalog.code, "iii");
     },
