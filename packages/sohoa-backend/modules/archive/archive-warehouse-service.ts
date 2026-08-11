@@ -1013,18 +1013,17 @@ export const ArchiveWarehouseService = {
       ? await resolveExploitationScope(profile)
       : await resolveWarehouseScope(profile)
 
-    let effectiveFondId: string | undefined
-    if (context === "exploitation") {
-      if (scope.mode === "none") {
-        throw httpError.forbidden("Bạn không có quyền truy cập kho khai thác")
-      }
-      const trimmedFondId = query.fondId?.trim()
-      effectiveFondId = trimmedFondId
-        ? assertFondAccess(scope, trimmedFondId)
-        : undefined
-    } else {
-      effectiveFondId = assertFondAccess(scope, query.fondId)
+    if (scope.mode === "none") {
+      throw httpError.forbidden(
+        context === "exploitation"
+          ? "Bạn không có quyền truy cập kho khai thác"
+          : "Bạn không có quyền truy cập kho dữ liệu",
+      )
     }
+    const trimmedFondId = query.fondId?.trim()
+    const effectiveFondId = trimmedFondId
+      ? assertFondAccess(scope, trimmedFondId)
+      : undefined
 
     const status = resolveWarehouseStatus(query.status)
     const year = query.year != null && !Number.isNaN(query.year) ? query.year : undefined
@@ -1042,7 +1041,7 @@ export const ArchiveWarehouseService = {
       scope.mode === "scoped" && scope.dossierTypeIds.length > 0 ? scope.dossierTypeIds : undefined,
       scope.mode === "scoped" && scope.documentTypeIds.length > 0 ? scope.documentTypeIds : undefined,
       shareEligibleWhere,
-      context === "exploitation" ? resolveScopedFondIds(scope) : undefined,
+      resolveScopedFondIds(scope),
     )
 
     const [rows, countRows] = await Promise.all([
