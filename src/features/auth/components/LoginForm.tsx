@@ -11,10 +11,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { login } from '@/features/auth/api/authClient'
 import { APP_HOME_PATH } from '@/features/auth/constants'
-import { resetDataManagementClientCache } from '@/features/data-management/api/dataManagementClient'
 import { LoginSchema } from '@/features/auth/schemas'
 import { authStore } from '@/features/auth/store'
 import type { LoginForm as LoginFormValues } from '@/features/auth/types'
+import { resetDataManagementClientCache } from '@/features/data-management/api/dataManagementClient'
+import { clearAllSecurityAccessTokens } from '@/features/security-level/lib/securityAccessTokenStore'
 import { useFormError } from '@/lib/hooks/useFormError'
 import { getFieldError } from '@/lib/utils/form-validation'
 
@@ -61,6 +62,7 @@ export const LoginForm = () => {
     mutationFn: (values: LoginFormValues) => login(values),
     onSuccess: (data) => {
       resetDataManagementClientCache()
+      clearAllSecurityAccessTokens()
       authStore.setTokens({
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,

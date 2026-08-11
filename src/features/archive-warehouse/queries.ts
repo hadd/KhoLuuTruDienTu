@@ -218,7 +218,8 @@ export function archiveWarehouseDossierDetailQueryOptions(
     queryFn: () =>
       getArchiveWarehouseDossierDetail(dossierId!, {
         securityLevelId:
-          getRememberedDossierSecurityLevel(dossierId!) ?? securityLevelId,
+          getRememberedDossierSecurityLevel('warehouse', dossierId!) ??
+          securityLevelId,
       }),
     enabled: Boolean(dossierId),
     retry: false,
