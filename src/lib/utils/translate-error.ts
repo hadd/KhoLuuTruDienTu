@@ -289,6 +289,10 @@ export function translateError(error: unknown): string {
     })
   }
 
+  if (/^(requested|approved) until must be after from$/i.test(rawMessage)) {
+    return i18n.t('errors.untilMustBeAfterFrom', { ns: 'archive-borrow' })
+  }
+
   const schemaLengthRegex =
     /Expected string length(?: to be)? greater or equal to (\d+)/i
   const schemaLengthMatch = rawMessage.match(schemaLengthRegex)
