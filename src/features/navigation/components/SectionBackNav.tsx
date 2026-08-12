@@ -1,11 +1,21 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 
+export type HubBackTo =
+  | '/app/dashboard'
+  | '/app/warehouse-management'
+  | '/app/general-catalog'
+  | '/app/data-config'
+  | '/app/system-admin'
+  | '/app/digitization-hub'
+
 type SectionBackNavProps = {
   to:
     | '/app/warehouse-management'
     | '/app/general-catalog'
     | '/app/data-config'
+    | '/app/system-admin'
+    | '/app/digitization-hub'
   currentLabel: string
   description?: string
   backAriaLabel: string
@@ -31,6 +41,28 @@ export function SectionBackNav({
         <p className="pl-7 text-sm text-muted-foreground sm:pl-8">{description}</p>
       ) : null}
     </div>
+  )
+}
+
+/** Back link for full-screen icon hub pages (above the uppercase hub title). */
+export function IconHubBackLink({
+  to,
+  parentLabel,
+  backAriaLabel,
+}: {
+  to: HubBackTo
+  parentLabel: string
+  backAriaLabel: string
+}) {
+  return (
+    <Link
+      to={to}
+      className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:text-base"
+      aria-label={backAriaLabel}
+    >
+      <ArrowLeft className="size-4 shrink-0 sm:size-[1.125rem]" aria-hidden />
+      <span>{parentLabel}</span>
+    </Link>
   )
 }
 

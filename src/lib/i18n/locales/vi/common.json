@@ -32,6 +32,9 @@
   "breadcrumbs": {
     "home": "Trang chủ"
   },
+  "hubBack": {
+    "aria": "Quay lại {{target}}"
+  },
   "search": {
     "submit": "Tìm kiếm"
   },
@@ -122,6 +125,7 @@
     "kpi": "Báo cáo KPI",
     "auditLogs": "Lịch sử thao tác",
     "permissions": "Quản lý phân quyền",
+    "configuration": "Cấu hình",
     "groups": {
       "digitization": "Số hóa",
       "systemAdmin": "Quản trị hệ thống",

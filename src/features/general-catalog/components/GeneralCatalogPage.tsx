@@ -10,6 +10,7 @@ import { useDossierTypeAccess } from '@/features/dossier-type/hooks/useDossierTy
 import { useInventoryAccess } from '@/features/inventory/hooks/useInventoryAccess'
 import { useRetentionPeriodAccess } from '@/features/retention-period/hooks/useRetentionPeriodAccess'
 import { useSecurityLevelAccess } from '@/features/security-level/hooks/useSecurityLevelAccess'
+import { IconHubBackLink } from '@/features/navigation/components/SectionBackNav'
 
 type CatalogTileTo =
   | '/app/archive-fonds'
@@ -21,6 +22,7 @@ type CatalogTileTo =
 
 export function GeneralCatalogPage() {
   const { t } = useTranslation('general-catalog')
+  const { t: tCommon } = useTranslation('common')
   const { canViewFonds } = useFondAccess()
   const { canViewRetentionPeriods } = useRetentionPeriodAccess()
   const { canViewInventories } = useInventoryAccess()
@@ -106,6 +108,15 @@ export function GeneralCatalogPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center px-6 pt-10 pb-16 sm:pt-14">
       <div className="flex w-full max-w-5xl flex-col items-center gap-8 sm:gap-10">
+        <div className="w-full self-start">
+          <IconHubBackLink
+            to="/app/system-admin"
+            parentLabel={tCommon('admin.groups.systemAdmin')}
+            backAriaLabel={tCommon('hubBack.aria', {
+              target: tCommon('admin.groups.systemAdmin'),
+            })}
+          />
+        </div>
         <h1 className="text-2xl font-bold uppercase tracking-[0.06em] text-primary sm:text-[1.75rem]">
           {t('title')}
         </h1>

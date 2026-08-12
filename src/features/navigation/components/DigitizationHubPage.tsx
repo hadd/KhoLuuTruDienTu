@@ -1,51 +1,35 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { LucideIcon } from 'lucide-react'
-import {
-  Bell,
-  BookOpenCheck,
-  Droplets,
-  FileSpreadsheet,
-  FileText,
-  FileType,
-  ScanSearch,
-  ScrollText,
-  UserCog,
-} from 'lucide-react'
+import { Briefcase, FileStack } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
+  canAccessAppScreenForSidebar,
   getCurrentUserRoleId,
   resolvePermissionsForUser,
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
-import {
-  getVisibleDataConfigNavItemDefs,
-  type DataConfigNavItemId,
-} from '@/features/navigation/config/dataConfigNavItems'
+import { DIGITIZATION_SCREEN_REQUIREMENTS } from '@/features/digitization/lib/digitizationAccess'
+import type { AppScreenTo } from '@/features/navigation/config/appNav'
 import { IconHubBackLink } from '@/features/navigation/components/SectionBackNav'
-import { cn } from '@/lib/utils/cn'
+import { PROJECT_MANAGEMENT_SCREEN_REQUIREMENTS } from '@/features/project-management/lib/projectManagementAccess'
 import {
   permissionsCatalogQueryOptions,
   rolePermissionsQueryOptions,
 } from '@/features/permissions/queries'
+import { cn } from '@/lib/utils/cn'
 
-const DATA_CONFIG_TILE_ICONS: Record<DataConfigNavItemId, LucideIcon> = {
-  'document-types': FileType,
-  'document-assignment': UserCog,
-  'metadata-export-presets': FileSpreadsheet,
-  'document-naming': FileText,
-  'metadata-extract-settings': ScanSearch,
-  'notification-configs': Bell,
-  'watermark-configs': Droplets,
-  'audit-log-config': ScrollText,
-  'borrow-approval-clearance': BookOpenCheck,
+type HubTile = {
+  id: string
+  to: AppScreenTo
+  label: string
+  icon: LucideIcon
 }
 
-export function DataConfigHubPage() {
-  const { t } = useTranslation('data-config')
-  const { t: tCommon } = useTranslation('common')
+export function DigitizationHubPage() {
+  const { t } = useTranslation('common')
   const { data: user } = useQuery(profileQueryOptions)
   const roleId = getCurrentUserRoleId(user)
   const { data: rolePermissions } = useQuery({
@@ -64,46 +48,69 @@ export function DataConfigHubPage() {
   )
 
   const tiles = useMemo(() => {
-    return getVisibleDataConfigNavItemDefs(permissions, catalog).map(
-      (item) => ({
-        id: item.id,
-        to: item.to,
-        label: tCommon(item.labelKey),
-        icon: DATA_CONFIG_TILE_ICONS[item.id],
-      }),
-    )
-  }, [permissions, catalog, tCommon])
+    const items: Array<HubTile> = []
+
+    if (
+      canAccessAppScreenForSidebar(
+        permissions,
+        [...PROJECT_MANAGEMENT_SCREEN_REQUIREMENTS],
+        catalog,
+      )
+    ) {
+      items.push({
+        id: 'project-management',
+        to: '/app/project-management',
+        label: t('admin.projectManagement'),
+        icon: Briefcase,
+      })
+    }
+
+    if (
+      canAccessAppScreenForSidebar(
+        permissions,
+        [...DIGITIZATION_SCREEN_REQUIREMENTS],
+        catalog,
+      )
+    ) {
+      items.push({
+        id: 'digitization',
+        to: '/app/digitization',
+        label: t('admin.digitization'),
+        icon: FileStack,
+      })
+    }
+
+    return items
+  }, [permissions, catalog, t])
 
   if (tiles.length === 0) {
     return (
       <div className="rounded-lg border bg-card p-8 text-center text-sm text-muted-foreground">
-        {t('hub.noPermission')}
+        {t('accessDenied.description')}
       </div>
     )
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center px-6 pt-10 pb-16 sm:pt-14">
-      <div className="flex w-full max-w-5xl flex-col items-center gap-10 sm:gap-12">
+      <div className="flex w-full max-w-3xl flex-col items-center gap-10 sm:gap-12">
         <div className="w-full self-start">
           <IconHubBackLink
-            to="/app/system-admin"
-            parentLabel={tCommon('admin.groups.systemAdmin')}
-            backAriaLabel={tCommon('hubBack.aria', {
-              target: tCommon('admin.groups.systemAdmin'),
-            })}
+            to="/app/dashboard"
+            parentLabel={t('navigation.home')}
+            backAriaLabel={t('hubBack.aria', { target: t('navigation.home') })}
           />
         </div>
         <h1 className="text-2xl font-bold uppercase tracking-[0.06em] text-primary sm:text-[1.75rem]">
-          {tCommon('admin.dataConfig.title')}
+          {t('admin.groups.digitization')}
         </h1>
 
         <div
           className={cn(
             'grid w-full gap-8 sm:gap-10',
-            tiles.length <= 2
-              ? 'max-w-xl grid-cols-1 sm:grid-cols-2'
-              : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4',
+            tiles.length === 1
+              ? 'max-w-xs grid-cols-1'
+              : 'grid-cols-1 sm:grid-cols-2',
           )}
         >
           {tiles.map((tile) => {
@@ -121,7 +128,7 @@ export function DataConfigHubPage() {
                     aria-hidden
                   />
                 </span>
-                <span className="text-center text-base font-medium leading-snug text-foreground transition-colors group-hover:text-primary sm:text-lg">
+                <span className="text-center text-lg font-medium text-foreground transition-colors group-hover:text-primary sm:text-xl">
                   {tile.label}
                 </span>
               </Link>

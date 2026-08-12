@@ -32,6 +32,9 @@
   "breadcrumbs": {
     "home": "Home"
   },
+  "hubBack": {
+    "aria": "Back to {{target}}"
+  },
   "search": {
     "submit": "Search"
   },
@@ -122,6 +125,7 @@
     "kpi": "KPI Report",
     "auditLogs": "System activity log",
     "permissions": "Permission management",
+    "configuration": "Configuration",
     "groups": {
       "digitization": "Digitization",
       "systemAdmin": "System administration",

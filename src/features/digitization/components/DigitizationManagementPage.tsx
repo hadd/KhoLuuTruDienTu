@@ -8,6 +8,7 @@ import { useDataManagementHubAccess } from '@/features/digitization/hooks/useDat
 import { useDraftDossiersAccess } from '@/features/digitization/hooks/useDraftDossiersAccess'
 import { useScanIntakeAccess } from '@/features/digitization/hooks/useScanIntakeAccess'
 import { useOcrControlAccess } from '@/features/ocr-control/hooks/useOcrControlAccess'
+import { IconHubBackLink } from '@/features/navigation/components/SectionBackNav'
 import { cn } from '@/lib/utils/cn'
 
 type DigitizationTileTo =
@@ -18,6 +19,7 @@ type DigitizationTileTo =
 
 export function DigitizationManagementPage() {
   const { t } = useTranslation('digitization')
+  const { t: tCommon } = useTranslation('common')
   const { canUseScanIntake } = useScanIntakeAccess()
   const { canViewDataManagement } = useDataManagementHubAccess()
   const { canViewOcrControl } = useOcrControlAccess()
@@ -93,6 +95,15 @@ export function DigitizationManagementPage() {
               : 'max-w-3xl',
         )}
       >
+        <div className="w-full self-start">
+          <IconHubBackLink
+            to="/app/digitization-hub"
+            parentLabel={tCommon('admin.groups.digitization')}
+            backAriaLabel={tCommon('hubBack.aria', {
+              target: tCommon('admin.groups.digitization'),
+            })}
+          />
+        </div>
         <h1 className="text-2xl font-bold uppercase tracking-[0.06em] text-primary sm:text-[1.75rem]">
           {t('title')}
         </h1>

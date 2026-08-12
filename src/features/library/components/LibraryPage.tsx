@@ -8,6 +8,7 @@ import { MyArchiveBorrowRequestsPage } from '@/features/archive-borrow/component
 import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { LibraryPageShell } from '@/features/library/components/LibraryPageShell'
 import { useLibraryExploitationAccess } from '@/features/library/hooks/useLibraryExploitationAccess'
+import { IconHubBackLink } from '@/features/navigation/components/SectionBackNav'
 
 const routeApi = getRouteApi('/app/library/')
 
@@ -71,6 +72,15 @@ export function LibraryPage() {
       <LibraryPageShell hideTabs>
         <div className="flex min-h-0 flex-1 flex-col items-center px-6 pt-6 pb-16 sm:pt-10">
           <div className="flex w-full max-w-5xl flex-col items-center gap-8 sm:gap-10">
+            <div className="w-full self-start">
+              <IconHubBackLink
+                to="/app/dashboard"
+                parentLabel={tCommon('navigation.home')}
+                backAriaLabel={tCommon('hubBack.aria', {
+                  target: tCommon('navigation.home'),
+                })}
+              />
+            </div>
             <h1 className="text-2xl font-bold uppercase tracking-[0.06em] text-primary sm:text-[1.75rem]">
               {tCommon('admin.library')}
             </h1>

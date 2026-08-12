@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { usePlanAccess } from '@/features/plan-management/hooks/usePlanAccess'
 import { useGroupModuleAccess } from '@/features/project-management/hooks/useGroupModuleAccess'
 import { useProjectAccess } from '@/features/project-manager/hooks/useProjectAccess'
+import { IconHubBackLink } from '@/features/navigation/components/SectionBackNav'
 import { cn } from '@/lib/utils/cn'
 
 type ProjectTileTo =
@@ -16,6 +17,7 @@ type ProjectTileTo =
 
 export function ProjectManagementPage() {
   const { t } = useTranslation('project-management')
+  const { t: tCommon } = useTranslation('common')
   const { canViewProjects } = useProjectAccess()
   const { canViewProjectPlans } = usePlanAccess()
   const { canViewGroups } = useGroupModuleAccess()
@@ -72,6 +74,15 @@ export function ProjectManagementPage() {
           tiles.length <= 2 ? 'max-w-3xl' : 'max-w-5xl',
         )}
       >
+        <div className="w-full self-start">
+          <IconHubBackLink
+            to="/app/digitization-hub"
+            parentLabel={tCommon('admin.groups.digitization')}
+            backAriaLabel={tCommon('hubBack.aria', {
+              target: tCommon('admin.groups.digitization'),
+            })}
+          />
+        </div>
         <h1 className="text-2xl font-bold uppercase tracking-[0.06em] text-primary sm:text-[1.75rem]">
           {t('title')}
         </h1>
