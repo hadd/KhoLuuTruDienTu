@@ -94,18 +94,37 @@ function extractNestedMatches(hit: {
   return innerHits.map(mapInnerHit)
 }
 
-const FVH_INNER_HITS = {
-  size: 10,
-  highlight: {
-    fields: {
-      "fields.value": {
-        type: "fvh",
-        pre_tags: ["<mark>"],
-        post_tags: ["</mark>"],
+function buildFvhInnerHits(size = 10) {
+  return {
+    size: Math.min(Math.max(size, 1), 10),
+    highlight: {
+      fields: {
+        "fields.value": {
+          type: "fvh",
+          pre_tags: ["<mark>"],
+          post_tags: ["</mark>"],
+        },
       },
     },
-  },
-} as const
+  } as const
+}
+
+/** Keep nested matches that belong to the selected metadata search fields. */
+export function filterMatchesBySearchFields(
+  matches: SearchFieldMatch[],
+  searchFields?: string[],
+): SearchFieldMatch[] {
+  if (!searchFields?.length) return matches
+  const keys = new Set(searchFields)
+  return matches.filter((match) => {
+    const compoundKey = match.groupCode && match.name
+      ? `${match.groupCode}.${match.name}`
+      : match.name
+    return keys.has(match.name) || keys.has(compoundKey)
+  })
+}
+
+const FVH_INNER_HITS = buildFvhInnerHits()
 
 function buildDossierFieldsNestedClause(
   q: string,
@@ -176,7 +195,7 @@ function buildDossierFieldsNestedClauseWithFields(
     nested: {
       path: "fields",
       query: { bool: nestedBool },
-      inner_hits: FVH_INNER_HITS,
+      inner_hits: buildFvhInnerHits(searchFields.length || 10),
     },
   }
 }
@@ -288,11 +307,13 @@ function mapDossierSearchHit(
       }
     }>
   },
+  searchFields?: string[],
 ): SearchHit {
   const source = asRecord(hit._source)
   const highlight = hit.highlight as Record<string, string[]> | undefined
-  const matches = extractNestedMatches(
-    hit as Parameters<typeof extractNestedMatches>[0],
+  const matches = filterMatchesBySearchFields(
+    extractNestedMatches(hit as Parameters<typeof extractNestedMatches>[0]),
+    searchFields,
   )
   const snippet = matches[0]?.highlight ||
     pickFlatSnippet(highlight) ||
@@ -679,7 +700,7 @@ export async function searchDocuments(
 
   const hits: SearchHit[] = (response.hits.hits ?? []).map((hit) => {
     if (isDossierNestedSearch) {
-      return mapDossierSearchHit(hit)
+      return mapDossierSearchHit(hit, request.searchFields)
     }
     const source = asRecord(hit._source)
     const highlight = hit.highlight as Record<string, string[]> | undefined
@@ -810,7 +831,9 @@ export async function searchUnifiedDocuments(
     ],
   })
 
-  const hits: SearchHit[] = (response.hits.hits ?? []).map((hit) => mapDossierSearchHit(hit))
+  const hits: SearchHit[] = (response.hits.hits ?? []).map((hit) =>
+    mapDossierSearchHit(hit, request.searchFields)
+  )
 
   const total = typeof response.hits.total === "number" ? response.hits.total : response.hits.total?.value ?? 0
 

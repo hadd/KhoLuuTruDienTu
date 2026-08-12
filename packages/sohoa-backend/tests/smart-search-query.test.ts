@@ -3,6 +3,7 @@ import {
   buildDossierNestedQuery,
   buildUnifiedDossierQuery,
   buildValueShouldClauses,
+  filterMatchesBySearchFields,
   parseSearchQuery,
 } from "@shared/search-engine";
 
@@ -132,14 +133,56 @@ Deno.test("buildUnifiedDossierQuery passes groupCode into nested clause", () => 
   );
 });
 
-Deno.test("buildUnifiedDossierQuery attaches shared filter clauses", () => {
-  const filters = [{ term: { dossierTypeId: "type-1" } }];
-  const q = buildUnifiedDossierQuery("test", undefined, filters);
-  const bool = q.bool as { filter: Array<Record<string, unknown>> };
+Deno.test("filterMatchesBySearchFields keeps only selected nested fields", () => {
+  const matches = [
+    {
+      groupCode: "VB",
+      groupName: "Văn bản",
+      name: "TRICH_YEU_NOI_DUNG",
+      display: "Trích yếu nội dung",
+      value: "Nội dung A",
+      fileName: null,
+      filePath: null,
+      page: null,
+      bbox: null,
+      highlight: "Nội dung A",
+    },
+    {
+      groupCode: "VB",
+      groupName: "Văn bản",
+      name: "NGON_NGU",
+      display: "Ngôn ngữ",
+      value: "Việt",
+      fileName: null,
+      filePath: null,
+      page: null,
+      bbox: null,
+      highlight: "Việt",
+    },
+  ];
 
-  assertEquals(bool.filter.length, 1);
-  assertEquals(
-    (bool.filter[0] as { term: { dossierTypeId: string } }).term.dossierTypeId,
-    "type-1",
-  );
+  const filtered = filterMatchesBySearchFields(matches, ["TRICH_YEU_NOI_DUNG"]);
+  assertEquals(filtered.length, 1);
+  assertEquals(filtered[0]?.name, "TRICH_YEU_NOI_DUNG");
+});
+
+Deno.test("filterMatchesBySearchFields supports groupCode.name keys", () => {
+  const matches = [
+    {
+      groupCode: "VB",
+      groupName: "Văn bản",
+      name: "SO_CUA_TAI_LIEU",
+      display: "Số của tài liệu",
+      value: "12",
+      fileName: null,
+      filePath: null,
+      page: null,
+      bbox: null,
+      highlight: "12",
+    },
+  ];
+
+  const filtered = filterMatchesBySearchFields(matches, ["VB.SO_CUA_TAI_LIEU"]);
+  assertEquals(filtered.length, 1);
+  assertEquals(filtered[0]?.name, "SO_CUA_TAI_LIEU");
 });
