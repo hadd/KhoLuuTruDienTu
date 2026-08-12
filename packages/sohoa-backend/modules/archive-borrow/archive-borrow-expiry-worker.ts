@@ -23,6 +23,15 @@ export function startArchiveBorrowExpiryWorker(intervalMs: number): void {
 
     const run = async () => {
         try {
+            const rejectResult =
+                await ArchiveBorrowService.rejectExpiredPendingRequests();
+            if (rejectResult.rejectedCount > 0) {
+                logApi.info(
+                    { result: rejectResult },
+                    "[ArchiveBorrowExpiry] Auto-rejected expired pending borrow requests",
+                );
+            }
+
             const result = await ArchiveBorrowService.expireDueRequests();
             if (result.expiredCount > 0) {
                 logApi.info(

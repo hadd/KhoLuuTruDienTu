@@ -244,25 +244,28 @@ export function createFolderRouter(basePath: string = "/folders") {
           body.folderIds,
         );
       const meta = clientMetaFromRequest(request);
-      const { stream, filename, contentType, zipPasswordSource } = await withDownloadLog(
-        {
-          userId: profile.id,
-          exportType: "metadata",
-          scope: "batch",
-          resourceIds: { folderIds: body.folderIds },
-          applyWatermark,
-          placementId: body.placementId,
-          ...meta,
-        },
-        () =>
-          dossierService.exportApprovedMetadataByFolders(body.folderIds, {
-            ...body,
-            applyWatermark,
+      const { stream, filename, contentType, zipPasswordSource } =
+        await withDownloadLog(
+          {
             userId: profile.id,
-            skippedFileIds,
-          }),
-      );
-      return zipStreamResponse(stream, filename, contentType, { zipPasswordSource });
+            exportType: "metadata",
+            scope: "batch",
+            resourceIds: { folderIds: body.folderIds },
+            applyWatermark,
+            placementId: body.placementId,
+            ...meta,
+          },
+          () =>
+            dossierService.exportApprovedMetadataByFolders(body.folderIds, {
+              ...body,
+              applyWatermark,
+              userId: profile.id,
+              skippedFileIds,
+            }),
+        );
+      return zipStreamResponse(stream, filename, contentType, {
+        zipPasswordSource,
+      });
     },
     {
       body: multiFolderMetadataExportBodySchema,
@@ -335,25 +338,28 @@ export function createFolderRouter(basePath: string = "/folders") {
       const { applyWatermark, skippedFileIds } =
         await assertSecurityDownloadForFolders(profile, request, [params.id]);
       const meta = clientMetaFromRequest(request);
-      const { stream, filename, contentType, zipPasswordSource } = await withDownloadLog(
-        {
-          userId: profile.id,
-          exportType: "metadata",
-          scope: "folder",
-          resourceIds: { folderIds: [params.id] },
-          applyWatermark,
-          placementId: body.placementId,
-          ...meta,
-        },
-        () =>
-          dossierService.exportApprovedMetadataByFolder(params.id, {
-            ...body,
-            applyWatermark,
+      const { stream, filename, contentType, zipPasswordSource } =
+        await withDownloadLog(
+          {
             userId: profile.id,
-            skippedFileIds,
-          }),
-      );
-      return zipStreamResponse(stream, filename, contentType, { zipPasswordSource });
+            exportType: "metadata",
+            scope: "folder",
+            resourceIds: { folderIds: [params.id] },
+            applyWatermark,
+            placementId: body.placementId,
+            ...meta,
+          },
+          () =>
+            dossierService.exportApprovedMetadataByFolder(params.id, {
+              ...body,
+              applyWatermark,
+              userId: profile.id,
+              skippedFileIds,
+            }),
+        );
+      return zipStreamResponse(stream, filename, contentType, {
+        zipPasswordSource,
+      });
     },
     {
       params: t.Object({ id: IdParam("Folder ID") }),
@@ -372,26 +378,29 @@ export function createFolderRouter(basePath: string = "/folders") {
       const { applyWatermark, skippedFileIds } =
         await assertSecurityDownloadForFolders(profile, request, [params.id]);
       const meta = clientMetaFromRequest(request);
-      const { stream, filename, contentType, zipPasswordSource } = await withDownloadLog(
-        {
-          userId: profile.id,
-          exportType: "metadata",
-          scope: "folder",
-          resourceIds: { folderIds: [params.id] },
-          applyWatermark,
-          placementId: query.placementId,
-          ...meta,
-        },
-        () =>
-          dossierService.exportApprovedMetadataByFolder(params.id, {
-            placementId: query.placementId,
-            applyWatermark,
+      const { stream, filename, contentType, zipPasswordSource } =
+        await withDownloadLog(
+          {
             userId: profile.id,
-            dossierAccessPassword: query.dossierAccessPassword,
-            skippedFileIds,
-          }),
-      );
-      return zipStreamResponse(stream, filename, contentType, { zipPasswordSource });
+            exportType: "metadata",
+            scope: "folder",
+            resourceIds: { folderIds: [params.id] },
+            applyWatermark,
+            placementId: query.placementId,
+            ...meta,
+          },
+          () =>
+            dossierService.exportApprovedMetadataByFolder(params.id, {
+              placementId: query.placementId,
+              applyWatermark,
+              userId: profile.id,
+              dossierAccessPassword: query.dossierAccessPassword,
+              skippedFileIds,
+            }),
+        );
+      return zipStreamResponse(stream, filename, contentType, {
+        zipPasswordSource,
+      });
     },
     {
       params: t.Object({ id: IdParam("Folder ID") }),

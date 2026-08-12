@@ -325,6 +325,7 @@ export const ItemService = {
                 name: physicalWarehouseItems.name,
                 parentId: physicalWarehouseItems.parentId,
                 capacity: physicalWarehouseItems.capacity,
+                isBottomLevel: physicalWarehouseItems.isBottomLevel,
             })
             .from(physicalWarehouseItems);
         const byId = new Map(allItems.map((item) => [item.id, item]));
