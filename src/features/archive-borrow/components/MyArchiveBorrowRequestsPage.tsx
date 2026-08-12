@@ -14,6 +14,7 @@ import {
   myArchiveBorrowRequestsQueryOptions,
   regenerateArchiveBorrowDipMutationOptions,
 } from '@/features/archive-borrow/queries'
+import { formatBorrowItemLabel } from '@/features/archive-borrow/lib/formatBorrowItemLabel'
 import type { ArchiveBorrowRequestT } from '@/features/archive-borrow/types'
 import { LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { translateError } from '@/lib/utils/translate-error'
@@ -94,9 +95,23 @@ function RequestRow({
 
   return (
     <tr className="border-b align-top">
-      <td className="px-3 py-2 text-sm">{request.reason}</td>
+      <td className="max-w-[16rem] px-3 py-2 text-sm">
+        <span className="line-clamp-2 break-words" title={request.reason}>
+          {request.reason}
+        </span>
+      </td>
       <td className="px-3 py-2 text-sm">
-        {t(`status.${request.status}` as const)}
+        <div className="space-y-1">
+          <span>{t(`status.${request.status}` as const)}</span>
+          {request.status === 'REJECTED' && request.reviewNotes ? (
+            <p
+              className="max-w-xs text-xs leading-snug text-destructive break-words"
+              title={request.reviewNotes}
+            >
+              {t('page.rejectNotes')}: {request.reviewNotes}
+            </p>
+          ) : null}
+        </div>
       </td>
       <td className="px-3 py-2 text-sm">
         <div className="space-y-1">
@@ -115,8 +130,25 @@ function RequestRow({
           ) : null}
         </div>
       </td>
-      <td className="px-3 py-2 text-sm">{formatTimeWindow(request)}</td>
-      <td className="px-3 py-2 text-sm">{request.items.length}</td>
+      <td className="whitespace-nowrap px-3 py-2 text-sm">
+        {formatTimeWindow(request)}
+      </td>
+      <td className="max-w-[22rem] px-3 py-2 text-sm">
+        {request.items.length === 0 ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <ul
+            className="space-y-0.5"
+            title={request.items.map(formatBorrowItemLabel).join('\n')}
+          >
+            {request.items.map((item) => (
+              <li key={item.id} className="truncate">
+                {formatBorrowItemLabel(item)}
+              </li>
+            ))}
+          </ul>
+        )}
+      </td>
       <td className="px-3 py-2 text-sm">
         <div className="flex flex-wrap gap-2">
           {canActivate ? (
@@ -191,8 +223,8 @@ export function MyArchiveBorrowRequestsPage({
   const showInitialLoading = isLoading && !data
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-1">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
         <ListPageSearchInput
           value={inputValue}
           onChange={setInputValue}
@@ -214,16 +246,16 @@ export function MyArchiveBorrowRequestsPage({
         <p className="text-sm text-muted-foreground">{t('page.emptyMine')}</p>
       ) : (
         <div
-          className={`overflow-x-auto rounded-md border ${isFetching ? 'opacity-60' : ''}`}
+          className={`min-h-0 flex-1 overflow-auto rounded-md border bg-card ${isFetching ? 'opacity-60' : ''}`}
         >
-          <table className="min-w-full text-left">
-            <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+          <table className="min-w-full border-separate border-spacing-0 text-left">
+            <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground [&_th]:sticky [&_th]:top-0 [&_th]:z-20 [&_th]:bg-muted">
               <tr>
                 <th className="px-3 py-2">{t('page.reason')}</th>
                 <th className="px-3 py-2">{t('page.status')}</th>
                 <th className="px-3 py-2">{t('page.dipStatus')}</th>
                 <th className="px-3 py-2">{t('page.timeWindow')}</th>
-                <th className="px-3 py-2">{t('page.items')}</th>
+                <th className="px-3 py-2">{t('page.borrowItems')}</th>
                 <th className="px-3 py-2">{t('page.actions')}</th>
               </tr>
             </thead>
@@ -246,17 +278,19 @@ export function MyArchiveBorrowRequestsPage({
       )}
 
       {total > 0 ? (
-        <ListPagePagination
-          page={page}
-          totalPages={totalPages}
-          limit={limit}
-          pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
-          onPageChange={setPage}
-          onLimitChange={(nextLimit) => {
-            setLimit(nextLimit)
-            setPage(1)
-          }}
-        />
+        <div className="shrink-0">
+          <ListPagePagination
+            page={page}
+            totalPages={totalPages}
+            limit={limit}
+            pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
+            onPageChange={setPage}
+            onLimitChange={(nextLimit) => {
+              setLimit(nextLimit)
+              setPage(1)
+            }}
+          />
+        </div>
       ) : null}
 
       <ArchiveBorrowCreateDialog open={createOpen} onOpenChange={setCreateOpen} />

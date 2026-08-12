@@ -40,7 +40,13 @@
   },
   "actions": {
     "addNew": "Add new",
-    "toggleSidebar": "Toggle sidebar"
+    "toggleSidebar": "Toggle sidebar",
+    "collapseSidebar": "Collapse menu",
+    "expandSidebar": "Expand menu"
+  },
+  "tabs": {
+    "scrollLeft": "Scroll left",
+    "scrollRight": "Scroll right"
   },
   "language": {
     "label": "Language",
@@ -116,7 +122,7 @@
       "securityLevel": "Security level",
       "documentType": "Document type"
     },
-    "library": "Library",
+    "library": "Data exploitation",
     "digitization": "Dossier & document digitization",
     "dataManagement": "Data Management ",
     "dossierManagement": "Temporary dossiers",

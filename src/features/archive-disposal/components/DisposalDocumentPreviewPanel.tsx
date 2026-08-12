@@ -121,8 +121,13 @@ export function DisposalDocumentPreviewPanel({
           fileId: lockedFile.id,
           password,
         })
-        setFileAccessToken(lockedFile.id, result.token, result.expiresIn)
-        rememberDossierUnlockedFile(target.dossierId, lockedFile.id)
+        setFileAccessToken(
+          'warehouse',
+          lockedFile.id,
+          result.token,
+          result.expiresIn,
+        )
+        rememberDossierUnlockedFile('warehouse', target.dossierId, lockedFile.id)
       } else {
         if (!lockedFile.requiredSecurityLevelId) {
           throw new Error(tSecurity('access.unlockFailed'))
@@ -132,11 +137,13 @@ export function DisposalDocumentPreviewPanel({
           password,
         })
         setSecurityLevelAccessToken(
+          'warehouse',
           lockedFile.requiredSecurityLevelId,
           result.token,
           result.expiresIn,
         )
         rememberDossierUnlockedSecurityLevel(
+          'warehouse',
           target.dossierId,
           lockedFile.requiredSecurityLevelId,
         )

@@ -21,10 +21,7 @@ export const Route = createFileRoute('/app/data-config/watermark-configs')({
     return {}
   },
   staticData: {
-    crumb: () =>
-      i18n.t('pageTitles.watermarkConfigs', {
-        ns: 'watermark-config',
-      }),
+    crumb: () => i18n.t('tiles.watermarkConfigs', { ns: 'data-config' }),
   },
   head: () => ({
     meta: [

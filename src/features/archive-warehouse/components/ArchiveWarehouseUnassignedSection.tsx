@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
+  stickyTableHeaderClassName,
   Table,
   TableBody,
   TableCell,
@@ -156,7 +157,7 @@ export function ArchiveWarehouseUnassignedSection({
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-3">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
       {showPickerSelection || showDownload ? (
         <div className="flex flex-wrap items-center justify-end gap-2">
           {hasSelection ? (
@@ -202,11 +203,14 @@ export function ArchiveWarehouseUnassignedSection({
         </div>
       ) : null}
 
-      <Card variant="list" className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table className="w-full min-w-[720px]">
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
+      <Card variant="list" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <Table
+            className="w-full min-w-[720px] border-separate border-spacing-0"
+            containerClassName="h-full min-h-0 overflow-auto"
+          >
+            <TableHeader className={stickyTableHeaderClassName}>
+              <TableRow className="hover:bg-muted">
                 {showRowSelection ? (
                   <TableHead className="w-10">
                     <Checkbox
@@ -295,14 +299,16 @@ export function ArchiveWarehouseUnassignedSection({
       </Card>
 
       {onPageChange && onLimitChange ? (
-        <ListPagePagination
-          page={page}
-          totalPages={totalPages}
-          limit={limit}
-          pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
-          onPageChange={onPageChange}
-          onLimitChange={onLimitChange}
-        />
+        <div className="shrink-0">
+          <ListPagePagination
+            page={page}
+            totalPages={totalPages}
+            limit={limit}
+            pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
+            onPageChange={onPageChange}
+            onLimitChange={onLimitChange}
+          />
+        </div>
       ) : null}
 
       {isFetching && !isPending ? (

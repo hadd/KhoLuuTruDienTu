@@ -158,7 +158,7 @@ export function ArchiveWarehouseSecurityDialog({
 
       if ('files' in data) {
         for (const file of data.files) {
-          clearFileAccessToken(file.id)
+          clearFileAccessToken('warehouse', file.id)
         }
 
         queryClient.setQueryData(detailKey, (old: unknown) => {
@@ -193,7 +193,7 @@ export function ArchiveWarehouseSecurityDialog({
           void queryClient.invalidateQueries({ queryKey: detailKey })
         }
       } else if ('dossier' in data) {
-        clearDossierAccessSession(dossierId)
+        clearDossierAccessSession('warehouse', dossierId)
         const dossierResult = data.dossier
         const needsGate = dossierResult.passwordSource !== 'none'
         queryClient.setQueryData(detailKey, (old: unknown) => {

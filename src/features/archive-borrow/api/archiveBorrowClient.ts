@@ -6,6 +6,7 @@ import type {
   ArchiveBorrowDossierMetadataT,
   ArchiveBorrowEligibleDossierT,
   ArchiveBorrowMineListParamsT,
+  ArchiveBorrowReviewListParamsT,
   ArchiveBorrowReadingProgressT,
   ArchiveBorrowReadingSummaryT,
   ArchiveBorrowRequestListT,
@@ -56,6 +57,21 @@ export async function getMyArchiveBorrowRequests(
 export async function getArchiveBorrowReadingSummary(): Promise<ArchiveBorrowReadingSummaryT> {
   const response = await apiClient.get<ArchiveBorrowReadingSummaryT>(
     '/api/v1/archive-borrow-requests/mine/reading-summary',
+  )
+  return response.data
+}
+
+export async function getReviewArchiveBorrowRequests(
+  params?: ArchiveBorrowReviewListParamsT,
+): Promise<ArchiveBorrowRequestListT> {
+  const search = new URLSearchParams()
+  if (params?.page != null) search.set('page', String(params.page))
+  if (params?.limit != null) search.set('limit', String(params.limit))
+  if (params?.search) search.set('search', params.search)
+  if (params?.status) search.set('status', params.status)
+  const qs = search.toString()
+  const response = await apiClient.get<ArchiveBorrowRequestListT>(
+    `/api/v1/archive-borrow-requests/review${qs ? `?${qs}` : ''}`,
   )
   return response.data
 }

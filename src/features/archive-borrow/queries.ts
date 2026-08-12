@@ -14,6 +14,7 @@ import {
   getArchiveBorrowViewModel,
   getMyArchiveBorrowRequests,
   getPendingArchiveBorrowRequests,
+  getReviewArchiveBorrowRequests,
   regenerateArchiveBorrowDip,
   rejectArchiveBorrowRequest,
   searchArchiveBorrowEligibleDossiers,
@@ -23,6 +24,7 @@ import {
 import type {
   ApproveArchiveBorrowInputT,
   ArchiveBorrowMineListParamsT,
+  ArchiveBorrowReviewListParamsT,
   CreateArchiveBorrowAnnotationInputT,
   CreateArchiveBorrowInputT,
   UpdateArchiveBorrowAnnotationInputT,
@@ -35,6 +37,8 @@ export const archiveBorrowKeys = {
   readingSummary: () =>
     [...archiveBorrowKeys.all, 'reading-summary'] as const,
   pending: () => [...archiveBorrowKeys.all, 'pending'] as const,
+  review: (params?: ArchiveBorrowReviewListParamsT) =>
+    [...archiveBorrowKeys.all, 'review', params ?? {}] as const,
   detail: (id: string) => [...archiveBorrowKeys.all, 'detail', id] as const,
   viewModel: (id: string) =>
     [...archiveBorrowKeys.all, 'view-model', id] as const,
@@ -68,6 +72,15 @@ export function pendingArchiveBorrowRequestsQueryOptions() {
   return queryOptions({
     queryKey: archiveBorrowKeys.pending(),
     queryFn: () => getPendingArchiveBorrowRequests(),
+  })
+}
+
+export function reviewArchiveBorrowRequestsQueryOptions(
+  params: ArchiveBorrowReviewListParamsT = {},
+) {
+  return queryOptions({
+    queryKey: archiveBorrowKeys.review(params),
+    queryFn: () => getReviewArchiveBorrowRequests(params),
   })
 }
 

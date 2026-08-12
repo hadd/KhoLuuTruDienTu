@@ -58,7 +58,7 @@ export type GetArchiveWarehouseDossiersParamsT = {
   page?: number
   limit?: number
   search?: string
-  fondId: string
+  fondId?: string
   year?: number
   status?: WarehouseDossierStatusT
 }

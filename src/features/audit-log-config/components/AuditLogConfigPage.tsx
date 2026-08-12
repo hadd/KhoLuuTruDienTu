@@ -13,8 +13,6 @@ import {
   auditLogConfigQueryOptions,
   useUpdateAuditLogConfigToggles,
 } from '@/features/audit-log-config/queries'
-import { formatDate } from '@/lib/utils/date'
-import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 
 const routeApi = getRouteApi('/app/data-config/audit-log-config')
 
@@ -22,7 +20,6 @@ export function AuditLogConfigPage() {
   const { t } = useTranslation('audit-log-config')
   const search = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
-  const language = useCurrentLanguage()
   const { canConfig } = useAuditLogConfigAccess()
   const { data, isLoading } = useQuery(auditLogConfigQueryOptions())
   const toggleMutation = useUpdateAuditLogConfigToggles()
@@ -51,22 +48,7 @@ export function AuditLogConfigPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('description')}</p>
-        {data?.settings ? (
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t('settings.retentionInfo', { days: data.settings.retentionDays })}
-            {data.settings.lastPurgeAt
-              ? ` · ${t('settings.lastPurgeAt', {
-                  date: formatDate(data.settings.lastPurgeAt, 'PP pp', language),
-                })}`
-              : null}
-          </p>
-        ) : null}
-      </div>
-
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <DataConfigSectionTabs active="audit-log-config" />
 
       {isLoading ? (

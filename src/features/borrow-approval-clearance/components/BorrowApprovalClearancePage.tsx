@@ -19,7 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { DataConfigBackNav } from '@/features/data-config/components/DataConfigBackNav'
 import { DataConfigSectionTabs } from '@/features/data-config/components/DataConfigSectionTabs'
 import {
   borrowApprovalClearanceQueryOptions,
@@ -170,11 +169,7 @@ export function BorrowApprovalClearancePage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-6">
-      <DataConfigBackNav
-        currentLabel={t('title')}
-        description={t('description')}
-      />
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <DataConfigSectionTabs active="borrow-approval-clearance" />
 
       <div className="flex flex-wrap items-center justify-between gap-2">

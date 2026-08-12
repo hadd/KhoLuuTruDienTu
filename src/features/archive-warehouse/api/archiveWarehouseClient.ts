@@ -92,7 +92,9 @@ export async function getArchiveWarehouseDossiers(
     limit: params.limit ?? 20,
     search: params.search,
   })
-  searchParams.set('fondId', params.fondId)
+  if (params.fondId) {
+    searchParams.set('fondId', params.fondId)
+  }
   if (params.year != null) {
     searchParams.set('year', String(params.year))
   }
@@ -209,6 +211,7 @@ export async function getArchiveWarehouseDossierDetail(
     `/api/v1/archive-warehouse/dossiers/${dossierId}`,
     {
       dossierId,
+      securityAccessModule: 'warehouse',
       _skipGlobalErrorToast: true,
     },
   )
@@ -512,7 +515,11 @@ export async function getArchiveWarehouseFileContent(
     url: string
   }>(
     `/api/v1/archive-warehouse/dossiers/${dossierId}/files/${fileId}/content${qs ? `?${qs}` : ''}`,
-    { dossierId, _skipGlobalErrorToast: true },
+    {
+      dossierId,
+      securityAccessModule: 'warehouse',
+      _skipGlobalErrorToast: true,
+    },
   )
   return response.data
 }

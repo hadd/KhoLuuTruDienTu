@@ -31,7 +31,7 @@
     "roles": "Role management",
     "scan-intake": "Document Scanning",
     "users": "User management",
-    "library": "Library"
+    "library": "Data exploitation"
   },
   "matrix": {
     "columns": {

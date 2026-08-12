@@ -49,6 +49,7 @@ export type AppScreenTo =
   | '/app/data-config/notification-configs'
   | '/app/data-config/watermark-configs'
   | '/app/data-config/document-naming'
+  | '/app/data-config/metadata-extract-settings'
   | '/app/data-config/audit-log-config'
   | '/app/data-config/borrow-approval-clearance'
   | '/app/system-admin'

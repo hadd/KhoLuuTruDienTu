@@ -153,7 +153,8 @@ export function archiveWarehouseDossiersQueryOptions(
     queryKey: [...archiveWarehouseDossiersQueryKeyPrefix, params ?? {}],
     queryFn: () => getArchiveWarehouseDossiers(params!),
     enabled:
-      Boolean(params?.fondId) && !isUnassignedWarehouseFondId(params?.fondId),
+      params != null &&
+      (!params.fondId || !isUnassignedWarehouseFondId(params.fondId)),
   })
 }
 
@@ -218,7 +219,8 @@ export function archiveWarehouseDossierDetailQueryOptions(
     queryFn: () =>
       getArchiveWarehouseDossierDetail(dossierId!, {
         securityLevelId:
-          getRememberedDossierSecurityLevel(dossierId!) ?? securityLevelId,
+          getRememberedDossierSecurityLevel('warehouse', dossierId!) ??
+          securityLevelId,
       }),
     enabled: Boolean(dossierId),
     retry: false,

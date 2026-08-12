@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, useRouter, useRouterState } from '@tanstack/react-router'
 import { FileText, FolderOpen, Loader2 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -11,7 +11,6 @@ import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DossierPhysicalLocationSection } from '@/features/archive-submission/components/DossierPhysicalLocationSection'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
-import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
 import { ArchiveWarehouseExportDialog } from '@/features/archive-warehouse/components/ArchiveWarehouseExportDialog'
 import {
   ArchiveWarehouseFileViewer,
@@ -25,18 +24,12 @@ import {
   canManageArchiveWarehousePhysical,
   canReuploadArchiveWarehouse,
 } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
-import { buildSimplifiedBrowseBreadcrumbSegments } from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
 import { formatArchiveFieldDisplay } from '@/features/archive-warehouse/lib/formatArchiveFieldDisplay'
-import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
-  archiveWarehouseDocumentTypesQueryOptions,
   archiveWarehouseDossierDetailQueryOptions,
-  archiveWarehouseDossierTypesQueryOptions,
 } from '@/features/archive-warehouse/queries'
 import {
-  libraryExploitationDocumentTypesQueryOptions,
   libraryExploitationDossierDetailQueryOptions,
-  libraryExploitationDossierTypesQueryOptions,
 } from '@/features/library/api/exploitation-queries'
 import { LibraryPageShell } from '@/features/library/components/LibraryPageShell'
 import {
@@ -49,11 +42,11 @@ import { verifyDossierAccess } from '@/features/security-level/api/securityLevel
 import { SecurityAccessPasswordDialog } from '@/features/security-level/components/SecurityAccessPasswordDialog'
 import { getPasswordRequiredFromError } from '@/features/security-level/lib/passwordRequired'
 import {
-  clearDossierAccessSession,
   getDossierAccessToken,
   getRememberedDossierSecurityLevel,
   rememberDossierSecurityLevel,
   setDossierAccessToken,
+  type SecurityAccessModule,
 } from '@/features/security-level/lib/securityAccessTokenStore'
 import { activeSecurityLevelsQueryOptions } from '@/features/security-level/queries'
 import { warehouseSubTabsTriggerClassName } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
@@ -102,20 +95,29 @@ export function ArchiveWarehouseDossierDetailPage({
 }: ArchiveWarehouseDossierDetailPageProps = {}) {
   const activeRouteApi = propRouteApi ?? defaultRouteApi
   const isExploitation = browseMode === 'exploitation'
+  const accessModule: SecurityAccessModule = isExploitation
+    ? 'exploitation'
+    : 'warehouse'
   const { t, i18n } = useTranslation('archive-warehouse')
   const { t: tSecurity } = useTranslation('security-level')
   const queryClient = useQueryClient()
   const { fondId, dossierId } = activeRouteApi.useParams()
-  const isUnassigned = isUnassignedWarehouseFondId(fondId)
   const search = activeRouteApi.useSearch()
   const navigate = activeRouteApi.useNavigate()
   const router = useRouter()
-  const fromLibraryExploitationList = useRouterState({
-    select: (s) =>
-      Boolean(
-        (s.location.state as { fromLibraryExploitationList?: boolean } | undefined)
-          ?.fromLibraryExploitationList,
-      ),
+  const fromListPage = useRouterState({
+    select: (s) => {
+      const state = s.location.state as
+        | {
+            fromLibraryExploitationList?: boolean
+            fromArchiveWarehouseList?: boolean
+          }
+        | undefined
+      return {
+        fromLibraryExploitationList: Boolean(state?.fromLibraryExploitationList),
+        fromArchiveWarehouseList: Boolean(state?.fromArchiveWarehouseList),
+      }
+    },
   })
   const fileId = search.fileId ?? null
   const preferredFileName = search.fileName ?? null
@@ -127,13 +129,10 @@ export function ArchiveWarehouseDossierDetailPage({
   )
   const [accessSecurityLevelId, setAccessSecurityLevelId] = useState<
     string | null
-  >(() => getRememberedDossierSecurityLevel(dossierId) ?? null)
+  >(() => getRememberedDossierSecurityLevel(accessModule, dossierId) ?? null)
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [securityDialogOpen, setSecurityDialogOpen] = useState(false)
-  const pendingCleanupTimersRef = useRef(
-    new Map<string, ReturnType<typeof setTimeout>>(),
-  )
 
   const { data: profile } = useQuery(profileQueryOptions)
   const roleId = getCurrentUserRoleId(profile)
@@ -172,16 +171,6 @@ export function ArchiveWarehouseDossierDetailPage({
     (canReuploadArchiveWarehouse(permissions) ||
       canDeleteArchiveWarehouse(permissions) ||
       canEditArchiveWarehouse(permissions))
-  const { data: dossierTypesData } = useQuery(
-    isExploitation
-      ? libraryExploitationDossierTypesQueryOptions()
-      : archiveWarehouseDossierTypesQueryOptions(),
-  )
-  const { data: documentTypesData } = useQuery(
-    isExploitation
-      ? libraryExploitationDocumentTypesQueryOptions()
-      : archiveWarehouseDocumentTypesQueryOptions(),
-  )
   const { data: securityLevelsData } = useQuery(
     activeSecurityLevelsQueryOptions(),
   )
@@ -206,43 +195,29 @@ export function ArchiveWarehouseDossierDetailPage({
   )
 
   useEffect(() => {
-    setAccessSecurityLevelId(getRememberedDossierSecurityLevel(dossierId) ?? null)
+    setAccessSecurityLevelId(
+      getRememberedDossierSecurityLevel(accessModule, dossierId) ?? null,
+    )
     setPasswordDialogOpen(false)
-  }, [dossierId])
-
-  useEffect(() => {
-    const pendingTimers = pendingCleanupTimersRef.current
-    const existingTimer = pendingTimers.get(dossierId)
-    if (existingTimer != null) {
-      clearTimeout(existingTimer)
-      pendingTimers.delete(dossierId)
-    }
-
-    return () => {
-      const timer = setTimeout(() => {
-        pendingTimers.delete(dossierId)
-        clearDossierAccessSession(dossierId)
-        queryClient.removeQueries({
-          queryKey: ['archive-warehouse', 'dossier-detail', dossierId],
-        })
-      }, 0)
-      pendingTimers.set(dossierId, timer)
-    }
-  }, [dossierId, queryClient])
+  }, [accessModule, dossierId])
 
   useEffect(() => {
     if (!data?.dossier) return
-    rememberDossierSecurityLevel(dossierId, data.dossier.securityLevelId)
+    rememberDossierSecurityLevel(
+      accessModule,
+      dossierId,
+      data.dossier.securityLevelId,
+    )
     if (data.dossier.securityLevelId) {
       setAccessSecurityLevelId(data.dossier.securityLevelId)
     }
-  }, [data?.dossier, dossierId])
+  }, [accessModule, data?.dossier, dossierId])
 
   useEffect(() => {
     if (!passwordRequired || passwordRequired.scope !== 'dossier') return
-    if (getDossierAccessToken(dossierId)) return
+    if (getDossierAccessToken(accessModule, dossierId)) return
     setPasswordDialogOpen(true)
-  }, [dossierId, passwordRequired])
+  }, [accessModule, dossierId, passwordRequired])
 
   const unlockMutation = useMutation({
     mutationFn: async (password: string) => {
@@ -252,15 +227,22 @@ export function ArchiveWarehouseDossierDetailPage({
       })
     },
     onSuccess: async (result) => {
-      setDossierAccessToken(dossierId, result.token, result.expiresIn)
+      setDossierAccessToken(
+        accessModule,
+        dossierId,
+        result.token,
+        result.expiresIn,
+      )
       setPasswordDialogOpen(false)
       toast.success(tSecurity('access.unlockSuccess'))
       try {
         await queryClient.fetchQuery(
-          archiveWarehouseDossierDetailQueryOptions(
-            dossierId,
-            accessSecurityLevelId,
-          ),
+          isExploitation
+            ? libraryExploitationDossierDetailQueryOptions(dossierId)
+            : archiveWarehouseDossierDetailQueryOptions(
+                dossierId,
+                accessSecurityLevelId,
+              ),
         )
       } catch (err) {
         toast.error(translateError(err) || tSecurity('access.unlockFailed'))
@@ -270,36 +252,6 @@ export function ArchiveWarehouseDossierDetailPage({
       toast.error(translateError(err) || tSecurity('access.unlockFailed'))
     },
   })
-
-  const listLabel = useMemo(() => {
-    if (search.browseView === 'dossierTypes' && search.dossierTypeId) {
-      const typeName =
-        dossierTypesData?.items.find((item) => item.id === search.dossierTypeId)
-          ?.name ?? search.dossierTypeId
-      return t('page.dossierTypeDossiersTitle', { name: typeName })
-    }
-    if (search.browseView === 'documentTypes' && search.documentTypeId) {
-      const typeName =
-        documentTypesData?.items.find(
-          (item) => item.id === search.documentTypeId,
-        )?.name ?? search.documentTypeId
-      return t('page.documentTypeDocumentsTitle', { name: typeName })
-    }
-    if (isUnassigned) {
-      return t('page.unassignedDossiersTitle')
-    }
-    return data?.dossier.fondName ?? fondId
-  }, [
-    data?.dossier.fondName,
-    documentTypesData?.items,
-    dossierTypesData?.items,
-    fondId,
-    isUnassigned,
-    search.browseView,
-    search.documentTypeId,
-    search.dossierTypeId,
-    t,
-  ])
 
   function navigateAfterDossierLeftWarehouse() {
     if (isExploitation) {
@@ -319,7 +271,7 @@ export function ArchiveWarehouseDossierDetailPage({
       }
       // Prefer history.back so cleared/applied list filters are restored.
       // Do not go via /$fondId — that redirect always re-applies searchFondId.
-      if (fromLibraryExploitationList) {
+      if (fromListPage.fromLibraryExploitationList) {
         router.history.back()
         return
       }
@@ -343,27 +295,15 @@ export function ArchiveWarehouseDossierDetailPage({
       })
       return
     }
-    if (isUnassigned) {
-      void navigate({
-        to: '/app/archive-warehouse',
-        search: { tab: 'dossiers', browseView: 'unassigned' },
-      })
+    if (fromListPage.fromArchiveWarehouseList) {
+      router.history.back()
       return
     }
     void navigate({
-      to: '/app/archive-dossiers/$fondId',
-      params: { fondId },
+      to: '/app/archive-warehouse',
+      search: { tab: 'dossiers' },
     })
   }
-
-  const breadcrumbSegments = useMemo(() => {
-    if (!data?.dossier.name) return []
-    return buildSimplifiedBrowseBreadcrumbSegments({
-      listLabel,
-      dossierName: data.dossier.name,
-      onNavigateList: navigateAfterDossierLeftWarehouse,
-    })
-  }, [data?.dossier.name, listLabel, navigateAfterDossierLeftWarehouse])
 
   const sortedFields = useMemo(() => {
     const fields = data?.archiveSubmission?.fieldConfigSnapshot?.fields ?? []
@@ -382,16 +322,6 @@ export function ArchiveWarehouseDossierDetailPage({
 
   const pageContent = (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
-        <ArchiveWarehouseDrillDownHeader
-          segments={
-            breadcrumbSegments.length > 0
-              ? breadcrumbSegments
-              : [{ label: data?.dossier.name ?? t('detail.loading') }]
-          }
-          onBack={navigateBackToDossierList}
-          backAriaLabel={t('detail.backToList')}
-        />
-
         {isPending ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="size-8 animate-spin text-muted-foreground" />
@@ -417,6 +347,7 @@ export function ArchiveWarehouseDossierDetailPage({
             isExploitation={isExploitation}
             fondId={data.dossier.fondId ?? fondId}
             files={visibleFiles}
+            currentMetadataUrl={data.currentMetadataUrl}
             selectedFileId={fileId}
             preferredFileName={preferredFileName}
             highlightPage={highlightPage}
@@ -435,6 +366,7 @@ export function ArchiveWarehouseDossierDetailPage({
             downloadDisabled={downloadDisabled}
             onDownload={() => setExportDialogOpen(true)}
             canConfigureSecurity={canConfigureSecurity}
+            metadataViewAccess={data.metadataViewAccess ?? {}}
             onDossierLeftWarehouse={navigateAfterDossierLeftWarehouse}
           >
             <Tabs

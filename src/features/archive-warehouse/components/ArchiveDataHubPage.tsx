@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ArchiveBorrowApprovalPage } from '@/features/archive-borrow/components/ArchiveBorrowApprovalPage'
@@ -19,37 +19,14 @@ import { ArchiveReviewPage } from '@/features/archive-review/components/ArchiveR
 import { ArchiveSubmissionPage } from '@/features/archive-submission/components/ArchiveSubmissionPage'
 import { useArchiveSubmissionAccess } from '@/features/archive-submission/hooks/useArchiveSubmissionAccess'
 import { ArchiveWarehouseDataShell } from '@/features/archive-warehouse/components/ArchiveWarehouseDataShell'
-import { ArchiveWarehouseDrillDownHeader } from '@/features/archive-warehouse/components/ArchiveWarehouseDrillDownHeader'
 import { ArchiveWarehouseFondsPage } from '@/features/archive-warehouse/components/ArchiveWarehouseFondsPage'
 import { ArchiveWarehouseHubNavGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseHubNavGrid'
 import { useArchiveDataHubAvailableTabs } from '@/features/archive-warehouse/hooks/useArchiveDataHubAvailableTabs'
 import { useArchiveWarehouseAccess } from '@/features/archive-warehouse/hooks/useArchiveWarehouseAccess'
-import { buildHubTabBreadcrumbSegments } from '@/features/archive-warehouse/lib/archiveWarehouseBreadcrumb'
 import { resolveArchiveDisposalView } from '@/features/archive-warehouse/lib/resolveArchiveDisposalView'
-import type { ArchiveDataHubTabT } from '@/features/archive-warehouse/schemas'
-import { BROWSE_VIEW_LABEL_KEYS } from '@/features/archive-warehouse/schemas'
 import { useLibraryExploitationAccess } from '@/features/library/hooks/useLibraryExploitationAccess'
 
 const routeApi = getRouteApi('/app/archive-warehouse/')
-
-const TAB_LABEL_KEYS: Record<ArchiveDataHubTabT, `tabs.${ArchiveDataHubTabT}`> = {
-  dossiers: 'tabs.dossiers',
-  expiryReview: 'tabs.expiryReview',
-  disposalProposal: 'tabs.disposalProposal',
-  disposalCouncil: 'tabs.disposalCouncil',
-  submission: 'tabs.submission',
-  review: 'tabs.review',
-  borrow: 'tabs.borrow',
-  reading: 'tabs.reading',
-  borrowReview: 'tabs.borrowReview',
-  config: 'tabs.config',
-  permission: 'tabs.permission',
-}
-
-const DISPOSAL_VIEW_LABEL_KEYS = {
-  list: 'disposal.subTabList',
-  proposal: 'disposal.subTabProposal',
-} as const
 
 export function ArchiveDataHubPage() {
   const { t } = useTranslation('archive-warehouse')
@@ -74,7 +51,6 @@ export function ArchiveDataHubPage() {
   const availableTabs = useArchiveDataHubAvailableTabs()
 
   const tab = search.tab
-  const browseView = search.browseView
   const disposalView = resolveArchiveDisposalView({
     tab,
     disposalView: search.disposalView,
@@ -137,44 +113,6 @@ export function ArchiveDataHubPage() {
     }
   }, [availableTabs, tab, search.disposalView, councilReviewEnabled, canReadDisposal, canReadCouncil, disposalView, navigate])
 
-  function navigateToHubRoot() {
-    void navigate({
-      search: (prev) => ({ ...prev, tab: undefined, page: 1 }),
-    })
-  }
-
-  function navigateBack() {
-    navigateToHubRoot()
-  }
-
-  const headerSegments = useMemo(() => {
-    if (!tab) return []
-    const tabLabel = t(TAB_LABEL_KEYS[tab])
-    const base = buildHubTabBreadcrumbSegments({
-      hubRootLabel: t('breadcrumb.root'),
-      tabLabel,
-      onNavigateHub: navigateToHubRoot,
-    })
-
-    if (tab === 'dossiers' && browseView) {
-      return [
-        base[0]!,
-        { label: tabLabel },
-        { label: t(BROWSE_VIEW_LABEL_KEYS[browseView]) },
-      ]
-    }
-
-    if (tab === 'expiryReview' && disposalView) {
-      return [
-        base[0]!,
-        { label: tabLabel },
-        { label: t(DISPOSAL_VIEW_LABEL_KEYS[disposalView]) },
-      ]
-    }
-
-    return base
-  }, [browseView, disposalView, tab, t])
-
   if (availableTabs.length === 0) {
     return (
       <ArchiveWarehouseDataShell>
@@ -204,14 +142,8 @@ export function ArchiveDataHubPage() {
   return (
     <ArchiveWarehouseDataShell>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
-        <ArchiveWarehouseDrillDownHeader
-          segments={headerSegments}
-          onBack={navigateBack}
-          backAriaLabel={t('hub.backToModules')}
-        />
-
         {tab === 'dossiers' && canReadArchiveWarehouse ? (
-          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <ArchiveWarehouseFondsPage embedded />
           </div>
         ) : null}

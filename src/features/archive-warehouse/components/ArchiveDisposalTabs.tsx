@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { ARCHIVE_DISPOSAL_TAB_CONFIG } from '@/features/archive-warehouse/lib/archiveDisposalTabConfig'
 import type { ArchiveDisposalViewT } from '@/features/archive-warehouse/schemas'
 import {
-  warehouseTabsListClassName,
-  warehouseTabsTriggerCompactClassName,
+  warehousePillTabsListClassName,
+  warehousePillTabsTriggerClassName,
 } from '@/features/warehouse-management/components/WarehouseManagementBackNav'
 import { cn } from '@/lib/utils/cn'
 
@@ -33,7 +33,7 @@ export function ArchiveDisposalTabs({
 
   return (
     <nav
-      className={cn(warehouseTabsListClassName, 'border-b-0', className)}
+      className={cn(warehousePillTabsListClassName, className)}
       aria-label={t('disposal.subTabsAriaLabel')}
     >
       {visibleTabs.map((tab) => {
@@ -45,7 +45,7 @@ export function ArchiveDisposalTabs({
             key={tab.value}
             type="button"
             className={cn(
-              warehouseTabsTriggerCompactClassName,
+              warehousePillTabsTriggerClassName,
               'inline-flex items-center',
             )}
             data-state={isActive ? 'active' : 'inactive'}

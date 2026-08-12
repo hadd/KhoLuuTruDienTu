@@ -1,16 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import {
-  Link,
-  Outlet,
-  useNavigate,
-  useRouterState,
-} from '@tanstack/react-router'
-import { ChevronDown, ChevronRight, Menu, Plus } from 'lucide-react'
+import { Link, Outlet, useRouterState } from '@tanstack/react-router'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { AppHeader } from '@/components/common/AppHeader'
-import { Button } from '@/components/ui/button'
 import {
   getPrimaryAppRoleFromProfile,
   getVisibleNavTree,
@@ -79,8 +73,6 @@ function isNavLinkActive(
 }
 
 export function AppShell() {
-  const { t } = useTranslation('common')
-  const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const search = useRouterState({ select: (s) => s.location.search })
@@ -132,6 +124,18 @@ export function AppShell() {
       /^\/app\/archive-dossiers\/[^/]+\/[^/]+/.test(pathname),
     [pathname],
   )
+  const lockLibraryListScroll = useMemo(() => {
+    const isLibraryList =
+      (pathname === '/app/library' || pathname.startsWith('/app/library/')) &&
+      !useDossierDetailFlushBottom
+    const isProjectSectionList = [
+      '/app/project-manager',
+      '/app/plan-management',
+      '/app/groups',
+      '/app/audit-logs',
+    ].some((route) => pathname === route || pathname === `${route}/`)
+    return isLibraryList || isProjectSectionList
+  }, [pathname, useDossierDetailFlushBottom])
   const { data: user } = useQuery({
     ...profileQueryOptions,
     enabled: Boolean(getAccessToken()),
@@ -149,48 +153,19 @@ export function AppShell() {
   )
 
   return (
-    <div className="flex h-screen min-h-0 w-full overflow-hidden bg-background">
+    <div className="flex h-screen min-h-0 w-full flex-col overflow-hidden bg-background">
+      <AppHeader
+        collapsed={collapsed}
+        onToggleSidebar={() => setCollapsed((prev) => !prev)}
+      />
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
       <aside
         className={cn(
-          'flex h-full shrink-0 flex-col border-r border-border bg-card transition-all duration-300',
+          'flex h-full shrink-0 flex-col overflow-hidden border-r border-border bg-card transition-[width] duration-300 ease-in-out',
           collapsed ? 'w-[4.5rem]' : 'w-64',
         )}
       >
-        <div
-          className={cn(
-            'flex h-14 shrink-0 items-center border-b border-border',
-            collapsed ? 'justify-center px-2' : 'gap-2 px-4',
-          )}
-        >
-          {!collapsed && primaryAppRole === 'admin' ? (
-            <Button
-              type="button"
-              size="sm"
-              className="flex-1 gap-1.5"
-              onClick={() => navigate({ to: '/app/scan-intake' })}
-            >
-              <Plus className="size-4" />
-              {t('actions.addNew')}
-            </Button>
-          ) : null}
-          {!collapsed && primaryAppRole !== 'admin' ? (
-            <div className="flex-1" />
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setCollapsed(!collapsed)}
-            className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
-            aria-label={t('actions.toggleSidebar')}
-          >
-            <Menu className="size-4" />
-          </button>
-        </div>
-        <nav
-          className={cn(
-            'flex flex-1 flex-col gap-1 overflow-y-auto py-3',
-            collapsed ? 'px-2' : 'px-3',
-          )}
-        >
+        <nav className="flex w-64 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3 py-3">
           {visibleNavTree.map((node) => (
             <AppNavNode
               key={node.type === 'link' ? node.id : node.id}
@@ -205,7 +180,6 @@ export function AppShell() {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <AppHeader />
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div
             className={cn(
@@ -224,13 +198,16 @@ export function AppShell() {
                 'relative flex min-h-0 min-w-0 flex-1 flex-col',
                 lockContentScroll
                   ? 'h-0 overflow-hidden'
-                  : 'overflow-x-hidden overflow-y-auto',
+                  : lockLibraryListScroll
+                    ? 'overflow-hidden'
+                    : 'overflow-x-hidden overflow-y-auto',
               )}
             >
               <Outlet />
             </div>
           </div>
         </main>
+      </div>
       </div>
     </div>
   )
@@ -308,22 +285,16 @@ function AppNavGroup({
     return null
   }
 
-  if (collapsed) {
-    return (
-      <div
-        className="flex items-center justify-center rounded-md border border-transparent px-2 py-2 text-muted-foreground"
-        title={label}
-      >
-        <Icon className="size-4 shrink-0" />
-      </div>
-    )
-  }
+  const showChildren = isOpen && !collapsed
 
   return (
     <div className="space-y-0.5">
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => {
+          if (collapsed) return
+          setIsOpen((prev) => !prev)
+        }}
         className={cn(
           'flex w-full items-center gap-2 rounded-md border border-transparent py-2 text-sm transition-colors',
           depth === 0 ? 'px-3' : 'px-2',
@@ -331,30 +302,55 @@ function AppNavGroup({
             ? 'bg-accent/50 text-foreground'
             : 'text-muted-foreground hover:bg-muted/80',
         )}
+        title={collapsed ? label : undefined}
       >
         <Icon className="size-4 shrink-0" />
-        <span className="min-w-0 flex-1 text-left leading-snug">{label}</span>
-        {isOpen ? (
-          <ChevronDown className="size-4 shrink-0" />
-        ) : (
-          <ChevronRight className="size-4 shrink-0" />
-        )}
+        <span
+          className={cn(
+            'overflow-hidden whitespace-nowrap text-left leading-snug transition-[max-width] duration-300 ease-in-out',
+            collapsed ? 'max-w-0' : 'max-w-[11rem] flex-1',
+          )}
+        >
+          {label}
+        </span>
+        <span
+          className={cn(
+            'shrink-0 overflow-hidden transition-[max-width,opacity] duration-300 ease-in-out',
+            collapsed ? 'max-w-0 opacity-0' : 'max-w-4 opacity-100',
+          )}
+        >
+          {isOpen ? (
+            <ChevronDown className="size-4" />
+          ) : (
+            <ChevronRight className="size-4" />
+          )}
+        </span>
       </button>
-      {isOpen ? (
-        <div className={cn('space-y-0.5', depth === 0 ? 'pl-3' : 'pl-2')}>
+      <div
+        className={cn(
+          'grid transition-[grid-template-rows] duration-300 ease-in-out',
+          showChildren ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+        )}
+      >
+        <div
+          className={cn(
+            'space-y-0.5 overflow-hidden',
+            depth === 0 ? 'pl-3' : 'pl-2',
+          )}
+        >
           {group.children.map((child) => (
             <AppNavLink
               key={child.id}
               link={child}
               label={t(child.labelKey)}
-              collapsed={false}
+              collapsed={collapsed}
               depth={depth + 1}
               pathname={pathname}
               search={search}
             />
           ))}
         </div>
-      ) : null}
+      </div>
     </div>
   )
 }
@@ -400,16 +396,19 @@ function AppNavLink({
             'flex items-center gap-2 rounded-md border border-transparent py-2 text-sm transition-colors',
             depth === 0 ? 'px-3' : 'px-3 pl-4',
             !(isActive || relatedActive) && 'text-muted-foreground',
-            collapsed && depth === 0 && 'justify-center px-2',
-            collapsed && depth > 0 && 'hidden',
           )}
         >
           {Icon && depth === 0 ? (
             <Icon className="size-4 shrink-0" />
           ) : null}
-          {!collapsed && (
-            <span className="min-w-0 flex-1 leading-snug">{label}</span>
-          )}
+          <span
+            className={cn(
+              'overflow-hidden whitespace-nowrap leading-snug transition-[max-width] duration-300 ease-in-out',
+              collapsed ? 'max-w-0' : 'max-w-[11rem] flex-1',
+            )}
+          >
+            {label}
+          </span>
         </div>
       )}
     </Link>

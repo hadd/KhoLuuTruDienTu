@@ -50,7 +50,7 @@ export function LibraryPageShell({
       id: 'exploitation',
       to: '/app/library/exploitation' as const,
       search: undefined,
-      label: t('tabs.exploitation', 'Hồ sơ khai thác'),
+      label: t('tabs.exploitation'),
       icon: FolderOpen,
       isActive: activeKey === 'exploitation',
     })
@@ -90,7 +90,7 @@ export function LibraryPageShell({
     <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
       {!hideTabs ? (
         <nav
-          className={cn(sectionBoxedTabsListClassName, 'shrink-0 pt-4 px-6')}
+          className={cn(sectionBoxedTabsListClassName, 'shrink-0')}
           aria-label="Library sections"
         >
           {tabs.map((tab) => {
@@ -117,7 +117,7 @@ export function LibraryPageShell({
 
       <div
         className={cn(
-          'flex-1 min-h-0 min-w-0 overflow-hidden px-6 pt-3 pb-6 flex flex-col',
+          'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pt-4',
           contentClassName,
         )}
       >

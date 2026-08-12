@@ -43,9 +43,31 @@ const DATA_CONFIG_TILE_ICONS: Record<DataConfigNavItemId, LucideIcon> = {
   'borrow-approval-clearance': BookOpenCheck,
 }
 
+const DATA_CONFIG_TILE_LABEL_KEYS: Record<
+  DataConfigNavItemId,
+  | 'tiles.documentTypes'
+  | 'tiles.documentAssignment'
+  | 'tiles.metadataExportPresets'
+  | 'tiles.documentNaming'
+  | 'tiles.metadataExtractSettings'
+  | 'tiles.notificationConfigs'
+  | 'tiles.watermarkConfigs'
+  | 'tiles.auditLogConfig'
+  | 'tiles.borrowApprovalClearance'
+> = {
+  'document-types': 'tiles.documentTypes',
+  'document-assignment': 'tiles.documentAssignment',
+  'metadata-export-presets': 'tiles.metadataExportPresets',
+  'document-naming': 'tiles.documentNaming',
+  'metadata-extract-settings': 'tiles.metadataExtractSettings',
+  'notification-configs': 'tiles.notificationConfigs',
+  'watermark-configs': 'tiles.watermarkConfigs',
+  'audit-log-config': 'tiles.auditLogConfig',
+  'borrow-approval-clearance': 'tiles.borrowApprovalClearance',
+}
+
 export function DataConfigHubPage() {
   const { t } = useTranslation('data-config')
-  const { t: tCommon } = useTranslation('common')
   const { data: user } = useQuery(profileQueryOptions)
   const roleId = getCurrentUserRoleId(user)
   const { data: rolePermissions } = useQuery({
@@ -68,11 +90,11 @@ export function DataConfigHubPage() {
       (item) => ({
         id: item.id,
         to: item.to,
-        label: tCommon(item.labelKey),
+        label: t(DATA_CONFIG_TILE_LABEL_KEYS[item.id]),
         icon: DATA_CONFIG_TILE_ICONS[item.id],
       }),
     )
-  }, [permissions, catalog, tCommon])
+  }, [permissions, catalog, t])
 
   if (tiles.length === 0) {
     return (

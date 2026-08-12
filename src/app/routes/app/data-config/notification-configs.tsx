@@ -22,10 +22,7 @@ export const Route = createFileRoute('/app/data-config/notification-configs')({
     return {}
   },
   staticData: {
-    crumb: () =>
-      i18n.t('pageTitles.notificationConfigs', {
-        ns: 'notification-config',
-      }),
+    crumb: () => i18n.t('tiles.notificationConfigs', { ns: 'data-config' }),
   },
   head: () => ({
     meta: [
