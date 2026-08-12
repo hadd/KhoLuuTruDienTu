@@ -44,6 +44,7 @@ import {
 import { ArchiveDisposalService } from "./archive-disposal-service.ts";
 import { DisposalCouncilService } from "./disposal-council-service.ts";
 import { DisposalAppendixExportService } from "./disposal-appendix-export-service.ts";
+import { assertDisposalCatalogCreator } from "./disposal-council-role-guards.ts";
 
 
 
@@ -157,6 +158,18 @@ function checkCouncilPublish(profile: UserWithRoles) {
 
 }
 
+/** Người lập danh mục có quyền gửi danh mục cũng được xuất Quyết định / biên bản. */
+async function checkCouncilPublishForCouncil(
+    profile: UserWithRoles,
+    councilId: string,
+) {
+    if (hasArchiveDisposalCouncilPublishPermission(profile)) return;
+    await assertDisposalCatalogCreator(councilId, profile.id);
+    if (!hasArchiveDisposalSubmitPermission(profile)) {
+        throw httpError.forbidden("archive.disposal.council.publish required");
+    }
+}
+
 
 
 function checkCouncilChairDecide(profile: UserWithRoles) {
@@ -263,6 +276,19 @@ const itemSourceSchema = t.Union([
 
 ]);
 
+const pl3ContentSchema = t.Object({
+    creatingAgency: t.String(),
+    formationMission: t.String(),
+    collectionSource: t.String(),
+    timePeriod: t.String(),
+    expiryDuplicateReason: t.String(),
+    priorValuation: t.String(),
+    countsDetail: t.String(),
+    timeRangeText: t.String(),
+    expiredGroupSummary: t.String(),
+    duplicateGroupSummary: t.String(),
+    otherGroupSummary: t.String(),
+});
 
 
 export function createArchiveDisposalRouter(basePath: string = "/archive-disposal") {
@@ -673,9 +699,37 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
 
         .get(
 
-            "/catalogs/:catalogId/export/phu-luc-iii",
+            "/catalogs/:catalogId/appendix-iii/suggestions",
 
             async ({ profile, params }) => {
+
+                checkRead(profile);
+
+                return await DisposalAppendixExportService.getPl3Suggestions(
+
+                    profile,
+
+                    params.catalogId,
+
+                );
+
+            },
+
+            {
+
+                params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
+
+                detail: { tags, summary: "Gợi ý nội dung Phụ lục III — Bản thuyết minh" },
+
+            },
+
+        )
+
+        .post(
+
+            "/catalogs/:catalogId/export/phu-luc-iii",
+
+            async ({ profile, params, body }) => {
 
                 checkRead(profile);
 
@@ -684,6 +738,8 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
                     profile,
 
                     params.catalogId,
+
+                    body,
 
                 );
 
@@ -711,7 +767,9 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
 
                 params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
 
-                detail: { tags, summary: "Xuất PDF Phụ lục III — Bản thuyết minh" },
+                body: pl3ContentSchema,
+
+                detail: { tags, summary: "Xuất PDF Phụ lục III — Bản thuyết minh (nội dung form)" },
 
             },
 
@@ -1232,7 +1290,7 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
 
             async ({ profile, params }) => {
 
-                checkCouncilPublish(profile);
+                await checkCouncilPublishForCouncil(profile, params.councilId);
 
                 await assertCouncilCatalogAccess(profile, params.councilId);
 
@@ -1284,7 +1342,7 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
 
             async ({ profile, params, body }) => {
 
-                checkCouncilPublish(profile);
+                await checkCouncilPublishForCouncil(profile, params.councilId);
 
                 await assertCouncilCatalogAccess(profile, params.councilId);
 

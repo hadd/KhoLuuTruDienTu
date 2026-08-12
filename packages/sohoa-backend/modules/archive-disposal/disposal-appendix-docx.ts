@@ -76,6 +76,129 @@ function blockText(block: string): string {
     return [...block.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)].map((m) => m[1]!).join("");
 }
 
+/** TT-BNV sample bullet labels left in PL III template — data comes from {countsHeading}. */
+const PL3_STATIC_COUNT_LABELS = [
+    "- Tổng số tài liệu đưa ra xác định lại giá trị",
+    "- Tổng số tài liệu giấy đưa ra chỉnh lý",
+    "- Tài liệu giữ lại bảo quản",
+    "- Tài liệu hết thời hạn lưu trữ, trùng lặp",
+];
+
+/** Thụt đầu dòng / bullet theo mẫu Word TT-BNV (twips: 1440 = 1 inch). */
+const PL3_FIRST_LINE_INDENT = "425";
+/** left = hanging → dòng xuống thẳng hàng với chữ sau «- » (~12pt). */
+const PL3_BULLET_TEXT_INDENT = "360";
+/** w:sz = half-points: 32 → 16pt (mục I, II); 24 → 12pt (mục 1,2,3 và nội dung). */
+const PL3_SZ_MAJOR = "32";
+const PL3_SZ_NORMAL = "24";
+
+function isPl3MajorSectionLine(text: string): boolean {
+    return /^(I|II|III|IV|V|VI|VII|VIII|IX|X)\.\s/.test(text.trim());
+}
+
+function classifyPl3Line(text: string): "majorSection" | "subheading" | "bullet" | "body" {
+    if (isPl3MajorSectionLine(text)) return "majorSection";
+    if (text.startsWith("- ")) return "bullet";
+    if (/^\d+\.\s/.test(text)) return "subheading";
+    return "body";
+}
+
+function pl3RunProperties(style: "majorSection" | "subheading" | "bullet" | "body"): string {
+    const sz = style === "majorSection" ? PL3_SZ_MAJOR : PL3_SZ_NORMAL;
+    const bold = style === "majorSection" || style === "subheading";
+    return bold
+        ? `<w:rPr><w:b/><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr>`
+        : `<w:rPr><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr>`;
+}
+
+function buildPl3BulletParagraph(text: string): string {
+    const body = text.startsWith("- ") ? text.slice(2) : text;
+    const jc = '<w:jc w:val="both"/>';
+    const ind =
+        `<w:ind w:left="${PL3_BULLET_TEXT_INDENT}" w:hanging="${PL3_BULLET_TEXT_INDENT}"/>`;
+    const rPr = pl3RunProperties("bullet");
+    const escapedBody = escapeXmlText(body);
+    return `<w:p><w:pPr>${jc}${ind}</w:pPr>` +
+        `<w:r>${rPr}<w:t xml:space="preserve">- </w:t></w:r>` +
+        `<w:r>${rPr}<w:t xml:space="preserve">${escapedBody}</w:t></w:r></w:p>`;
+}
+
+function buildPl3Paragraph(
+    text: string,
+    style: "majorSection" | "subheading" | "bullet" | "body",
+): string {
+    if (style === "bullet") return buildPl3BulletParagraph(text);
+
+    const jc = '<w:jc w:val="both"/>';
+    let ind = "";
+    if (style === "body") {
+        ind = `<w:ind w:firstLine="${PL3_FIRST_LINE_INDENT}"/>`;
+    }
+    const escaped = escapeXmlText(text);
+    return `<w:p><w:pPr>${jc}${ind}</w:pPr><w:r>${pl3RunProperties(style)}<w:t xml:space="preserve">${escaped}</w:t></w:r></w:p>`;
+}
+
+function isPl3StaticCountsLabelParagraph(paraXml: string): boolean {
+    const text = blockText(paraXml).replace(/\s+/g, " ").trim();
+    return PL3_STATIC_COUNT_LABELS.includes(text);
+}
+
+function isCenterParagraph(paraXml: string): boolean {
+    return /<w:jc w:val="center"/.test(paraXml);
+}
+
+function extractParagraphLines(paraXml: string): string[] {
+    let inner = paraXml.replace(/^<w:p[^>]*>/, "").replace(/<\/w:p>$/, "");
+    inner = inner.replace(/<w:pPr[\s\S]*?<\/w:pPr>/, "");
+    const parts = inner.split(/(?:<w:br(?:\s[^>]*)?\/?>|<w:br(?:\s[^>]*)?>[\s\S]*?<\/w:br>)/);
+    const lines: string[] = [];
+    for (const part of parts) {
+        const text = blockText(`<w:p>${part}</w:p>`).replace(/\s+/g, " ").trim();
+        if (text) lines.push(text);
+    }
+    return lines;
+}
+
+function formatPl3Paragraph(paraXml: string): string {
+    if (isCenterParagraph(paraXml)) return paraXml;
+
+    const lines = extractParagraphLines(paraXml);
+    if (lines.length === 0) return paraXml;
+    if (lines.length === 1) {
+        return buildPl3Paragraph(lines[0]!, classifyPl3Line(lines[0]!));
+    }
+    return lines.map((line) => buildPl3Paragraph(line, classifyPl3Line(line))).join("");
+}
+
+/** Chuẩn hóa layout PL III: bỏ dòng mẫu trùng, tách dòng, thụt lề, căn đều. */
+export function normalizePl3DocumentXml(documentXml: string): string {
+    const paragraphs = [...documentXml.matchAll(/<w:p[\s\S]*?<\/w:p>/g)].map((m) => m[0]!);
+    let out = documentXml;
+    for (const para of paragraphs) {
+        if (isPl3StaticCountsLabelParagraph(para)) {
+            out = out.replace(para, "");
+            continue;
+        }
+        const formatted = formatPl3Paragraph(para);
+        if (formatted !== para) out = out.replace(para, formatted);
+    }
+    return out;
+}
+
+/** Sample TT-BNV catalog rows like "(1)", "(2)" — must not appear in exported PDF. */
+export function isSampleCatalogRow(rowXml: string): boolean {
+    const cells = [...rowXml.matchAll(/<w:tc[\s\S]*?<\/w:tc>/g)].map((m) => m[0]!);
+    if (cells.length === 0) {
+        const t = blockText(rowXml).replace(/\s+/g, "").trim();
+        return /^\(\d+\)$/.test(t);
+    }
+    const cellTexts = cells
+        .map((cell) => blockText(cell).replace(/\s+/g, "").trim())
+        .filter(Boolean);
+    if (cellTexts.length === 0) return false;
+    return cellTexts.every((t) => /^\(\d+\)$/.test(t));
+}
+
 function findCatalogTable(documentXml: string): string | null {
     const tables = extractTables(documentXml);
     for (const table of tables) {
@@ -122,8 +245,12 @@ function setRowCellTexts(rowXml: string, cells: string[]): string {
 function resolveTemplateRowIndex(rows: string[]): number {
     if (rows.length <= 2) return -1;
     for (let i = 2; i < rows.length; i++) {
+        if (isSampleCatalogRow(rows[i]!)) continue;
         const t = blockText(rows[i]!).replace(/\s+/g, "");
         if (t === "" || /^\.+$/.test(t)) return i;
+    }
+    for (let i = rows.length - 1; i >= 2; i--) {
+        if (!isSampleCatalogRow(rows[i]!)) return i;
     }
     return rows.length - 1;
 }
@@ -150,7 +277,7 @@ export function fillCatalogTableInDocumentXml(
         return documentXml;
     }
 
-    const headerRows = rowMatches.slice(0, templateIdx);
+    const headerRows = rowMatches.slice(0, templateIdx).filter((r) => !isSampleCatalogRow(r));
     const templateRow = rowMatches[templateIdx]!;
     const dataRows = rows.length > 0
         ? rows.map((row) =>
@@ -175,7 +302,7 @@ export function fillCatalogTableInDocumentXml(
 export function renderDocxTemplate(
     templateBytes: Uint8Array,
     data: Record<string, string>,
-    options?: { tableRows?: AppendixCatalogRow[] },
+    options?: { tableRows?: AppendixCatalogRow[]; normalizePl3?: boolean },
 ): Uint8Array {
     const zip = new PizZip(templateBytes);
     const doc = new Docxtemplater(zip, {
@@ -185,10 +312,15 @@ export function renderDocxTemplate(
     });
     doc.render(data);
     let out = doc.getZip().generate({ type: "uint8array" }) as Uint8Array;
+    const outZip = new PizZip(out);
+    let xml = outZip.file("word/document.xml")!.asText();
+    if (options?.normalizePl3) {
+        xml = normalizePl3DocumentXml(xml);
+    }
     if (options?.tableRows) {
-        const outZip = new PizZip(out);
-        let xml = outZip.file("word/document.xml")!.asText();
         xml = fillCatalogTableInDocumentXml(xml, options.tableRows);
+    }
+    if (options?.normalizePl3 || options?.tableRows) {
         outZip.file("word/document.xml", xml);
         out = outZip.generate({ type: "uint8array" }) as Uint8Array;
     }
