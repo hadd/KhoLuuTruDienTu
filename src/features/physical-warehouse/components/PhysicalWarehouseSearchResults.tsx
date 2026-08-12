@@ -135,6 +135,11 @@ export function PhysicalWarehouseSearchResults({
                       </div>
                     ))}
                   </div>
+                ) : hit.snippet && hit.snippet.trim() !== hit.title.trim() ? (
+                  <p
+                    className={`mt-2 ${metadataValueClassName}`}
+                    dangerouslySetInnerHTML={{ __html: hit.snippet }}
+                  />
                 ) : null
               ) : hit.snippet ? (
                 <p

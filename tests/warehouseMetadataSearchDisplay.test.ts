@@ -171,4 +171,112 @@ describe('warehouseMetadataSearchDisplay', () => {
       'Thi hành xong (<mark>Biên lai</mark>)',
     )
   })
+
+  it('matches and highlights document type without Vietnamese diacritics in query', () => {
+    const lines = resolveWarehouseMetadataSearchLines(
+      baseHit({
+        documentTypeNames: ['Quyết định', 'Biên lai'],
+      }),
+      ['TEN_LOAI_TAI_LIEU'],
+      'quyet dinh',
+    )
+
+    expect(lines).toHaveLength(1)
+    expect(lines[0]?.label).toBe('Tên loại tài liệu')
+    expect(lines[0]?.valueHtml).toBe('<mark>Quyết định</mark>')
+  })
+
+  it('shows nested document type match values with highlight', () => {
+    const lines = resolveWarehouseMetadataSearchLines(
+      baseHit({
+        matches: [
+          {
+            groupCode: 'BIEN_BAN',
+            groupName: 'Biên bản',
+            name: 'TEN_LOAI_TAI_LIEU',
+            display: 'Tên loại tài liệu',
+            value: 'Biên bản',
+            fileName: 'scan.pdf',
+            filePath: null,
+            page: 1,
+            bbox: null,
+            highlight: '<mark>Biên bản</mark>',
+          },
+        ],
+      }),
+      ['TEN_LOAI_TAI_LIEU'],
+      'biên bản',
+    )
+
+    expect(lines).toHaveLength(1)
+    expect(lines[0]?.valueHtml).toBe('<mark>Biên bản</mark>')
+    expect(lines[0]?.fileName).toBe('scan.pdf')
+  })
+
+  it('emits one line per nested document type match with file name', () => {
+    const lines = resolveWarehouseMetadataSearchLines(
+      baseHit({
+        documentTypeNames: ['Biên lai', 'Thi hành xong (Biên lai)'],
+        matches: [
+          {
+            groupCode: 'BIEN_LAI',
+            groupName: 'Biên lai',
+            name: 'TEN_LOAI_TAI_LIEU',
+            display: 'Tên loại tài liệu',
+            value: 'Biên lai',
+            fileName: 'a.pdf',
+            filePath: null,
+            page: null,
+            bbox: null,
+            highlight: '<mark>Biên</mark> lai',
+          },
+          {
+            groupCode: 'THX_BL',
+            groupName: 'Thi hành xong (Biên lai)',
+            name: 'TEN_LOAI_TAI_LIEU',
+            display: 'Tên loại tài liệu',
+            value: 'Thi hành xong (Biên lai)',
+            fileName: 'b.pdf',
+            filePath: null,
+            page: null,
+            bbox: null,
+            highlight: 'Thi hành xong (<mark>Biên</mark> lai)',
+          },
+        ],
+      }),
+      ['TEN_LOAI_TAI_LIEU'],
+      'Biên',
+    )
+
+    expect(lines).toHaveLength(2)
+    expect(lines[0]?.fileName).toBe('a.pdf')
+    expect(lines[1]?.fileName).toBe('b.pdf')
+  })
+
+  it('catalog-only document type matches omit file name', () => {
+    const lines = resolveWarehouseMetadataSearchLines(
+      baseHit({
+        documentTypeNames: ['Biên lai', 'Thi hành xong (Biên lai)'],
+        matches: [
+          {
+            groupCode: '',
+            groupName: '',
+            name: 'TEN_LOAI_TAI_LIEU',
+            display: 'Tên loại tài liệu',
+            value: 'Biên lai',
+            fileName: null,
+            filePath: null,
+            page: null,
+            bbox: null,
+            highlight: '<mark>Biên</mark> lai',
+          },
+        ],
+      }),
+      ['TEN_LOAI_TAI_LIEU'],
+      'Biên',
+    )
+
+    expect(lines).toHaveLength(1)
+    expect(lines[0]?.fileName).toBeUndefined()
+  })
 })

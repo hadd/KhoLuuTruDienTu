@@ -2,6 +2,11 @@ import type {
   ArchiveWarehouseSearchHitT,
   ArchiveWarehouseSearchMatchT,
 } from '@/features/archive-warehouse/types'
+import {
+  findOriginalSpanForNormalizedMatch,
+  normalizeSearchText,
+  textMatchesSearchQuery,
+} from '@/lib/utils/vietnamese-search'
 
 export const WAREHOUSE_TT05_SEARCHABLE_FIELDS = [
   { value: 'MA_HO_SO', label: 'Mã hồ sơ' },
@@ -89,6 +94,46 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+function textMatchesQuery(value: string, q?: string): boolean {
+  return textMatchesSearchQuery(value, q)
+}
+
+function highlightAccentInsensitive(text: string, q: string): string | null {
+  const trimmed = text.trim()
+  const query = q.trim()
+  if (!trimmed || !query) return null
+
+  const literalRegex = new RegExp(escapeRegExp(query), 'gi')
+  if (literalRegex.test(trimmed)) {
+    literalRegex.lastIndex = 0
+    return escapeHtml(trimmed).replace(literalRegex, (match) => `<mark>${match}</mark>`)
+  }
+
+  const normalizedText = normalizeSearchText(trimmed)
+  const normalizedQuery = normalizeSearchText(query)
+  const matchIndex = normalizedText.indexOf(normalizedQuery)
+  if (matchIndex === -1) return null
+
+  const span = findOriginalSpanForNormalizedMatch(
+    trimmed,
+    matchIndex,
+    normalizedQuery.length,
+  )
+  if (!span) {
+    return `<mark>${escapeHtml(trimmed)}</mark>`
+  }
+
+  const before = escapeHtml(trimmed.slice(0, span.start))
+  const matched = escapeHtml(trimmed.slice(span.start, span.end))
+  const after = escapeHtml(trimmed.slice(span.end))
+  return `${before}<mark>${matched}</mark>${after}`
+}
+
+function toValueHtml(raw: string, q?: string): string {
+  if (/<(?:mark|em)\b/i.test(raw)) return raw
+  return highlightSearchQuery(raw, q)
+}
+
 /** Highlight search query in plain text; preserve existing ES mark/em tags. */
 export function highlightSearchQuery(text: string, q?: string): string {
   const trimmed = text.trim()
@@ -99,19 +144,7 @@ export function highlightSearchQuery(text: string, q?: string): string {
   if (!query) return escapeHtml(trimmed)
   if (!textMatchesQuery(trimmed, query)) return escapeHtml(trimmed)
 
-  const regex = new RegExp(escapeRegExp(query), 'gi')
-  return escapeHtml(trimmed).replace(regex, (match) => `<mark>${match}</mark>`)
-}
-
-function toValueHtml(raw: string, q?: string): string {
-  if (/<(?:mark|em)\b/i.test(raw)) return raw
-  return highlightSearchQuery(raw, q)
-}
-
-function textMatchesQuery(value: string, q?: string): boolean {
-  const query = q?.trim()
-  if (!query) return true
-  return value.toLowerCase().includes(query.toLowerCase())
+  return highlightAccentInsensitive(trimmed, query) ?? escapeHtml(trimmed)
 }
 
 function filterValuesByQuery(values: string[], q?: string): string[] {
@@ -119,7 +152,25 @@ function filterValuesByQuery(values: string[], q?: string): string[] {
     .map((value) => value.trim())
     .filter((value) => value.length > 0)
     .filter((value) => textMatchesQuery(value, q))
-  return [...new Set(filtered)]
+
+  if (filtered.length > 0) return [...new Set(filtered)]
+
+  // When ES matched but tokenization differs, match by all query tokens (accent-insensitive).
+  const query = q?.trim()
+  if (!query) return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+
+  const tokens = normalizeSearchText(query).split(/\s+/).filter(Boolean)
+  if (tokens.length === 0) return []
+
+  const tokenFiltered = values
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0)
+    .filter((value) => {
+      const normalizedValue = normalizeSearchText(value)
+      return tokens.every((token) => normalizedValue.includes(token))
+    })
+
+  return [...new Set(tokenFiltered)]
 }
 
 function resolveCatalogValues(
@@ -160,6 +211,75 @@ function joinHighlightedValues(values: string[], q?: string): string {
   return values.map((value) => toValueHtml(value, q)).join(', ')
 }
 
+/** Nested inner_hit from a specific document in the dossier. */
+function isNestedDocumentMatch(match: ArchiveWarehouseSearchMatchT): boolean {
+  return Boolean(match.groupCode?.trim() || match.fileName?.trim())
+}
+
+function matchDisplayHtml(
+  match: ArchiveWarehouseSearchMatchT,
+  q?: string,
+): string {
+  const highlight = match.highlight?.trim()
+  if (highlight && /<(mark|em)\b/i.test(highlight)) return highlight
+  const value = match.value?.trim()
+  return value ? toValueHtml(value, q) : ''
+}
+
+function pushNestedDocumentLines(
+  lines: Array<WarehouseMetadataSearchLineT>,
+  fieldKey: string,
+  matches: Array<ArchiveWarehouseSearchMatchT>,
+  q?: string,
+) {
+  const seen = new Set<string>()
+
+  for (const match of matches) {
+    const plainValue = match.value?.trim()
+    if (!plainValue || !textMatchesQuery(plainValue, q)) continue
+
+    const dedupeKey = `${plainValue}::${match.fileName ?? ''}`
+    if (seen.has(dedupeKey)) continue
+    seen.add(dedupeKey)
+
+    const valueHtml = matchDisplayHtml(match, q)
+    if (!valueHtml) continue
+
+    lines.push({
+      fieldKey,
+      label: resolveFieldLabel(fieldKey, match),
+      valueHtml,
+      fileName: match.fileName ?? null,
+    })
+  }
+}
+
+function pushCatalogMatchLine(
+  lines: Array<WarehouseMetadataSearchLineT>,
+  fieldKey: string,
+  matches: Array<ArchiveWarehouseSearchMatchT>,
+  q?: string,
+) {
+  const uniqueValues = [
+    ...new Set(
+      matches
+        .map((match) => match.highlight?.trim() || match.value?.trim())
+        .filter((value): value is string => Boolean(value))
+        .filter((value) => textMatchesQuery(value.replace(/<[^>]+>/g, ''), q)),
+    ),
+  ]
+  if (uniqueValues.length === 0) return
+
+  lines.push({
+    fieldKey,
+    label: resolveFieldLabel(fieldKey, matches[0]),
+    valueHtml: joinHighlightedValues(
+      uniqueValues.map((value) => value.replace(/<[^>]+>/g, '')),
+      q,
+    ),
+  })
+}
+
 export function resolveWarehouseMetadataSearchLines(
   hit: ArchiveWarehouseSearchHitT,
   searchFields: string | string[] | undefined,
@@ -175,22 +295,20 @@ export function resolveWarehouseMetadataSearchLines(
       hit.matches?.filter((match) => matchFieldKey(match, fieldKey)) ?? []
 
     if (fieldMatches.length > 0) {
-      const uniqueValues = [
-        ...new Set(
-          fieldMatches
-            .map((match) => match.highlight?.trim() || match.value?.trim())
-            .filter((value): value is string => Boolean(value)),
-        ),
-      ]
-      if (uniqueValues.length === 0) continue
+      const nestedMatches = fieldMatches.filter(isNestedDocumentMatch)
+      const catalogMatches = fieldMatches.filter(
+        (match) => !isNestedDocumentMatch(match),
+      )
 
-      lines.push({
-        fieldKey,
-        label: resolveFieldLabel(fieldKey, fieldMatches[0]),
-        valueHtml: joinHighlightedValues(uniqueValues, q),
-        fileName: fieldMatches.find((match) => match.fileName)?.fileName ?? null,
-      })
-      continue
+      if (nestedMatches.length > 0) {
+        pushNestedDocumentLines(lines, fieldKey, nestedMatches, q)
+        continue
+      }
+
+      if (catalogMatches.length > 0) {
+        pushCatalogMatchLine(lines, fieldKey, catalogMatches, q)
+        continue
+      }
     }
 
     const catalogValues = resolveCatalogValues(hit, fieldKey, q)
