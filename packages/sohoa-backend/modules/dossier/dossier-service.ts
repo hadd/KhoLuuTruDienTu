@@ -148,9 +148,7 @@ import { ProjectService } from "../project/project-service.ts";
 import { assertNoMixedStorageFolderLayoutOnAdd } from "./storage-folder-layout.ts";
 import { buildAccessPasswordPatch } from "../security-level/access-password-patch.ts";
 import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts";
-import {
-  resolveApplyWatermarkForDossiers,
-} from "../security-level/security-enforcement.ts";
+import { resolveApplyWatermarkForDossiers } from "../security-level/security-enforcement.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

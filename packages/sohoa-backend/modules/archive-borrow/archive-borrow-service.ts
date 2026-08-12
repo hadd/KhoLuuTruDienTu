@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, inArray, isNull, lte, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { httpError, AppError, logApi } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import {
@@ -1973,6 +1973,41 @@ export const ArchiveBorrowService = {
             );
 
         return { currentlyReading, saved };
+    },
+
+    async rejectExpiredPendingRequests(): Promise<{ rejectedCount: number }> {
+        const now = new Date();
+        const due = await db
+            .update(archiveBorrowRequests)
+            .set({
+                status: ArchiveBorrowStatus.REJECTED,
+                reviewedBy: null,
+                reviewedAt: now,
+                reviewNotes: "Tự động từ chối do hết hạn khung giờ yêu cầu",
+                updatedAt: now,
+            })
+            .where(
+                and(
+                    eq(archiveBorrowRequests.medium, ArchiveBorrowMedium.ELECTRONIC),
+                    eq(archiveBorrowRequests.status, ArchiveBorrowStatus.PENDING),
+                    isNotNull(archiveBorrowRequests.requestedUntil),
+                    lte(archiveBorrowRequests.requestedUntil, now),
+                ),
+            )
+            .returning({ id: archiveBorrowRequests.id });
+
+        for (const row of due) {
+            logWarehouseAudit({
+                userId: null,
+                module: "archive-borrow",
+                eventType: "auto_reject_borrow",
+                summary: `Tự động từ chối phiếu mượn hết hạn khung giờ ${row.id}`,
+                entityType: "archive_borrow_request",
+                entityId: row.id,
+            });
+        }
+
+        return { rejectedCount: due.length };
     },
 
     async expireDueRequests(): Promise<{ expiredCount: number }> {

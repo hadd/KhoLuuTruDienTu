@@ -21,7 +21,10 @@ import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { folders } from "../../db/schemas/folder.ts";
-import { AssignmentStatus, DossierStatus } from "../../db/schemas/workflow-constants.ts";
+import {
+  AssignmentStatus,
+  DossierStatus,
+} from "../../db/schemas/workflow-constants.ts";
 import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts";
 import {
   findWorkableEditorAssignment,
@@ -93,10 +96,7 @@ function isUnscopedRawRoot(folder: {
  * Unassigned raw subfolders (projectCode null under raw/) are excluded.
  */
 function folderProjectWhere(projectCode: string): SQL {
-  return or(
-    eq(folders.projectCode, projectCode),
-    unscopedRawRootWhere(),
-  )!;
+  return or(eq(folders.projectCode, projectCode), unscopedRawRootWhere())!;
 }
 
 function dossierProjectWhere(projectCode: string): SQL {
@@ -526,9 +526,9 @@ async function listAllFirstSubfolders(
 async function listDossierFiles(
   dossierId: string,
   options?: {
-    actorId?: string
-    status?: "draft"
-    accessHeaders?: import("../security-level/security-enforcement.ts").SecurityAccessHeaders
+    actorId?: string;
+    status?: "draft";
+    accessHeaders?: import("../security-level/security-enforcement.ts").SecurityAccessHeaders;
   },
 ) {
   const dossier = await db.query.dossiers.findFirst({
@@ -547,12 +547,10 @@ async function listDossierFiles(
 
   // Hồ sơ đã lưu kho: bắt buộc qua app-gate trước khi cấp URL
   const isArchived = dossier.status === "ARCHIVED";
-  const { ACCESS_TTL_SEC } = await import(
-    "../security-level/security-access-token.ts"
-  );
-  const { assertSecurityResourceAccess, SecurityRequestCache } = await import(
-    "../security-level/security-enforcement.ts"
-  );
+  const { ACCESS_TTL_SEC } =
+    await import("../security-level/security-access-token.ts");
+  const { assertSecurityResourceAccess, SecurityRequestCache } =
+    await import("../security-level/security-enforcement.ts");
   const securityCache = new SecurityRequestCache();
 
   if (isArchived && options?.actorId) {
@@ -649,13 +647,13 @@ async function listDossierFiles(
         }),
         searchablePdfPath
           ? buildLinkGet(searchablePdfPath, {
-            expirySeconds: isArchived ? ACCESS_TTL_SEC : undefined,
-          })
+              expirySeconds: isArchived ? ACCESS_TTL_SEC : undefined,
+            })
           : Promise.resolve(null),
         file.signedFilePath
           ? buildLinkGet(file.signedFilePath, {
-            expirySeconds: isArchived ? ACCESS_TTL_SEC : undefined,
-          })
+              expirySeconds: isArchived ? ACCESS_TTL_SEC : undefined,
+            })
           : Promise.resolve(null),
       ]);
       return {
@@ -749,10 +747,7 @@ async function loadDossierIdsWithAssignmentsInTx(
   return new Set(rows.map((row) => row.dossierId));
 }
 
-async function assertFolderSubtreeHasNoAssignments(
-  tx: DbTx,
-  folderId: string,
-) {
+async function assertFolderSubtreeHasNoAssignments(tx: DbTx, folderId: string) {
   const descendantFolderIds = await collectDescendantFolderIds(tx, folderId);
   const dossierRows = await tx
     .select({
@@ -760,9 +755,7 @@ async function assertFolderSubtreeHasNoAssignments(
       assignedGroupId: dossiers.assignedGroupId,
     })
     .from(dossiers)
-    .where(
-      activeDossierWhere(inArray(dossiers.folderId, descendantFolderIds)),
-    );
+    .where(activeDossierWhere(inArray(dossiers.folderId, descendantFolderIds)));
 
   const dossierIds = dossierRows.map((row) => row.id);
   const dossierIdsWithAssignments = await loadDossierIdsWithAssignmentsInTx(
@@ -775,9 +768,7 @@ async function assertFolderSubtreeHasNoAssignments(
   );
 
   if (hasAssignment) {
-    throw httpError.conflict(
-      "Không thể đổi dự án vì thư mục đã có phân công",
-    );
+    throw httpError.conflict("Không thể đổi dự án vì thư mục đã có phân công");
   }
 }
 
@@ -827,9 +818,7 @@ export const FolderService = {
       }
 
       if (isUnscopedRawRoot(folder)) {
-        throw httpError.badRequest(
-          "Không thể gán dự án cho thư mục gốc raw/",
-        );
+        throw httpError.badRequest("Không thể gán dự án cho thư mục gốc raw/");
       }
 
       if (folder.projectCode === projectCode) {

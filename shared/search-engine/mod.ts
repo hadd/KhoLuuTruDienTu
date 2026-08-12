@@ -19,6 +19,7 @@ export {
   searchUnifiedDocuments,
   buildDossierNestedQuery,
   buildUnifiedDossierQuery,
+  filterMatchesBySearchFields,
 } from "./query-service.ts";
 export {
   parseSearchQuery,

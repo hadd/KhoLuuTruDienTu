@@ -90,22 +90,217 @@ function extractNestedMatches(hit: {
     }
   }>
 }): SearchFieldMatch[] {
-  const innerHits = hit.inner_hits?.fields?.hits?.hits ?? []
-  return innerHits.map(mapInnerHit)
+  const innerHitsRoot = hit.inner_hits
+  if (!innerHitsRoot) return []
+
+  const matches: SearchFieldMatch[] = []
+  for (const bucket of Object.values(innerHitsRoot)) {
+    const innerHits = bucket?.hits?.hits ?? []
+    matches.push(...innerHits.map(mapInnerHit))
+  }
+  return matches
 }
 
-const FVH_INNER_HITS = {
-  size: 10,
-  highlight: {
-    fields: {
-      "fields.value": {
-        type: "fvh",
-        pre_tags: ["<mark>"],
-        post_tags: ["</mark>"],
-      },
+const CATALOG_SEARCH_FIELD_SOURCES: Array<{
+  keys: string[]
+  sourceField: string
+  display: string
+  readValues: (source: Record<string, unknown>) => string[]
+}> = [
+  {
+    keys: ["FOND", "MA_PHONG"],
+    sourceField: "fondName",
+    display: "Phông",
+    readValues: (source) => {
+      const value = asNullableString(source.fondName)
+      return value ? [value] : []
     },
   },
-} as const
+  {
+    keys: ["DOSSIER_TYPE", "TEN_LOAI_HO_SO"],
+    sourceField: "dossierTypeName",
+    display: "Loại hồ sơ",
+    readValues: (source) => {
+      const value = asNullableString(source.dossierTypeName)
+      return value ? [value] : []
+    },
+  },
+  {
+    keys: ["DOCUMENT_TYPE", "TEN_LOAI_TAI_LIEU"],
+    sourceField: "documentTypeNames",
+    display: "Tên loại tài liệu",
+    readValues: (source) => asStringArray(source.documentTypeNames),
+  },
+  {
+    keys: ["MA_HO_SO"],
+    sourceField: "hoSoId",
+    display: "Mã hồ sơ",
+    readValues: (source) => {
+      const value = asNullableString(source.hoSoId)
+      return value ? [value] : []
+    },
+  },
+  {
+    keys: ["TIEU_DE_HO_SO"],
+    sourceField: "title",
+    display: "Tiêu đề hồ sơ",
+    readValues: (source) => {
+      const value = asString(source.title)
+      return value ? [value] : []
+    },
+  },
+  {
+    keys: ["TEN_TAI_LIEU"],
+    sourceField: "fileNames",
+    display: "Tên tài liệu",
+    readValues: (source) => asStringArray(source.fileNames),
+  },
+]
+
+function stripHtmlTags(value: string): string {
+  return value.replace(/<\/?(?:mark|em)[^>]*>/gi, "")
+}
+
+function normalizeCatalogHighlight(value: string): string {
+  return value.replace(/<\/?em>/gi, (tag) => (tag.toLowerCase() === "<em>" ? "<mark>" : "</mark>"))
+}
+
+function synthesizeCatalogFieldMatches(
+  source: Record<string, unknown>,
+  highlight: Record<string, string[]> | undefined,
+  searchFields?: string[],
+): SearchFieldMatch[] {
+  if (!searchFields?.length) return []
+
+  const selected = new Set(searchFields)
+  const existing = new Set<string>()
+  const matches: SearchFieldMatch[] = []
+
+  for (const config of CATALOG_SEARCH_FIELD_SOURCES) {
+    if (!config.keys.some((key) => selected.has(key))) continue
+
+    const fieldKey = config.keys.find((key) => selected.has(key)) ?? config.keys[0]!
+    const fragments = highlight?.[config.sourceField] ?? []
+
+    if (fragments.length > 0) {
+      for (const fragment of fragments) {
+        const value = stripHtmlTags(fragment).trim()
+        if (!value) continue
+        const dedupeKey = `${fieldKey}:${value}`
+        if (existing.has(dedupeKey)) continue
+        existing.add(dedupeKey)
+        matches.push({
+          groupCode: "",
+          groupName: "",
+          name: fieldKey,
+          display: config.display,
+          value,
+          fileName: null,
+          filePath: null,
+          page: null,
+          bbox: null,
+          highlight: normalizeCatalogHighlight(fragment),
+        })
+      }
+      continue
+    }
+
+    for (const value of config.readValues(source)) {
+      const trimmed = value.trim()
+      if (!trimmed) continue
+      const dedupeKey = `${fieldKey}:${trimmed}`
+      if (existing.has(dedupeKey)) continue
+      existing.add(dedupeKey)
+      matches.push({
+        groupCode: "",
+        groupName: "",
+        name: fieldKey,
+        display: config.display,
+        value: trimmed,
+        fileName: null,
+        filePath: null,
+        page: null,
+        bbox: null,
+        highlight: trimmed,
+      })
+    }
+  }
+
+  return matches
+}
+
+function buildUnifiedSearchHighlight(
+  searchFields?: string[],
+): Record<string, Record<string, unknown>> | undefined {
+  if (!searchFields?.length) return undefined
+
+  const fields: Record<string, Record<string, unknown>> = {}
+  const addField = (name: string) => {
+    fields[name] = {}
+  }
+
+  for (const fieldKey of searchFields) {
+    switch (fieldKey) {
+      case "FOND":
+      case "MA_PHONG":
+        addField("fondName")
+        break
+      case "DOSSIER_TYPE":
+      case "TEN_LOAI_HO_SO":
+        addField("dossierTypeName")
+        break
+      case "DOCUMENT_TYPE":
+      case "TEN_LOAI_TAI_LIEU":
+        addField("documentTypeNames")
+        break
+      case "MA_HO_SO":
+        addField("hoSoId")
+        break
+      case "TIEU_DE_HO_SO":
+        addField("title")
+        break
+      case "TEN_TAI_LIEU":
+        addField("fileNames")
+        break
+      default:
+        break
+    }
+  }
+
+  return Object.keys(fields).length > 0 ? fields : undefined
+}
+
+function buildFvhInnerHits(size = 10) {
+  return {
+    size: Math.min(Math.max(size, 1), 10),
+    highlight: {
+      fields: {
+        "fields.value": {
+          type: "fvh",
+          pre_tags: ["<mark>"],
+          post_tags: ["</mark>"],
+        },
+      },
+    },
+  } as const
+}
+
+/** Keep nested matches that belong to the selected metadata search fields. */
+export function filterMatchesBySearchFields(
+  matches: SearchFieldMatch[],
+  searchFields?: string[],
+): SearchFieldMatch[] {
+  if (!searchFields?.length) return matches
+  const keys = new Set(searchFields)
+  return matches.filter((match) => {
+    const compoundKey = match.groupCode && match.name
+      ? `${match.groupCode}.${match.name}`
+      : match.name
+    return keys.has(match.name) || keys.has(compoundKey)
+  })
+}
+
+const FVH_INNER_HITS = buildFvhInnerHits()
 
 function buildDossierFieldsNestedClause(
   q: string,
@@ -176,7 +371,7 @@ function buildDossierFieldsNestedClauseWithFields(
     nested: {
       path: "fields",
       query: { bool: nestedBool },
-      inner_hits: FVH_INNER_HITS,
+      inner_hits: buildFvhInnerHits(searchFields.length || 10),
     },
   }
 }
@@ -288,11 +483,21 @@ function mapDossierSearchHit(
       }
     }>
   },
+  searchFields?: string[],
 ): SearchHit {
   const source = asRecord(hit._source)
   const highlight = hit.highlight as Record<string, string[]> | undefined
-  const matches = extractNestedMatches(
+  const nestedMatches = extractNestedMatches(
     hit as Parameters<typeof extractNestedMatches>[0],
+  )
+  const catalogMatches = synthesizeCatalogFieldMatches(
+    source,
+    highlight,
+    searchFields,
+  )
+  const matches = filterMatchesBySearchFields(
+    [...nestedMatches, ...catalogMatches],
+    searchFields,
   )
   const snippet = matches[0]?.highlight ||
     pickFlatSnippet(highlight) ||
@@ -679,7 +884,7 @@ export async function searchDocuments(
 
   const hits: SearchHit[] = (response.hits.hits ?? []).map((hit) => {
     if (isDossierNestedSearch) {
-      return mapDossierSearchHit(hit)
+      return mapDossierSearchHit(hit, request.searchFields)
     }
     const source = asRecord(hit._source)
     const highlight = hit.highlight as Record<string, string[]> | undefined
@@ -747,6 +952,7 @@ export function buildUnifiedDossierQuery(
     }
     if (hasDocumentType) {
       shouldClauses.push(buildTextMatchClause("documentTypeNames", q))
+      shouldClauses.push(buildDossierFieldsNestedClauseWithFields(q, ["TEN_LOAI_TAI_LIEU"]))
     }
     if (hasMaHoSo) {
       shouldClauses.push(buildTextMatchClause("hoSoId", q))
@@ -798,7 +1004,8 @@ export async function searchUnifiedDocuments(
     request.searchFields,
   )
 
-  const response = await es.search({
+  const highlightFields = buildUnifiedSearchHighlight(request.searchFields)
+  const searchBody: Record<string, unknown> = {
     index: indexNameForEntity("dossier"),
     from,
     size,
@@ -808,9 +1015,20 @@ export async function searchUnifiedDocuments(
       { _score: { order: "desc" } },
       { archivedAt: { order: "desc", unmapped_type: "date" } },
     ],
-  })
+  }
+  if (highlightFields) {
+    searchBody.highlight = {
+      fields: highlightFields,
+      pre_tags: ["<mark>"],
+      post_tags: ["</mark>"],
+    }
+  }
 
-  const hits: SearchHit[] = (response.hits.hits ?? []).map((hit) => mapDossierSearchHit(hit))
+  const response = await es.search(searchBody)
+
+  const hits: SearchHit[] = (response.hits.hits ?? []).map((hit) =>
+    mapDossierSearchHit(hit, request.searchFields)
+  )
 
   const total = typeof response.hits.total === "number" ? response.hits.total : response.hits.total?.value ?? 0
 
