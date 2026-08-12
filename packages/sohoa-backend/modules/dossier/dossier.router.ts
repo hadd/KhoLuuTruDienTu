@@ -28,9 +28,7 @@ import { isPermanentDeleteFlag } from "./dossier-delete-utils.ts";
 import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
 import { zipStreamResponse } from "../../libs/zip-stream-response.ts";
 import { resolveExportZipPassword } from "../profile/resolve-export-zip-password.ts";
-import {
-  resolveZipEncryptModeForDossiers,
-} from "../security-level/security-enforcement.ts";
+import { resolveZipEncryptModeForDossiers } from "../security-level/security-enforcement.ts";
 import {
   clientMetaFromRequest,
   withDownloadLog,
@@ -332,7 +330,10 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.post(
     "/metadata/export",
     async ({ body, profile, request }) => {
-      authHelper.checkPermission(profile, Permission.ARCHIVE_WAREHOUSE_DOWNLOAD);
+      authHelper.checkPermission(
+        profile,
+        Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
+      );
       const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
         profile,
         request,
@@ -349,25 +350,28 @@ export function createDossierRouter(basePath: string = "/dossiers") {
       }
 
       const meta = clientMetaFromRequest(request);
-      const { stream, filename, contentType, zipPasswordSource } = await withDownloadLog(
-        {
-          userId: profile.id,
-          exportType: "metadata",
-          scope: "batch",
-          resourceIds: { dossierIds: body.dossierIds },
-          applyWatermark,
-          placementId: body.placementId,
-          ...meta,
-        },
-        () =>
-          service.exportMetadataExcelByIds(body.dossierIds, {
-            ...body,
-            applyWatermark,
+      const { stream, filename, contentType, zipPasswordSource } =
+        await withDownloadLog(
+          {
             userId: profile.id,
-            skippedFileIds,
-          }),
-      );
-      return zipStreamResponse(stream, filename, contentType, { zipPasswordSource });
+            exportType: "metadata",
+            scope: "batch",
+            resourceIds: { dossierIds: body.dossierIds },
+            applyWatermark,
+            placementId: body.placementId,
+            ...meta,
+          },
+          () =>
+            service.exportMetadataExcelByIds(body.dossierIds, {
+              ...body,
+              applyWatermark,
+              userId: profile.id,
+              skippedFileIds,
+            }),
+        );
+      return zipStreamResponse(stream, filename, contentType, {
+        zipPasswordSource,
+      });
     },
     {
       body: multiDossierMetadataExportBodySchema,
@@ -385,7 +389,10 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.post(
     "/dip/export",
     async ({ body, profile, request }) => {
-      authHelper.checkPermission(profile, Permission.ARCHIVE_WAREHOUSE_DOWNLOAD);
+      authHelper.checkPermission(
+        profile,
+        Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
+      );
       const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
         profile,
         request,
@@ -402,26 +409,29 @@ export function createDossierRouter(basePath: string = "/dossiers") {
       }
 
       const meta = clientMetaFromRequest(request);
-      const { stream, filename, contentType, zipPasswordSource } = await withDownloadLog(
-        {
-          userId: profile.id,
-          exportType: "dip",
-          scope: "batch",
-          resourceIds: { dossierIds: body.dossierIds },
-          applyWatermark,
-          placementId: body.placementId,
-          ...meta,
-        },
-        () =>
-          service.exportDipHosoBatch(body.dossierIds, {
-            placementId: body.placementId,
-            applyWatermark,
+      const { stream, filename, contentType, zipPasswordSource } =
+        await withDownloadLog(
+          {
             userId: profile.id,
-            dossierAccessPassword: body.dossierAccessPassword,
-            skippedFileIds,
-          }),
-      );
-      return zipStreamResponse(stream, filename, contentType, { zipPasswordSource });
+            exportType: "dip",
+            scope: "batch",
+            resourceIds: { dossierIds: body.dossierIds },
+            applyWatermark,
+            placementId: body.placementId,
+            ...meta,
+          },
+          () =>
+            service.exportDipHosoBatch(body.dossierIds, {
+              placementId: body.placementId,
+              applyWatermark,
+              userId: profile.id,
+              dossierAccessPassword: body.dossierAccessPassword,
+              skippedFileIds,
+            }),
+        );
+      return zipStreamResponse(stream, filename, contentType, {
+        zipPasswordSource,
+      });
     },
     {
       body: multiDipExportBodySchema,
@@ -533,26 +543,29 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         [params.id],
       );
       const meta = clientMetaFromRequest(request);
-      const { stream, filename, contentType, zipPasswordSource } = await withDownloadLog(
-        {
-          userId: profile.id,
-          exportType: "dip",
-          scope: "dossier",
-          resourceIds: { dossierIds: [params.id] },
-          applyWatermark,
-          placementId: query.placementId,
-          ...meta,
-        },
-        () =>
-          service.exportDipHoso(params.id, {
-            placementId: query.placementId,
-            applyWatermark,
+      const { stream, filename, contentType, zipPasswordSource } =
+        await withDownloadLog(
+          {
             userId: profile.id,
-            dossierAccessPassword: query.dossierAccessPassword,
-            skippedFileIds,
-          }),
-      );
-      return zipStreamResponse(stream, filename, contentType, { zipPasswordSource });
+            exportType: "dip",
+            scope: "dossier",
+            resourceIds: { dossierIds: [params.id] },
+            applyWatermark,
+            placementId: query.placementId,
+            ...meta,
+          },
+          () =>
+            service.exportDipHoso(params.id, {
+              placementId: query.placementId,
+              applyWatermark,
+              userId: profile.id,
+              dossierAccessPassword: query.dossierAccessPassword,
+              skippedFileIds,
+            }),
+        );
+      return zipStreamResponse(stream, filename, contentType, {
+        zipPasswordSource,
+      });
     },
     {
       params: t.Object({ id: IdParam("Dossier ID") }),
@@ -648,25 +661,28 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         [params.id],
       );
       const meta = clientMetaFromRequest(request);
-      const { stream, filename, contentType, zipPasswordSource } = await withDownloadLog(
-        {
-          userId: profile.id,
-          exportType: "metadata",
-          scope: "dossier",
-          resourceIds: { dossierIds: [params.id] },
-          applyWatermark,
-          placementId: body.placementId,
-          ...meta,
-        },
-        () =>
-          service.exportMetadataExcel(params.id, {
-            ...body,
-            applyWatermark,
+      const { stream, filename, contentType, zipPasswordSource } =
+        await withDownloadLog(
+          {
             userId: profile.id,
-            skippedFileIds,
-          }),
-      );
-      return zipStreamResponse(stream, filename, contentType, { zipPasswordSource });
+            exportType: "metadata",
+            scope: "dossier",
+            resourceIds: { dossierIds: [params.id] },
+            applyWatermark,
+            placementId: body.placementId,
+            ...meta,
+          },
+          () =>
+            service.exportMetadataExcel(params.id, {
+              ...body,
+              applyWatermark,
+              userId: profile.id,
+              skippedFileIds,
+            }),
+        );
+      return zipStreamResponse(stream, filename, contentType, {
+        zipPasswordSource,
+      });
     },
     {
       params: t.Object({ id: IdParam("Dossier ID") }),
@@ -688,25 +704,28 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         [params.id],
       );
       const meta = clientMetaFromRequest(request);
-      const { stream, filename, contentType, zipPasswordSource } = await withDownloadLog(
-        {
-          userId: profile.id,
-          exportType: "metadata",
-          scope: "dossier",
-          resourceIds: { dossierIds: [params.id] },
-          applyWatermark,
-          placementId: query.placementId,
-          ...meta,
-        },
-        () =>
-          service.exportMetadataExcel(params.id, {
-            placementId: query.placementId,
-            applyWatermark,
+      const { stream, filename, contentType, zipPasswordSource } =
+        await withDownloadLog(
+          {
             userId: profile.id,
-            skippedFileIds,
-          }),
-      );
-      return zipStreamResponse(stream, filename, contentType, { zipPasswordSource });
+            exportType: "metadata",
+            scope: "dossier",
+            resourceIds: { dossierIds: [params.id] },
+            applyWatermark,
+            placementId: query.placementId,
+            ...meta,
+          },
+          () =>
+            service.exportMetadataExcel(params.id, {
+              placementId: query.placementId,
+              applyWatermark,
+              userId: profile.id,
+              skippedFileIds,
+            }),
+        );
+      return zipStreamResponse(stream, filename, contentType, {
+        zipPasswordSource,
+      });
     },
     {
       params: t.Object({ id: IdParam("Dossier ID") }),
