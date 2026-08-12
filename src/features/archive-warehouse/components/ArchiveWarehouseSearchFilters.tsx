@@ -52,23 +52,7 @@ export type ArchiveWarehouseFilterValues = {
   archivedAtTo?: string
 }
 
-const TT05_SEARCHABLE_FIELDS = [
-  { value: 'MA_HO_SO', label: 'Mã hồ sơ' },
-  { value: 'TIEU_DE_HO_SO', label: 'Tiêu đề hồ sơ' },
-  { value: 'MA_DINH_DANH_TAI_LIEU', label: 'Mã định danh tài liệu' },
-  { value: 'MA_LUU_TRU_TAI_LIEU', label: 'Mã lưu trữ tài liệu' },
-  { value: 'TEN_LOAI_TAI_LIEU', label: 'Tên loại tài liệu' },
-  { value: 'SO_CUA_TAI_LIEU', label: 'Số của tài liệu' },
-  { value: 'KY_HIEU_CUA_TAI_LIEU', label: 'Ký hiệu của tài liệu' },
-  { value: 'TEN_CO_QUAN_BAN_HANH', label: 'Tên cơ quan ban hành' },
-  { value: 'TRICH_YEU_NOI_DUNG', label: 'Trích yếu nội dung' },
-  { value: 'NGON_NGU', label: 'Ngôn ngữ' },
-  { value: 'BUT_TICH', label: 'Bút tích' },
-  { value: 'QUY_TRINH_XU_LY', label: 'Quy trình xử lý' },
-  { value: 'CHE_DO_LAP_TAI_LIEU_DU_PHONG', label: 'Chế độ lập tài liệu dự phòng' },
-  { value: 'TINH_TRANG_LAP_TAI_LIEU_DU_PHONG', label: 'Tình trạng lập tài liệu dự phòng' },
-  { value: 'TU_KHOA', label: 'Từ khóa' },
-]
+import { WAREHOUSE_TT05_SEARCHABLE_FIELDS } from '@/features/archive-warehouse/lib/warehouseMetadataSearchDisplay'
 
 type FilterDraft = Omit<ArchiveWarehouseFilterValues, 'q'>
 
@@ -433,7 +417,7 @@ export function ArchiveWarehouseSearchFilters({
 
                   <CheckboxGroup
                     title="Trường Metadata (TT05)"
-                    items={TT05_SEARCHABLE_FIELDS.map((field) => ({
+                    items={WAREHOUSE_TT05_SEARCHABLE_FIELDS.map((field) => ({
                       id: field.value,
                       label: field.label,
                     }))}

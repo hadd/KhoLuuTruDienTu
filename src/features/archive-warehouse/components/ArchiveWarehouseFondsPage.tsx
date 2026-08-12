@@ -43,7 +43,12 @@ import {
 } from '@/features/archive-warehouse/lib/warehouseBrowseSort'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
+import {
+  readManageByFondPreference,
+  writeManageByFondPreference,
+} from '@/features/archive-warehouse/lib/manageByFondPreference'
 import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
+import { profileQueryOptions } from '@/features/auth/queries'
 import {
   archiveWarehouseDossierDetailQueryOptions,
   archiveWarehouseDossiersQueryOptions,
@@ -116,6 +121,7 @@ export function ArchiveWarehouseFondsPage({
   const search = routeApi.useSearch() as ArchiveDataHubSearchT
   const navigate = routeApi.useNavigate()
   const dateLocale = toDateLocale(i18n.language)
+  const { data: profile } = useQuery(profileQueryOptions)
 
   const q = search.q ?? ''
   const page = search.page ?? 1
@@ -160,6 +166,23 @@ export function ArchiveWarehouseFondsPage({
   const isEsSearchActive = isEsWarehouseSearchRequired(filterValues)
   const showFilterResults = isBrowseListActive || isEsSearchActive
   const showBrowseGrids = manageByFond && !showFilterResults
+
+  useEffect(() => {
+    if (!profile?.id) return
+    if (search.manageByFond !== undefined) return
+
+    const stored = readManageByFondPreference(profile.id)
+    if (stored) return
+
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        manageByFond: false,
+        tab: 'dossiers',
+      }),
+      replace: true,
+    })
+  }, [navigate, profile?.id, search.manageByFond])
 
   useEffect(() => {
     if (!manageByFond || search.browseView) return
@@ -418,6 +441,7 @@ export function ArchiveWarehouseFondsPage({
   }
 
   function setManageByFond(next: boolean) {
+    writeManageByFondPreference(profile?.id, next)
     void navigate({
       search: (prev) => ({
         ...prev,
@@ -694,6 +718,8 @@ export function ArchiveWarehouseFondsPage({
                 tookMs={searchData?.took_ms}
                 message={searchData?.message}
                 mode={searchParams?.mode}
+                searchFields={filterValues.searchFields}
+                searchQuery={q}
                 onSelect={(hit, match) => {
                   void openDossierDetail(hit.entityId, hit.fondId, match)
                 }}

@@ -16,3 +16,4 @@ mcp-todos.json
 .netlify
 images/
 .cursor/
+*.tar

@@ -90,6 +90,8 @@ export function PhysicalWarehouseArchiveSearchResultsBlock() {
           tookMs={search.searchData?.took_ms}
           message={search.searchData?.message}
           mode={search.searchParams?.mode}
+          searchFields={search.filterValues.searchFields}
+          searchQuery={search.filterValues.q}
           onSelect={search.handleSelectSearchHit}
         />
       </div>

@@ -20,6 +20,7 @@ interface SecurityLevelPickerProps {
   allowClear?: boolean
   hideLabel?: boolean
   showName?: boolean
+  required?: boolean
   className?: string
 }
 
@@ -31,6 +32,7 @@ export function SecurityLevelPicker({
   allowClear = true,
   hideLabel = false,
   showName = true,
+  required = false,
   className,
 }: SecurityLevelPickerProps) {
   const { t } = useTranslation('security-level')
@@ -41,7 +43,12 @@ export function SecurityLevelPicker({
 
   return (
     <div className={cn('space-y-2', className)}>
-      {hideLabel ? null : <Label>{label ?? t('picker.label')}</Label>}
+      {hideLabel ? null : (
+        <Label>
+          {label ?? t('picker.label')}
+          {required ? <span className="text-destructive"> *</span> : null}
+        </Label>
+      )}
       <Select
         value={value || undefined}
         onValueChange={(next) =>

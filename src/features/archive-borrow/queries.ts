@@ -58,6 +58,7 @@ export function myArchiveBorrowRequestsQueryOptions(
   return queryOptions({
     queryKey: archiveBorrowKeys.mine(params),
     queryFn: () => getMyArchiveBorrowRequests(params),
+    refetchInterval: 30_000,
   })
 }
 
@@ -81,6 +82,7 @@ export function reviewArchiveBorrowRequestsQueryOptions(
   return queryOptions({
     queryKey: archiveBorrowKeys.review(params),
     queryFn: () => getReviewArchiveBorrowRequests(params),
+    refetchInterval: 30_000,
   })
 }
 
