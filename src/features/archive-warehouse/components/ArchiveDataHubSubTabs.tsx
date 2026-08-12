@@ -76,9 +76,9 @@ export function ArchiveDataHubSubTabs() {
                 search: (prev: Record<string, unknown>) => {
                   if (item.value === 'dossiers') {
                     return {
+                      ...prev,
                       tab: 'dossiers',
                       page: 1,
-                      limit: (prev.limit as number | undefined) ?? search.limit,
                     }
                   }
                   if (item.value === 'expiryReview') {

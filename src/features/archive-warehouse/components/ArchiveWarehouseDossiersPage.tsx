@@ -727,6 +727,8 @@ export function ArchiveWarehouseDossiersPage({
                   tookMs={searchData?.took_ms}
                   message={searchData?.message}
                   mode={searchParams?.mode}
+                  searchFields={filterValues.searchFields}
+                  searchQuery={q}
                   onSelect={(hit, match) => {
                     void openDossierDetail(hit.entityId, match)
                   }}

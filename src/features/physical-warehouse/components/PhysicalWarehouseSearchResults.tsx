@@ -3,8 +3,13 @@ import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import type { PhysicalWarehouseSearchHitT } from '@/features/physical-warehouse/types'
+import {
+  hasWarehouseMetadataFieldSearch,
+  resolveWarehouseMetadataSearchLines,
+} from '@/features/archive-warehouse/lib/warehouseMetadataSearchDisplay'
+import type { ArchiveWarehouseSearchHitT } from '@/features/archive-warehouse/types'
 import { physicalWarehouseSearchResultKey } from '@/features/physical-warehouse/lib/physicalWarehouseSearchNav'
+import type { PhysicalWarehouseSearchHitT } from '@/features/physical-warehouse/types'
 import { cn } from '@/lib/utils/cn'
 
 type PhysicalWarehouseSearchResultsProps = {
@@ -13,8 +18,13 @@ type PhysicalWarehouseSearchResultsProps = {
   tookMs?: number | null
   message?: string | null
   mode?: 'all' | 'content' | 'metadata'
+  searchFields?: string | string[]
+  searchQuery?: string
   onSelect: (hit: PhysicalWarehouseSearchHitT) => void
 }
+
+const metadataValueClassName =
+  'text-sm text-muted-foreground [&_em]:font-semibold [&_em]:not-italic [&_em]:text-foreground [&_mark]:rounded-sm [&_mark]:bg-primary/20 [&_mark]:font-semibold [&_mark]:text-foreground'
 
 export function PhysicalWarehouseSearchResults({
   items,
@@ -22,10 +32,13 @@ export function PhysicalWarehouseSearchResults({
   tookMs,
   message,
   mode = 'all',
+  searchFields,
+  searchQuery,
   onSelect,
 }: PhysicalWarehouseSearchResultsProps) {
   const { t } = useTranslation('physical-warehouse')
   const { t: tArchive } = useTranslation('archive-warehouse')
+  const metadataFieldSearch = hasWarehouseMetadataFieldSearch(searchFields)
 
   if (isLoading && items.length === 0) {
     return (
@@ -65,6 +78,13 @@ export function PhysicalWarehouseSearchResults({
           const hasPlacement =
             hit.physicalPlacement != null &&
             hit.physicalPlacement.ancestorIds.length >= 2
+          const metadataLines = metadataFieldSearch
+            ? resolveWarehouseMetadataSearchLines(
+                hit as ArchiveWarehouseSearchHitT,
+                searchFields,
+                searchQuery,
+              )
+            : []
 
           return (
             <button
@@ -97,9 +117,28 @@ export function PhysicalWarehouseSearchResults({
                 </div>
               </div>
 
-              {hit.snippet ? (
+              {metadataFieldSearch ? (
+                metadataLines.length > 0 ? (
+                  <div className="mt-2 space-y-1.5">
+                    {metadataLines.map((line) => (
+                      <div key={`${hit.entityId}-${line.fieldKey}`} className="text-sm">
+                        <span className="text-foreground">{line.label}: </span>
+                        <span
+                          className={metadataValueClassName}
+                          dangerouslySetInnerHTML={{ __html: line.valueHtml }}
+                        />
+                        {line.fileName ? (
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {line.fileName}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : null
+              ) : hit.snippet ? (
                 <p
-                  className="mt-2 text-sm text-muted-foreground [&_em]:font-semibold [&_em]:not-italic [&_em]:text-foreground"
+                  className={`mt-2 ${metadataValueClassName}`}
                   dangerouslySetInnerHTML={{ __html: hit.snippet }}
                 />
               ) : null}
