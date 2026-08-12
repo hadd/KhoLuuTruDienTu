@@ -145,6 +145,12 @@ export function archiveWarehouseUnassignedDossiersQueryOptions(
   })
 }
 
+function hasValidBrowseFondId(fondId?: string | string[]): boolean {
+  if (!fondId) return true
+  const ids = Array.isArray(fondId) ? fondId : [fondId]
+  return !ids.some((id) => isUnassignedWarehouseFondId(id))
+}
+
 export function archiveWarehouseDossiersQueryOptions(
   params: GetArchiveWarehouseDossiersParamsT | null,
 ) {
@@ -152,9 +158,7 @@ export function archiveWarehouseDossiersQueryOptions(
     ...archiveWarehouseLiveQueryDefaults,
     queryKey: [...archiveWarehouseDossiersQueryKeyPrefix, params ?? {}],
     queryFn: () => getArchiveWarehouseDossiers(params!),
-    enabled:
-      params != null &&
-      (!params.fondId || !isUnassignedWarehouseFondId(params.fondId)),
+    enabled: params != null && hasValidBrowseFondId(params.fondId),
   })
 }
 

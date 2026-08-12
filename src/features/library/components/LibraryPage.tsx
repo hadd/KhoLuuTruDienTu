@@ -8,7 +8,8 @@ import { MyArchiveBorrowRequestsPage } from '@/features/archive-borrow/component
 import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { LibraryPageShell } from '@/features/library/components/LibraryPageShell'
 import { useLibraryExploitationAccess } from '@/features/library/hooks/useLibraryExploitationAccess'
-import { IconHubBackLink } from '@/features/navigation/components/SectionBackNav'
+import { IconHubPageLayout } from '@/features/navigation/components/IconHubPageLayout'
+import { cn } from '@/lib/utils/cn'
 
 const routeApi = getRouteApi('/app/library/')
 
@@ -69,48 +70,45 @@ export function LibraryPage() {
     }
 
     return (
-      <LibraryPageShell hideTabs>
-        <div className="flex min-h-0 flex-1 flex-col items-center px-6 pt-6 pb-16 sm:pt-10">
-          <div className="flex w-full max-w-5xl flex-col items-center gap-8 sm:gap-10">
-            <div className="w-full self-start">
-              <IconHubBackLink
-                to="/app/dashboard"
-                parentLabel={tCommon('navigation.home')}
-                backAriaLabel={tCommon('hubBack.aria', {
-                  target: tCommon('navigation.home'),
-                })}
-              />
-            </div>
-            <h1 className="text-2xl font-bold uppercase tracking-[0.06em] text-primary sm:text-[1.75rem]">
-              {tCommon('admin.library')}
-            </h1>
-
-            <div className="grid w-full grid-cols-2 gap-6 sm:gap-8 md:grid-cols-3 lg:grid-cols-5">
-              {tabs.map((tile) => {
-                const Icon = tile.icon
-                return (
-                  <Link
-                    key={tile.id}
-                    to={tile.to}
-                    search={tile.search}
-                    className="group flex flex-col items-center gap-3 outline-none focus-visible:rounded-xl focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <span className="flex size-[4.5rem] items-center justify-center rounded-[1.25rem] bg-primary/10 text-primary transition-colors group-hover:bg-primary/15 sm:size-20">
-                      <Icon
-                        className="size-9 sm:size-10"
-                        strokeWidth={1.6}
-                        aria-hidden
-                      />
-                    </span>
-                    <span className="text-center text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary sm:text-[0.95rem]">
-                      {tile.label}
-                    </span>
-                  </Link>
-                )
-              })}
-            </div>
+      <LibraryPageShell hideTabs contentClassName="p-0">
+        <IconHubPageLayout
+          title={tCommon('admin.library')}
+          maxWidth={tabs.length <= 2 ? 'max-w-3xl' : 'max-w-5xl'}
+        >
+          <div
+            className={cn(
+              'grid w-full gap-8 sm:gap-10',
+              tabs.length === 1
+                ? 'max-w-xs grid-cols-1'
+                : tabs.length === 2
+                  ? 'max-w-xl grid-cols-1 sm:grid-cols-2'
+                  : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+            )}
+          >
+            {tabs.map((tile) => {
+              const Icon = tile.icon
+              return (
+                <Link
+                  key={tile.id}
+                  to={tile.to}
+                  search={tile.search}
+                  className="group flex flex-col items-center gap-4 outline-none focus-visible:rounded-2xl focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <span className="flex size-36 items-center justify-center rounded-[2rem] bg-primary/10 text-primary transition-colors group-hover:bg-primary/15 sm:size-44">
+                    <Icon
+                      className="size-16 sm:size-20"
+                      strokeWidth={1.5}
+                      aria-hidden
+                    />
+                  </span>
+                  <span className="text-center text-lg font-medium text-foreground transition-colors group-hover:text-primary sm:text-xl">
+                    {tile.label}
+                  </span>
+                </Link>
+              )
+            })}
           </div>
-        </div>
+        </IconHubPageLayout>
       </LibraryPageShell>
     )
   }

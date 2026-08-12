@@ -8,7 +8,7 @@ import viteTsConfigPaths from 'vite-tsconfig-paths'
 
 const config = defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const apiUrl = env.VITE_API_URL || 'http://localhost:8000'
+  const apiUrl = env.VITE_API_URL || 'http://127.0.0.1:8000'
   const socketViaProxy = env.VITE_SOCKET_VIA_PROXY === 'true'
 
   return {

@@ -224,6 +224,7 @@ export function ArchiveWarehouseDossiersByTypePage() {
           highlightBbox,
         },
       ),
+      state: { fromArchiveWarehouseList: true },
     })
   }
 
@@ -238,6 +239,7 @@ export function ArchiveWarehouseDossiersByTypePage() {
         browseView: 'dossierTypes',
         dossierTypeId,
       }),
+      state: { fromArchiveWarehouseList: true },
     })
   }
 

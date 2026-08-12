@@ -10,7 +10,7 @@ import { useDossierTypeAccess } from '@/features/dossier-type/hooks/useDossierTy
 import { useInventoryAccess } from '@/features/inventory/hooks/useInventoryAccess'
 import { useRetentionPeriodAccess } from '@/features/retention-period/hooks/useRetentionPeriodAccess'
 import { useSecurityLevelAccess } from '@/features/security-level/hooks/useSecurityLevelAccess'
-import { IconHubBackLink } from '@/features/navigation/components/SectionBackNav'
+import { IconHubPageLayout } from '@/features/navigation/components/IconHubPageLayout'
 
 type CatalogTileTo =
   | '/app/archive-fonds'
@@ -106,45 +106,41 @@ export function GeneralCatalogPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center px-6 pt-10 pb-16 sm:pt-14">
-      <div className="flex w-full max-w-5xl flex-col items-center gap-8 sm:gap-10">
-        <div className="w-full self-start">
-          <IconHubBackLink
-            to="/app/system-admin"
-            parentLabel={tCommon('admin.groups.systemAdmin')}
-            backAriaLabel={tCommon('hubBack.aria', {
-              target: tCommon('admin.groups.systemAdmin'),
-            })}
-          />
-        </div>
-        <h1 className="text-2xl font-bold uppercase tracking-[0.06em] text-primary sm:text-[1.75rem]">
-          {t('title')}
-        </h1>
-
-        <div className="grid w-full grid-cols-2 gap-6 sm:gap-8 md:grid-cols-3 lg:grid-cols-5">
-          {tiles.map((tile) => {
-            const Icon = tile.icon
-            return (
-              <Link
-                key={tile.id}
-                to={tile.to}
-                className="group flex flex-col items-center gap-3 outline-none focus-visible:rounded-xl focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span className="flex size-[4.5rem] items-center justify-center rounded-[1.25rem] bg-primary/10 text-primary transition-colors group-hover:bg-primary/15 sm:size-20">
-                  <Icon
-                    className="size-9 sm:size-10"
-                    strokeWidth={1.6}
-                    aria-hidden
-                  />
-                </span>
-                <span className="text-center text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary sm:text-[0.95rem]">
-                  {tile.label}
-                </span>
-              </Link>
-            )
-          })}
-        </div>
+    <IconHubPageLayout
+      title={t('title')}
+      maxWidth="max-w-5xl"
+      contentGap="gap-8 sm:gap-10"
+      back={{
+        to: '/app/system-admin',
+        parentLabel: tCommon('admin.groups.systemAdmin'),
+        backAriaLabel: tCommon('hubBack.aria', {
+          target: tCommon('admin.groups.systemAdmin'),
+        }),
+      }}
+    >
+      <div className="grid w-full grid-cols-2 gap-6 sm:gap-8 md:grid-cols-3 lg:grid-cols-5">
+        {tiles.map((tile) => {
+          const Icon = tile.icon
+          return (
+            <Link
+              key={tile.id}
+              to={tile.to}
+              className="group flex flex-col items-center gap-3 outline-none focus-visible:rounded-xl focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="flex size-[4.5rem] items-center justify-center rounded-[1.25rem] bg-primary/10 text-primary transition-colors group-hover:bg-primary/15 sm:size-20">
+                <Icon
+                  className="size-9 sm:size-10"
+                  strokeWidth={1.6}
+                  aria-hidden
+                />
+              </span>
+              <span className="text-center text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary sm:text-[0.95rem]">
+                {tile.label}
+              </span>
+            </Link>
+          )
+        })}
       </div>
-    </div>
+    </IconHubPageLayout>
   )
 }

@@ -13,7 +13,6 @@ import {
   collectNavLinkNodes,
   getNavRoutesForLink,
 } from '@/features/navigation/config/appNavTree'
-import { isDataConfigNavItemVisible } from '@/features/navigation/config/dataConfigNavItems'
 import { getVisibleDataConfigNavItemDefs } from '@/features/navigation/config/dataConfigNavItems'
 import { DIGITIZATION_SCREEN_REQUIREMENTS } from '@/features/digitization/lib/digitizationAccess'
 import { GENERAL_CATALOG_SCREEN_REQUIREMENTS } from '@/features/general-catalog/lib/generalCatalogAccess'
@@ -145,6 +144,10 @@ export function isNavLinkVisibleOnSidebar(
     return isSystemAdminHubVisible(permissions, catalog)
   }
 
+  if (link.id === 'digitization-hub') {
+    return isDigitizationHubVisible(permissions, catalog)
+  }
+
   if (link.visibilityTag === 'data-config') {
     return getVisibleDataConfigNavItemDefs(permissions, catalog).length > 0
   }
@@ -274,6 +277,16 @@ export function getVisibleNavTree(
   }).filter((node) => isNavNodeVisibleOnSidebar(node, permissions, catalog, primaryAppRole))
 }
 
+function isMetadataPermissionRequirement(
+  requirement?: AppScreenPermissionRequirement,
+): boolean {
+  if (!requirement) return false
+  if (Array.isArray(requirement)) {
+    return requirement.some((item) => item.module === 'metadata')
+  }
+  return requirement.module === 'metadata'
+}
+
 export function isAppScreenChildVisibleOnSidebar(
   child: AppScreenChild,
   permissions: Array<string>,
@@ -283,7 +296,7 @@ export function isAppScreenChildVisibleOnSidebar(
   if (
     child.id === 'document-types' ||
     child.id === 'document-assignment' ||
-    child.requiredPermission?.module === 'metadata'
+    isMetadataPermissionRequirement(child.requiredPermission)
   ) {
     return isMetadataSidebarChildGranted(child.id, permissions, catalog)
   }
