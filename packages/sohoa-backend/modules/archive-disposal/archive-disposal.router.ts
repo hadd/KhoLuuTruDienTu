@@ -43,6 +43,7 @@ import {
 
 import { ArchiveDisposalService } from "./archive-disposal-service.ts";
 import { DisposalCouncilService } from "./disposal-council-service.ts";
+import { DisposalAppendixExportService } from "./disposal-appendix-export-service.ts";
 
 
 
@@ -619,6 +620,98 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
                 }),
 
                 detail: { tags, summary: "Xóa hồ sơ khỏi danh mục" },
+
+            },
+
+        )
+
+        .get(
+
+            "/catalogs/:catalogId/export/phu-luc-ii",
+
+            async ({ profile, params }) => {
+
+                checkRead(profile);
+
+                const result = await DisposalAppendixExportService.exportPhuLucII(
+
+                    profile,
+
+                    params.catalogId,
+
+                );
+
+                const safeName = result.filename.replace(/[\r\n"]+/g, "_").trim();
+
+                return new Response(Buffer.from(result.body), {
+
+                    headers: {
+
+                        "Content-Type": result.contentType,
+
+                        "Content-Disposition": `attachment; filename="${safeName}"`,
+
+                        "Cache-Control": "private, no-store",
+
+                        "X-Content-Type-Options": "nosniff",
+
+                    },
+
+                });
+
+            },
+
+            {
+
+                params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
+
+                detail: { tags, summary: "Xuất PDF Phụ lục II — Danh mục tài liệu hết hạn/trùng lặp" },
+
+            },
+
+        )
+
+        .get(
+
+            "/catalogs/:catalogId/export/phu-luc-iii",
+
+            async ({ profile, params }) => {
+
+                checkRead(profile);
+
+                const result = await DisposalAppendixExportService.exportPhuLucIII(
+
+                    profile,
+
+                    params.catalogId,
+
+                );
+
+                const safeName = result.filename.replace(/[\r\n"]+/g, "_").trim();
+
+                return new Response(Buffer.from(result.body), {
+
+                    headers: {
+
+                        "Content-Type": result.contentType,
+
+                        "Content-Disposition": `attachment; filename="${safeName}"`,
+
+                        "Cache-Control": "private, no-store",
+
+                        "X-Content-Type-Options": "nosniff",
+
+                    },
+
+                });
+
+            },
+
+            {
+
+                params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
+
+                detail: { tags, summary: "Xuất PDF Phụ lục III — Bản thuyết minh" },
 
             },
 

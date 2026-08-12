@@ -59,8 +59,10 @@ export const ARCHIVE_WAREHOUSE_ACTION_PERMISSIONS = [
     Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
 ] as const;
 
-/** Quyền tải xuống kho (download / download_watermark, gated by security-level). */
+/** Quyền tải / xuất tài liệu kho (RBAC). Security-level vẫn gate sau. */
 export const ARCHIVE_WAREHOUSE_DOWNLOAD_PERMISSIONS = [
+    Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
+    /** @deprecated legacy role keys still accepted */
     Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL,
     Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK,
 ] as const;
@@ -73,9 +75,15 @@ export function hasArchiveWarehouseDownloadPermission(
 }
 
 export function canDownload(profile: UserWithRoles): boolean {
-    return userRolesHavePermission(
-        profile.userRoles,
-        Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL, // deprecated role key, kept for legacy
+    return (
+        userRolesHavePermission(
+            profile.userRoles,
+            Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
+        ) ||
+        userRolesHavePermission(
+            profile.userRoles,
+            Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_ORIGINAL,
+        )
     );
 }
 
@@ -83,9 +91,15 @@ export function canDownload(profile: UserWithRoles): boolean {
 export const canDownloadOriginal = canDownload;
 
 export function canDownloadWatermark(profile: UserWithRoles): boolean {
-    return userRolesHavePermission(
-        profile.userRoles,
-        Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK,
+    return (
+        userRolesHavePermission(
+            profile.userRoles,
+            Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
+        ) ||
+        userRolesHavePermission(
+            profile.userRoles,
+            Permission.ARCHIVE_WAREHOUSE_DOWNLOAD_WATERMARK,
+        )
     );
 }
 

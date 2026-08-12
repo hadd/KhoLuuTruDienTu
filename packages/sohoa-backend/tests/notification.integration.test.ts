@@ -199,6 +199,7 @@ Deno.test({
                 notificationType: NotificationType.DOSSIER_ASSIGNED,
                 channels: [NotificationChannel.EMAIL],
                 roleIds: [AuthRole.QC],
+                active: false,
             }, admin.id);
 
             await NotificationConfigService.setActive(config.id, false, admin.id);
@@ -391,12 +392,17 @@ Deno.test({
         await t.step("Email dispatch still creates inbox row when email is not configured", async () => {
             await deleteEmailSenderConfig();
 
-            await NotificationConfigService.create({
+            const emailOnlyConfig = await NotificationConfigService.create({
                 notificationType: NotificationType.DOSSIER_ASSIGNED,
                 channels: [NotificationChannel.EMAIL],
                 roleIds: [AuthRole.EDITOR],
-                active: true,
+                active: false,
             }, admin.id);
+
+            // Force-active to simulate misconfigured runtime (sender removed after activate).
+            await db.update(notificationConfigs)
+                .set({ active: true, updatedAt: new Date() })
+                .where(eq(notificationConfigs.id, emailOnlyConfig.id));
 
             const dossierId = crypto.randomUUID();
             await NotificationDeliveryService.dispatchDossierAssigned({
@@ -418,6 +424,54 @@ Deno.test({
             );
             assertExists(notification);
             assertEquals(notification.body.includes("HS-EMAIL-FAIL"), true);
+        });
+
+        await t.step("Separate SYSTEM + EMAIL configs both deliver for same OCR recipient", async () => {
+            await db.delete(notificationConfigs).where(
+                eq(notificationConfigs.notificationType, NotificationType.OCR_COMPLETED),
+            );
+
+            await NotificationConfigService.create({
+                notificationType: NotificationType.OCR_COMPLETED,
+                channels: [NotificationChannel.SYSTEM],
+                roleIds: [AuthRole.ADMIN],
+                active: true,
+            }, admin.id);
+
+            await NotificationConfigService.create({
+                notificationType: NotificationType.OCR_COMPLETED,
+                channels: [NotificationChannel.EMAIL],
+                roleIds: [AuthRole.ADMIN],
+                active: false,
+            }, admin.id);
+
+            // Force-active EMAIL config without requiring live SMTP for this unit of work:
+            // delivery failure is swallowed, but channel must still be attempted (inbox exists once).
+            const emailConfig = await findConfig(
+                NotificationType.OCR_COMPLETED,
+                [NotificationChannel.EMAIL],
+                [AuthRole.ADMIN],
+            );
+            assertExists(emailConfig);
+            await db.update(notificationConfigs)
+                .set({ active: true, updatedAt: new Date() })
+                .where(eq(notificationConfigs.id, emailConfig.id));
+
+            const dossierId = crypto.randomUUID();
+            await NotificationDeliveryService.dispatchOcrCompleted({
+                dossierId,
+                folderId: crypto.randomUUID(),
+                folderPath: `${TEST_PREFIX}/ocr-dual-channel`,
+                dossierName: "HS-OCR-DUAL",
+            });
+
+            const adminInbox = await NotificationInboxService.list(admin.id, {});
+            const matched = adminInbox.filter((item) =>
+                item.type === NotificationType.OCR_COMPLETED &&
+                notificationMatchesDossier(item, dossierId)
+            );
+            // One inbox row even when SYSTEM and EMAIL come from separate configs.
+            assertEquals(matched.length, 1);
         });
 
         await t.step("Editors completed notifies only assigned QC", async () => {

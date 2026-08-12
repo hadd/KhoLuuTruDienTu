@@ -11,6 +11,7 @@ import {
     toDocJsonDataLakeKey,
     toDocJsonDataLakePrefix,
     toProcessedMetadataKey,
+    toTt05MetadataKey,
     toSearchablePdfKey,
     isCanonicalOcrOutputKey,
 } from "../modules/dossier/dossier-path-utils.ts";
@@ -64,6 +65,14 @@ Deno.test("toProcessedMetadataKey mirrors raw folder to nested processed json", 
     assertEquals(toProcessedMetadataKey("imports/a/ho-so"), null);
 });
 
+Deno.test("toTt05MetadataKey mirrors raw folder to nested tt05_metadata json", () => {
+    assertEquals(
+        toTt05MetadataKey("raw/batch-1/ho-so-123"),
+        "tt05_metadata/batch-1/ho-so-123/ho-so-123.json",
+    );
+    assertEquals(toTt05MetadataKey("imports/a/ho-so"), null);
+});
+
 Deno.test("deriveFolderPathFromProcessedKey maps nested processed json to raw folder", () => {
     assertEquals(
         deriveFolderPathFromProcessedKey("processed/batch-1/ho-so-123/ho-so-123.json"),
@@ -71,6 +80,21 @@ Deno.test("deriveFolderPathFromProcessedKey maps nested processed json to raw fo
     );
     assertEquals(
         deriveHoSoIdFromProcessedKey("processed/batch-1/ho-so-123/ho-so-123.json"),
+        "ho-so-123",
+    );
+});
+
+Deno.test("deriveFolderPathFromProcessedKey maps tt05_metadata json to raw folder", () => {
+    assertEquals(
+        deriveFolderPathFromProcessedKey(
+            "tt05_metadata/batch-1/ho-so-123/ho-so-123.json",
+        ),
+        "raw/batch-1/ho-so-123",
+    );
+    assertEquals(
+        deriveHoSoIdFromProcessedKey(
+            "tt05_metadata/batch-1/ho-so-123/ho-so-123.json",
+        ),
         "ho-so-123",
     );
 });
@@ -94,6 +118,16 @@ Deno.test("isCanonicalOcrOutputKey accepts only worker OCR output filename", () 
     assertEquals(isCanonicalOcrOutputKey("processed/BO_HS2_3_CAI/HS2/HS2_EDITOR.json"), false);
     assertEquals(isCanonicalOcrOutputKey("processed/BO_HS2_3_CAI/HS2/HS2_664e2576.json"), false);
     assertEquals(isCanonicalOcrOutputKey("processed/BO_HS2_3_CAI/HS2/HS2_CHECKER_1.json"), false);
+});
+
+Deno.test("isCanonicalOcrOutputKey accepts tt05_metadata canonical key", () => {
+    const base = "tt05_metadata/BO_HS2_3_CAI/HS2/HS2.json";
+    assertEquals(isCanonicalOcrOutputKey(base), true);
+    assertEquals(isCanonicalOcrOutputKey(`/${base}`), true);
+    assertEquals(
+        isCanonicalOcrOutputKey("tt05_metadata/BO_HS2_3_CAI/HS2/HS2_EDITOR.json"),
+        false,
+    );
 });
 
 Deno.test("storageDirname and basename parse nested key", () => {

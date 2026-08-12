@@ -104,7 +104,20 @@ async function dispatchForType(
     }
 
     const content = await resolveNotificationContent(type, context);
-    const notifiedRecipients = new Set<string>();
+
+    // Gộp kênh theo từng người nhận trên mọi config cùng type.
+    // Tránh bug: config SYSTEM chạy trước → bỏ qua config EMAIL cùng recipient.
+    const recipientChannels = new Map<string, Set<string>>();
+    for (const config of configs) {
+        const recipients = await resolveRecipientsForConfig(type, config.roleIds, context);
+        for (const recipientId of recipients) {
+            const channels = recipientChannels.get(recipientId) ?? new Set<string>();
+            for (const channel of config.channels) {
+                channels.add(channel);
+            }
+            recipientChannels.set(recipientId, channels);
+        }
+    }
 
     const recipientEmails = new Map<string, string | null>();
     async function getRecipientEmail(userId: string): Promise<string | null> {
@@ -124,29 +137,18 @@ async function dispatchForType(
         return email;
     }
 
-    for (const config of configs) {
-        const roleIds = config.roleIds;
-        const channels = config.channels;
-        const recipients = await resolveRecipientsForConfig(type, roleIds, context);
+    for (const [recipientId, channels] of recipientChannels) {
+        const [notification] = await db.insert(notifications).values({
+            recipientId,
+            type,
+            title: content.title,
+            body: content.body,
+            actionUrl: content.actionUrl,
+        }).returning();
 
-        for (const recipientId of recipients) {
-            if (notifiedRecipients.has(recipientId)) {
-                continue;
-            }
-            notifiedRecipients.add(recipientId);
-
-            const [notification] = await db.insert(notifications).values({
-                recipientId,
-                type,
-                title: content.title,
-                body: content.body,
-                actionUrl: content.actionUrl,
-            }).returning();
-
-            const email = await getRecipientEmail(recipientId);
-            for (const channel of channels) {
-                await deliverChannel(notification, channel, email);
-            }
+        const email = await getRecipientEmail(recipientId);
+        for (const channel of channels) {
+            await deliverChannel(notification, channel, email);
         }
     }
 }

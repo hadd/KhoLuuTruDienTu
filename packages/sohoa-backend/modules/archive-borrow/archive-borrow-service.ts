@@ -9,6 +9,7 @@ import {
     ArchiveBorrowStatus,
     type ArchiveBorrowAnnotationBbox,
     type ArchiveBorrowAnnotationKindType,
+    type ArchiveBorrowStatusType,
 } from "../../db/schemas/archive-borrow-constants.ts";
 import {
     archiveBorrowAnnotations,
@@ -26,6 +27,7 @@ import { archiveSubmissions } from "../../db/schemas/archive-submission.ts";
 import { documentTypes } from "../../db/schemas/document-type.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
+import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { dossierTypes } from "../../db/schemas/dossier-type.ts";
 import { fonds } from "../../db/schemas/fond.ts";
 import { inventories } from "../../db/schemas/inventory.ts";
@@ -155,19 +157,28 @@ function buildExistsOutOfBorrowReviewFondScope(
     )`;
 }
 
-async function findPendingBorrowRequestIdsForReviewer(
+async function findReviewerBorrowRequestPage(
     scope: ArchiveDataScope,
     clearance: number,
-    options: { limit: number; offset: number },
-): Promise<string[]> {
+    options: {
+        limit: number
+        offset: number
+        status?: ArchiveBorrowStatusType
+        search?: string
+    },
+): Promise<{ ids: string[]; total: number }> {
     if (scope.mode === "none") {
-        return [];
+        return { ids: [], total: 0 };
     }
 
+    const searchTerm = options.search?.trim();
     const conditions: SQL[] = [
         eq(archiveBorrowRequests.medium, ArchiveBorrowMedium.ELECTRONIC),
-        eq(archiveBorrowRequests.status, ArchiveBorrowStatus.PENDING),
     ];
+
+    if (options.status) {
+        conditions.push(eq(archiveBorrowRequests.status, options.status));
+    }
 
     if (scope.mode === "scoped" || scope.mode === "fond") {
         conditions.push(sql`not ${buildExistsOutOfBorrowReviewFondScope(scope)}`);
@@ -186,15 +197,50 @@ async function findPendingBorrowRequestIdsForReviewer(
         ) <= ${clearance}`);
     }
 
-    const idRows = await db
-        .select({ id: archiveBorrowRequests.id })
-        .from(archiveBorrowRequests)
-        .where(and(...conditions))
-        .orderBy(desc(archiveBorrowRequests.createdAt))
-        .limit(options.limit)
-        .offset(options.offset);
+    if (searchTerm) {
+        const like = `%${searchTerm}%`;
+        conditions.push(
+            or(
+                ilike(archiveBorrowRequests.reason, like),
+                ilike(userProfiles.fullName, like),
+                ilike(userProfiles.email, like),
+            )!,
+        );
+    }
 
-    return idRows.map((row) => row.id);
+    const whereClause = and(...conditions);
+    const fromReviewerRequests = () =>
+        db
+            .select({ id: archiveBorrowRequests.id })
+            .from(archiveBorrowRequests)
+            .leftJoin(
+                userProfiles,
+                eq(userProfiles.id, archiveBorrowRequests.requesterId),
+            )
+            .where(whereClause);
+
+    const [idRows, countRows] = await Promise.all([
+        fromReviewerRequests()
+            .orderBy(
+                sql`case when ${archiveBorrowRequests.status} = ${ArchiveBorrowStatus.PENDING} then 0 else 1 end`,
+                desc(archiveBorrowRequests.createdAt),
+            )
+            .limit(options.limit)
+            .offset(options.offset),
+        db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(archiveBorrowRequests)
+            .leftJoin(
+                userProfiles,
+                eq(userProfiles.id, archiveBorrowRequests.requesterId),
+            )
+            .where(whereClause),
+    ]);
+
+    return {
+        ids: idRows.map((row) => row.id),
+        total: countRows[0]?.count ?? 0,
+    };
 }
 
 type BorrowItemWithLabels = ArchiveBorrowItem & {
@@ -881,10 +927,10 @@ export const ArchiveBorrowService = {
         const limit = Math.min(Math.max(options?.limit ?? 50, 1), 200);
         const offset = Math.max(options?.offset ?? 0, 0);
 
-        const requestIds = await findPendingBorrowRequestIdsForReviewer(
+        const { ids: requestIds } = await findReviewerBorrowRequestPage(
             scope,
             clearance,
-            { limit, offset },
+            { limit, offset, status: ArchiveBorrowStatus.PENDING },
         );
         if (requestIds.length === 0) {
             return [];
@@ -919,6 +965,85 @@ export const ArchiveBorrowService = {
                 )
             ),
         );
+    },
+
+    async listForReview(profile: UserWithRoles, options?: {
+        page?: number
+        limit?: number
+        search?: string
+        status?: ArchiveBorrowStatusType
+    }) {
+        assertReviewPermission(profile);
+        const clearance = await resolveBorrowApprovalClearance(profile);
+        const empty = {
+            items: [] as Awaited<ReturnType<typeof mapRequestDetail>>[],
+            page: Math.max(1, options?.page ?? 1),
+            limit: Math.min(Math.max(options?.limit ?? 10, 1), 100),
+            total: 0,
+            totalPages: 1,
+        };
+        if (clearance === null) {
+            return empty;
+        }
+
+        const { scope } = await resolveWarehouseScope(profile);
+        const page = empty.page;
+        const limit = empty.limit;
+        const offset = (page - 1) * limit;
+
+        const { ids: requestIds, total } = await findReviewerBorrowRequestPage(
+            scope,
+            clearance,
+            {
+                limit,
+                offset,
+                status: options?.status,
+                search: options?.search,
+            },
+        );
+
+        if (requestIds.length === 0) {
+            return { ...empty, total, totalPages: Math.max(1, Math.ceil(total / limit)) };
+        }
+
+        const rows = await db.query.archiveBorrowRequests.findMany({
+            where: inArray(archiveBorrowRequests.id, requestIds),
+            with: {
+                items: {
+                    with: borrowItemRelations,
+                },
+                dipPackage: true,
+                requester: {
+                    columns: { id: true, fullName: true, email: true },
+                },
+                reviewer: {
+                    columns: { id: true, fullName: true, email: true },
+                },
+            },
+        });
+
+        const byId = new Map(rows.map((row) => [row.id, row]));
+        const ordered = requestIds
+            .map((id) => byId.get(id))
+            .filter((row): row is NonNullable<typeof row> => Boolean(row));
+
+        return {
+            items: await Promise.all(
+                ordered.map((row) =>
+                    mapRequestDetail(
+                        row,
+                        row.items,
+                        row.dipPackage ?? null,
+                        row.requester,
+                        row.reviewer,
+                    )
+                ),
+            ),
+            page,
+            limit,
+            total,
+            totalPages: Math.max(1, Math.ceil(total / limit)),
+        };
     },
 
     async getById(profile: UserWithRoles, requestId: string) {

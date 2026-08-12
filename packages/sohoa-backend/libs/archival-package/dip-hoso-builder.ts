@@ -77,6 +77,7 @@ export type DipZipStreamResult = {
     filename: string;
     contentType: "application/zip";
     exportedCount: number;
+    zipPasswordSource?: "personal_pin" | "dossier" | "none";
 };
 
 /**

@@ -200,17 +200,20 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
           page: urlQuery.page != null ? Number(urlQuery.page) : undefined,
           limit: urlQuery.limit != null ? Number(urlQuery.limit) : undefined,
           fondId: urlQuery.fondId,
+          dossierTypeId: urlQuery.dossierTypeId,
           search: urlQuery.search,
           year: urlQuery.year != null ? Number(urlQuery.year) : undefined,
           status: urlQuery.status,
+          sortBy: urlQuery.sortBy,
+          sortDir: urlQuery.sortDir,
         })
       },
       {
         detail: {
           tags,
-          summary: "Duyệt hồ sơ đã lưu kho theo phông",
+          summary: "Duyệt hồ sơ đã lưu kho",
           description:
-            "Bắt buộc fondId. Chỉ trả về hồ sơ trong kho theo phạm vi phân quyền. Hỗ trợ lọc năm (inventory.submissionYear), tìm kiếm và phân trang.",
+            "fondId và dossierTypeId tùy chọn (hỗ trợ nhiều giá trị, OR trong cùng loại; AND giữa phông và loại hồ sơ). Bỏ trống để lấy toàn bộ hồ sơ trong phạm vi phân quyền. Hỗ trợ lọc năm, tìm kiếm tên/đường dẫn và phân trang.",
         },
       },
     )

@@ -3,6 +3,7 @@ import { Buffer } from "node:buffer";
 import { httpError } from "@shared/common-lib";
 import { plugins } from "../../libs/plugins/_index.ts";
 import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
+import { ArchiveBorrowStatus } from "../../db/schemas/archive-borrow-constants.ts";
 import {
     hasArchiveBorrowRequestPermission,
     hasArchiveBorrowReviewPermission,
@@ -130,6 +131,34 @@ export function createArchiveBorrowRouter(prefix = "/archive-borrow-requests") {
                 detail: {
                     tags,
                     summary: "List pending electronic borrow requests",
+                },
+            },
+        )
+        .get(
+            "/review",
+            async ({ query, profile }) => {
+                const user = requireProfile(profile);
+                if (!hasArchiveBorrowReviewPermission(user)) {
+                    throw httpError.forbidden("library.borrow.review required");
+                }
+                return await ArchiveBorrowService.listForReview(user, {
+                    page: query.page,
+                    limit: query.limit,
+                    search: query.search,
+                    status: query.status,
+                });
+            },
+            {
+                query: t.Object({
+                    page: t.Optional(t.Numeric()),
+                    limit: t.Optional(t.Numeric()),
+                    search: t.Optional(t.String()),
+                    status: t.Optional(t.Enum(ArchiveBorrowStatus)),
+                }),
+                detail: {
+                    tags,
+                    summary:
+                        "List all electronic borrow requests in reviewer scope (pending and processed)",
                 },
             },
         )
