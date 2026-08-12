@@ -133,6 +133,22 @@ Deno.test("buildUnifiedDossierQuery passes groupCode into nested clause", () => 
   );
 });
 
+Deno.test("buildUnifiedDossierQuery searches catalog and nested TEN_LOAI_TAI_LIEU", () => {
+  const q = buildUnifiedDossierQuery("biên bản", undefined, [], ["TEN_LOAI_TAI_LIEU"]);
+  const bool = q.bool as {
+    should: Array<Record<string, unknown>>;
+    minimum_should_match: number;
+  };
+
+  assertEquals(bool.minimum_should_match, 1);
+  assertEquals(bool.should.length, 2);
+  assertEquals("bool" in bool.should[0]!, true);
+  assertEquals(
+    ((bool.should[1] as { nested: { path: string } }).nested.path),
+    "fields",
+  );
+});
+
 Deno.test("filterMatchesBySearchFields keeps only selected nested fields", () => {
   const matches = [
     {
