@@ -4,6 +4,8 @@ import type {
   DisposalProposalCatalogT,
   DisposalProposalItemT,
   GetDisposalCandidatesParamsT,
+  Pl3ContentT,
+  Pl3SuggestionsResponseT,
   TransferToProposalItemT,
 } from '@/features/archive-disposal/types'
 import { apiClient } from '@/lib/api/apiClient'
@@ -194,6 +196,37 @@ export function downloadDisposalPhuLucII(catalogId: string): Promise<void> {
   return downloadDisposalAppendixExport(catalogId, 'phu-luc-ii')
 }
 
-export function downloadDisposalPhuLucIII(catalogId: string): Promise<void> {
-  return downloadDisposalAppendixExport(catalogId, 'phu-luc-iii')
+export async function getDisposalPl3Suggestions(
+  catalogId: string,
+): Promise<Pl3SuggestionsResponseT> {
+  const response = await apiClient.get<Pl3SuggestionsResponseT>(
+    `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/appendix-iii/suggestions`,
+  )
+  return response.data
+}
+
+export function exportDisposalPhuLucIII(
+  catalogId: string,
+  content: Pl3ContentT,
+): Promise<void> {
+  const flightKey = `${catalogId}:phu-luc-iii`
+  const existing = appendixExportInFlight.get(flightKey)
+  if (existing) return existing
+
+  const task = (async () => {
+    const response = await apiClient.post<Blob>(
+      `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/export/phu-luc-iii`,
+      content,
+      { responseType: 'blob' },
+    )
+    const filename =
+      filenameFromContentDisposition(response.headers['content-disposition']) ??
+      'phu-luc-iii-thuyet-minh.pdf'
+    triggerBrowserDownload(response.data, filename)
+  })()
+
+  appendixExportInFlight.set(flightKey, task)
+  return task.finally(() => {
+    appendixExportInFlight.delete(flightKey)
+  })
 }

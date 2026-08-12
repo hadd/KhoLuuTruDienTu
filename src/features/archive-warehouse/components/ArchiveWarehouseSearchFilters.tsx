@@ -46,6 +46,7 @@ export type ArchiveWarehouseFilterValues = {
   documentTypeId?: string | string[]
   searchFields?: string | string[]
   editorName?: string
+  /** Cleared on apply; no longer shown in filter UI */
   editCompletedAtFrom?: string
   editCompletedAtTo?: string
   archivedAtFrom?: string
@@ -98,8 +99,6 @@ function toDraft(values: ArchiveWarehouseFilterValues): FilterDraft {
     documentTypeId: values.documentTypeId,
     searchFields: values.searchFields,
     editorName: values.editorName,
-    editCompletedAtFrom: values.editCompletedAtFrom,
-    editCompletedAtTo: values.editCompletedAtTo,
     archivedAtFrom: values.archivedAtFrom,
     archivedAtTo: values.archivedAtTo,
   }
@@ -123,7 +122,6 @@ function countActiveFilters(
   if (Array.isArray(values.documentTypeId) ? values.documentTypeId.length > 0 : values.documentTypeId) count += 1
   if (Array.isArray(values.searchFields) ? values.searchFields.length > 0 : values.searchFields) count += 1
   if (values.editorName?.trim()) count += 1
-  if (values.editCompletedAtFrom || values.editCompletedAtTo) count += 1
   if (values.archivedAtFrom || values.archivedAtTo) count += 1
   if (listBrowseFilters?.year != null) count += 1
   return count
@@ -192,8 +190,8 @@ export function ArchiveWarehouseSearchFilters({
       documentTypeId: draft.documentTypeId,
       searchFields: draft.searchFields,
       editorName: draft.editorName?.trim() || undefined,
-      editCompletedAtFrom: draft.editCompletedAtFrom,
-      editCompletedAtTo: draft.editCompletedAtTo,
+      editCompletedAtFrom: undefined,
+      editCompletedAtTo: undefined,
       archivedAtFrom: draft.archivedAtFrom,
       archivedAtTo: draft.archivedAtTo,
       q: searchInput.trim() || undefined,
@@ -325,27 +323,6 @@ export function ArchiveWarehouseSearchFilters({
                   }
                   placeholder={t('filters.editorNamePlaceholder')}
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t('filters.editCompleted')}</Label>
-                <div className="flex items-center gap-2">
-                  <DatePicker
-                    value={draft.editCompletedAtFrom}
-                    onChange={(date) =>
-                      patchDraft({ editCompletedAtFrom: date })
-                    }
-                    placeholder="Từ ngày"
-                    className="w-full"
-                  />
-                  <span className="text-muted-foreground">-</span>
-                  <DatePicker
-                    value={draft.editCompletedAtTo}
-                    onChange={(date) => patchDraft({ editCompletedAtTo: date })}
-                    placeholder="Đến ngày"
-                    className="w-full"
-                  />
-                </div>
               </div>
 
               <div className="space-y-2">
@@ -512,8 +489,6 @@ export function hasWarehouseFilterCriteria(
     (Array.isArray(values.documentTypeId) ? values.documentTypeId.length > 0 : values.documentTypeId) ||
     (Array.isArray(values.searchFields) ? values.searchFields.length > 0 : values.searchFields) ||
     values.editorName?.trim() ||
-    values.editCompletedAtFrom ||
-    values.editCompletedAtTo ||
     values.archivedAtFrom ||
     values.archivedAtTo,
   )
@@ -534,8 +509,6 @@ export function isEsWarehouseSearchRequired(
       hasDocument ||
       hasSearchFields ||
       values.editorName?.trim() ||
-      values.editCompletedAtFrom ||
-      values.editCompletedAtTo ||
       values.archivedAtFrom ||
       values.archivedAtTo,
   )
@@ -575,8 +548,6 @@ export function isFondOnlyWarehouseFilter(
     !hasDocument &&
     !hasSearchFields &&
     !values.editorName?.trim() &&
-    !values.editCompletedAtFrom &&
-    !values.editCompletedAtTo &&
     !values.archivedAtFrom &&
     !values.archivedAtTo,
   )
@@ -605,8 +576,6 @@ export function isDossierTypeOnlyWarehouseFilter(
     !hasDocument &&
     !hasSearchFields &&
     !values.editorName?.trim() &&
-    !values.editCompletedAtFrom &&
-    !values.editCompletedAtTo &&
     !values.archivedAtFrom &&
     !values.archivedAtTo,
   )
@@ -673,8 +642,6 @@ export function buildWarehouseSearchApiParams(
     documentTypeId: values.documentTypeId,
     searchFields: values.searchFields,
     editorName: values.editorName?.trim() || undefined,
-    editCompletedAtFrom: values.editCompletedAtFrom,
-    editCompletedAtTo: values.editCompletedAtTo,
     archivedAtFrom: values.archivedAtFrom,
     archivedAtTo: values.archivedAtTo,
     limit: opts.limit,

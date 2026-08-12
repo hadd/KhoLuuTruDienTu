@@ -136,3 +136,22 @@ export type DisposalCatalogDetailT = {
   items: Array<DisposalProposalItemT>
   referenceFilesByDossierId?: Record<string, Array<DisposalCatalogReferenceFileT>>
 }
+
+export type Pl3ContentT = {
+  creatingAgency: string
+  formationMission: string
+  collectionSource: string
+  timePeriod: string
+  expiryDuplicateReason: string
+  priorValuation: string
+  countsDetail: string
+  timeRangeText: string
+  expiredGroupSummary: string
+  duplicateGroupSummary: string
+  otherGroupSummary: string
+}
+
+export type Pl3SuggestionsResponseT = {
+  fondName: string
+  content: Pl3ContentT
+}
