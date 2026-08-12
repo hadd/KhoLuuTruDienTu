@@ -188,6 +188,7 @@ export function ArchiveWarehouseDocumentsByTypePage() {
           singleFile: true,
         },
       ),
+      state: { fromArchiveWarehouseList: true },
     })
   }
 
@@ -211,6 +212,7 @@ export function ArchiveWarehouseDocumentsByTypePage() {
           singleFile: Boolean(match?.fileName),
         },
       ),
+      state: { fromArchiveWarehouseList: true },
     })
   }
 

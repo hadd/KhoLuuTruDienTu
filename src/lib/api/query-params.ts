@@ -33,3 +33,20 @@ export function appendListParams(
     searchParams.set('sort', params.sort)
   if (params.paging === false) searchParams.set('paging', 'false')
 }
+
+/**
+ * Append one or many query values using bracket notation (e.g. fondId[]=a&fondId[]=b).
+ * Required for backends that parse repeated keys into string arrays.
+ */
+export function appendQueryValues(
+  searchParams: URLSearchParams,
+  key: string,
+  value?: string | string[] | null,
+): void {
+  if (value == null) return
+  const values = Array.isArray(value) ? value : [value]
+  for (const item of values) {
+    const trimmed = String(item).trim()
+    if (trimmed) searchParams.append(`${key}[]`, trimmed)
+  }
+}

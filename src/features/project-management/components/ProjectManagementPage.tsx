@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { usePlanAccess } from '@/features/plan-management/hooks/usePlanAccess'
 import { useGroupModuleAccess } from '@/features/project-management/hooks/useGroupModuleAccess'
 import { useProjectAccess } from '@/features/project-manager/hooks/useProjectAccess'
+import { IconHubPageLayout } from '@/features/navigation/components/IconHubPageLayout'
 import { cn } from '@/lib/utils/cn'
 
 type ProjectTileTo =
@@ -16,6 +17,7 @@ type ProjectTileTo =
 
 export function ProjectManagementPage() {
   const { t } = useTranslation('project-management')
+  const { t: tCommon } = useTranslation('common')
   const { canViewProjects } = useProjectAccess()
   const { canViewProjectPlans } = usePlanAccess()
   const { canViewGroups } = useGroupModuleAccess()
@@ -65,50 +67,49 @@ export function ProjectManagementPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center px-6 pt-10 pb-16 sm:pt-14">
+    <IconHubPageLayout
+      title={t('title')}
+      maxWidth={tiles.length <= 2 ? 'max-w-3xl' : 'max-w-5xl'}
+      back={{
+        to: '/app/digitization-hub',
+        parentLabel: tCommon('admin.groups.digitization'),
+        backAriaLabel: tCommon('hubBack.aria', {
+          target: tCommon('admin.groups.digitization'),
+        }),
+      }}
+    >
       <div
         className={cn(
-          'flex w-full flex-col items-center gap-10 sm:gap-12',
-          tiles.length <= 2 ? 'max-w-3xl' : 'max-w-5xl',
+          'grid w-full gap-8 sm:gap-10',
+          tiles.length === 1
+            ? 'max-w-xs grid-cols-1'
+            : tiles.length === 2
+              ? 'grid-cols-1 sm:grid-cols-2'
+              : 'grid-cols-1 sm:grid-cols-3',
         )}
       >
-        <h1 className="text-2xl font-bold uppercase tracking-[0.06em] text-primary sm:text-[1.75rem]">
-          {t('title')}
-        </h1>
-
-        <div
-          className={cn(
-            'grid w-full gap-8 sm:gap-10',
-            tiles.length === 1
-              ? 'max-w-xs grid-cols-1'
-              : tiles.length === 2
-                ? 'grid-cols-1 sm:grid-cols-2'
-                : 'grid-cols-1 sm:grid-cols-3',
-          )}
-        >
-          {tiles.map((tile) => {
-            const Icon = tile.icon
-            return (
-              <Link
-                key={tile.id}
-                to={tile.to}
-                className="group flex flex-col items-center gap-4 outline-none focus-visible:rounded-2xl focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span className="flex size-36 items-center justify-center rounded-[2rem] bg-primary/10 text-primary transition-colors group-hover:bg-primary/15 sm:size-44">
-                  <Icon
-                    className="size-16 sm:size-20"
-                    strokeWidth={1.5}
-                    aria-hidden
-                  />
-                </span>
-                <span className="text-center text-lg font-medium text-foreground transition-colors group-hover:text-primary sm:text-xl">
-                  {tile.label}
-                </span>
-              </Link>
-            )
-          })}
-        </div>
+        {tiles.map((tile) => {
+          const Icon = tile.icon
+          return (
+            <Link
+              key={tile.id}
+              to={tile.to}
+              className="group flex flex-col items-center gap-4 outline-none focus-visible:rounded-2xl focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="flex size-36 items-center justify-center rounded-[2rem] bg-primary/10 text-primary transition-colors group-hover:bg-primary/15 sm:size-44">
+                <Icon
+                  className="size-16 sm:size-20"
+                  strokeWidth={1.5}
+                  aria-hidden
+                />
+              </span>
+              <span className="text-center text-lg font-medium text-foreground transition-colors group-hover:text-primary sm:text-xl">
+                {tile.label}
+              </span>
+            </Link>
+          )
+        })}
       </div>
-    </div>
+    </IconHubPageLayout>
   )
 }

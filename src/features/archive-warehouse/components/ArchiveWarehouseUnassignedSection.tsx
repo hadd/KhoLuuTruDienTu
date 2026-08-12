@@ -117,6 +117,7 @@ export function ArchiveWarehouseUnassignedSection({
       to: '/app/archive-dossiers/$fondId/$dossierId',
       params: { fondId: UNASSIGNED_WAREHOUSE_FOND_ID, dossierId },
       search: buildArchiveDossierDetailSearch({ browseView: 'unassigned' }),
+      state: { fromArchiveWarehouseList: true },
     })
   }
 

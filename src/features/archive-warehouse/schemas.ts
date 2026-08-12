@@ -3,6 +3,13 @@ import { z } from 'zod'
 import { archiveDossierStatusFilterSchema } from '@/features/archive-submission/schemas'
 import { listPageSearchSchema } from '@/lib/schemas/list-page-search'
 
+import { WAREHOUSE_DOSSIER_BROWSE_SORT_FIELDS } from '@/features/archive-warehouse/lib/warehouseBrowseSort'
+
+export const warehouseBrowseSortSearchSchema = {
+  sortBy: z.enum(WAREHOUSE_DOSSIER_BROWSE_SORT_FIELDS).optional().catch(undefined),
+  sortDir: z.enum(['asc', 'desc']).optional().catch(undefined),
+}
+
 export const ARCHIVE_DATA_HUB_TABS = [
   'dossiers',
   'expiryReview',
@@ -36,6 +43,7 @@ export const archiveWarehouseIndexSearchSchema = listPageSearchSchema.extend({
   editCompletedAtTo: z.string().optional().catch(undefined),
   archivedAtFrom: z.string().optional().catch(undefined),
   archivedAtTo: z.string().optional().catch(undefined),
+  ...warehouseBrowseSortSearchSchema,
 })
 
 export type ArchiveWarehouseIndexSearchT = z.infer<
@@ -88,6 +96,8 @@ export const archiveDataHubSearchSchema = archiveWarehouseIndexSearchSchema.exte
   disposalAppendCatalogId: z.string().uuid().optional().catch(undefined),
   disposalCouncilId: z.string().uuid().optional().catch(undefined),
   pickerMode: z.coerce.boolean().optional().catch(undefined),
+  /** When false, show a flat dossier list and fond filter; when true/omit, browse by fond grid. */
+  manageByFond: z.coerce.boolean().optional().catch(undefined),
   disposalInventoryId: z.string().uuid().optional().catch(undefined),
   disposalRetentionPeriodId: z.string().min(1).optional().catch(undefined),
   physicalItemId: z.string().uuid().optional().catch(undefined),
