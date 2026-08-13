@@ -1,6 +1,6 @@
 import { createCrudService } from "@shared/base-crud";
 import { httpError } from "@shared/common-lib";
-import { and, asc, desc, eq, inArray, isNull, like, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, like, ne, or } from "drizzle-orm";
 import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
@@ -71,6 +71,10 @@ import {
   resolveMetadataKeyForDossierEditor,
 } from "../data-entry/metadata-draft-service.ts";
 import { executeFolderAssignmentRevoke } from "./folder-assignment-revoke.ts";
+import {
+  reconcileDossierRequiredQcCount,
+  shouldAutoApproveAfterQcCountChange,
+} from "./dossier-qc-count-sync.ts";
 import { syncDossierFondIdFromMetadata } from "./dossier-fond-sync.ts";
 import { bulkSubmitDraftMetadata } from "../data-entry/metadata-bulk-submit-service.ts";
 import {
@@ -2022,7 +2026,11 @@ export const DossierService = {
     );
   },
 
-  async update(id: string, input: Static<typeof updateDossierSchema>) {
+  async update(
+    id: string,
+    input: Static<typeof updateDossierSchema>,
+    actorId?: string,
+  ) {
     const {
       projectCode,
       accessPassword,
@@ -2094,6 +2102,19 @@ export const DossierService = {
         if (!row) {
           throw httpError.notFound("Dossier not found");
         }
+      }
+
+      if (
+        typeof otherFields.requiredQcCount === "number" &&
+        otherFields.requiredQcCount !== existing.requiredQcCount
+      ) {
+        await reconcileDossierRequiredQcCount(tx, {
+          dossierId: id,
+          status: existing.status,
+          currentQcStep: existing.currentQcStep,
+          nextRequiredQcCount: otherFields.requiredQcCount,
+          actorId,
+        });
       }
 
       const relRows = await tx.query.dossiers.findMany({
@@ -2818,6 +2839,89 @@ export const DossierService = {
     input: Static<typeof listAssignmentsByRoleQuerySchema>,
   ) {
     return await listMyAssignmentsByRole(assigneeId, input);
+  },
+
+  /** Full MAKER + CHECKER assignment chain for a dossier (excludes TRANSFERRED). */
+  async listAssignmentsByDossierId(dossierId: string) {
+    const dossier = await db.query.dossiers.findFirst({
+      where: activeDossierWhere(eq(dossiers.id, dossierId)),
+      columns: {
+        id: true,
+        name: true,
+        status: true,
+        requiredQcCount: true,
+        currentQcStep: true,
+      },
+    });
+
+    if (!dossier) {
+      throw httpError.notFound("Dossier not found");
+    }
+
+    if (
+      shouldAutoApproveAfterQcCountChange({
+        status: dossier.status,
+        currentQcStep: dossier.currentQcStep,
+        nextRequiredQcCount: dossier.requiredQcCount,
+      })
+    ) {
+      const reconciled = await db.transaction(async (tx) =>
+        await reconcileDossierRequiredQcCount(tx, {
+          dossierId: dossier.id,
+          status: dossier.status,
+          currentQcStep: dossier.currentQcStep,
+          nextRequiredQcCount: dossier.requiredQcCount,
+        }),
+      );
+      dossier.status = reconciled.status as typeof dossier.status;
+      dossier.currentQcStep = reconciled.currentQcStep;
+    }
+
+    const rows = await db.query.dossierAssignments.findMany({
+      where: and(
+        eq(dossierAssignments.dossierId, dossierId),
+        ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
+      ),
+      with: {
+        assignee: {
+          columns: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: [
+        asc(dossierAssignments.stepNumber),
+        asc(dossierAssignments.assignedAt),
+      ],
+    });
+
+    const assignments = rows.map((row) => ({
+      id: row.id,
+      role: row.role,
+      status: row.status,
+      workQuality: row.workQuality,
+      attemptNumber: row.attemptNumber,
+      stepNumber: row.stepNumber,
+      assignedAt: row.assignedAt,
+      completedAt: row.completedAt,
+      assignee: {
+        id: row.assignee.id,
+        fullName: row.assignee.fullName,
+        email: row.assignee.email,
+      },
+    }));
+
+    return {
+      dossierId: dossier.id,
+      name: dossier.name,
+      status: dossier.status,
+      requiredQcCount: dossier.requiredQcCount,
+      currentQcStep: dossier.currentQcStep,
+      assignments,
+      totalAssignments: assignments.length,
+    };
   },
 
   async bulkSubmitDraftAssignments(

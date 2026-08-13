@@ -172,3 +172,30 @@ export const listAssignmentsByRoleResponseSchema = t.Object({
     assignments: t.Array(assignmentByRoleItemSchema),
     totalAssignments: t.Number(),
 });
+
+/** GET /dossiers/:id/assignments — full assignment chain for dossier detail. */
+export const dossierAssignmentItemSchema = t.Object({
+    id: t.String(),
+    role: workerRoleSchema,
+    status: assignmentStatusSchema,
+    workQuality: t.Optional(t.Union([workQualitySchema, t.Null()])),
+    attemptNumber: t.Number(),
+    stepNumber: t.Number(),
+    assignedAt: t.Date(),
+    completedAt: t.Union([t.Date(), t.Null()]),
+    assignee: t.Object({
+        id: t.String(),
+        fullName: t.Union([t.String(), t.Null()]),
+        email: t.Union([t.String(), t.Null()]),
+    }),
+});
+
+export const listDossierAssignmentsResponseSchema = t.Object({
+    dossierId: t.String(),
+    name: t.String(),
+    status: dossierStatusSchema,
+    requiredQcCount: t.Number(),
+    currentQcStep: t.Number(),
+    assignments: t.Array(dossierAssignmentItemSchema),
+    totalAssignments: t.Number(),
+});

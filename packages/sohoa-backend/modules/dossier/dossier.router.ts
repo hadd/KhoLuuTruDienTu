@@ -12,6 +12,7 @@ import {
   createUploadPointBodySchema,
   listAssignmentsByRoleQuerySchema,
   listAssignmentsByRoleResponseSchema,
+  listDossierAssignmentsResponseSchema,
   listDraftAssignmentsResponseSchema,
   listPendingManualOcrQuerySchema,
   listTrackedManualOcrQuerySchema,
@@ -447,6 +448,24 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   );
 
   app.get(
+    "/:id/assignments",
+    async ({ params, profile }) => {
+      authHelper.checkDossierWorkflowDataAccess(profile);
+      return await service.listAssignmentsByDossierId(params.id);
+    },
+    {
+      params: t.Object({ id: IdParam("Dossier ID") }),
+      response: listDossierAssignmentsResponseSchema,
+      detail: {
+        tags,
+        summary: "List dossier workflow assignments",
+        description:
+          "Returns requiredQcCount, currentQcStep, dossier status, and the MAKER/CHECKER assignment chain (assignee names) for the dossier detail view. Excludes TRANSFERRED assignments.",
+      },
+    },
+  );
+
+  app.get(
     "/:id",
     async ({ params, profile }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
@@ -476,7 +495,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/:id",
     async ({ params, body, profile }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
-      const record = await service.update(params.id, body);
+      const record = await service.update(params.id, body, profile.id);
       return { record, status: "updated" };
     },
     docs.update,

@@ -585,6 +585,7 @@ const PATH_LABEL_RULES: PathLabelRule[] = [
     { method: "GET", pattern: "/dossiers/:id/metadata-history/:historyId", module: "dossiers", eventType: "view", summary: "Xem chi tiết phiên bản metadata" }, // [MỚI]
     { method: "POST", pattern: "/dossiers/:id/metadata-history/:historyId/restore", module: "dossiers", eventType: "restore", summary: "Khôi phục phiên bản metadata cũ" }, // [MỚI]
     { method: "GET", pattern: "/dossiers/:id/workflow-logs", module: "dossiers", eventType: "view", summary: "Xem lịch sử workflow hồ sơ" }, // [MỚI]
+    { method: "GET", pattern: "/dossiers/:id/assignments", module: "dossiers", eventType: "view", summary: "Xem chuỗi phân công duyệt hồ sơ" }, // [MỚI]
   
     // ═══════════════════════════════════════════════════════════
     // MODULE: SCAN INTAKE

@@ -118,15 +118,23 @@ async function getItemOrThrow(id: string) {
 }
 
 /**
+ * Chuẩn hóa tên để so trùng: bỏ hết khoảng trắng + lowercase.
+ * "kệ 1" và "kệ     1" được coi là trùng.
+ */
+function normalizeSiblingName(name: string): string {
+    return name.replace(/\s+/g, "").toLowerCase();
+}
+
+/**
  * Đảm bảo không có 2 mục trùng tên trong cùng một cha.
- * So sánh sau khi trim + lowercase (không phân biệt hoa thường).
+ * So sánh sau khi bỏ hết khoảng trắng + lowercase (không phân biệt hoa thường).
  */
 async function assertUniqueSiblingName(
     parentId: string | null,
     name: string,
     excludeId?: string,
   ) {
-    const normalized = name.trim().toLowerCase();
+    const normalized = normalizeSiblingName(name);
     if (!normalized) return;
     const siblings = await db
       .select({
@@ -141,7 +149,8 @@ async function assertUniqueSiblingName(
       );
     const duplicated = siblings.some(
       (row) =>
-        row.id !== excludeId && row.name.trim().toLowerCase() === normalized,
+        row.id !== excludeId &&
+        normalizeSiblingName(row.name) === normalized,
     );
     if (duplicated) {
       throw httpError.badRequest(
