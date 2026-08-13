@@ -48,8 +48,16 @@ const envSchema = z.object({
     .optional()
     .catch('false')
     .transform((val) => val === 'true'),
-  VITE_POSTHOG_KEY: z.string().optional(),
-  VITE_POSTHOG_HOST: z.string().url().optional(),
+  VITE_POSTHOG_KEY: z.preprocess(
+    (val) =>
+      val === '' || val === null || val === undefined ? undefined : val,
+    z.string().optional(),
+  ),
+  VITE_POSTHOG_HOST: z.preprocess(
+    (val) =>
+      val === '' || val === null || val === undefined ? undefined : val,
+    z.string().url().optional(),
+  ),
   VITE_SSE_BASE_URL: z.preprocess(
     (val) =>
       val === '' || val === null || val === undefined ? undefined : val,

@@ -41,6 +41,8 @@ import { LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { translateError } from '@/lib/utils/translate-error'
 
 const DEFAULT_REVIEW_PAGE_LIMIT = 10
+const STATUS_FILTER_ALL = 'ALL' as const
+type ReviewStatusFilterT = ArchiveBorrowStatusT | typeof STATUS_FILTER_ALL
 const REVIEW_STATUSES: Array<ArchiveBorrowStatusT> = [
   'PENDING',
   'ACTIVE',
@@ -81,7 +83,8 @@ export function ArchiveBorrowApprovalPage() {
   const queryClient = useQueryClient()
   const [inputValue, setInputValue] = useState('')
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<ArchiveBorrowStatusT>('PENDING')
+  const [statusFilter, setStatusFilter] =
+    useState<ReviewStatusFilterT>(STATUS_FILTER_ALL)
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(DEFAULT_REVIEW_PAGE_LIMIT)
   const [approveTarget, setApproveTarget] = useState<ArchiveBorrowRequestT | null>(
@@ -101,7 +104,7 @@ export function ArchiveBorrowApprovalPage() {
     page,
     limit,
     search: search || undefined,
-    status: statusFilter,
+    status: statusFilter === STATUS_FILTER_ALL ? undefined : statusFilter,
   }
 
   const { data, isLoading, isFetching, error } = useQuery(
@@ -172,7 +175,7 @@ export function ArchiveBorrowApprovalPage() {
           <Select
             value={statusFilter}
             onValueChange={(value) => {
-              setStatusFilter(value as ArchiveBorrowStatusT)
+              setStatusFilter(value as ReviewStatusFilterT)
               setPage(1)
             }}
           >
@@ -180,6 +183,9 @@ export function ArchiveBorrowApprovalPage() {
               <SelectValue placeholder={t('page.status')} />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value={STATUS_FILTER_ALL}>
+                {t('page.statusAll')}
+              </SelectItem>
               {REVIEW_STATUSES.map((status) => (
                 <SelectItem key={status} value={status}>
                   {t(`status.${status}`)}
