@@ -196,7 +196,7 @@ function createEnvObject() {
         ARCHIVE_BORROW_EXPIRY_ENABLED: getBooleanEnv("ARCHIVE_BORROW_EXPIRY_ENABLED", true),
         ARCHIVE_BORROW_EXPIRY_INTERVAL_MS: getPositiveIntEnv("ARCHIVE_BORROW_EXPIRY_INTERVAL_MS", 30_000),
         KAFKA_ENABLED: getBooleanEnv("KAFKA_ENABLED", false),
-        KAFKA_BROKER: Deno.env.get("KAFKA_BROKER") ?? "10.10.6.134:9092",
+        KAFKA_BROKER: Deno.env.get("KAFKA_BROKER") ?? "10.10.4.21:9092",
         KAFKA_GROUP_ID: Deno.env.get("KAFKA_GROUP_ID") ?? "sohoa-backend-group",
         KAFKA_METADATA_TOPIC: Deno.env.get("KAFKA_METADATA_TOPIC") ?? "metadata-completed",
         KAFKA_MERGE_FINISHED_WAIT_TOPIC:
