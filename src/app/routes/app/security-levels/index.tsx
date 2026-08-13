@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { requirePermission } from '@/features/auth/routeGuards'
+import { generalCatalogChildCrumb } from '@/features/general-catalog/lib/generalCatalogBreadcrumb'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import { SecurityLevelManagementPage } from '@/features/security-level/components/SecurityLevelManagementPage'
 import { securityLevelsQueryOptions } from '@/features/security-level/queries'
@@ -13,7 +14,7 @@ import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/security-levels/')({
   staticData: {
-    crumb: () => i18n.t('admin.securityLevel', { ns: 'common' }),
+    crumb: generalCatalogChildCrumb('tiles.securityLevel'),
   },
   beforeLoad: async ({ context }) => {
     await requirePermission(context, APP_SCREEN_ACCESS.securityLevel)

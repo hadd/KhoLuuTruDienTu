@@ -118,6 +118,24 @@ export function AppShell() {
       ),
     [pathname],
   )
+  const useIconHubPadding = useMemo(() => {
+    const normalized =
+      pathname.length > 1 && pathname.endsWith('/')
+        ? pathname.slice(0, -1)
+        : pathname
+    return (
+      [
+        '/app/digitization-hub',
+        '/app/warehouse-management',
+        '/app/system-admin',
+        '/app/general-catalog',
+        '/app/data-config',
+        '/app/project-management',
+        '/app/digitization',
+        '/app/library',
+      ].includes(normalized)
+    )
+  }, [pathname])
   const useDossierDetailFlushBottom = useMemo(
     () =>
       /^\/app\/library\/exploitation\/[^/]+\/[^/]+/.test(pathname) ||
@@ -125,6 +143,20 @@ export function AppShell() {
     [pathname],
   )
   const lockLibraryListScroll = useMemo(() => {
+    const normalized =
+      pathname.length > 1 && pathname.endsWith('/')
+        ? pathname.slice(0, -1)
+        : pathname
+    const isIconHubLanding = [
+      '/app/digitization-hub',
+      '/app/warehouse-management',
+      '/app/system-admin',
+      '/app/general-catalog',
+      '/app/data-config',
+      '/app/project-management',
+      '/app/digitization',
+      '/app/library',
+    ].includes(normalized)
     const isLibraryList =
       (pathname === '/app/library' || pathname.startsWith('/app/library/')) &&
       !useDossierDetailFlushBottom
@@ -134,7 +166,7 @@ export function AppShell() {
       '/app/groups',
       '/app/audit-logs',
     ].some((route) => pathname === route || pathname === `${route}/`)
-    return isLibraryList || isProjectSectionList
+    return isIconHubLanding || isLibraryList || isProjectSectionList
   }, [pathname, useDossierDetailFlushBottom])
   const { data: user } = useQuery({
     ...profileQueryOptions,
@@ -188,7 +220,7 @@ export function AppShell() {
                 ? 'p-0'
                 : useDossierDetailFlushBottom
                   ? 'px-6 pb-0 pt-2'
-                  : useWarehouseCompactPadding
+                  : useWarehouseCompactPadding || useIconHubPadding
                     ? 'px-6 pb-6 pt-2'
                     : 'p-6',
             )}

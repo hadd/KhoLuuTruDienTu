@@ -6,6 +6,7 @@ import { requirePermission } from '@/features/auth/routeGuards'
 import { DocumentTypeManagementPage } from '@/features/document-type/components/DocumentTypeManagementPage'
 import { documentTypesQueryOptions } from '@/features/document-type/queries'
 import { documentTypeSearchSchema } from '@/features/document-type/schemas'
+import { generalCatalogChildCrumb } from '@/features/general-catalog/lib/generalCatalogBreadcrumb'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import { DEFAULT_LIST_PAGE_LIMIT } from '@/lib/schemas/list-page-search'
 import i18n from '@/lib/i18n/config'
@@ -13,7 +14,7 @@ import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/document-types/')({
   staticData: {
-    crumb: () => i18n.t('admin.documentType', { ns: 'common' }),
+    crumb: generalCatalogChildCrumb('tiles.documentType'),
   },
   beforeLoad: async ({ context }) => {
     await requirePermission(context, APP_SCREEN_ACCESS.documentType)

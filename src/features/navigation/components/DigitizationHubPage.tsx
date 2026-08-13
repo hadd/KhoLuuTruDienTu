@@ -13,7 +13,14 @@ import {
 import { profileQueryOptions } from '@/features/auth/queries'
 import { DIGITIZATION_SCREEN_REQUIREMENTS } from '@/features/digitization/lib/digitizationAccess'
 import type { AppScreenTo } from '@/features/navigation/config/appNav'
-import { IconHubPageLayout } from '@/features/navigation/components/IconHubPageLayout'
+import {
+  IconHubPageLayout,
+  iconHubTileGridGapClassName,
+  iconHubTileIconClassName,
+  iconHubTileIconWrapClassName,
+  iconHubTileLabelClassName,
+  iconHubTileLinkClassName,
+} from '@/features/navigation/components/IconHubPageLayout'
 import { PROJECT_MANAGEMENT_SCREEN_REQUIREMENTS } from '@/features/project-management/lib/projectManagementAccess'
 import {
   permissionsCatalogQueryOptions,
@@ -92,10 +99,14 @@ export function DigitizationHubPage() {
   }
 
   return (
-    <IconHubPageLayout title={t('admin.groups.digitization')}>
+    <IconHubPageLayout
+      title={t('admin.groups.digitization')}
+      maxWidth="max-w-3xl"
+    >
       <div
         className={cn(
-          'grid w-full gap-8 sm:gap-10',
+          'grid w-full',
+          iconHubTileGridGapClassName,
           tiles.length === 1
             ? 'max-w-xs grid-cols-1'
             : 'grid-cols-1 sm:grid-cols-2',
@@ -107,18 +118,16 @@ export function DigitizationHubPage() {
             <Link
               key={tile.id}
               to={tile.to}
-              className="group flex flex-col items-center gap-4 outline-none focus-visible:rounded-2xl focus-visible:ring-2 focus-visible:ring-ring"
+              className={iconHubTileLinkClassName}
             >
-              <span className="flex size-36 items-center justify-center rounded-[2rem] bg-primary/10 text-primary transition-colors group-hover:bg-primary/15 sm:size-44">
+              <span className={iconHubTileIconWrapClassName}>
                 <Icon
-                  className="size-16 sm:size-20"
+                  className={iconHubTileIconClassName}
                   strokeWidth={1.5}
                   aria-hidden
                 />
               </span>
-              <span className="text-center text-lg font-medium text-foreground transition-colors group-hover:text-primary sm:text-xl">
-                {tile.label}
-              </span>
+              <span className={iconHubTileLabelClassName}>{tile.label}</span>
             </Link>
           )
         })}

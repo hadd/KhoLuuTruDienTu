@@ -1,9 +1,20 @@
 services:
-  lms-admin:
-    image:
+  sohoa-web:
+    image: my-react-app:v1.5
     environment:
-      - VITE_API_URL=http://localhost:8001
-    restart: unless-stopped
-    # network_mode: host
+      - VITE_API_URL=http://10.10.4.21:8000
+      - VITE_POSTHOG_HOST=https://eu.i.posthog.com
+      - VITE_SOCKET_URL=http://10.10.4.21:8000
+      - VITE_SOCKET_VIA_PROXY=true
+      - VITE_DATA_UPLOAD_EXPIRY_SECONDS_PER_FILE=10
+      - VITE_DATA_UPLOAD_MAX_FILE_SIZE_MB=100000
+      # lam mo file pdf cho bien tap vien
+      ## Kiểu làm mờ: gaussian | mosaic
+      - VITE_PDF_MASK_TYPE=gaussian
+      ## Độ mờ Gaussian (px) — tăng = mờ hơn
+      - VITE_PDF_MASK_GAUSSIAN_BLUR_PX=5
+      ## Kích thước ô mosaic (px) — tăng = pixel to hơn (chỉ dùng khi type=mosaic)
+      - VITE_PDF_MASK_MOSAIC_BLOCK_SIZE=14
     ports:
-      - 3000:80
+      - "3000:80"
+    restart: unless-stopped

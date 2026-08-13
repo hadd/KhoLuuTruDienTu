@@ -6,6 +6,7 @@ import { requirePermission } from '@/features/auth/routeGuards'
 import { DossierTypeManagementPage } from '@/features/dossier-type/components/DossierTypeManagementPage'
 import { dossierTypesQueryOptions } from '@/features/dossier-type/queries'
 import { dossierTypeSearchSchema } from '@/features/dossier-type/schemas'
+import { generalCatalogChildCrumb } from '@/features/general-catalog/lib/generalCatalogBreadcrumb'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import { DEFAULT_LIST_PAGE_LIMIT } from '@/lib/schemas/list-page-search'
 import i18n from '@/lib/i18n/config'
@@ -13,7 +14,7 @@ import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/dossier-types/')({
   staticData: {
-    crumb: () => i18n.t('admin.dossierType', { ns: 'common' }),
+    crumb: generalCatalogChildCrumb('tiles.dossierType'),
   },
   beforeLoad: async ({ context }) => {
     await requirePermission(context, APP_SCREEN_ACCESS.dossierType)

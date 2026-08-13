@@ -10,7 +10,16 @@ import { useDossierTypeAccess } from '@/features/dossier-type/hooks/useDossierTy
 import { useInventoryAccess } from '@/features/inventory/hooks/useInventoryAccess'
 import { useRetentionPeriodAccess } from '@/features/retention-period/hooks/useRetentionPeriodAccess'
 import { useSecurityLevelAccess } from '@/features/security-level/hooks/useSecurityLevelAccess'
-import { IconHubPageLayout } from '@/features/navigation/components/IconHubPageLayout'
+import {
+  IconHubPageLayout,
+  iconHubNestedTileGridClassName,
+  iconHubNestedTileGridGapClassName,
+  iconHubNestedTileIconClassName,
+  iconHubNestedTileIconWrapClassName,
+  iconHubNestedTileLabelClassName,
+  iconHubNestedTileLinkClassName,
+} from '@/features/navigation/components/IconHubPageLayout'
+import { cn } from '@/lib/utils/cn'
 
 type CatalogTileTo =
   | '/app/archive-fonds'
@@ -108,8 +117,7 @@ export function GeneralCatalogPage() {
   return (
     <IconHubPageLayout
       title={t('title')}
-      maxWidth="max-w-5xl"
-      contentGap="gap-8 sm:gap-10"
+      maxWidth="max-w-6xl"
       back={{
         to: '/app/system-admin',
         parentLabel: tCommon('admin.groups.systemAdmin'),
@@ -118,23 +126,28 @@ export function GeneralCatalogPage() {
         }),
       }}
     >
-      <div className="grid w-full grid-cols-2 gap-6 sm:gap-8 md:grid-cols-3 lg:grid-cols-5">
+      <div
+        className={cn(
+          iconHubNestedTileGridClassName,
+          iconHubNestedTileGridGapClassName,
+        )}
+      >
         {tiles.map((tile) => {
           const Icon = tile.icon
           return (
             <Link
               key={tile.id}
               to={tile.to}
-              className="group flex flex-col items-center gap-3 outline-none focus-visible:rounded-xl focus-visible:ring-2 focus-visible:ring-ring"
+              className={iconHubNestedTileLinkClassName}
             >
-              <span className="flex size-[4.5rem] items-center justify-center rounded-[1.25rem] bg-primary/10 text-primary transition-colors group-hover:bg-primary/15 sm:size-20">
+              <span className={iconHubNestedTileIconWrapClassName}>
                 <Icon
-                  className="size-9 sm:size-10"
-                  strokeWidth={1.6}
+                  className={iconHubNestedTileIconClassName}
+                  strokeWidth={1.5}
                   aria-hidden
                 />
               </span>
-              <span className="text-center text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary sm:text-[0.95rem]">
+              <span className={iconHubNestedTileLabelClassName}>
                 {tile.label}
               </span>
             </Link>

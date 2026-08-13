@@ -6,6 +6,7 @@ import { requirePermission } from '@/features/auth/routeGuards'
 import { ArchiveFondManagementPage } from '@/features/archive-fond/components/ArchiveFondManagementPage'
 import { archiveFondsQueryOptions } from '@/features/archive-fond/queries'
 import { archiveFondSearchSchema } from '@/features/archive-fond/schemas'
+import { generalCatalogChildCrumb } from '@/features/general-catalog/lib/generalCatalogBreadcrumb'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import { DEFAULT_LIST_PAGE_LIMIT } from '@/lib/schemas/list-page-search'
 import i18n from '@/lib/i18n/config'
@@ -13,7 +14,7 @@ import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/archive-fonds/')({
   staticData: {
-    crumb: () => i18n.t('admin.archiveFond', { ns: 'common' }),
+    crumb: generalCatalogChildCrumb('tiles.fonds'),
   },
   beforeLoad: async ({ context }) => {
     await requirePermission(context, APP_SCREEN_ACCESS.archiveFond)
