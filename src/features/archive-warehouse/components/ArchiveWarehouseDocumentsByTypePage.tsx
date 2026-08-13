@@ -188,6 +188,7 @@ export function ArchiveWarehouseDocumentsByTypePage() {
           singleFile: true,
         },
       ),
+      state: { fromArchiveWarehouseList: true },
     })
   }
 
@@ -211,6 +212,7 @@ export function ArchiveWarehouseDocumentsByTypePage() {
           singleFile: Boolean(match?.fileName),
         },
       ),
+      state: { fromArchiveWarehouseList: true },
     })
   }
 
@@ -305,6 +307,8 @@ export function ArchiveWarehouseDocumentsByTypePage() {
                   tookMs={searchData?.took_ms}
                   message={searchData?.message}
                   mode={searchParams?.mode}
+                  searchFields={searchParams?.searchFields}
+                  searchQuery={q}
                   onSelect={(hit, match) => openSearchHit(hit, match)}
                 />
                 {searchItems.length > 0 ? (

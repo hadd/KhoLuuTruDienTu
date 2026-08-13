@@ -18,6 +18,7 @@ import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppWarehouseManagementIndexRouteImport } from './routes/app/warehouse-management/index'
 import { Route as AppUsersIndexRouteImport } from './routes/app/users/index'
 import { Route as AppUserManagementIndexRouteImport } from './routes/app/user-management/index'
+import { Route as AppSystemAdminIndexRouteImport } from './routes/app/system-admin/index'
 import { Route as AppSecurityLevelsIndexRouteImport } from './routes/app/security-levels/index'
 import { Route as AppScanIntakeIndexRouteImport } from './routes/app/scan-intake/index'
 import { Route as AppReviewIndexRouteImport } from './routes/app/review/index'
@@ -37,9 +38,11 @@ import { Route as AppDossiersIndexRouteImport } from './routes/app/dossiers/inde
 import { Route as AppDossierTypesIndexRouteImport } from './routes/app/dossier-types/index'
 import { Route as AppDocumentTypesIndexRouteImport } from './routes/app/document-types/index'
 import { Route as AppDigitizationIndexRouteImport } from './routes/app/digitization/index'
+import { Route as AppDigitizationHubIndexRouteImport } from './routes/app/digitization-hub/index'
 import { Route as AppDataIndexRouteImport } from './routes/app/data/index'
 import { Route as AppDataConfigIndexRouteImport } from './routes/app/data-config/index'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
+import { Route as AppConfigurationIndexRouteImport } from './routes/app/configuration/index'
 import { Route as AppAuditLogsIndexRouteImport } from './routes/app/audit-logs/index'
 import { Route as AppArchiveWarehouseIndexRouteImport } from './routes/app/archive-warehouse/index'
 import { Route as AppArchiveSubmissionIndexRouteImport } from './routes/app/archive-submission/index'
@@ -115,6 +118,11 @@ const AppUsersIndexRoute = AppUsersIndexRouteImport.update({
 const AppUserManagementIndexRoute = AppUserManagementIndexRouteImport.update({
   id: '/user-management/',
   path: '/user-management/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppSystemAdminIndexRoute = AppSystemAdminIndexRouteImport.update({
+  id: '/system-admin/',
+  path: '/system-admin/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppSecurityLevelsIndexRoute = AppSecurityLevelsIndexRouteImport.update({
@@ -215,6 +223,11 @@ const AppDigitizationIndexRoute = AppDigitizationIndexRouteImport.update({
   path: '/digitization/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppDigitizationHubIndexRoute = AppDigitizationHubIndexRouteImport.update({
+  id: '/digitization-hub/',
+  path: '/digitization-hub/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppDataIndexRoute = AppDataIndexRouteImport.update({
   id: '/data/',
   path: '/data/',
@@ -228,6 +241,11 @@ const AppDataConfigIndexRoute = AppDataConfigIndexRouteImport.update({
 const AppDashboardIndexRoute = AppDashboardIndexRouteImport.update({
   id: '/dashboard/',
   path: '/dashboard/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppConfigurationIndexRoute = AppConfigurationIndexRouteImport.update({
+  id: '/configuration/',
+  path: '/configuration/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppAuditLogsIndexRoute = AppAuditLogsIndexRouteImport.update({
@@ -431,9 +449,11 @@ export interface FileRoutesByFullPath {
   '/app/archive-submission': typeof AppArchiveSubmissionIndexRoute
   '/app/archive-warehouse': typeof AppArchiveWarehouseIndexRoute
   '/app/audit-logs': typeof AppAuditLogsIndexRoute
+  '/app/configuration': typeof AppConfigurationIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
+  '/app/digitization-hub': typeof AppDigitizationHubIndexRoute
   '/app/digitization': typeof AppDigitizationIndexRoute
   '/app/document-types': typeof AppDocumentTypesIndexRoute
   '/app/dossier-types': typeof AppDossierTypesIndexRoute
@@ -453,6 +473,7 @@ export interface FileRoutesByFullPath {
   '/app/review': typeof AppReviewIndexRoute
   '/app/scan-intake': typeof AppScanIntakeIndexRoute
   '/app/security-levels': typeof AppSecurityLevelsIndexRoute
+  '/app/system-admin': typeof AppSystemAdminIndexRoute
   '/app/user-management': typeof AppUserManagementIndexRoute
   '/app/users': typeof AppUsersIndexRoute
   '/app/warehouse-management': typeof AppWarehouseManagementIndexRoute
@@ -493,9 +514,11 @@ export interface FileRoutesByTo {
   '/app/archive-submission': typeof AppArchiveSubmissionIndexRoute
   '/app/archive-warehouse': typeof AppArchiveWarehouseIndexRoute
   '/app/audit-logs': typeof AppAuditLogsIndexRoute
+  '/app/configuration': typeof AppConfigurationIndexRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
   '/app/data-config': typeof AppDataConfigIndexRoute
   '/app/data': typeof AppDataIndexRoute
+  '/app/digitization-hub': typeof AppDigitizationHubIndexRoute
   '/app/digitization': typeof AppDigitizationIndexRoute
   '/app/document-types': typeof AppDocumentTypesIndexRoute
   '/app/dossier-types': typeof AppDossierTypesIndexRoute
@@ -515,6 +538,7 @@ export interface FileRoutesByTo {
   '/app/review': typeof AppReviewIndexRoute
   '/app/scan-intake': typeof AppScanIntakeIndexRoute
   '/app/security-levels': typeof AppSecurityLevelsIndexRoute
+  '/app/system-admin': typeof AppSystemAdminIndexRoute
   '/app/user-management': typeof AppUserManagementIndexRoute
   '/app/users': typeof AppUsersIndexRoute
   '/app/warehouse-management': typeof AppWarehouseManagementIndexRoute
@@ -557,9 +581,11 @@ export interface FileRoutesById {
   '/app/archive-submission/': typeof AppArchiveSubmissionIndexRoute
   '/app/archive-warehouse/': typeof AppArchiveWarehouseIndexRoute
   '/app/audit-logs/': typeof AppAuditLogsIndexRoute
+  '/app/configuration/': typeof AppConfigurationIndexRoute
   '/app/dashboard/': typeof AppDashboardIndexRoute
   '/app/data-config/': typeof AppDataConfigIndexRoute
   '/app/data/': typeof AppDataIndexRoute
+  '/app/digitization-hub/': typeof AppDigitizationHubIndexRoute
   '/app/digitization/': typeof AppDigitizationIndexRoute
   '/app/document-types/': typeof AppDocumentTypesIndexRoute
   '/app/dossier-types/': typeof AppDossierTypesIndexRoute
@@ -579,6 +605,7 @@ export interface FileRoutesById {
   '/app/review/': typeof AppReviewIndexRoute
   '/app/scan-intake/': typeof AppScanIntakeIndexRoute
   '/app/security-levels/': typeof AppSecurityLevelsIndexRoute
+  '/app/system-admin/': typeof AppSystemAdminIndexRoute
   '/app/user-management/': typeof AppUserManagementIndexRoute
   '/app/users/': typeof AppUsersIndexRoute
   '/app/warehouse-management/': typeof AppWarehouseManagementIndexRoute
@@ -622,9 +649,11 @@ export interface FileRouteTypes {
     | '/app/archive-submission'
     | '/app/archive-warehouse'
     | '/app/audit-logs'
+    | '/app/configuration'
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
+    | '/app/digitization-hub'
     | '/app/digitization'
     | '/app/document-types'
     | '/app/dossier-types'
@@ -644,6 +673,7 @@ export interface FileRouteTypes {
     | '/app/review'
     | '/app/scan-intake'
     | '/app/security-levels'
+    | '/app/system-admin'
     | '/app/user-management'
     | '/app/users'
     | '/app/warehouse-management'
@@ -684,9 +714,11 @@ export interface FileRouteTypes {
     | '/app/archive-submission'
     | '/app/archive-warehouse'
     | '/app/audit-logs'
+    | '/app/configuration'
     | '/app/dashboard'
     | '/app/data-config'
     | '/app/data'
+    | '/app/digitization-hub'
     | '/app/digitization'
     | '/app/document-types'
     | '/app/dossier-types'
@@ -706,6 +738,7 @@ export interface FileRouteTypes {
     | '/app/review'
     | '/app/scan-intake'
     | '/app/security-levels'
+    | '/app/system-admin'
     | '/app/user-management'
     | '/app/users'
     | '/app/warehouse-management'
@@ -747,9 +780,11 @@ export interface FileRouteTypes {
     | '/app/archive-submission/'
     | '/app/archive-warehouse/'
     | '/app/audit-logs/'
+    | '/app/configuration/'
     | '/app/dashboard/'
     | '/app/data-config/'
     | '/app/data/'
+    | '/app/digitization-hub/'
     | '/app/digitization/'
     | '/app/document-types/'
     | '/app/dossier-types/'
@@ -769,6 +804,7 @@ export interface FileRouteTypes {
     | '/app/review/'
     | '/app/scan-intake/'
     | '/app/security-levels/'
+    | '/app/system-admin/'
     | '/app/user-management/'
     | '/app/users/'
     | '/app/warehouse-management/'
@@ -855,6 +891,13 @@ declare module '@tanstack/react-router' {
       path: '/user-management'
       fullPath: '/app/user-management'
       preLoaderRoute: typeof AppUserManagementIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/system-admin/': {
+      id: '/app/system-admin/'
+      path: '/system-admin'
+      fullPath: '/app/system-admin'
+      preLoaderRoute: typeof AppSystemAdminIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/security-levels/': {
@@ -990,6 +1033,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDigitizationIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/digitization-hub/': {
+      id: '/app/digitization-hub/'
+      path: '/digitization-hub'
+      fullPath: '/app/digitization-hub'
+      preLoaderRoute: typeof AppDigitizationHubIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/data/': {
       id: '/app/data/'
       path: '/data'
@@ -1009,6 +1059,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/app/dashboard'
       preLoaderRoute: typeof AppDashboardIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/configuration/': {
+      id: '/app/configuration/'
+      path: '/configuration'
+      fullPath: '/app/configuration'
+      preLoaderRoute: typeof AppConfigurationIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/audit-logs/': {
@@ -1246,9 +1303,11 @@ interface AppRouteRouteChildren {
   AppArchiveSubmissionIndexRoute: typeof AppArchiveSubmissionIndexRoute
   AppArchiveWarehouseIndexRoute: typeof AppArchiveWarehouseIndexRoute
   AppAuditLogsIndexRoute: typeof AppAuditLogsIndexRoute
+  AppConfigurationIndexRoute: typeof AppConfigurationIndexRoute
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
   AppDataConfigIndexRoute: typeof AppDataConfigIndexRoute
   AppDataIndexRoute: typeof AppDataIndexRoute
+  AppDigitizationHubIndexRoute: typeof AppDigitizationHubIndexRoute
   AppDigitizationIndexRoute: typeof AppDigitizationIndexRoute
   AppDocumentTypesIndexRoute: typeof AppDocumentTypesIndexRoute
   AppDossierTypesIndexRoute: typeof AppDossierTypesIndexRoute
@@ -1268,6 +1327,7 @@ interface AppRouteRouteChildren {
   AppReviewIndexRoute: typeof AppReviewIndexRoute
   AppScanIntakeIndexRoute: typeof AppScanIntakeIndexRoute
   AppSecurityLevelsIndexRoute: typeof AppSecurityLevelsIndexRoute
+  AppSystemAdminIndexRoute: typeof AppSystemAdminIndexRoute
   AppUserManagementIndexRoute: typeof AppUserManagementIndexRoute
   AppUsersIndexRoute: typeof AppUsersIndexRoute
   AppWarehouseManagementIndexRoute: typeof AppWarehouseManagementIndexRoute
@@ -1308,9 +1368,11 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppArchiveSubmissionIndexRoute: AppArchiveSubmissionIndexRoute,
   AppArchiveWarehouseIndexRoute: AppArchiveWarehouseIndexRoute,
   AppAuditLogsIndexRoute: AppAuditLogsIndexRoute,
+  AppConfigurationIndexRoute: AppConfigurationIndexRoute,
   AppDashboardIndexRoute: AppDashboardIndexRoute,
   AppDataConfigIndexRoute: AppDataConfigIndexRoute,
   AppDataIndexRoute: AppDataIndexRoute,
+  AppDigitizationHubIndexRoute: AppDigitizationHubIndexRoute,
   AppDigitizationIndexRoute: AppDigitizationIndexRoute,
   AppDocumentTypesIndexRoute: AppDocumentTypesIndexRoute,
   AppDossierTypesIndexRoute: AppDossierTypesIndexRoute,
@@ -1330,6 +1392,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppReviewIndexRoute: AppReviewIndexRoute,
   AppScanIntakeIndexRoute: AppScanIntakeIndexRoute,
   AppSecurityLevelsIndexRoute: AppSecurityLevelsIndexRoute,
+  AppSystemAdminIndexRoute: AppSystemAdminIndexRoute,
   AppUserManagementIndexRoute: AppUserManagementIndexRoute,
   AppUsersIndexRoute: AppUsersIndexRoute,
   AppWarehouseManagementIndexRoute: AppWarehouseManagementIndexRoute,

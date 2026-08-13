@@ -11,17 +11,12 @@ import {
   ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS,
   WAREHOUSE_MANAGEMENT_RELATED_PATHS,
 } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
-import { DIGITIZATION_RELATED_PATHS } from '@/features/digitization/lib/digitizationAccess'
-import { DIGITIZATION_SCREEN_REQUIREMENTS } from '@/features/digitization/lib/digitizationAccess'
-import { GENERAL_CATALOG_RELATED_PATHS } from '@/features/general-catalog/lib/generalCatalogAccess'
-import { GENERAL_CATALOG_SCREEN_REQUIREMENTS } from '@/features/general-catalog/lib/generalCatalogAccess'
-import { PROJECT_MANAGEMENT_RELATED_PATHS } from '@/features/project-management/lib/projectManagementAccess'
-import { PROJECT_MANAGEMENT_SCREEN_REQUIREMENTS } from '@/features/project-management/lib/projectManagementAccess'
+import { DIGITIZATION_HUB_RELATED_PATHS } from '@/features/navigation/lib/digitizationHubAccess'
+import { SYSTEM_ADMIN_HUB_RELATED_PATHS } from '@/features/navigation/lib/systemAdminHubAccess'
 import type {
   AppScreenPermissionRequirement,
   AppScreenTo,
 } from '@/features/navigation/config/appNav'
-import { DATA_CONFIG_RELATED_PATHS } from '@/features/data-config/lib/dataConfigAccess'
 import { DASHBOARD_SCREEN_REQUIREMENTS } from '@/features/permissions/lib/dashboardAccess'
 
 export type NavLabelKey =
@@ -31,10 +26,6 @@ export type NavLabelKey =
   | 'admin.projectManagement'
   | 'admin.digitization'
   | 'admin.groups.systemAdmin'
-  | 'admin.generalCatalog.title'
-  | 'admin.users'
-  | 'admin.permissions'
-  | 'admin.auditLogs'
   | 'admin.groups.warehouse'
   | 'admin.warehouseManagement'
   | 'admin.physicalWarehouse'
@@ -74,28 +65,12 @@ export const APP_NAV_TREE: Array<NavNode> = [
     relatedPaths: ['/app/dashboard'],
   },
   {
-    type: 'group',
-    id: 'digitization-group',
+    type: 'link',
+    id: 'digitization-hub',
+    to: '/app/digitization-hub',
     labelKey: 'admin.groups.digitization',
     icon: FileStack,
-    children: [
-      {
-        type: 'link',
-        id: 'project-management',
-        to: '/app/project-management',
-        labelKey: 'admin.projectManagement',
-        requiredPermission: [...PROJECT_MANAGEMENT_SCREEN_REQUIREMENTS],
-        relatedPaths: [...PROJECT_MANAGEMENT_RELATED_PATHS],
-      },
-      {
-        type: 'link',
-        id: 'digitization',
-        to: '/app/digitization',
-        labelKey: 'admin.digitization',
-        requiredPermission: [...DIGITIZATION_SCREEN_REQUIREMENTS],
-        relatedPaths: [...DIGITIZATION_RELATED_PATHS],
-      },
-    ],
+    relatedPaths: [...DIGITIZATION_HUB_RELATED_PATHS],
   },
   {
     type: 'link',
@@ -121,57 +96,12 @@ export const APP_NAV_TREE: Array<NavNode> = [
     relatedPaths: ['/app/library', '/app/archive-borrow'],
   },
   {
-    type: 'group',
-    id: 'system-admin-group',
+    type: 'link',
+    id: 'system-administration',
+    to: '/app/system-admin',
     labelKey: 'admin.groups.systemAdmin',
     icon: Settings2,
-    children: [
-      {
-        type: 'link',
-        id: 'general-catalog',
-        to: '/app/general-catalog',
-        labelKey: 'admin.generalCatalog.title',
-        requiredPermission: [...GENERAL_CATALOG_SCREEN_REQUIREMENTS],
-        relatedPaths: [...GENERAL_CATALOG_RELATED_PATHS],
-      },
-      {
-        type: 'link',
-        id: 'users',
-        to: '/app/users',
-        labelKey: 'admin.users',
-        requiredPermission: [
-          { module: 'users', permissionKey: 'users.read' },
-        ],
-        relatedPaths: ['/app/users', '/app/user-management'],
-      },
-      {
-        type: 'link',
-        id: 'permissions',
-        to: '/app/permissions/function-matrix',
-        labelKey: 'admin.permissions',
-        requiredPermission: { module: 'roles' },
-        relatedPaths: ['/app/permissions'],
-      },
-      {
-        type: 'link',
-        id: 'audit-logs',
-        to: '/app/audit-logs',
-        labelKey: 'admin.auditLogs',
-        requiredPermission: {
-          module: 'audit_logs',
-          permissionKey: 'audit_logs.read',
-        },
-        relatedPaths: ['/app/audit-logs'],
-      },
-      {
-        type: 'link',
-        id: 'data-config',
-        to: '/app/data-config',
-        labelKey: 'admin.dataConfig.title',
-        visibilityTag: 'data-config',
-        relatedPaths: [...DATA_CONFIG_RELATED_PATHS],
-      },
-    ],
+    relatedPaths: [...SYSTEM_ADMIN_HUB_RELATED_PATHS],
   },
 ]
 

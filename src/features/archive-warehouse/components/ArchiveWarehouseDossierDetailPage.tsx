@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, useRouter, useRouterState } from '@tanstack/react-router'
-import { FileText, FolderOpen, Loader2 } from 'lucide-react'
+import { FileText, FolderOpen, Loader2, ArrowLeft } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -322,6 +322,17 @@ export function ArchiveWarehouseDossierDetailPage({
 
   const pageContent = (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="-ml-2 shrink-0 self-start"
+          onClick={() => navigateBackToDossierList()}
+        >
+          <ArrowLeft className="mr-2 size-4" aria-hidden />
+          {t('detail.backToList')}
+        </Button>
+
         {isPending ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="size-8 animate-spin text-muted-foreground" />

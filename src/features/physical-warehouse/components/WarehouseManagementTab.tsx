@@ -1163,6 +1163,9 @@ export function WarehouseManagementTab({
                   <TableRow>
                     <TableHead>{t('manage.dossierName')}</TableHead>
                     <TableHead>{t('manage.dossierPath')}</TableHead>
+                    <TableHead className="w-[110px] text-right">
+                      {t('manage.documentCount', { defaultValue: 'Số văn bản' })}
+                    </TableHead>
                     {canManageWarehouseContents ? (
                       <TableHead className="w-[100px]">
                         {t('manage.columns.actions')}
@@ -1174,7 +1177,7 @@ export function WarehouseManagementTab({
                   {placementsQuery.isPending ? (
                     <TableRow>
                       <TableCell
-                        colSpan={canManageWarehouseContents ? 3 : 2}
+                        colSpan={canManageWarehouseContents ? 4 : 3}
                         className="text-muted-foreground"
                       >
                         …
@@ -1183,7 +1186,7 @@ export function WarehouseManagementTab({
                   ) : (placementsQuery.data ?? []).length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={canManageWarehouseContents ? 3 : 2}
+                        colSpan={canManageWarehouseContents ? 4 : 3}
                         className="text-muted-foreground"
                       >
                         {t('manage.dossiersEmpty')}
@@ -1208,6 +1211,9 @@ export function WarehouseManagementTab({
                         </TableCell>
                         <TableCell className="max-w-[320px] truncate text-muted-foreground">
                           {row.folderPath ?? '—'}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {row.documentCount ?? 0}
                         </TableCell>
                         {canManageWarehouseContents ? (
                           <TableCell>

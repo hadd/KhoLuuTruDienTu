@@ -1,10 +1,20 @@
 // WarehouseDiagramTab.tsx
 import { useQuery } from '@tanstack/react-query'
+import { X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { getPlacementsByPhysicalItem } from '@/features/physical-warehouse/api/physicalWarehouseClient'
 import { physicalWarehouseTreeQueryOptions } from '@/features/physical-warehouse/queries'
 import type {
   PhysicalWarehouseStatsT,
@@ -492,11 +502,13 @@ function findRowScopeForPhysicalItem(
 /* ================= CANVAS 1 KHO ================= */
 function WarehouseMapCanvas({
   warehouse,
+  locationName,
   height,
   fill = false,
   highlightPhysicalItemId,
 }: {
   warehouse: PhysicalWarehouseTreeNodeT
+  locationName?: string
   height: number | string
   fill?: boolean
   highlightPhysicalItemId?: string
@@ -518,6 +530,21 @@ function WarehouseMapCanvas({
     x: number
     y: number
   } | null>(null)
+  const [boxDialog, setBoxDialog] = useState<{
+    id: string
+    name: string
+    breadcrumb: Array<string>
+    used: number
+    total: number
+    rect: { x: number; y: number; w: number; h: number }
+  } | null>(null)
+
+  const boxPlacementsQuery = useQuery({
+    queryKey: ['physical-warehouse', 'placements-by-item', boxDialog?.id],
+    queryFn: () => getPlacementsByPhysicalItem(boxDialog?.id ?? ''),
+    enabled: Boolean(boxDialog?.id),
+    staleTime: 15_000,
+  })
 
   const scopeZone = layout.zoneRects.find((z) => z.node.id === scope.zoneId)
   const scopeRow = layout.rows.find((r) => r.node.id === scope.rowId)
@@ -547,7 +574,15 @@ function WarehouseMapCanvas({
   useEffect(() => {
     if (!size.w) return
     let rect: { x: number; y: number; w: number; h: number }
-    if (scope.rowId && scopeRow) {
+    if (boxDialog) {
+      const PAD = 70
+      rect = {
+        x: boxDialog.rect.x - PAD,
+        y: boxDialog.rect.y - PAD,
+        w: boxDialog.rect.w + PAD * 2,
+        h: boxDialog.rect.h + PAD * 2,
+      }
+    } else if (scope.rowId && scopeRow) {
       const b = elevationModel(scopeRow)
       rect = { x: 0, y: 0, w: b.W, h: b.H }
     } else if (scope.zoneId && scopeZone) {
@@ -577,7 +612,7 @@ function WarehouseMapCanvas({
     }
     raf = requestAnimationFrame(step)
     return () => cancelAnimationFrame(raf)
-  }, [scope, layout, size, scopeRow, scopeZone])
+  }, [scope, layout, size, scopeRow, scopeZone, boxDialog])
 
   const zoomAt = (px: number, py: number, f: number) =>
     setView((v) => {
@@ -602,12 +637,15 @@ function WarehouseMapCanvas({
 
   return (
     <div
+      className={cn('flex w-full gap-2', fill ? 'min-h-[380px] flex-1' : undefined)}
+      style={fill ? undefined : { height }}
+    >
+    <div
       ref={wrapRef}
       className={cn(
-        'relative w-full overflow-hidden rounded-md border bg-[#f4f4f4]',
-        fill ? 'min-h-[380px] flex-1' : undefined,
+        'relative h-full overflow-hidden rounded-md border bg-[#f4f4f4] transition-[width] duration-300',
+        boxDialog ? 'w-[65%]' : 'w-full',
       )}
-      style={fill ? undefined : { height }}
     >
       {size.w > 0 && (
         <Stage
@@ -730,8 +768,11 @@ function WarehouseMapCanvas({
             ? `${col.node.name} • ${tier.node.name}`
             : `${col.node.name} • ${tier.node.name} • ${leaf.name}`
           const isHighlighted = leaf.id === highlightPhysicalItemId
+          const isBoxSelected = boxDialog?.id === leaf.id
+          const isDimmed = Boolean(boxDialog) && !isBoxSelected
+          const emphasize = isHighlighted || isBoxSelected
           return (
-            <Group key={leaf.id}>
+            <Group key={leaf.id} opacity={isDimmed ? 0.25 : 1}>
               <Rect
                 x={sx}
                 y={palletY}
@@ -745,9 +786,9 @@ function WarehouseMapCanvas({
                 y={palletY - E_BOX_H}
                 width={sw}
                 height={E_BOX_H}
-                fill={isHighlighted ? '#bfdbfe' : heatColor(used, total)}
-                stroke={isHighlighted ? '#2563eb' : '#c9a06a'}
-                strokeWidth={isHighlighted ? 3 : 0.6}
+                fill={heatColor(used, total)}
+                stroke="#c9a06a"
+                strokeWidth={0.6}
                 onMouseEnter={(e: any) => {
                   setCursor(e, 'pointer')
                   hoverAt(
@@ -761,7 +802,46 @@ function WarehouseMapCanvas({
                   setCursor(e, '')
                   setHover(null)
                 }}
+                onClick={(e: any) => {
+                  e.cancelBubble = true
+                  setHover(null)
+                  const breadcrumb = [
+                    locationName,
+                    warehouse.name,
+                    scopeRow?.node.name,
+                    col.node.name,
+                    !isUnit ? tier.node.name : null,
+                    leaf.name,
+                  ].filter(
+                    (part): part is string =>
+                      Boolean(part && part.trim().length > 0),
+                  )
+                  setBoxDialog({
+                    id: leaf.id,
+                    name: leaf.name,
+                    breadcrumb,
+                    used,
+                    total,
+                    rect: {
+                      x: sx,
+                      y: palletY - E_BOX_H,
+                      w: sw,
+                      h: E_BOX_H + E_PALLET_H,
+                    },
+                  })
+                }}
               />
+              {emphasize ? (
+                <Rect
+                  x={sx}
+                  y={palletY - E_BOX_H}
+                  width={sw}
+                  height={E_BOX_H}
+                  stroke="#7c3aed"
+                  strokeWidth={2}
+                  listening={false}
+                />
+              ) : null}
               {boxLabel.text ? (
                 <Text
                   x={sx}
@@ -769,9 +849,9 @@ function WarehouseMapCanvas({
                   width={sw}
                   align="center"
                   text={boxLabel.text}
-                  fontSize={isHighlighted ? boxLabel.fontSize + 1 : boxLabel.fontSize}
-                  fontStyle={isHighlighted ? 'bold' : 'normal'}
-                  fill={isHighlighted ? '#1d4ed8' : '#1e293b'}
+                  fontSize={emphasize ? boxLabel.fontSize + 1 : boxLabel.fontSize}
+                  fontStyle={emphasize ? 'bold' : 'normal'}
+                  fill={emphasize ? '#7c3aed' : '#1e293b'}
                   listening={false}
                 />
               ) : null}
@@ -779,6 +859,7 @@ function WarehouseMapCanvas({
           )
         })}
         {Array.from({ length: empties }, (_, ei) => (
+          <Group key={'ge' + ei} opacity={boxDialog ? 0.25 : 1}>
           <Rect
             key={'e' + ei}
             x={slotX(filled + ei)}
@@ -801,6 +882,7 @@ function WarehouseMapCanvas({
               setHover(null)
             }}
           />
+          </Group>
         ))}
       </Group>
     )
@@ -1124,6 +1206,85 @@ function WarehouseMapCanvas({
         </div>
       ) : null}
     </div>
+    {boxDialog ? (
+      <div className="flex h-full w-[35%] shrink-0 flex-col overflow-hidden rounded-md border bg-background">
+        <div className="border-b px-4 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-sm font-medium text-muted-foreground">
+            {boxDialog.breadcrumb.join(' → ')}
+          </p>
+          <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="size-7 shrink-0"
+              aria-label={t('actions.close', { defaultValue: 'Đóng' })}
+              onClick={() => setBoxDialog(null)}>
+              <X className="size-5" />
+            </Button>
+          </div>
+          <div className="mt-1 flex items-start justify-between gap-2">
+            <div className="flex min-w-0 flex-1 items-baseline justify-between gap-2">
+              <h3 className="truncate text-2xl font-bold leading-tight">
+                {boxDialog.name}
+              </h3>
+              {boxDialog.total > 0 ? (
+                <span
+                  className="shrink-0 rounded px-2 py-0.5 text-base font-semibold text-slate-800"
+                  style={{
+                    backgroundColor: heatColor(boxDialog.used, boxDialog.total),
+                  }}
+                >
+                  {boxDialog.used}/{boxDialog.total}
+                </span>
+              ) : null}
+            </div>
+
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-base font-semibold">
+                  {t('manage.dossierName')}
+                </TableHead>
+                <TableHead className="w-[200px] text-center text-lg font-semibold">
+                  {t('manage.documentCount', { defaultValue: 'Số văn bản' })}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {boxPlacementsQuery.isPending ? (
+                <TableRow>
+                  <TableCell colSpan={2} className="text-base text-muted-foreground">
+                    …
+                  </TableCell>
+                </TableRow>
+              ) : (boxPlacementsQuery.data ?? []).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={2} className="text-base text-muted-foreground">
+                    {t('manage.dossiersEmpty')}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                (boxPlacementsQuery.data ?? []).map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell className="text-base font-medium">
+                      {row.dossierName}
+                    </TableCell>
+                    <TableCell className="text-center text-lg tabular-nums text-muted-foreground">
+                      {row.documentCount ?? 0}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    ) : null}
+    </div>
   )
 }
 
@@ -1231,6 +1392,7 @@ export function WarehouseDiagramTab({
               <WarehouseMapCanvas
                 key={warehouse.id}
                 warehouse={warehouse}
+                locationName={tree.name}
                 height="100%"
                 highlightPhysicalItemId={highlightPhysicalItemId}
               />

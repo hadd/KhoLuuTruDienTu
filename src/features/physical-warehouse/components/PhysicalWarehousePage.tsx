@@ -7,7 +7,11 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { getPhysicalWarehouseItem } from '@/features/physical-warehouse/api/physicalWarehouseClient'
-import { PhysicalWarehouseArchiveSearchPanel } from '@/features/physical-warehouse/components/PhysicalWarehouseArchiveSearchPanel'
+import {
+  PhysicalWarehouseArchiveSearchFiltersBar,
+  PhysicalWarehouseArchiveSearchProvider,
+  PhysicalWarehouseArchiveSearchResultsBlock,
+} from '@/features/physical-warehouse/components/PhysicalWarehouseArchiveSearchPanel'
 import { LocationListPanel } from '@/features/physical-warehouse/components/LocationListPanel'
 import { WarehouseDiagramTab } from '@/features/physical-warehouse/components/WarehouseDiagramTab'
 import { WarehouseManagementTab } from '@/features/physical-warehouse/components/WarehouseManagementTab'
@@ -259,112 +263,124 @@ export function PhysicalWarehousePage() {
       hasSubTabs={warehouseSelected}
       subTabs={physicalSubTabs}
     >
-      <PhysicalWarehouseArchiveSearchPanel
+      <PhysicalWarehouseArchiveSearchProvider
         onNavigateToPlacement={handleNavigateToPlacement}
         hideSearchResults={suppressSearchResults}
         onRevealSearchResults={() => setHideSearchResults(false)}
-      />
+      >
+        <PhysicalWarehouseArchiveSearchFiltersBar />
 
-      {warehouseSelected ? (
-        <Tabs
-          value={detailTab}
-          onValueChange={(value) => {
-            if (isWarehouseDetailTab(value)) setDetailTab(value)
-          }}
-          className="flex min-h-0 w-full flex-1 flex-col gap-0"
-        >
-          <div className="flex shrink-0 items-end gap-2 border-b border-border">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="mb-0.5 size-7 shrink-0 text-muted-foreground"
-              aria-label={t('actions.backToWarehouses')}
-              onClick={navigateBackFromWarehouse}
-            >
-              <ArrowLeft className="size-4" />
-            </Button>
-            <p className="mb-1.5 min-w-0 max-w-[min(100%,20rem)] shrink truncate text-sm font-semibold">
-              {selectedLocation?.name && selectedWarehouse?.name
-                ? t('detail.locationWarehouseTitle', {
-                    location: selectedLocation.name,
-                    warehouse: selectedWarehouse.name,
-                  })
-                : (selectedWarehouse?.name ?? selectedLocation?.name ?? '...')}
-            </p>
-          </div>
-
-          <TabsContent
-            value="diagram"
-            className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden"
-          >
-            {focusDossierTitle || focusPlacementPath ? (
-              <div
-                className="mb-2 shrink-0 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5"
-                role="status"
-              >
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {t('search.diagramFocusHeading')}
-                </p>
-                {focusDossierTitle ? (
-                  <p className="mt-1 text-sm font-semibold text-foreground">
-                    {focusDossierTitle}
-                  </p>
-                ) : null}
-                {focusPlacementPath ? (
-                  <p className="mt-1 flex items-start gap-1.5 text-sm text-muted-foreground">
-                    <MapPin
-                      className="mt-0.5 size-3.5 shrink-0 text-primary"
-                      aria-hidden
-                    />
-                    <span>{focusPlacementPath}</span>
-                  </p>
-                ) : null}
+        {warehouseSelected ? (
+          <>
+            {!suppressSearchResults ? (
+              <div className="max-h-[min(40vh,24rem)] shrink-0 overflow-y-auto pt-3">
+                <PhysicalWarehouseArchiveSearchResultsBlock />
               </div>
             ) : null}
-            <WarehouseDiagramTab
-              rootId={rootId!}
-              warehouseId={warehouseId}
-              stats={stats}
-              compact
-              highlightPhysicalItemId={highlightPhysicalItemId}
-            />
-          </TabsContent>
+            <Tabs
+            value={detailTab}
+            onValueChange={(value) => {
+              if (isWarehouseDetailTab(value)) setDetailTab(value)
+            }}
+            className="flex min-h-0 w-full flex-1 flex-col gap-0 overflow-hidden"
+          >
+            <div className="flex shrink-0 items-end gap-2 border-b border-border">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="mb-0.5 size-7 shrink-0 text-muted-foreground"
+                aria-label={t('actions.backToWarehouses')}
+                onClick={navigateBackFromWarehouse}
+              >
+                <ArrowLeft className="size-4" />
+              </Button>
+              <p className="mb-1.5 min-w-0 max-w-[min(100%,20rem)] shrink truncate text-sm font-semibold">
+                {selectedLocation?.name && selectedWarehouse?.name
+                  ? t('detail.locationWarehouseTitle', {
+                      location: selectedLocation.name,
+                      warehouse: selectedWarehouse.name,
+                    })
+                  : (selectedWarehouse?.name ?? selectedLocation?.name ?? '...')}
+              </p>
+            </div>
 
-          {canUseManageTab ? (
             <TabsContent
-              value="manage"
+              value="diagram"
               className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden"
             >
-              <WarehouseManagementTab
+              {focusDossierTitle || focusPlacementPath ? (
+                <div
+                  className="mb-2 shrink-0 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5"
+                  role="status"
+                >
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('search.diagramFocusHeading')}
+                  </p>
+                  {focusDossierTitle ? (
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {focusDossierTitle}
+                    </p>
+                  ) : null}
+                  {focusPlacementPath ? (
+                    <p className="mt-1 flex items-start gap-1.5 text-sm text-muted-foreground">
+                      <MapPin
+                        className="mt-0.5 size-3.5 shrink-0 text-primary"
+                        aria-hidden
+                      />
+                      <span>{focusPlacementPath}</span>
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              <WarehouseDiagramTab
                 rootId={rootId!}
-                selectedParentId={manageParentId}
-                focusDossierId={focusDossierId}
-                onClearFocusDossier={clearFocusDossier}
-                onSelectParent={(id) => {
-                  void navigate({
-                    search: (prev) => ({
-                      ...prev,
-                      parentId: id,
-                      tab: 'manage',
-                      warehouseId: prev.warehouseId,
-                      focusDossierId: undefined,
-                    }),
-                  })
-                }}
+                warehouseId={warehouseId}
+                stats={stats}
+                compact
+                highlightPhysicalItemId={highlightPhysicalItemId}
               />
             </TabsContent>
-          ) : null}
-        </Tabs>
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <LocationListPanel
-            parentId={locationsViewParentId}
-            onNavigateToItem={navigateToLocationItem}
-            onNavigateBack={navigateBackFromLocationDrillDown}
-          />
-        </div>
-      )}
+
+            {canUseManageTab ? (
+              <TabsContent
+                value="manage"
+                className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden"
+              >
+                <WarehouseManagementTab
+                  rootId={rootId!}
+                  selectedParentId={manageParentId}
+                  focusDossierId={focusDossierId}
+                  onClearFocusDossier={clearFocusDossier}
+                  onSelectParent={(id) => {
+                    void navigate({
+                      search: (prev) => ({
+                        ...prev,
+                        parentId: id,
+                        tab: 'manage',
+                        warehouseId: prev.warehouseId,
+                        focusDossierId: undefined,
+                      }),
+                    })
+                  }}
+                />
+              </TabsContent>
+            ) : null}
+          </Tabs>
+          </>
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden pt-3">
+            {!suppressSearchResults ? (
+              <PhysicalWarehouseArchiveSearchResultsBlock />
+            ) : null}
+            <LocationListPanel
+              parentId={locationsViewParentId}
+              onNavigateToItem={navigateToLocationItem}
+              onNavigateBack={navigateBackFromLocationDrillDown}
+            />
+          </div>
+        )}
+      </PhysicalWarehouseArchiveSearchProvider>
     </WarehousePageShell>
   )
 }

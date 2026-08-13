@@ -76,6 +76,7 @@ export function ArchiveWarehouseFondsPage({
     searchFondId: search.searchFondId,
     dossierTypeId: search.dossierTypeId,
     documentTypeId: search.documentTypeId,
+    searchFields: search.searchFields,
     editorName: search.editorName,
     editCompletedAtFrom: search.editCompletedAtFrom,
     editCompletedAtTo: search.editCompletedAtTo,
@@ -326,6 +327,8 @@ export function ArchiveWarehouseFondsPage({
             tookMs={searchData?.took_ms}
             message={searchData?.message}
             mode={searchParams?.mode}
+            searchFields={filterValues.searchFields}
+            searchQuery={q}
             onSelect={(hit, match) => openHit(hit, match)}
           />
           {searchItems.length > 0 ? (

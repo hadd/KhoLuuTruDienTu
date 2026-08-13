@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
-import { Loader2, Plus } from 'lucide-react'
+import { Loader2, Plus, FileText, FolderOpen } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   stickyTableHeaderClassName,
   Table,
@@ -20,19 +22,38 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { buildWarehousePickerRouteSearch } from '@/features/archive-disposal/lib/warehousePickerSelection'
 import { useWarehouseDisposalPicker } from '@/features/archive-disposal/hooks/useWarehouseDisposalPicker'
+import { ArchiveWarehouseCatalogGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseCatalogGrid'
+import { ArchiveWarehouseFondGrid } from '@/features/archive-warehouse/components/ArchiveWarehouseFondGrid'
+import { ArchiveWarehouseUnassignedSection } from '@/features/archive-warehouse/components/ArchiveWarehouseUnassignedSection'
 import {
   ArchiveWarehouseSearchFilters,
   buildWarehouseSearchApiParams,
-  hasWarehouseFilterCriteria,
-  isFondOnlyWarehouseFilter,
+  isDbBrowseWarehouseFilter,
+  isEsWarehouseSearchRequired,
+  isFlatWarehouseListBrowse,
+  resolveWarehouseDossierTypeIds,
+  resolveWarehouseFondIds,
 } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
+import { ArchiveWarehouseSortableTableHead } from '@/features/archive-warehouse/components/ArchiveWarehouseSortableTableHead'
+import {
+  toggleWarehouseBrowseSort,
+  type WarehouseDossierBrowseSortFieldT,
+} from '@/features/archive-warehouse/lib/warehouseBrowseSort'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
+import {
+  readManageByFondPreference,
+  writeManageByFondPreference,
+} from '@/features/archive-warehouse/lib/manageByFondPreference'
 import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
+import { profileQueryOptions } from '@/features/auth/queries'
 import {
   archiveWarehouseDossierDetailQueryOptions,
   archiveWarehouseDossiersQueryOptions,
+  archiveWarehouseDossierTypesQueryOptions,
+  archiveWarehouseDocumentTypesQueryOptions,
   archiveWarehouseFondsQueryOptions,
   archiveWarehouseSearchQueryOptions,
 } from '@/features/archive-warehouse/queries'
@@ -61,25 +82,14 @@ function toDateLocale(lang: string): DateLocale {
   return lang.startsWith('vi') ? 'vi' : 'en'
 }
 
-function resolveFondIds(
-  searchFondId: string | string[] | undefined,
-): string[] {
-  if (Array.isArray(searchFondId)) {
-    return searchFondId.filter((id) => id && id !== 'ALL')
-  }
-  if (!searchFondId || searchFondId === 'ALL') return []
-  return [searchFondId]
+function resolveFondIds(searchFondId: string | string[] | undefined): string[] {
+  return resolveWarehouseFondIds(searchFondId)
 }
 
-function isSingleFondOnlyFilter(
-  values: Parameters<typeof isFondOnlyWarehouseFilter>[0],
-): boolean {
-  const fondCount = Array.isArray(values.searchFondId)
-    ? values.searchFondId.length
-    : values.searchFondId
-      ? 1
-      : 0
-  return fondCount === 1 && isFondOnlyWarehouseFilter(values)
+function resolveDossierTypeIds(
+  dossierTypeId: string | string[] | undefined,
+): string[] {
+  return resolveWarehouseDossierTypeIds(dossierTypeId)
 }
 
 type DossierOpenMatchT = {
@@ -106,18 +116,24 @@ export function ArchiveWarehouseFondsPage({
   const { t: tDisposal } = useTranslation('archive-disposal')
   const { t: tSecurity } = useTranslation('security-level')
   const queryClient = useQueryClient()
+  const navigateToFond = useNavigate()
   const navigateToDetail = useNavigate()
   const search = routeApi.useSearch() as ArchiveDataHubSearchT
   const navigate = routeApi.useNavigate()
   const dateLocale = toDateLocale(i18n.language)
+  const { data: profile } = useQuery(profileQueryOptions)
 
   const q = search.q ?? ''
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
+  const sortBy = search.sortBy
+  const sortDir = search.sortDir
+  const browseView = search.browseView ?? 'fonds'
+  const manageByFond = search.manageByFond !== false
   const pickerMode = search.pickerMode === true
   const disposalCatalogId = search.disposalCatalogId
   const filterFondIds = resolveFondIds(search.searchFondId)
-  const filterFondId = filterFondIds.length === 1 ? filterFondIds[0] : undefined
+  const filterDossierTypeIds = resolveDossierTypeIds(search.dossierTypeId)
 
   const [inputValue, setInputValue] = useState(q)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
@@ -140,14 +156,171 @@ export function ArchiveWarehouseFondsPage({
     archivedAtTo: search.archivedAtTo,
   }
 
-  // Chỉ dùng ES khi lọc metadata / nhiều phông. Tên hồ sơ (q) và 1 phông → SQL,
-  // vì Elasticsearch có thể đang tắt.
-  const hasMetadataFilters = hasWarehouseFilterCriteria({
-    ...filterValues,
-    q: undefined,
+  const metadataFilterValues = { ...filterValues, q: undefined }
+  const isDbBrowseActive = isDbBrowseWarehouseFilter(metadataFilterValues)
+  const isFlatListBrowse = isFlatWarehouseListBrowse(
+    manageByFond,
+    metadataFilterValues,
+  )
+  const isBrowseListActive = isDbBrowseActive || isFlatListBrowse
+  const isEsSearchActive = isEsWarehouseSearchRequired(filterValues)
+  const showFilterResults = isBrowseListActive || isEsSearchActive
+  const showBrowseGrids = manageByFond && !showFilterResults
+
+  useEffect(() => {
+    if (!profile?.id) return
+    if (search.manageByFond !== undefined) return
+
+    const stored = readManageByFondPreference(profile.id)
+    if (stored) return
+
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        manageByFond: false,
+        tab: 'dossiers',
+      }),
+      replace: true,
+    })
+  }, [navigate, profile?.id, search.manageByFond])
+
+  useEffect(() => {
+    if (!manageByFond || search.browseView) return
+    void navigate({
+      search: (prev) => ({ ...prev, browseView: 'fonds', tab: 'dossiers' }),
+      replace: true,
+    })
+  }, [manageByFond, navigate, search.browseView])
+
+  const { data: fondsData, isPending: isFondsPending } = useQuery(
+    archiveWarehouseFondsQueryOptions(),
+  )
+  const sortedFonds = useMemo(
+    () =>
+      [...(fondsData?.items ?? [])].sort((a, b) =>
+        a.fondName.localeCompare(b.fondName, 'vi'),
+      ),
+    [fondsData?.items],
+  )
+
+  const { data: dossierTypesData, isPending: isDossierTypesPending } = useQuery({
+    ...archiveWarehouseDossierTypesQueryOptions(),
+    enabled: showBrowseGrids && browseView === 'dossierTypes',
   })
-  const isEsSearchActive =
-    hasMetadataFilters && !isSingleFondOnlyFilter({ ...filterValues, q: undefined })
+  const { data: documentTypesData, isPending: isDocumentTypesPending } =
+    useQuery({
+      ...archiveWarehouseDocumentTypesQueryOptions(),
+      enabled: showBrowseGrids && browseView === 'documentTypes',
+    })
+
+  const sortedDossierTypes = useMemo(
+    () =>
+      [...(dossierTypesData?.items ?? [])].sort((a, b) =>
+        a.name.localeCompare(b.name, 'vi'),
+      ),
+    [dossierTypesData?.items],
+  )
+
+  const sortedDocumentTypes = useMemo(
+    () =>
+      [...(documentTypesData?.items ?? [])].sort((a, b) =>
+        a.name.localeCompare(b.name, 'vi'),
+      ),
+    [documentTypesData?.items],
+  )
+
+  useEffect(() => {
+    if (
+      !manageByFond ||
+      showFilterResults ||
+      browseView !== 'fonds' ||
+      isFondsPending ||
+      sortedFonds.length !== 1 ||
+      !sortedFonds[0]
+    ) {
+      return
+    }
+    void navigateToFond({
+      to: '/app/archive-dossiers/$fondId',
+      params: { fondId: sortedFonds[0].id },
+      search: buildWarehousePickerRouteSearch({
+        pickerMode,
+        disposalCatalogId,
+        page: 1,
+      }),
+    })
+  }, [
+    browseView,
+    disposalCatalogId,
+    isFondsPending,
+    manageByFond,
+    navigateToFond,
+    pickerMode,
+    showFilterResults,
+    sortedFonds,
+  ])
+
+  useEffect(() => {
+    if (
+      !manageByFond ||
+      showFilterResults ||
+      browseView !== 'dossierTypes' ||
+      isDossierTypesPending ||
+      sortedDossierTypes.length !== 1 ||
+      !sortedDossierTypes[0]
+    ) {
+      return
+    }
+    void navigateToFond({
+      to: '/app/archive-dossiers/by-dossier-type/$dossierTypeId',
+      params: { dossierTypeId: sortedDossierTypes[0].id },
+      search: buildWarehousePickerRouteSearch({
+        pickerMode,
+        disposalCatalogId,
+        page: 1,
+      }),
+    })
+  }, [
+    browseView,
+    disposalCatalogId,
+    isDossierTypesPending,
+    manageByFond,
+    navigateToFond,
+    pickerMode,
+    showFilterResults,
+    sortedDossierTypes,
+  ])
+
+  useEffect(() => {
+    if (
+      !manageByFond ||
+      showFilterResults ||
+      browseView !== 'documentTypes' ||
+      isDocumentTypesPending ||
+      sortedDocumentTypes.length !== 1 ||
+      !sortedDocumentTypes[0]
+    ) {
+      return
+    }
+    void navigateToFond({
+      to: '/app/archive-dossiers/by-document-type/$documentTypeId',
+      params: { documentTypeId: sortedDocumentTypes[0].id },
+      search: buildWarehousePickerRouteSearch({
+        pickerMode,
+        disposalCatalogId,
+        page: 1,
+      }),
+    })
+  }, [
+    browseView,
+    disposalCatalogId,
+    isDocumentTypesPending,
+    manageByFond,
+    navigateToFond,
+    pickerMode,
+    showFilterResults,
+    sortedDocumentTypes,
+  ])
 
   const {
     showPickerSelection,
@@ -161,21 +334,25 @@ export function ArchiveWarehouseFondsPage({
     onTransferSuccess: () => setSelectedIds(new Set()),
   })
 
-  const { data: fondsData } = useQuery(archiveWarehouseFondsQueryOptions())
-  const sortedFonds = useMemo(
-    () =>
-      [...(fondsData?.items ?? [])].sort((a, b) =>
-        a.fondName.localeCompare(b.fondName, 'vi'),
-      ),
-    [fondsData?.items],
-  )
+  const browseParams = isBrowseListActive
+    ? {
+        page,
+        limit,
+        fondId: filterFondIds.length > 0 ? filterFondIds : undefined,
+        dossierTypeId:
+          filterDossierTypeIds.length > 0 ? filterDossierTypeIds : undefined,
+        search: q || undefined,
+        status: DEFAULT_STATUS,
+        sortBy,
+        sortDir,
+      }
+    : null
 
-  const listParams = {
-    fondId: filterFondId,
-    page,
-    limit,
-    search: !isEsSearchActive && q ? q : undefined,
-    status: DEFAULT_STATUS,
+  function handleBrowseSortChange(field: WarehouseDossierBrowseSortFieldT) {
+    const next = toggleWarehouseBrowseSort({ sortBy, sortDir }, field)
+    void navigate({
+      search: (prev) => ({ ...prev, ...next, page: 1 }),
+    })
   }
 
   const searchParams = isEsSearchActive
@@ -189,8 +366,8 @@ export function ArchiveWarehouseFondsPage({
     isError: isListError,
     error: listError,
   } = useQuery({
-    ...archiveWarehouseDossiersQueryOptions(listParams),
-    enabled: !isEsSearchActive,
+    ...archiveWarehouseDossiersQueryOptions(browseParams),
+    enabled: isBrowseListActive,
   })
 
   const {
@@ -213,7 +390,6 @@ export function ArchiveWarehouseFondsPage({
   const listLoading = isEsSearchActive
     ? isSearchPending || isSearchFetching
     : isPending || isFetching
-  const hasActiveFilters = hasWarehouseFilterCriteria(filterValues)
   const selectedDossierIds = [...selectedIds]
   const hasSelection = selectedDossierIds.length > 0
   const selectedCount = selectedDossierIds.length
@@ -250,13 +426,29 @@ export function ArchiveWarehouseFondsPage({
   function clearFilters() {
     setInputValue('')
     void navigate({
-      search: () => ({
+      search: (prev) => ({
         tab: 'dossiers',
+        browseView: prev.manageByFond === false ? undefined : (prev.browseView ?? 'fonds'),
+        manageByFond: prev.manageByFond,
         page: 1,
         limit,
         ...(pickerMode
           ? { pickerMode: true, disposalCatalogId }
           : {}),
+      }),
+      replace: true,
+    })
+  }
+
+  function setManageByFond(next: boolean) {
+    writeManageByFondPreference(profile?.id, next)
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        manageByFond: next ? undefined : false,
+        searchFondId: next ? undefined : prev.searchFondId,
+        browseView: next ? 'fonds' : undefined,
+        page: 1,
       }),
       replace: true,
     })
@@ -278,7 +470,15 @@ export function ArchiveWarehouseFondsPage({
         dossierId,
       },
       search: buildArchiveDossierDetailSearch(
-        { browseView: 'fonds' },
+        filterDossierTypeIds.length > 0
+          ? {
+              browseView: 'dossierTypes',
+              dossierTypeId:
+                filterDossierTypeIds.length === 1
+                  ? filterDossierTypeIds[0]
+                  : undefined,
+            }
+          : { browseView: 'fonds' },
         {
           fileName: match?.fileName ?? undefined,
           highlightPage: match?.page && match.page > 0 ? match.page : undefined,
@@ -399,10 +599,30 @@ export function ArchiveWarehouseFondsPage({
           <ArchiveWarehouseSearchFilters
             layout="compact"
             values={filterValues}
+            hideFondFilter={manageByFond}
             searchInput={inputValue}
             onSearchInputChange={setInputValue}
             onSubmitSearch={submitSearch}
+            searchPlaceholder={
+              browseView === 'unassigned'
+                ? t('page.searchPlaceholder')
+                : undefined
+            }
             onChange={(patch) => {
+              if (browseView === 'unassigned') {
+                void navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    q:
+                      patch && 'q' in patch
+                        ? patch.q
+                        : inputValue.trim() || undefined,
+                    page: 1,
+                  }),
+                  replace: true,
+                })
+                return
+              }
               void navigate({
                 search: (prev) => ({
                   ...prev,
@@ -424,33 +644,48 @@ export function ArchiveWarehouseFondsPage({
               />
             }
             trailing={
-              showPickerSelection ? (
-                <Button
-                  type="button"
-                  disabled={
-                    !hasSelection ||
-                    pickerTransferMutation.isPending ||
-                    !disposalCatalogId
-                  }
-                  onClick={() => {
-                    transferItems(
-                      selectedDossierIds.map((dossierId) => ({
-                        dossierId,
-                        source: 'WAREHOUSE' as const,
-                      })),
-                    )
-                  }}
-                >
-                  {pickerTransferMutation.isPending ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  ) : (
-                    <Plus className="mr-2 size-4" />
-                  )}
-                  {tDisposal('disposal.addToCatalog', {
-                    count: selectedCount,
-                  })}
-                </Button>
-              ) : undefined
+              <>
+                {showPickerSelection ? (
+                  <Button
+                    type="button"
+                    disabled={
+                      !hasSelection ||
+                      pickerTransferMutation.isPending ||
+                      !disposalCatalogId
+                    }
+                    onClick={() => {
+                      transferItems(
+                        selectedDossierIds.map((dossierId) => ({
+                          dossierId,
+                          source: 'WAREHOUSE' as const,
+                        })),
+                      )
+                    }}
+                  >
+                    {pickerTransferMutation.isPending ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : (
+                      <Plus className="mr-2 size-4" />
+                    )}
+                    {tDisposal('disposal.addToCatalog', {
+                      count: selectedCount,
+                    })}
+                  </Button>
+                ) : null}
+                <div className="flex shrink-0 items-center gap-2">
+                  <Switch
+                    id="warehouse-manage-by-fond"
+                    checked={manageByFond}
+                    onCheckedChange={setManageByFond}
+                  />
+                  <Label
+                    htmlFor="warehouse-manage-by-fond"
+                    className="cursor-pointer text-sm whitespace-nowrap"
+                  >
+                    {t('page.manageByFond')}
+                  </Label>
+                </div>
+              </>
             }
           />
         ) : null}
@@ -458,21 +693,24 @@ export function ArchiveWarehouseFondsPage({
 
       {!forbiddenMessage ? (
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-          {listLoading && items.length === 0 && searchItems.length === 0 ? (
+          {showFilterResults && listLoading && items.length === 0 && searchItems.length === 0 ? (
             <div className="flex flex-1 items-center justify-center py-16">
               <Loader2 className="size-8 animate-spin text-muted-foreground" />
             </div>
           ) : null}
 
-          {!listLoading &&
+          {showFilterResults &&
+          !listLoading &&
           !isEsSearchActive &&
           items.length === 0 ? (
             <Card className="p-8 text-center text-sm text-muted-foreground">
-              {hasActiveFilters ? t('page.noMatch') : t('page.dossiersEmpty')}
+              {isDbBrowseActive || isEsSearchActive || q.trim()
+                ? t('page.noMatch')
+                : t('page.dossiersEmpty')}
             </Card>
           ) : null}
 
-          {isEsSearchActive ? (
+          {showFilterResults && isEsSearchActive ? (
             <div className="min-h-0 flex-1 overflow-auto">
               <ArchiveWarehouseSearchResults
                 items={searchItems}
@@ -480,6 +718,8 @@ export function ArchiveWarehouseFondsPage({
                 tookMs={searchData?.took_ms}
                 message={searchData?.message}
                 mode={searchParams?.mode}
+                searchFields={filterValues.searchFields}
+                searchQuery={q}
                 onSelect={(hit, match) => {
                   void openDossierDetail(hit.entityId, hit.fondId, match)
                 }}
@@ -487,7 +727,7 @@ export function ArchiveWarehouseFondsPage({
             </div>
           ) : null}
 
-          {!isEsSearchActive && items.length > 0 ? (
+          {showFilterResults && !isEsSearchActive && items.length > 0 ? (
             <div className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-card">
               <Table
                 className="w-full table-fixed border-separate border-spacing-0"
@@ -513,11 +753,23 @@ export function ArchiveWarehouseFondsPage({
                       </TableHead>
                     ) : null}
                     <TableHead>{t('table.name')}</TableHead>
-                    <TableHead>{t('table.fond')}</TableHead>
+                    <ArchiveWarehouseSortableTableHead
+                      label={t('table.fond')}
+                      field="fondName"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSortChange={handleBrowseSortChange}
+                    />
                     <TableHead>{t('table.physicalLocation')}</TableHead>
                     <TableHead>{t('table.documentCount')}</TableHead>
                     <TableHead>{t('table.archivedAt')}</TableHead>
-                    <TableHead>{t('table.dossierType')}</TableHead>
+                    <ArchiveWarehouseSortableTableHead
+                      label={t('table.dossierType')}
+                      field="dossierTypeName"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSortChange={handleBrowseSortChange}
+                    />
                     <TableHead>{t('table.archiveStorageState')}</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -590,12 +842,143 @@ export function ArchiveWarehouseFondsPage({
             </div>
           ) : null}
 
-          {!listLoading && (items.length > 0 || searchItems.length > 0) ? (
+          {showFilterResults && !listLoading && (items.length > 0 || searchItems.length > 0) ? (
             <ListPagePagination
               page={safePage}
               totalPages={totalPages}
               limit={limit}
               pageSizeOptions={LIST_PAGE_SIZE_OPTIONS}
+              onPageChange={(nextPage) => {
+                void navigate({
+                  search: (prev) => ({ ...prev, page: nextPage }),
+                  replace: true,
+                })
+              }}
+              onLimitChange={(nextLimit) => {
+                void navigate({
+                  search: (prev) => ({ ...prev, limit: nextLimit, page: 1 }),
+                  replace: true,
+                })
+              }}
+            />
+          ) : null}
+
+          {showBrowseGrids && browseView === 'fonds' ? (
+            <section className="min-h-0 flex-1 space-y-2 overflow-auto">
+              {sortedFonds.length === 0 && !isFondsPending ? (
+                <Card className="p-8 text-center text-sm text-muted-foreground">
+                  {t('page.fondListEmpty')}
+                </Card>
+              ) : (
+                <ArchiveWarehouseFondGrid
+                  fonds={sortedFonds}
+                  formatDossierCount={(count) =>
+                    t('page.catalogDossierCount', { count })
+                  }
+                  onSelect={(fondId) => {
+                    void navigateToFond({
+                      to: '/app/archive-dossiers/$fondId',
+                      params: { fondId },
+                      search: buildWarehousePickerRouteSearch({
+                        pickerMode,
+                        disposalCatalogId,
+                        page: 1,
+                      }),
+                    })
+                  }}
+                />
+              )}
+              {sortedFonds.length > 1 ? (
+                <Card className="p-6 text-center text-sm text-muted-foreground">
+                  {t('page.selectFondFirst')}
+                </Card>
+              ) : null}
+            </section>
+          ) : null}
+
+          {showBrowseGrids && browseView === 'dossierTypes' ? (
+            <section className="min-h-0 flex-1 space-y-2 overflow-auto">
+              {sortedDossierTypes.length === 0 && !isDossierTypesPending ? (
+                <Card className="p-8 text-center text-sm text-muted-foreground">
+                  {t('page.dossierTypeListEmpty')}
+                </Card>
+              ) : (
+                <ArchiveWarehouseCatalogGrid
+                  items={sortedDossierTypes.map((item) => ({
+                    id: item.id,
+                    name: item.name,
+                    description: t('page.catalogDossierCount', {
+                      count: item.dossierCount ?? 0,
+                    }),
+                  }))}
+                  emptyMessage={t('page.dossierTypeListEmpty')}
+                  icon={FolderOpen}
+                  onSelect={(dossierTypeId) => {
+                    void navigateToFond({
+                      to: '/app/archive-dossiers/by-dossier-type/$dossierTypeId',
+                      params: { dossierTypeId },
+                      search: buildWarehousePickerRouteSearch({
+                        pickerMode,
+                        disposalCatalogId,
+                        page: 1,
+                      }),
+                    })
+                  }}
+                />
+              )}
+              {sortedDossierTypes.length > 1 ? (
+                <Card className="p-6 text-center text-sm text-muted-foreground">
+                  {t('page.selectDossierTypeFirst')}
+                </Card>
+              ) : null}
+            </section>
+          ) : null}
+
+          {showBrowseGrids && browseView === 'documentTypes' ? (
+            <section className="min-h-0 flex-1 space-y-2 overflow-auto">
+              {sortedDocumentTypes.length === 0 && !isDocumentTypesPending ? (
+                <Card className="p-8 text-center text-sm text-muted-foreground">
+                  {t('page.documentTypeListEmpty')}
+                </Card>
+              ) : (
+                <ArchiveWarehouseCatalogGrid
+                  items={sortedDocumentTypes.map((item) => ({
+                    id: item.id,
+                    name: item.name,
+                    description: t('page.catalogDocumentCount', {
+                      count: item.documentCount ?? 0,
+                    }),
+                  }))}
+                  emptyMessage={t('page.documentTypeListEmpty')}
+                  icon={FileText}
+                  onSelect={(documentTypeId) => {
+                    void navigateToFond({
+                      to: '/app/archive-dossiers/by-document-type/$documentTypeId',
+                      params: { documentTypeId },
+                      search: buildWarehousePickerRouteSearch({
+                        pickerMode,
+                        disposalCatalogId,
+                        page: 1,
+                      }),
+                    })
+                  }}
+                />
+              )}
+              {sortedDocumentTypes.length > 1 ? (
+                <Card className="p-6 text-center text-sm text-muted-foreground">
+                  {t('page.selectDocumentTypeFirst')}
+                </Card>
+              ) : null}
+            </section>
+          ) : null}
+
+          {showBrowseGrids && browseView === 'unassigned' ? (
+            <ArchiveWarehouseUnassignedSection
+              page={page}
+              limit={limit}
+              search={q}
+              pickerMode={pickerMode}
+              disposalCatalogId={disposalCatalogId}
               onPageChange={(nextPage) => {
                 void navigate({
                   search: (prev) => ({ ...prev, page: nextPage }),

@@ -9,6 +9,7 @@ import type {
   UpdateItemPayloadT,
 } from '@/features/physical-warehouse/types'
 import { apiClient } from '@/lib/api/apiClient'
+import { appendQueryValues } from '@/lib/api/query-params'
 import type { SingleResourceResponse } from '@/types/api'
 
 export async function getPhysicalWarehouseItems(params?: {
@@ -115,6 +116,13 @@ export type PhysicalItemPlacementRowT = {
   dossierName: string
   folderPath: string | null
   dossierStatus: string
+  /**
+   * Số văn bản (documents) hiện có trong hồ sơ này — tương ứng
+   * ArchiveWarehouseDossierItemT.documentCount bên archive-warehouse.
+   * Backend cần JOIN/COUNT documents theo dossierId khi trả về danh sách
+   * placements (GET /api/v1/physical-warehouse/placements).
+   */
+  documentCount: number
 }
 
 export async function getPlacementsByPhysicalItem(
@@ -230,18 +238,8 @@ export async function searchPhysicalWarehouse(
   searchParams.set('mode', mode)
 
   const appendSharedFilters = () => {
-    if (params.dossierTypeId) {
-      const ids = Array.isArray(params.dossierTypeId)
-        ? params.dossierTypeId
-        : [params.dossierTypeId]
-      ids.forEach((id) => searchParams.append('dossierTypeId', id))
-    }
-    if (params.documentTypeId) {
-      const ids = Array.isArray(params.documentTypeId)
-        ? params.documentTypeId
-        : [params.documentTypeId]
-      ids.forEach((id) => searchParams.append('documentTypeId', id))
-    }
+    appendQueryValues(searchParams, 'dossierTypeId', params.dossierTypeId)
+    appendQueryValues(searchParams, 'documentTypeId', params.documentTypeId)
     if (params.editorName?.trim()) {
       searchParams.set('editorName', params.editorName.trim())
     }
@@ -284,10 +282,7 @@ export async function searchPhysicalWarehouse(
     appendSharedFilters()
   }
 
-  if (params.fondId) {
-    const fondIds = Array.isArray(params.fondId) ? params.fondId : [params.fondId]
-    fondIds.forEach((id) => searchParams.append('fondId', id))
-  }
+  appendQueryValues(searchParams, 'fondId', params.fondId)
   if (params.limit != null) searchParams.set('limit', String(params.limit))
   if (params.offset != null) searchParams.set('offset', String(params.offset))
 

@@ -40,6 +40,8 @@ import {
   ArchiveWarehouseSearchFilters,
   buildWarehouseSearchApiParams,
   hasWarehouseFilterCriteria,
+  isEsWarehouseSearchRequired,
+  resolveWarehouseDossierTypeIds,
 } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
@@ -208,8 +210,10 @@ export function ArchiveWarehouseDossiersPage({
     archivedAtTo: search.archivedAtTo,
   }
 
+  const filterDossierTypeIds = resolveWarehouseDossierTypeIds(search.dossierTypeId)
+
   const isEsSearchActive =
-    !isUnassigned && hasWarehouseFilterCriteria(filterValues)
+    !isUnassigned && isEsWarehouseSearchRequired(filterValues)
 
   const { canRequestBorrow } = useArchiveBorrowAccess()
   const showBorrowSelection = isExploitation && canRequestBorrow
@@ -229,6 +233,8 @@ export function ArchiveWarehouseDossiersPage({
 
   const listParams = {
     fondId,
+    dossierTypeId:
+      filterDossierTypeIds.length > 0 ? filterDossierTypeIds : undefined,
     page,
     limit,
     search: !isEsSearchActive && q ? q : undefined,
@@ -444,6 +450,9 @@ export function ArchiveWarehouseDossiersPage({
           highlightBbox,
         },
       ),
+      state: isExploitation
+        ? { fromLibraryExploitationList: true }
+        : { fromArchiveWarehouseList: true },
     })
   }
 
@@ -718,6 +727,8 @@ export function ArchiveWarehouseDossiersPage({
                   tookMs={searchData?.took_ms}
                   message={searchData?.message}
                   mode={searchParams?.mode}
+                  searchFields={filterValues.searchFields}
+                  searchQuery={q}
                   onSelect={(hit, match) => {
                     void openDossierDetail(hit.entityId, match)
                   }}

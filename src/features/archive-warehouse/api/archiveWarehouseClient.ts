@@ -28,7 +28,7 @@ import type {
   WarehouseDossierStatusT,
 } from '@/features/archive-warehouse/types'
 import { apiClient } from '@/lib/api/apiClient'
-import { appendListParams } from '@/lib/api/query-params'
+import { appendListParams, appendQueryValues } from '@/lib/api/query-params'
 
 export async function getArchiveWarehouseFonds(): Promise<{
   items: Array<ArchiveWarehouseFondListItemT>
@@ -93,14 +93,17 @@ export async function getArchiveWarehouseDossiers(
     search: params.search,
   })
   if (params.fondId) {
-    searchParams.set('fondId', params.fondId)
+    appendQueryValues(searchParams, 'fondId', params.fondId)
   }
+  appendQueryValues(searchParams, 'dossierTypeId', params.dossierTypeId)
   if (params.year != null) {
     searchParams.set('year', String(params.year))
   }
   if (params.status) {
     searchParams.set('status', params.status)
   }
+  if (params.sortBy) searchParams.set('sortBy', params.sortBy)
+  if (params.sortDir) searchParams.set('sortDir', params.sortDir)
 
   const queryString = searchParams.toString()
   const response = await apiClient.get<ArchiveWarehouseDossiersResponseT>(
@@ -115,7 +118,7 @@ export async function getArchiveWarehouseDossiers(
     total: data.total ?? 0,
     totalPages: data.totalPages ?? 1,
     fondScope: data.fondScope ?? null,
-    fondId: data.fondId ?? params.fondId,
+    fondId: data.fondId ?? (Array.isArray(params.fondId) ? null : params.fondId ?? null),
   }
 }
 
@@ -245,10 +248,8 @@ export async function searchArchiveWarehouseContent(
   searchParams.set('mode', mode)
 
   const appendSharedFilters = () => {
-    if (params.dossierTypeId)
-      searchParams.set('dossierTypeId', params.dossierTypeId)
-    if (params.documentTypeId)
-      searchParams.set('documentTypeId', params.documentTypeId)
+    appendQueryValues(searchParams, 'dossierTypeId', params.dossierTypeId)
+    appendQueryValues(searchParams, 'documentTypeId', params.documentTypeId)
     if (params.editorName?.trim()) {
       searchParams.set('editorName', params.editorName.trim())
     }
@@ -286,7 +287,7 @@ export async function searchArchiveWarehouseContent(
     appendSharedFilters()
   }
 
-  if (params.fondId) searchParams.set('fondId', params.fondId)
+  appendQueryValues(searchParams, 'fondId', params.fondId)
   if (params.limit != null) searchParams.set('limit', String(params.limit))
   if (params.offset != null) searchParams.set('offset', String(params.offset))
 

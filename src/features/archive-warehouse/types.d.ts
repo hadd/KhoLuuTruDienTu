@@ -58,9 +58,12 @@ export type GetArchiveWarehouseDossiersParamsT = {
   page?: number
   limit?: number
   search?: string
-  fondId?: string
+  fondId?: string | string[]
+  dossierTypeId?: string | string[]
   year?: number
   status?: WarehouseDossierStatusT
+  sortBy?: 'fondName' | 'dossierTypeName'
+  sortDir?: 'asc' | 'desc'
 }
 
 /** Flat list for library exploitation — fondId optional (omit = all fonds). */
@@ -68,7 +71,8 @@ export type GetLibraryExploitationDossiersParamsT = {
   page?: number
   limit?: number
   search?: string
-  fondId?: string
+  fondId?: string | string[]
+  dossierTypeId?: string | string[]
   year?: number
   status?: WarehouseDossierStatusT
 }

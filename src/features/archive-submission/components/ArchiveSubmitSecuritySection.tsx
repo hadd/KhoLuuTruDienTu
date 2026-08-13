@@ -41,12 +41,16 @@ export function ArchiveSubmitSecuritySection({
         onChange={onDossierSecurityLevelChange}
         allowClear={false}
         disabled={disabled}
+        required
       />
       <p className="text-sm text-muted-foreground">{t('security.levelPasswordHint')}</p>
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-medium">{t('security.filesTitle')}</p>
+          <p className="text-sm font-medium">
+            {t('security.filesTitle')}
+            <span className="text-destructive"> *</span>
+          </p>
           <Button
             type="button"
             variant="outline"
@@ -66,7 +70,10 @@ export function ArchiveSubmitSecuritySection({
               <TableHeader>
                 <TableRow>
                   <TableHead>{t('security.fileNameColumn')}</TableHead>
-                  <TableHead className="w-[220px]">{t('security.fileLevelColumn')}</TableHead>
+                  <TableHead className="w-[220px]">
+                    {t('security.fileLevelColumn')}
+                    <span className="text-destructive"> *</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

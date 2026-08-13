@@ -224,6 +224,7 @@ export function ArchiveWarehouseDossiersByTypePage() {
           highlightBbox,
         },
       ),
+      state: { fromArchiveWarehouseList: true },
     })
   }
 
@@ -238,6 +239,7 @@ export function ArchiveWarehouseDossiersByTypePage() {
         browseView: 'dossierTypes',
         dossierTypeId,
       }),
+      state: { fromArchiveWarehouseList: true },
     })
   }
 
@@ -384,6 +386,8 @@ export function ArchiveWarehouseDossiersByTypePage() {
                   tookMs={searchData?.took_ms}
                   message={searchData?.message}
                   mode={searchParams?.mode}
+                  searchFields={searchParams?.searchFields}
+                  searchQuery={q}
                   onSelect={(hit, match) => openSearchHit(hit, match)}
                 />
                 {searchItems.length > 0 ? (

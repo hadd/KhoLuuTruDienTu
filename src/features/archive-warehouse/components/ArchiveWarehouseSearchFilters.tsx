@@ -24,14 +24,14 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 
-import { ARCHIVE_WAREHOUSE_BROWSE_TAB_CONFIG } from '@/features/archive-warehouse/lib/archiveWarehouseBrowseTabConfig'
-import type { ArchiveWarehouseBrowseViewT } from '@/features/archive-warehouse/schemas'
-import type { ArchiveWarehouseFondListItemT } from '@/features/archive-warehouse/types'
 import {
   archiveWarehouseDocumentTypesQueryOptions,
   archiveWarehouseDossierTypesQueryOptions,
 } from '@/features/archive-warehouse/queries'
-import type { WarehouseDossierStatusT } from '@/features/archive-warehouse/types'
+import type {
+  ArchiveWarehouseFondListItemT,
+  WarehouseDossierStatusT,
+} from '@/features/archive-warehouse/types'
 import { cn } from '@/lib/utils/cn'
 import { Checkbox } from '@/components/ui/checkbox'
 
@@ -52,23 +52,7 @@ export type ArchiveWarehouseFilterValues = {
   archivedAtTo?: string
 }
 
-const TT05_SEARCHABLE_FIELDS = [
-  { value: 'MA_HO_SO', label: 'Mã hồ sơ' },
-  { value: 'TIEU_DE_HO_SO', label: 'Tiêu đề hồ sơ' },
-  { value: 'MA_DINH_DANH_TAI_LIEU', label: 'Mã định danh tài liệu' },
-  { value: 'MA_LUU_TRU_TAI_LIEU', label: 'Mã lưu trữ tài liệu' },
-  { value: 'TEN_LOAI_TAI_LIEU', label: 'Tên loại tài liệu' },
-  { value: 'SO_CUA_TAI_LIEU', label: 'Số của tài liệu' },
-  { value: 'KY_HIEU_CUA_TAI_LIEU', label: 'Ký hiệu của tài liệu' },
-  { value: 'TEN_CO_QUAN_BAN_HANH', label: 'Tên cơ quan ban hành' },
-  { value: 'TRICH_YEU_NOI_DUNG', label: 'Trích yếu nội dung' },
-  { value: 'NGON_NGU', label: 'Ngôn ngữ' },
-  { value: 'BUT_TICH', label: 'Bút tích' },
-  { value: 'QUY_TRINH_XU_LY', label: 'Quy trình xử lý' },
-  { value: 'CHE_DO_LAP_TAI_LIEU_DU_PHONG', label: 'Chế độ lập tài liệu dự phòng' },
-  { value: 'TINH_TRANG_LAP_TAI_LIEU_DU_PHONG', label: 'Tình trạng lập tài liệu dự phòng' },
-  { value: 'TU_KHOA', label: 'Từ khóa' },
-]
+import { WAREHOUSE_TT05_SEARCHABLE_FIELDS } from '@/features/archive-warehouse/lib/warehouseMetadataSearchDisplay'
 
 type FilterDraft = Omit<ArchiveWarehouseFilterValues, 'q'>
 
@@ -84,15 +68,9 @@ type ArchiveWarehouseSearchFiltersProps = {
   searchInput: string
   onSearchInputChange: (value: string) => void
   onSubmitSearch: () => void
-  onChange: (
-    patch: Partial<ArchiveWarehouseFilterValues> & {
-      browseView?: ArchiveWarehouseBrowseViewT
-    },
-  ) => void
+  onChange: (patch: Partial<ArchiveWarehouseFilterValues>) => void
   onClear: () => void
   fonds?: Array<ArchiveWarehouseFondListItemT>
-  /** Hub "Hồ sơ đã lưu kho": group by fond / type / unassigned via filter. */
-  browseView?: ArchiveWarehouseBrowseViewT
   /** When set, fond filter is locked to this fond (hidden). */
   lockedFondId?: string
   searchPlaceholder?: string
@@ -108,6 +86,8 @@ type ArchiveWarehouseSearchFiltersProps = {
   leading?: ReactNode
   /** Compact row: search + filter ~1/5 width, right-aligned in parent flex. */
   layout?: 'default' | 'compact'
+  /** Hub flat list mode: hide fond multi-select in the filter sheet. */
+  hideFondFilter?: boolean
   className?: string
 }
 
@@ -128,11 +108,17 @@ function toDraft(values: ArchiveWarehouseFilterValues): FilterDraft {
 function countActiveFilters(
   values: ArchiveWarehouseFilterValues,
   listBrowseFilters?: WarehouseListBrowseFilters,
-  browseView?: ArchiveWarehouseBrowseViewT,
+  hideFondFilter = false,
 ): number {
   let count = 0
-  if (browseView && browseView !== 'fonds') count += 1
-  if (Array.isArray(values.searchFondId) ? values.searchFondId.length > 0 : values.searchFondId) count += 1
+  if (
+    !hideFondFilter &&
+    (Array.isArray(values.searchFondId)
+      ? values.searchFondId.length > 0
+      : values.searchFondId)
+  ) {
+    count += 1
+  }
   if (Array.isArray(values.dossierTypeId) ? values.dossierTypeId.length > 0 : values.dossierTypeId) count += 1
   if (Array.isArray(values.documentTypeId) ? values.documentTypeId.length > 0 : values.documentTypeId) count += 1
   if (Array.isArray(values.searchFields) ? values.searchFields.length > 0 : values.searchFields) count += 1
@@ -151,7 +137,6 @@ export function ArchiveWarehouseSearchFilters({
   onChange,
   onClear,
   fonds = [],
-  browseView,
   lockedFondId,
   searchPlaceholder,
   listBrowseFilters,
@@ -159,14 +144,12 @@ export function ArchiveWarehouseSearchFilters({
   trailing,
   leading,
   layout = 'default',
+  hideFondFilter = false,
   className,
 }: ArchiveWarehouseSearchFiltersProps) {
   const { t } = useTranslation('archive-warehouse')
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<FilterDraft>(() => toDraft(values))
-  const [browseDraft, setBrowseDraft] = useState<
-    ArchiveWarehouseBrowseViewT | undefined
-  >(browseView)
   const [listDraft, setListDraft] = useState<{
     year?: number
     status: WarehouseDossierStatusT
@@ -182,13 +165,9 @@ export function ArchiveWarehouseSearchFilters({
   const documentTypes = documentTypesQuery.data?.items ?? []
 
   const activeFilterCount = useMemo(
-    () => countActiveFilters(values, listBrowseFilters, browseView),
-    [values, listBrowseFilters, browseView],
+    () => countActiveFilters(values, listBrowseFilters, hideFondFilter),
+    [values, listBrowseFilters, hideFondFilter],
   )
-
-  useEffect(() => {
-    setBrowseDraft(browseView)
-  }, [browseView])
 
   useEffect(() => {
     setDraft(toDraft(values))
@@ -218,7 +197,6 @@ export function ArchiveWarehouseSearchFilters({
       archivedAtFrom: draft.archivedAtFrom,
       archivedAtTo: draft.archivedAtTo,
       q: searchInput.trim() || undefined,
-      ...(browseView != null ? { browseView: browseDraft ?? 'fonds' } : {}),
     })
     if (listBrowseFilters && onListBrowseFiltersChange) {
       onListBrowseFiltersChange({
@@ -231,7 +209,6 @@ export function ArchiveWarehouseSearchFilters({
 
   function handleClear() {
     setDraft({})
-    if (browseView != null) setBrowseDraft('fonds')
     setListDraft({
       year: undefined,
       status: listBrowseFilters?.status ?? 'ARCHIVED',
@@ -243,7 +220,6 @@ export function ArchiveWarehouseSearchFilters({
   function handleOpenChange(next: boolean) {
     if (next) {
       setDraft(toDraft(values))
-      setBrowseDraft(browseView)
       if (listBrowseFilters) {
         setListDraft({
           year: listBrowseFilters.year,
@@ -287,7 +263,7 @@ export function ArchiveWarehouseSearchFilters({
         </div>
 
         {trailing ? (
-          <div className="flex items-center gap-2 sm:ml-auto">{trailing}</div>
+          <div className="ml-auto flex items-center gap-2">{trailing}</div>
         ) : null}
       </div>
 
@@ -303,31 +279,6 @@ export function ArchiveWarehouseSearchFilters({
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
             <div className="flex flex-col gap-6">
-              {browseView != null ? (
-                <div className="space-y-2">
-                  <Label htmlFor="warehouse-filter-browse">
-                    {t('filters.browseView')}
-                  </Label>
-                  <Select
-                    value={browseDraft ?? 'fonds'}
-                    onValueChange={(next) =>
-                      setBrowseDraft(next as ArchiveWarehouseBrowseViewT)
-                    }
-                  >
-                    <SelectTrigger id="warehouse-filter-browse" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ARCHIVE_WAREHOUSE_BROWSE_TAB_CONFIG.map((item) => (
-                        <SelectItem key={item.value} value={item.value}>
-                          {t(item.labelKey)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : null}
-
               {listBrowseFilters ? (
                 <div className="space-y-2">
                   <Label htmlFor="warehouse-filter-year">{t('filters.year')}</Label>
@@ -416,9 +367,9 @@ export function ArchiveWarehouseSearchFilters({
                 </div>
               </div>
 
-              {browseDraft !== 'unassigned' && !lockedFondId ? (
+              {!lockedFondId && !hideFondFilter ? (
                 <CheckboxGroup
-                  title="Danh sách Phông"
+                  title={t('filters.fondList')}
                   items={fonds.map((fond) => ({
                     id: fond.id,
                     label: fond.fondName,
@@ -433,10 +384,9 @@ export function ArchiveWarehouseSearchFilters({
                 />
               ) : null}
 
-              {browseDraft !== 'unassigned' ? (
-                <>
-                  <CheckboxGroup
-                    title="Loại Hồ sơ"
+              <>
+                <CheckboxGroup
+                  title="Loại Hồ sơ"
                     items={dossierTypes.map((item) => ({
                       id: item.id,
                       label: item.name,
@@ -467,7 +417,7 @@ export function ArchiveWarehouseSearchFilters({
 
                   <CheckboxGroup
                     title="Trường Metadata (TT05)"
-                    items={TT05_SEARCHABLE_FIELDS.map((field) => ({
+                    items={WAREHOUSE_TT05_SEARCHABLE_FIELDS.map((field) => ({
                       id: field.value,
                       label: field.label,
                     }))}
@@ -479,8 +429,7 @@ export function ArchiveWarehouseSearchFilters({
                     }
                     idPrefix="field"
                   />
-                </>
-              ) : null}
+              </>
             </div>
           </div>
 
@@ -570,6 +519,47 @@ export function hasWarehouseFilterCriteria(
   )
 }
 
+/** ES is required for document type, metadata fields, or full-text q — not for fond/dossier type filters. */
+export function isEsWarehouseSearchRequired(
+  values: ArchiveWarehouseFilterValues,
+): boolean {
+  const hasDocument = Array.isArray(values.documentTypeId)
+    ? values.documentTypeId.length > 0
+    : values.documentTypeId
+  const hasSearchFields = Array.isArray(values.searchFields)
+    ? values.searchFields.length > 0
+    : values.searchFields
+  return Boolean(
+    values.q?.trim() ||
+      hasDocument ||
+      hasSearchFields ||
+      values.editorName?.trim() ||
+      values.editCompletedAtFrom ||
+      values.editCompletedAtTo ||
+      values.archivedAtFrom ||
+      values.archivedAtTo,
+  )
+}
+
+/** True when fond and/or dossier type filters should use BE SQL browse (not ES). */
+export function isDbBrowseWarehouseFilter(
+  values: ArchiveWarehouseFilterValues,
+): boolean {
+  if (isEsWarehouseSearchRequired(values)) return false
+  const hasFond = resolveWarehouseFondIds(values.searchFondId).length > 0
+  const hasDossier = resolveWarehouseDossierTypeIds(values.dossierTypeId).length > 0
+  return hasFond || hasDossier
+}
+
+/** Flat list mode: all dossiers in scope via BE when fond browse is off and no filters apply. */
+export function isFlatWarehouseListBrowse(
+  manageByFond: boolean,
+  values: ArchiveWarehouseFilterValues,
+): boolean {
+  if (manageByFond) return false
+  return !isEsWarehouseSearchRequired(values) && !isDbBrowseWarehouseFilter(values)
+}
+
 /** True when only a fond is selected — browse DB list instead of ES search. */
 export function isFondOnlyWarehouseFilter(
   values: ArchiveWarehouseFilterValues,
@@ -590,6 +580,70 @@ export function isFondOnlyWarehouseFilter(
     !values.archivedAtFrom &&
     !values.archivedAtTo,
   )
+}
+
+/** True when only dossier type(s) are selected — browse DB list instead of ES search. */
+export function isDossierTypeOnlyWarehouseFilter(
+  values: ArchiveWarehouseFilterValues,
+): boolean {
+  const hasFond = Array.isArray(values.searchFondId)
+    ? values.searchFondId.length > 0
+    : values.searchFondId
+  const hasDossier = Array.isArray(values.dossierTypeId)
+    ? values.dossierTypeId.length > 0
+    : values.dossierTypeId
+  const hasDocument = Array.isArray(values.documentTypeId)
+    ? values.documentTypeId.length > 0
+    : values.documentTypeId
+  const hasSearchFields = Array.isArray(values.searchFields)
+    ? values.searchFields.length > 0
+    : values.searchFields
+  return Boolean(
+    hasDossier &&
+    !values.q?.trim() &&
+    !hasFond &&
+    !hasDocument &&
+    !hasSearchFields &&
+    !values.editorName?.trim() &&
+    !values.editCompletedAtFrom &&
+    !values.editCompletedAtTo &&
+    !values.archivedAtFrom &&
+    !values.archivedAtTo,
+  )
+}
+
+export function resolveWarehouseDossierTypeIds(
+  dossierTypeId: string | string[] | undefined,
+): string[] {
+  if (Array.isArray(dossierTypeId)) {
+    return dossierTypeId.filter((id) => id && id !== ALL_VALUE)
+  }
+  if (!dossierTypeId || dossierTypeId === ALL_VALUE) return []
+  return [dossierTypeId]
+}
+
+export function isSingleFondOnlyWarehouseFilter(
+  values: ArchiveWarehouseFilterValues,
+): boolean {
+  return resolveWarehouseFondIds(values.searchFondId).length === 1 &&
+    isFondOnlyWarehouseFilter(values)
+}
+
+export function isSingleDossierTypeOnlyWarehouseFilter(
+  values: ArchiveWarehouseFilterValues,
+): boolean {
+  return resolveWarehouseDossierTypeIds(values.dossierTypeId).length === 1 &&
+    isDossierTypeOnlyWarehouseFilter(values)
+}
+
+export function resolveWarehouseFondIds(
+  searchFondId: string | string[] | undefined,
+): string[] {
+  if (Array.isArray(searchFondId)) {
+    return searchFondId.filter((id) => id && id !== ALL_VALUE)
+  }
+  if (!searchFondId || searchFondId === ALL_VALUE) return []
+  return [searchFondId]
 }
 
 export function buildWarehouseSearchApiParams(

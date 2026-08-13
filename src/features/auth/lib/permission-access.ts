@@ -14,6 +14,9 @@ import {
   getNavRoutesForLink,
 } from '@/features/navigation/config/appNavTree'
 import { getVisibleDataConfigNavItemDefs } from '@/features/navigation/config/dataConfigNavItems'
+import { DIGITIZATION_SCREEN_REQUIREMENTS } from '@/features/digitization/lib/digitizationAccess'
+import { GENERAL_CATALOG_SCREEN_REQUIREMENTS } from '@/features/general-catalog/lib/generalCatalogAccess'
+import { PROJECT_MANAGEMENT_SCREEN_REQUIREMENTS } from '@/features/project-management/lib/projectManagementAccess'
 import type {
   AppScreen,
   AppScreenChild,
@@ -137,6 +140,14 @@ export function isNavLinkVisibleOnSidebar(
     return true
   }
 
+  if (link.id === 'system-administration') {
+    return isSystemAdminHubVisible(permissions, catalog)
+  }
+
+  if (link.id === 'digitization-hub') {
+    return isDigitizationHubVisible(permissions, catalog)
+  }
+
   if (link.visibilityTag === 'data-config') {
     return getVisibleDataConfigNavItemDefs(permissions, catalog).length > 0
   }
@@ -159,6 +170,67 @@ export function isNavLinkVisibleOnSidebar(
     permissions,
     link.requiredPermission,
     catalog,
+  )
+}
+
+export function isSystemAdminHubVisible(
+  permissions: Array<string>,
+  catalog: Array<PermissionCatalogItemT>,
+): boolean {
+  if (
+    canAccessAppScreenForSidebar(
+      permissions,
+      [...GENERAL_CATALOG_SCREEN_REQUIREMENTS],
+      catalog,
+    )
+  ) {
+    return true
+  }
+
+  if (
+    canAccessAppScreenForSidebar(
+      permissions,
+      { module: 'users', permissionKey: 'users.read' },
+      catalog,
+    )
+  ) {
+    return true
+  }
+
+  if (
+    canAccessAppScreenForSidebar(permissions, { module: 'roles' }, catalog)
+  ) {
+    return true
+  }
+
+  if (
+    canAccessAppScreenForSidebar(
+      permissions,
+      { module: 'audit_logs', permissionKey: 'audit_logs.read' },
+      catalog,
+    )
+  ) {
+    return true
+  }
+
+  return getVisibleDataConfigNavItemDefs(permissions, catalog).length > 0
+}
+
+export function isDigitizationHubVisible(
+  permissions: Array<string>,
+  catalog: Array<PermissionCatalogItemT>,
+): boolean {
+  return (
+    canAccessAppScreenForSidebar(
+      permissions,
+      [...PROJECT_MANAGEMENT_SCREEN_REQUIREMENTS],
+      catalog,
+    ) ||
+    canAccessAppScreenForSidebar(
+      permissions,
+      [...DIGITIZATION_SCREEN_REQUIREMENTS],
+      catalog,
+    )
   )
 }
 
@@ -205,6 +277,16 @@ export function getVisibleNavTree(
   }).filter((node) => isNavNodeVisibleOnSidebar(node, permissions, catalog, primaryAppRole))
 }
 
+function isMetadataPermissionRequirement(
+  requirement?: AppScreenPermissionRequirement,
+): boolean {
+  if (!requirement) return false
+  if (Array.isArray(requirement)) {
+    return requirement.some((item) => item.module === 'metadata')
+  }
+  return requirement.module === 'metadata'
+}
+
 export function isAppScreenChildVisibleOnSidebar(
   child: AppScreenChild,
   permissions: Array<string>,
@@ -214,7 +296,7 @@ export function isAppScreenChildVisibleOnSidebar(
   if (
     child.id === 'document-types' ||
     child.id === 'document-assignment' ||
-    child.requiredPermission?.module === 'metadata'
+    isMetadataPermissionRequirement(child.requiredPermission)
   ) {
     return isMetadataSidebarChildGranted(child.id, permissions, catalog)
   }
@@ -408,6 +490,8 @@ export function getAccessibleSidebarRoutes(
     }
   }
   routes.add('/app/warehouse-management')
+  routes.add('/app/system-admin')
+  routes.add('/app/digitization-hub')
   return [...routes]
 }
 

@@ -37,6 +37,7 @@ export type AppScreenTo =
   | '/app/users'
   | '/app/groups'
   | '/app/digitization'
+  | '/app/digitization-hub'
   | '/app/data'
   | '/app/dossiers'
   | '/app/scan-intake'
@@ -51,6 +52,7 @@ export type AppScreenTo =
   | '/app/data-config/metadata-extract-settings'
   | '/app/data-config/audit-log-config'
   | '/app/data-config/borrow-approval-clearance'
+  | '/app/system-admin'
   | '/app/security-levels'
   | '/app/audit-logs'
 
