@@ -23,8 +23,8 @@ services:
       - INTERNAL_API_KEY=e8ed1632f573344130e441d1ef9bacf6
       - HTTP_LOGS=false
       - DB_QUERY_LOGS=false
-      - KAFKA_ENABLED=false
-      - KAFKA_BROKER=10.10.6.134:9092
+      - KAFKA_ENABLED=true
+      - KAFKA_BROKER=10.10.6.134:9094
       - KAFKA_GROUP_ID=sohoa-backend-group
       - KAFKA_METADATA_TOPIC=metadata-completed
       - KAFKA_MERGE_FINISHED_WAIT_TOPIC=merge-finished-wait
