@@ -122,6 +122,18 @@ export const AUDIT_LOG_CONFIG_CATALOG: AuditLogCatalogEntry[] = [
     { module: "security-levels", moduleLabel: "Cấp độ bảo mật", actionKey: "delete", label: "Xóa", defaultEnabled: true },
     { module: "security-levels", moduleLabel: "Cấp độ bảo mật", actionKey: "verify", label: "Xác minh mật khẩu cấp độ", defaultEnabled: true },
 
+    { module: "archive-borrow", moduleLabel: "Mượn tài liệu", actionKey: "view", label: "Xem danh sách / chi tiết", defaultEnabled: true },
+    { module: "archive-borrow", moduleLabel: "Mượn tài liệu", actionKey: "request_borrow", label: "Tạo phiếu mượn", defaultEnabled: true },
+    { module: "archive-borrow", moduleLabel: "Mượn tài liệu", actionKey: "approve_borrow", label: "Duyệt phiếu mượn", defaultEnabled: true },
+    { module: "archive-borrow", moduleLabel: "Mượn tài liệu", actionKey: "reject_borrow", label: "Từ chối phiếu mượn", defaultEnabled: true },
+    { module: "archive-borrow", moduleLabel: "Mượn tài liệu", actionKey: "regenerate_borrow_dip", label: "Tạo lại gói DIP", defaultEnabled: true },
+    { module: "archive-borrow", moduleLabel: "Mượn tài liệu", actionKey: "activate_borrow", label: "Kích hoạt xem trực tuyến", defaultEnabled: true },
+    { module: "archive-borrow", moduleLabel: "Mượn tài liệu", actionKey: "view_borrow_document", label: "Xem file DIP", defaultEnabled: true },
+    { module: "archive-borrow", moduleLabel: "Mượn tài liệu", actionKey: "expire_borrow", label: "Hết hạn phiếu mượn", defaultEnabled: true },
+    { module: "archive-borrow", moduleLabel: "Mượn tài liệu", actionKey: "edit", label: "Cập nhật tiến độ / ghi chú", defaultEnabled: true },
+    { module: "archive-borrow", moduleLabel: "Mượn tài liệu", actionKey: "create", label: "Tạo ghi chú", defaultEnabled: true },
+    { module: "archive-borrow", moduleLabel: "Mượn tài liệu", actionKey: "delete", label: "Xóa ghi chú", defaultEnabled: true },
+
     { module: "notifications", moduleLabel: "Thông báo", actionKey: "view", label: "Xem hộp thư", defaultEnabled: true },
     { module: "notifications", moduleLabel: "Thông báo", actionKey: "update", label: "Đánh dấu đã đọc", defaultEnabled: true },
 

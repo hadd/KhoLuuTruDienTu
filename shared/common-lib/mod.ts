@@ -5,3 +5,4 @@ export * from './http-error.ts';
 export * from './validation-types.ts';
 export * from './util.ts';
 export * from './file-helper.ts';
+export * from './query-array.ts';

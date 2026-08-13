@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, inArray, isNull, lte, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { httpError, AppError, logApi } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import {
@@ -1161,19 +1161,6 @@ export const ArchiveBorrowService = {
             placementId: input.placementId,
         });
 
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "approve_borrow",
-            summary: `Duyệt phiếu mượn ${requestId}`,
-            entityType: "archive_borrow_request",
-            entityId: requestId,
-            details: {
-                approvedFrom: input.approvedFrom.toISOString(),
-                approvedUntil: input.approvedUntil.toISOString(),
-            },
-        });
-
         return await this.getById(profile, requestId);
     },
 
@@ -1258,15 +1245,6 @@ export const ArchiveBorrowService = {
             await markDipFailed(requestId, err);
         }
 
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "regenerate_borrow_dip",
-            summary: `Tạo lại DIP phiếu mượn ${requestId}`,
-            entityType: "archive_borrow_request",
-            entityId: requestId,
-        });
-
         return await this.getById(profile, requestId);
     },
 
@@ -1331,15 +1309,6 @@ export const ArchiveBorrowService = {
             throw httpError.conflict("Request was already reviewed");
         }
 
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "reject_borrow",
-            summary: `Từ chối phiếu mượn ${requestId}`,
-            entityType: "archive_borrow_request",
-            entityId: requestId,
-        });
-
         return await this.getById(profile, requestId);
     },
 
@@ -1392,15 +1361,6 @@ export const ArchiveBorrowService = {
         if (!updated[0]) {
             throw httpError.conflict("Request could not be activated");
         }
-
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "activate_borrow",
-            summary: `Kích hoạt xem phiếu mượn ${requestId}`,
-            entityType: "archive_borrow_request",
-            entityId: requestId,
-        });
 
         return await this.getById(profile, requestId);
     },
@@ -1629,16 +1589,6 @@ export const ArchiveBorrowService = {
         }
 
         const bytes = await downloadBinaryFromStorage(entry.objectKey);
-
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "view_borrow_document",
-            summary: `Xem DIP file ${fileId} của phiếu ${requestId}`,
-            entityType: "archive_borrow_request",
-            entityId: requestId,
-            details: { fileId, byteSize: bytes.byteLength },
-        });
 
         return {
             bytes,
@@ -2023,6 +1973,41 @@ export const ArchiveBorrowService = {
             );
 
         return { currentlyReading, saved };
+    },
+
+    async rejectExpiredPendingRequests(): Promise<{ rejectedCount: number }> {
+        const now = new Date();
+        const due = await db
+            .update(archiveBorrowRequests)
+            .set({
+                status: ArchiveBorrowStatus.REJECTED,
+                reviewedBy: null,
+                reviewedAt: now,
+                reviewNotes: "Tự động từ chối do hết hạn khung giờ yêu cầu",
+                updatedAt: now,
+            })
+            .where(
+                and(
+                    eq(archiveBorrowRequests.medium, ArchiveBorrowMedium.ELECTRONIC),
+                    eq(archiveBorrowRequests.status, ArchiveBorrowStatus.PENDING),
+                    isNotNull(archiveBorrowRequests.requestedUntil),
+                    lte(archiveBorrowRequests.requestedUntil, now),
+                ),
+            )
+            .returning({ id: archiveBorrowRequests.id });
+
+        for (const row of due) {
+            logWarehouseAudit({
+                userId: null,
+                module: "archive-borrow",
+                eventType: "auto_reject_borrow",
+                summary: `Tự động từ chối phiếu mượn hết hạn khung giờ ${row.id}`,
+                entityType: "archive_borrow_request",
+                entityId: row.id,
+            });
+        }
+
+        return { rejectedCount: due.length };
     },
 
     async expireDueRequests(): Promise<{ expiredCount: number }> {

@@ -7,6 +7,7 @@ import {
 import { dossierPhysicalPlacements } from "../../db/schemas/dossier-physical-placement.ts";
 import { physicalWarehouseItems } from "../../db/schemas/physical-warehouse-item.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
+import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 
@@ -49,6 +50,31 @@ export async function getUsedCapacityByItemIds(
 
     for (const row of rows) {
         map.set(row.physicalItemId, row.used);
+    }
+    return map;
+}
+
+/**
+ * Đếm số văn bản (files) hiện có của từng hồ sơ.
+ * Cùng pattern với loadDocumentStatsByDossierIds bên archive-warehouse-service.
+ */
+export async function getDocumentCountByDossierIds(
+    dossierIds: Array<string>,
+): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+    if (dossierIds.length === 0) return map;
+
+    const rows = await db
+        .select({
+            dossierId: dossierFiles.dossierId,
+            documentCount: sql<number>`count(*)::int`.mapWith(Number),
+        })
+        .from(dossierFiles)
+        .where(inArray(dossierFiles.dossierId, dossierIds))
+        .groupBy(dossierFiles.dossierId);
+
+    for (const row of rows) {
+        map.set(row.dossierId, row.documentCount);
     }
     return map;
 }
@@ -332,12 +358,19 @@ export const PlacementService = {
             )
             .orderBy(asc(dossiers.name));
 
+        const dossierIds = rows.map((row) => row.placement.dossierId);
+        const documentCountByDossierId = await getDocumentCountByDossierIds(
+            dossierIds,
+        );
+
         return {
             items: rows.map((row) => ({
                 ...row.placement,
                 dossierName: row.dossierName,
                 folderPath: row.folderPath,
                 dossierStatus: row.dossierStatus,
+                documentCount:
+                    documentCountByDossierId.get(row.placement.dossierId) ?? 0,
             })),
         };
     },

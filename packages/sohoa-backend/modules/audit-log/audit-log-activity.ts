@@ -114,6 +114,7 @@ const MODULE_PATH_ALIASES: Record<string, string> = {
     "archive-warehouse": "archive",
     "archive-submissions": "archive",
     "archive-submission": "archive",
+    "archive-borrow-requests": "archive-borrow",
 };
 
 const ADMIN_RESOURCE_ALIASES: Record<string, string> = {
