@@ -2,6 +2,36 @@ import type {
   MetadataExportColumnConfigT,
   MetadataExportFieldCatalogItemT,
 } from '@/features/data-config/types'
+import type { MetadataSchemaGroupT } from '@/features/group/types'
+
+export function groupsToExportFieldCatalog(
+  groups: Array<MetadataSchemaGroupT>,
+): Array<MetadataExportFieldCatalogItemT> {
+  return groups.flatMap((group) =>
+    group.fields.map((field) => ({
+      key: field.key,
+      groupCode: group.groupCode,
+      groupName: group.groupName,
+      fieldName: field.name,
+      display: field.display,
+    })),
+  )
+}
+
+export function pruneExportColumnsToCatalog(
+  columns: Array<MetadataExportColumnConfigT>,
+  catalog: Array<MetadataExportFieldCatalogItemT>,
+): Array<MetadataExportColumnConfigT> {
+  const validKeys = new Set(catalog.map((item) => item.key))
+  const nextColumns = columns.map((column) => ({
+    ...column,
+    fieldKeys: column.fieldKeys.filter((key) => validKeys.has(key)),
+  }))
+
+  return JSON.stringify(columns) === JSON.stringify(nextColumns)
+    ? columns
+    : nextColumns
+}
 
 export const EXPORT_SEPARATOR_OPTIONS = [
   { value: ', ', labelKey: 'comma' as const },

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Eye,Loader2, Plus, Save, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { Eye, Loader2, Plus, Save, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -34,16 +34,18 @@ import {
 } from '@/components/ui/select'
 import { DataConfigSectionTabs } from '@/features/data-config/components/DataConfigSectionTabs'
 import { MetadataExportColumnEditor } from '@/features/data-config/components/MetadataExportColumnEditor'
-import type {MetadataExportColumnErrors} from '@/features/data-config/lib/metadataExportHelpers';
+import type { MetadataExportColumnErrors } from '@/features/data-config/lib/metadataExportHelpers'
 import {
   buildStructuralExportPreview,
+  createEmptyExportColumn,
   focusFirstExportColumnIssue,
   getExportColumnValidationMessage,
-  validateExportColumnsConfig
+  groupsToExportFieldCatalog,
+  pruneExportColumnsToCatalog,
+  validateExportColumnsConfig,
 } from '@/features/data-config/lib/metadataExportHelpers'
 import {
   metadataExportPresetsQueryOptions,
-  metadataTemplateDetailQueryOptions,
   metadataTemplatesQueryOptions,
   useCreateMetadataExportPreset,
   useDeleteMetadataExportPreset,
@@ -94,24 +96,22 @@ export function MetadataExportPresetsPage() {
       ? templateId
       : templates[0]?.id
 
-  const { data: templateDetail, isLoading: isLoadingTemplateDetail } = useQuery(
-    metadataTemplateDetailQueryOptions(selectedTemplateId ?? ''),
+  const selectedTemplate = templates.find(
+    (item) => item.id === selectedTemplateId,
   )
 
   const fieldCatalog = useMemo<Array<MetadataExportFieldCatalogItemT>>(() => {
-    if (!templateDetail?.fieldCatalog) return []
-    return templateDetail.fieldCatalog.map((item) => ({
-      key: item.key,
-      groupCode: item.groupCode,
-      groupName: item.groupName,
-      fieldName: item.fieldName,
-      display: item.display,
-    }))
-  }, [templateDetail])
+    if (!selectedTemplate) return []
+    return groupsToExportFieldCatalog(selectedTemplate.groups)
+  }, [selectedTemplate])
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [columns, setColumns] = useState<Array<MetadataExportColumnConfigT>>([])
+  const [alignedTemplateId, setAlignedTemplateId] = useState<string | undefined>(
+    undefined,
+  )
+
   const [createOpen, setCreateOpen] = useState(false)
   const [createName, setCreateName] = useState('')
   const [createDescription, setCreateDescription] = useState('')
@@ -123,22 +123,79 @@ export function MetadataExportPresetsPage() {
   const [nameError, setNameError] = useState(false)
   const [isHandling, setIsHandling] = useState(false)
 
+  const columnsRef = useRef(columns)
+  columnsRef.current = columns
+
+  // Session drafts keyed by reference template so switching back restores columns.
+  const columnsDraftByTemplateRef = useRef<
+    Record<string, Array<MetadataExportColumnConfigT>>
+  >({})
+
   const createMutation = useCreateMetadataExportPreset()
   const updateMutation = useUpdateMetadataExportPreset()
   const deleteMutation = useDeleteMetadataExportPreset()
 
+  const presetResetId = selectedPreset?.id
+
   useEffect(() => {
-    if (!selectedPreset) {
+    if (!presetResetId || !selectedPreset || selectedPreset.id !== presetResetId) {
       setName('')
       setDescription('')
       setColumns([])
+      setAlignedTemplateId(undefined)
+      columnsDraftByTemplateRef.current = {}
       return
     }
 
     setName(selectedPreset.name)
     setDescription(selectedPreset.description)
-    setColumns(selectedPreset.columns)
-  }, [selectedPreset])
+    columnsDraftByTemplateRef.current = {}
+    setAlignedTemplateId(undefined)
+  }, [presetResetId])
+
+  useEffect(() => {
+    if (!selectedPreset || !selectedTemplateId || !selectedTemplate) return
+    if (selectedTemplateId === alignedTemplateId) return
+
+    if (alignedTemplateId) {
+      columnsDraftByTemplateRef.current[alignedTemplateId] = columnsRef.current.map(
+        (column) => ({
+          ...column,
+          fieldKeys: [...column.fieldKeys],
+        }),
+      )
+    }
+
+    const cached = columnsDraftByTemplateRef.current[selectedTemplateId]
+    if (cached) {
+      setColumns(
+        cached.map((column) => ({
+          ...column,
+          fieldKeys: [...column.fieldKeys],
+        })),
+      )
+    } else if (!alignedTemplateId) {
+      const initial = pruneExportColumnsToCatalog(
+        selectedPreset.columns,
+        fieldCatalog,
+      )
+      columnsDraftByTemplateRef.current[selectedTemplateId] = initial
+      setColumns(initial)
+    } else {
+      const fresh = [createEmptyExportColumn()]
+      columnsDraftByTemplateRef.current[selectedTemplateId] = fresh
+      setColumns(fresh)
+    }
+
+    setColumnErrors({})
+    setAlignedTemplateId(selectedTemplateId)
+  }, [
+    selectedPreset,
+    selectedTemplateId,
+    selectedTemplate,
+    alignedTemplateId,
+    fieldCatalog,
+  ])
 
   const isDirty =
     Boolean(selectedPreset) &&
@@ -180,6 +237,9 @@ export function MetadataExportPresetsPage() {
 
   function handleColumnsChange(nextColumns: Array<MetadataExportColumnConfigT>) {
     setColumns(nextColumns)
+    if (selectedTemplateId) {
+      columnsDraftByTemplateRef.current[selectedTemplateId] = nextColumns
+    }
     setColumnErrors({})
   }
 
@@ -236,7 +296,13 @@ export function MetadataExportPresetsPage() {
       const created = await createMutation.mutateAsync({
         name: createName.trim(),
         description: createDescription.trim() || null,
-        columns: [{ header: t('metadataExport.defaultColumnHeader'), fieldKeys: [], separator: ', ' }],
+        columns: [
+          {
+            header: t('metadataExport.defaultColumnHeader'),
+            fieldKeys: [],
+            separator: ', ',
+          },
+        ],
       })
 
       setCreateOpen(false)
@@ -417,7 +483,9 @@ export function MetadataExportPresetsPage() {
                   onValueChange={selectTemplate}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={t('metadataExport.referenceTemplatePlaceholder')} />
+                    <SelectValue
+                      placeholder={t('metadataExport.referenceTemplatePlaceholder')}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {templates.map((template) => (
@@ -432,13 +500,14 @@ export function MetadataExportPresetsPage() {
                 </p>
               </div>
 
-              {isLoadingTemplateDetail ? (
+              {isLoadingTemplates ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin" />
                   {t('metadataExport.loadingFields')}
                 </div>
               ) : (
                 <MetadataExportColumnEditor
+                  key={selectedTemplateId ?? 'no-template'}
                   columns={columns}
                   fieldCatalog={fieldCatalog}
                   columnErrors={columnErrors}
