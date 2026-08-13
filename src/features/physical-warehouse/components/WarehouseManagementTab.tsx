@@ -48,6 +48,7 @@ import { ItemFormDialog } from '@/features/physical-warehouse/components/ItemFor
 import { MoveDossierDialog } from '@/features/physical-warehouse/components/MoveDossierDialog'
 import { PlaceUnplacedDossiersDialog } from '@/features/physical-warehouse/components/PlaceUnplacedDossiersDialog'
 import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
+import { normalizeItemNameForCompare } from '@/features/physical-warehouse/lib/normalizeItemName'
 import {
   physicalWarehouseItemsQueryOptions,
   physicalWarehouseQueryKeyPrefix,
@@ -1269,12 +1270,12 @@ export function WarehouseManagementTab({
           mode={mode}
           item={formItem}
           isNameTaken={(name) => {
-            const normalized = name.trim().toLowerCase()
+            const normalized = normalizeItemNameForCompare(name)
             return flatNodes.some(
               (node) =>
                 node.parentId === mode.parentId &&
                 node.id !== formItem?.id &&
-                node.name.trim().toLowerCase() === normalized,
+                normalizeItemNameForCompare(node.name) === normalized,
             )
           }}
           onCreated={

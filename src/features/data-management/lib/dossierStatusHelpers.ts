@@ -23,6 +23,39 @@ export function getCheckerLevelForDossierStatus(
   return null
 }
 
+const POST_ENTRY_HIDE_EDITOR_ASSIGN_STATUSES = new Set<DataDossierStatus>([
+  'APPROVED',
+  'PENDING_ARCHIVE',
+  'ARCHIVE_REJECTED',
+  'ARCHIVED',
+  'WAITING_ISSUE_RESOLUTION',
+  'ERROR',
+])
+
+const HIDE_QC_ASSIGN_STATUSES = new Set<DataDossierStatus>([
+  'APPROVED',
+  'PENDING_ARCHIVE',
+  'ARCHIVE_REJECTED',
+  'ARCHIVED',
+])
+
+/** True when maker reassignment is no longer allowed (QC / approved / archive). */
+export function isDossierPastMakerAssignment(
+  dossierStatus: DataDossierStatus | undefined,
+): boolean {
+  if (!dossierStatus) return false
+  if (getCheckerLevelForDossierStatus(dossierStatus) != null) return true
+  return POST_ENTRY_HIDE_EDITOR_ASSIGN_STATUSES.has(dossierStatus)
+}
+
+/** True when QC reassignment is no longer allowed (đã duyệt / lưu kho). */
+export function isDossierPastQcAssignment(
+  dossierStatus: DataDossierStatus | undefined,
+): boolean {
+  if (!dossierStatus) return false
+  return HIDE_QC_ASSIGN_STATUSES.has(dossierStatus)
+}
+
 export function getCheckerLevelForRole(
   role: DataManagementRole,
   dossierStatus?: DataDossierStatus,

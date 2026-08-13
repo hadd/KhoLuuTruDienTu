@@ -3,6 +3,7 @@ import { ArrowRightLeft, BookOpen, BookOpenCheck, Download, FileText, Loader2, L
 import type {ReactNode} from 'react';
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -166,6 +167,8 @@ type FileViewerContextValue = {
   selectedFields: Array<DataDocumentFieldT>
   selectedGroupName: string | null
   pdfUrl: string | null
+  isOcrPdfLayer: boolean
+  onPdfLoadFailed: (() => void) | undefined
   searchHighlight: PdfFieldHighlight | null
   lockedFileDialogOpen: boolean
   setLockedFileDialogOpen: (open: boolean) => void
@@ -376,13 +379,41 @@ export function ArchiveWarehouseFileViewer({
     return group ? getMetadataGroupDisplayName(group) : null
   }, [metadata, selectedFile])
 
+  const ocrPdfUrl = useMemo(() => {
+    if (!selectedFile) return null
+    return (
+      resolveOcrPdfUrlFromFile(
+        selectedFile as unknown as Record<string, unknown>,
+      ) ?? null
+    )
+  }, [selectedFile])
+
+  const originalPdfUrl = selectedFile?.fileUrl?.trim() || null
+
+  const [useOriginalPdfFallback, setUseOriginalPdfFallback] = useState(false)
+
+  useEffect(() => {
+    setUseOriginalPdfFallback(false)
+  }, [selectedFile?.id, ocrPdfUrl, originalPdfUrl])
+
   const pdfUrl = useMemo(() => {
     if (!selectedFile) return null
-    const ocrUrl = resolveOcrPdfUrlFromFile(
-      selectedFile as unknown as Record<string, unknown>,
-    )
-    return ocrUrl || selectedFile.fileUrl || null
-  }, [selectedFile])
+    if (useOriginalPdfFallback && originalPdfUrl) return originalPdfUrl
+    return ocrPdfUrl || originalPdfUrl || null
+  }, [selectedFile, useOriginalPdfFallback, ocrPdfUrl, originalPdfUrl])
+
+  const isOcrPdfLayer = Boolean(
+    pdfUrl && ocrPdfUrl && pdfUrl === ocrPdfUrl && !useOriginalPdfFallback,
+  )
+
+  const handleOcrPdfLoadFailed = useCallback(() => {
+    if (!ocrPdfUrl || !originalPdfUrl || useOriginalPdfFallback) return
+    if (ocrPdfUrl === originalPdfUrl) return
+    setUseOriginalPdfFallback(true)
+  }, [ocrPdfUrl, originalPdfUrl, useOriginalPdfFallback])
+
+  const onPdfLoadFailed =
+    isOcrPdfLayer && originalPdfUrl ? handleOcrPdfLoadFailed : undefined
 
   const searchHighlight = useMemo((): PdfFieldHighlight | null => {
     const bbox = parseHighlightBbox(highlightBbox)
@@ -497,6 +528,8 @@ export function ArchiveWarehouseFileViewer({
     selectedFields,
     selectedGroupName,
     pdfUrl,
+    isOcrPdfLayer,
+    onPdfLoadFailed,
     searchHighlight,
     lockedFileDialogOpen,
     setLockedFileDialogOpen,
@@ -786,6 +819,8 @@ function DocumentViewerPanel() {
   const {
     selectedFile,
     pdfUrl,
+    isOcrPdfLayer,
+    onPdfLoadFailed,
     searchHighlight,
     setLockedFileDialogOpen,
     setLockedFileId,
@@ -848,15 +883,16 @@ function DocumentViewerPanel() {
         </div>
       ) : pdfUrl ? (
         <PdfViewer
-          key={`pdf-${selectedFile?.id ?? 'none'}`}
+          key={`pdf-${selectedFile?.id ?? 'none'}-${isOcrPdfLayer ? 'ocr' : 'original'}`}
           fileUrl={pdfUrl}
           fileName={selectedFile?.fileName}
           className="min-h-0 flex-1"
           showBorder={false}
           fitEdge
-          renderTextLayer
-          renderAnnotationLayer
+          renderTextLayer={isOcrPdfLayer}
+          renderAnnotationLayer={isOcrPdfLayer}
           highlight={searchHighlight}
+          onLoadFailed={onPdfLoadFailed}
         />
       ) : (
         <div className="flex flex-1 items-center justify-center p-4">
@@ -879,7 +915,7 @@ function DocumentViewerPanel() {
           </DialogHeader>
           {pdfUrl && flipbookOpen ? (
             <FlipbookViewer
-              key={`flipbook-dialog-${selectedFile?.id ?? 'none'}`}
+              key={`flipbook-dialog-${selectedFile?.id ?? 'none'}-${isOcrPdfLayer ? 'ocr' : 'original'}`}
               fileUrl={pdfUrl}
               fileName={selectedFile?.fileName}
               className="min-h-0 flex-1"

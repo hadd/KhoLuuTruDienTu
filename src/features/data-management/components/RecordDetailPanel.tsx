@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, FileDown, Loader2, PenLine, Save } from 'lucide-react'
 import type { KeyboardEvent } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -21,16 +21,19 @@ import { RecordMetadataGroupCard } from '@/features/data-management/components/R
 import { RecordMetadataEditHistorySection } from '@/features/data-management/components/RecordMetadataEditHistorySection'
 import { RevertMetadataHistoryDialog } from '@/features/data-management/components/RevertMetadataHistoryDialog'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { profileQueryOptions } from '@/features/auth/queries'
 import { isNodeChildrenCached } from '@/features/data-management/api/dataManagementClient'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
 import { useEditorErrorReports } from '@/features/data-management/hooks/useEditorErrorReports'
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
 import { buildPdfFieldHighlight } from '@/features/data-management/lib/bboxCoords'
+import { resolveCurrentUserCheckerLevel } from '@/features/data-management/lib/checkerAssignmentHelpers'
 import {
   canEditorSubmitMetadata,
   canExportDossierMetadata,
   canManageDossierMetadata,
   canQcSubmitAtAssignedLevel,
+  getCheckerLevelForDossierStatus,
 } from '@/features/data-management/lib/dossierStatusHelpers'
 import {
   canShowEditorErrorReportsForDossier,
@@ -64,6 +67,7 @@ import {
 import { resolveEditorPdfMaskEnabled } from '@/features/data-management/lib/pdfMaskPolicy'
 import {
   dossierMetadataHistoryQueryOptions,
+  dossierWorkflowAssignmentsQueryOptions,
   useRestoreDossierMetadataHistoryMutation,
   useSaveDossierMetadataMutation,
 } from '@/features/data-management/queries'
@@ -123,9 +127,15 @@ export function RecordDetailPanel({
   onDigitalSignCompleted?: (dossierId: string) => void
 }) {
   const { t } = useTranslation('data-management')
+  const queryClient = useQueryClient()
   const managementRole = role as DataManagementRole
   const permissions = getPermissionsByRole(managementRole)
   const isEditorRole = managementRole === 'editor'
+  const { data: currentUser } = useQuery(profileQueryOptions)
+  const workflowQuery = useQuery({
+    ...dossierWorkflowAssignmentsQueryOptions(dossierId),
+    enabled: Boolean(dossierId.trim()),
+  })
   const isEditorDraftDossier =
     isEditorDraftView ||
     node.assignmentStatus === 'DRAFT' ||
@@ -144,18 +154,27 @@ export function RecordDetailPanel({
     baseCanManage: permissions.canEditFileMetadataFields,
   })
   const effectiveDossierStatus = dossierStatus ?? node.dossierStatus
+  const currentUserCheckerLevel = resolveCurrentUserCheckerLevel({
+    dossierStatus: effectiveDossierStatus,
+    userId: currentUser?.id,
+    assignedCheckerLevel: node.assignedCheckerLevel,
+    assignments: workflowQuery.data?.assignments,
+  })
+  const canActAsChecker = canQcSubmitAtAssignedLevel({
+    dossierStatus: effectiveDossierStatus,
+    assignedCheckerLevel: currentUserCheckerLevel ?? undefined,
+  })
+  const isInQcStep = getCheckerLevelForDossierStatus(effectiveDossierStatus) != null
   const canShowSubmitButton =
-    canManage &&
-    (managementRole !== 'editor' ||
-      canEditorSubmitMetadata({
-        assignmentStatus: node.assignmentStatus,
-        dossierStatus: effectiveDossierStatus,
-      })) &&
-    (managementRole !== 'qc' ||
-      canQcSubmitAtAssignedLevel({
-        dossierStatus: effectiveDossierStatus,
-        assignedCheckerLevel: node.assignedCheckerLevel,
-      }))
+    isInQcStep
+      ? canActAsChecker
+      : canManage &&
+        (managementRole !== 'editor' ||
+          canEditorSubmitMetadata({
+            assignmentStatus: node.assignmentStatus,
+            dossierStatus: effectiveDossierStatus,
+          })) &&
+        (managementRole !== 'qc' || canActAsChecker)
   const canExport = canExportDossierMetadata(
     dossierStatus ?? node.dossierStatus,
   )
@@ -167,6 +186,7 @@ export function RecordDetailPanel({
   const finalSaveMutation = useSubmitEditorDraftFinalSaveItemsMutation()
   const restoreHistoryMutation = useRestoreDossierMetadataHistoryMutation()
   const isQcRole = managementRole === 'qc'
+  const isActingAsQc = isQcRole || canActAsChecker
   const isManagerRole = managementRole === 'manager'
   const canReviewErrorReports =
     isQcRole || isManagerRole || managementRole === 'admin'
@@ -179,7 +199,7 @@ export function RecordDetailPanel({
   const canShowErrorReportsForDossier = canShowEditorErrorReportsForDossier({
     role: managementRole,
     dossierStatus: effectiveDossierStatus,
-    assignedCheckerLevel: node.assignedCheckerLevel,
+    assignedCheckerLevel: currentUserCheckerLevel ?? node.assignedCheckerLevel,
   })
   const pendingErrorReports = canShowErrorReportsForDossier
     ? editorErrorReports.pendingReportsForDossier
@@ -204,7 +224,7 @@ export function RecordDetailPanel({
   }, [rejectedFromHook, node.claimIssueReport, node.name])
   const canSubmitErrorReport = editorErrorReports.canSubmit(dossierId)
   const isApproveBlockedByErrorReports =
-    isQcRole && pendingErrorReportCount > 0
+    isActingAsQc && pendingErrorReportCount > 0
 
   useEffect(() => {
     if (pendingErrorReportCount === 0 && errorReportReviewOpen) {
@@ -212,7 +232,7 @@ export function RecordDetailPanel({
     }
   }, [pendingErrorReportCount, errorReportReviewOpen])
   const canViewEditHistory = permissions.canViewMetadataEditHistory
-  const canEditFields = canManage
+  const canEditFields = canManage || canActAsChecker
 
   const metadata = useMemo(
     () => resolveRecordPanelMetadata(node, managementRole),
@@ -403,6 +423,29 @@ export function RecordDetailPanel({
     ...dossierMetadataHistoryQueryOptions(dossierId),
     enabled: canViewEditHistory && Boolean(dossierId.trim()),
   })
+
+  const didSyncTreeStatusRef = useRef(false)
+  useEffect(() => {
+    didSyncTreeStatusRef.current = false
+  }, [dossierId])
+
+  useEffect(() => {
+    const apiStatus = workflowQuery.data?.status
+    const treeStatus = effectiveDossierStatus
+    if (!apiStatus || !treeStatus || String(apiStatus) === String(treeStatus)) {
+      return
+    }
+    if (didSyncTreeStatusRef.current) return
+    didSyncTreeStatusRef.current = true
+    void queryClient.invalidateQueries({
+      queryKey: [managementRole, 'data-management', 'tree'],
+    })
+  }, [
+    workflowQuery.data?.status,
+    effectiveDossierStatus,
+    managementRole,
+    queryClient,
+  ])
 
   const editHistoryBatches = useMemo(() => {
     if (!canViewEditHistory || !activeMetadata || !editHistoryQuery.data) {
@@ -961,7 +1004,7 @@ export function RecordDetailPanel({
       }
 
       toast.success(
-        isQcRole ? t('metadata.approveSuccess') : t('metadata.saveSuccess'),
+        isActingAsQc ? t('metadata.approveSuccess') : t('metadata.saveSuccess'),
       )
     } catch (error) {
       const message =
@@ -1008,7 +1051,7 @@ export function RecordDetailPanel({
   const isFinalSaving = finalSaveMutation.isPending
 
   function buildFieldRejectMark(groupCode: string, field: DataDocumentFieldT) {
-    if (!isQcRole || !canShowSubmitButton) return undefined
+    if (!isActingAsQc || !canShowSubmitButton) return undefined
 
     const rejectKey = buildRejectFieldKey(groupCode, field.name)
     return {
@@ -1122,7 +1165,7 @@ export function RecordDetailPanel({
 
       {visibleMetadataGroupCount > 0 ? (
         <div className="flex flex-col gap-4">
-          {isQcRole && canShowSubmitButton ? (
+          {isActingAsQc && canShowSubmitButton ? (
             <p className="shrink-0 text-xs text-muted-foreground">
               {t('metadata.rejectInline.hint')}
             </p>
@@ -1170,7 +1213,7 @@ export function RecordDetailPanel({
         </p>
       )}
 
-      {canShowSubmitButton && isQcRole && qcReject.isRejectMode ? (
+      {canShowSubmitButton && isActingAsQc && qcReject.isRejectMode ? (
         <QcInlineRejectBar
           selectedCount={qcReject.rejectFieldKeys.size}
           notes={qcReject.rejectNotes}
@@ -1307,10 +1350,10 @@ export function RecordDetailPanel({
                   <Save className="size-3.5" aria-hidden />
                 )}
                 {isSaving
-                  ? isQcRole
+                  ? isActingAsQc
                     ? t('metadata.approving')
                     : t('metadata.saving')
-                  : isQcRole
+                  : isActingAsQc
                     ? t('metadata.approve')
                     : t('metadata.save')}
               </Button>
