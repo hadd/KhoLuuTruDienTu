@@ -26,12 +26,16 @@ import {
   createDisposalCatalog,
   deleteDisposalCatalog,
   downloadDisposalPhuLucII,
-  downloadDisposalPhuLucIII,
+  exportDisposalPhuLucIII,
   removeDisposalCatalogItem,
   submitDisposalCatalog,
   updateDisposalCatalog,
   updateDisposalCatalogItem,
 } from '@/features/archive-disposal/api/archiveDisposalClient'
+import {
+  DisposalAppendixPl3Dialog,
+  tryExportPl3FromStorage,
+} from '@/features/archive-disposal/components/DisposalAppendixPl3Dialog'
 import { DisposalCouncilCreateDialog } from '@/features/archive-disposal-council/components/DisposalCouncilCreateDialog'
 import { DisposalCouncilViewDialog } from '@/features/archive-disposal-council/components/DisposalCouncilViewDialog'
 import {
@@ -120,6 +124,8 @@ export function ArchiveDisposalProposalPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [createCouncilOpen, setCreateCouncilOpen] = useState(false)
   const [viewCouncilOpen, setViewCouncilOpen] = useState(false)
+  const [pl3DialogOpen, setPl3DialogOpen] = useState(false)
+  const [pl3DialogInitialExport, setPl3DialogInitialExport] = useState(false)
   const [evaluationDrafts, setEvaluationDrafts] = useState<
     Record<
       string,
@@ -160,8 +166,17 @@ export function ArchiveDisposalProposalPage() {
         catalogDetail?.catalog.status === 'PENDING_SUBMIT') &&
       (canReadCouncil || catalogDetail?.catalog.status === 'PENDING_SUBMIT'),
   })
-  const viewedCouncilId =
-    search.disposalCouncilId ?? councilsForCatalog?.items[0]?.id ?? null
+  const councilForSelectedCatalog = councilsForCatalog?.items[0]?.id ?? null
+  const viewedCouncilId = useMemo(() => {
+    const urlCouncilId = search.disposalCouncilId
+    if (!urlCouncilId) return councilForSelectedCatalog
+    // Chưa load HĐH của catalog hiện tại — không tin disposalCouncilId trên URL (có thể là HĐH catalog khác).
+    if (!councilsForCatalog) return councilForSelectedCatalog
+    const urlBelongsToCatalog = councilsForCatalog.items.some(
+      (council) => council.id === urlCouncilId,
+    )
+    return urlBelongsToCatalog ? urlCouncilId : councilForSelectedCatalog
+  }, [search.disposalCouncilId, councilsForCatalog, councilForSelectedCatalog])
 
   const { data: councilDetail } = useQuery({
     ...disposalCouncilDetailQueryOptions(viewedCouncilId),
@@ -279,10 +294,38 @@ export function ArchiveDisposalProposalPage() {
   })
 
   useEffect(() => {
-    if (search.disposalCouncilId && isPendingReview) {
+    if (
+      search.disposalCouncilId &&
+      isPendingReview &&
+      viewedCouncilId === search.disposalCouncilId
+    ) {
       setViewCouncilOpen(true)
     }
-  }, [search.disposalCouncilId, isPendingReview])
+  }, [search.disposalCouncilId, isPendingReview, viewedCouncilId])
+
+  useEffect(() => {
+    if (!selectedCatalogId || councilsForCatalog === undefined) return
+    const urlCouncilId = search.disposalCouncilId
+    if (!urlCouncilId) return
+    const urlBelongsToCatalog = councilsForCatalog.items.some(
+      (council) => council.id === urlCouncilId,
+    )
+    if (!urlBelongsToCatalog) {
+      void navigate({
+        search: (prev) => ({
+          ...prev,
+          disposalCouncilId: councilForSelectedCatalog ?? undefined,
+        }),
+        replace: true,
+      })
+    }
+  }, [
+    selectedCatalogId,
+    councilsForCatalog,
+    councilForSelectedCatalog,
+    search.disposalCouncilId,
+    navigate,
+  ])
 
   useEffect(() => {
     if (!catalogDetail?.catalog) return
@@ -306,6 +349,7 @@ export function ArchiveDisposalProposalPage() {
           ...prev,
           disposalCatalogId: catalog.id,
           page: 1,
+          disposalCouncilId: undefined,
         }),
       })
     },
@@ -430,6 +474,7 @@ export function ArchiveDisposalProposalPage() {
         search: (prev) => ({
           ...prev,
           disposalCatalogId: undefined,
+          disposalCouncilId: undefined,
           page: 1,
         }),
       })
@@ -546,10 +591,22 @@ export function ArchiveDisposalProposalPage() {
   })
 
   const exportPhuLucIIIMutation = useMutation({
-    mutationFn: () => downloadDisposalPhuLucIII(selectedCatalogId!),
+    mutationFn: (content: Parameters<typeof exportDisposalPhuLucIII>[1]) =>
+      exportDisposalPhuLucIII(selectedCatalogId!, content),
     onSuccess: () => toast.success(t('proposal.exportAppendixSuccess')),
     onError: (error) => toast.error(translateError(error)),
   })
+
+  const handleExportPhuLucIII = () => {
+    if (!selectedCatalogId) return
+    const stored = tryExportPl3FromStorage(selectedCatalogId)
+    if (stored) {
+      exportPhuLucIIIMutation.mutate(stored)
+      return
+    }
+    setPl3DialogInitialExport(true)
+    setPl3DialogOpen(true)
+  }
 
   const catalogs = catalogList?.items ?? []
   const catalogGroups = useMemo(
@@ -599,14 +656,8 @@ export function ArchiveDisposalProposalPage() {
     evaluationProgress?.evaluationsLocked ?? councilDetail?.council.decisionPublishedAt,
   )
 
-  const canShowPublishActions =
-    canPublishCouncil &&
-    isCatalogCreator &&
-    Boolean(evaluationProgress?.isComplete) &&
-    !hasPendingChairDecisions &&
-    !evaluationsLocked &&
-    isPendingReview &&
-    Boolean(viewedCouncilId)
+  const canPublishDecision =
+    canPublishCouncil || (isCatalogCreator && canSubmitDisposal)
 
   const canShowAppendixExport =
     canReadDisposal &&
@@ -616,6 +667,26 @@ export function ArchiveDisposalProposalPage() {
     Boolean(viewedCouncilId) &&
     Boolean(evaluationProgress?.isComplete) &&
     !hasPendingChairDecisions
+
+  const canShowPublishActions =
+    canPublishDecision &&
+    isCatalogCreator &&
+    Boolean(evaluationProgress?.isComplete) &&
+    !hasPendingChairDecisions &&
+    !evaluationsLocked &&
+    isPendingReview &&
+    Boolean(viewedCouncilId)
+
+  const showPublishBlockedHint =
+    canShowAppendixExport &&
+    !canShowPublishActions &&
+    !evaluationsLocked
+
+  const publishBlockedMessage = !isCatalogCreator
+    ? t('proposal.publishBlockedNotCreator')
+    : !canPublishDecision
+      ? t('proposal.publishBlockedMissingPermission')
+      : null
 
   const canShowViewCouncil =
     Boolean(selectedCatalogId) &&
@@ -722,10 +793,12 @@ export function ArchiveDisposalProposalPage() {
                       : 'border-transparent hover:bg-muted/50'
                   }`}
                   onClick={() => {
+                    setViewCouncilOpen(false)
                     void navigate({
                       search: (prev) => ({
                         ...prev,
                         disposalCatalogId: catalog.id,
+                        disposalCouncilId: undefined,
                       }),
                     })
                   }}
@@ -859,7 +932,7 @@ export function ArchiveDisposalProposalPage() {
                     type="button"
                     variant="outline"
                     disabled={exportPhuLucIIMutation.isPending || exportPhuLucIIIMutation.isPending}
-                    onClick={() => exportPhuLucIIIMutation.mutate()}
+                    onClick={handleExportPhuLucIII}
                   >
                     {exportPhuLucIIIMutation.isPending ? (
                       <Loader2 className="mr-2 size-4 animate-spin" />
@@ -892,6 +965,12 @@ export function ArchiveDisposalProposalPage() {
                     </p>
                   ) : null}
                 </div>
+              ) : null}
+
+              {showPublishBlockedHint && publishBlockedMessage ? (
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  {publishBlockedMessage}
+                </p>
               ) : null}
 
               {canShowPublishActions ? (
@@ -1217,6 +1296,14 @@ export function ArchiveDisposalProposalPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <DisposalAppendixPl3Dialog
+        open={pl3DialogOpen}
+        onOpenChange={setPl3DialogOpen}
+        catalogId={selectedCatalogId ?? ''}
+        canEdit={isPendingReview}
+        initialExport={pl3DialogInitialExport}
+      />
 
       <DisposalCouncilCreateDialog
         open={createCouncilOpen}

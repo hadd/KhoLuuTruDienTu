@@ -65,7 +65,7 @@
     "edit": "Chỉnh sửa",
     "addFolder": "Thêm thư mục",
     "assignEditor": "Phân biên tập",
-    "assign": "Phân công",
+    "assign": "Phân công duyệt",
     "assignGroup": "Phân công cho nhóm",
     "revokeAssignments": "Thu hồi phân công",
     "delete": "Xóa",
@@ -201,7 +201,39 @@
     },
     "tabs": {
       "metadata": "Siêu dữ liệu",
+      "workflow": "Luồng duyệt",
       "editHistory": "Lịch sử chỉnh sửa"
+    },
+    "workflow": {
+      "title": "Luồng biên tập / duyệt",
+      "loading": "Đang tải luồng duyệt…",
+      "loadError": "Không thể tải luồng duyệt. Vui lòng thử lại.",
+      "empty": "Hồ sơ chưa có cấu hình bước duyệt.",
+      "requiredSteps": "Số bước duyệt",
+      "requiredStepsValue": "{{count}} bước",
+      "currentStep": "Đang ở bước",
+      "currentApproved": "Đã duyệt xong",
+      "currentNone": "Chưa bắt đầu",
+      "currentBadge": "Hiện tại",
+      "completedQc": "Đã hoàn thành",
+      "completedQcValue": "{{current}}/{{total}} cấp duyệt",
+      "stepMaker": "Biên tập",
+      "stepChecker": "Duyệt {{level}}",
+      "stepApproved": "Đã duyệt",
+      "unassigned": "Chưa phân công",
+      "phase": {
+        "pending": "Chưa tới",
+        "current": "Đang xử lý",
+        "completed": "Hoàn thành",
+        "rejected": "Bị trả lại"
+      },
+      "assignmentStatus": {
+        "IN_PROGRESS": "Đang làm",
+        "DRAFT": "Nháp",
+        "COMPLETED": "Xong",
+        "REJECTED": "Từ chối",
+        "TRANSFERRED": "Đã chuyển"
+      }
     },
     "editHistory": {
       "title": "Lịch sử chỉnh sửa",
@@ -286,8 +318,8 @@
         "reviewer2": "Duyệt 2",
         "reviewer3": "Duyệt 3"
       },
-      "submit": "Phân công",
-      "success": "Đã phân công người xử lý.",
+      "submit": "Phân công duyệt",
+      "success": "Đã phân công duyệt thành công.",
       "noDossier": "Không xác định được id hồ sơ cho thư mục này. Hãy mở rộng thư mục hoặc chọn đúng hồ sơ.",
       "noFolder": "Không tìm thấy thư mục hồ sơ chứa PDF. Hãy mở rộng thư mục hoặc chọn đúng thư mục chứa file PDF."
     },

@@ -65,7 +65,7 @@
     "edit": "Edit",
     "addFolder": "Add folder",
     "assignEditor": "Assign editor",
-    "assign": "Assign",
+    "assign": "Assign for review",
     "assignGroup": "Assign to group",
     "revokeAssignments": "Revoke assignments",
     "delete": "Delete",
@@ -201,7 +201,39 @@
     },
     "tabs": {
       "metadata": "Metadata",
+      "workflow": "Approval flow",
       "editHistory": "Edit history"
+    },
+    "workflow": {
+      "title": "Editing / approval flow",
+      "loading": "Loading approval flow…",
+      "loadError": "Could not load approval flow. Please try again.",
+      "empty": "This dossier has no approval steps configured.",
+      "requiredSteps": "Approval steps",
+      "requiredStepsValue": "{{count}} steps",
+      "currentStep": "Current step",
+      "currentApproved": "Fully approved",
+      "currentNone": "Not started",
+      "currentBadge": "Current",
+      "completedQc": "Completed",
+      "completedQcValue": "{{current}}/{{total}} QC levels",
+      "stepMaker": "Editing",
+      "stepChecker": "Review {{level}}",
+      "stepApproved": "Approved",
+      "unassigned": "Unassigned",
+      "phase": {
+        "pending": "Pending",
+        "current": "In progress",
+        "completed": "Completed",
+        "rejected": "Returned"
+      },
+      "assignmentStatus": {
+        "IN_PROGRESS": "In progress",
+        "DRAFT": "Draft",
+        "COMPLETED": "Done",
+        "REJECTED": "Rejected",
+        "TRANSFERRED": "Transferred"
+      }
     },
     "editHistory": {
       "title": "Edit history",
@@ -286,8 +318,8 @@
         "reviewer2": "Reviewer 2",
         "reviewer3": "Reviewer 3"
       },
-      "submit": "Assign",
-      "success": "User assigned.",
+      "submit": "Assign for review",
+      "success": "Reviewers assigned successfully.",
       "noDossier": "Could not resolve dossier id for this folder. Expand the folder or select the dossier record.",
       "noFolder": "No dossier folder with PDF files found. Expand the folder or select the folder that contains the PDF."
     },
