@@ -3,7 +3,7 @@ import { IdParam } from "@shared/common-lib";
 import { DossierService as service } from "./dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
-import { Permission } from "../auth/permission-catalog.ts";
+import { Permission, SECURITY_LEVEL_CONTENT_ACCESS_PERMISSIONS } from "../auth/permission-catalog.ts";
 import {
   assignByFolderIdBodySchema,
   assignDossierBodySchema,
@@ -504,7 +504,10 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.post(
     "/:id/verify-access",
     async ({ params, body, profile }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+      authHelper.checkPermissionAny(
+        profile,
+        SECURITY_LEVEL_CONTENT_ACCESS_PERMISSIONS,
+      );
       return await verifyDossierPassword({
         userId: profile.id,
         dossierId: params.id,

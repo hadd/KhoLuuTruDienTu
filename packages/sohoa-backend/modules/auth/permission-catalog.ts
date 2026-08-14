@@ -173,6 +173,19 @@ export const DOSSIER_SIGN_VIEW_PERMISSIONS = [
   Permission.DATA_ENTRY_CHECKER,
 ] as const;
 
+/** Lookup active levels / unlock protected content while viewing dossiers — not catalog admin. */
+export const SECURITY_LEVEL_CONTENT_ACCESS_PERMISSIONS = [
+  Permission.SECURITY_LEVELS_READ,
+  Permission.LIBRARY_EXPLOITATION_READ,
+  Permission.ARCHIVE_WAREHOUSE_READ,
+  Permission.ARCHIVE_WAREHOUSE_SEARCH,
+  Permission.ARCHIVE_WAREHOUSE_EDIT,
+  Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
+  Permission.DOSSIERS_READ,
+  Permission.ARCHIVE_BORROW_REQUEST,
+  Permission.ARCHIVE_DISPOSAL_READ,
+] as const;
+
 export type PermissionKey = (typeof Permission)[keyof typeof Permission];
 
 export interface PermissionDefinition {
