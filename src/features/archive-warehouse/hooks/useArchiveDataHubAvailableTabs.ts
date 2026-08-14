@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
-import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { useArchiveConfigAccess } from '@/features/archive-config/hooks/useArchiveConfigAccess'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
@@ -12,15 +11,12 @@ import { resolveArchiveDataHubTabs } from '@/features/archive-warehouse/lib/arch
 import type { ArchiveDataHubTabT } from '@/features/archive-warehouse/schemas'
 import { getPrimaryAppRole } from '@/features/auth/constants'
 import { getUserRoles } from '@/features/auth/store'
-import { useLibraryExploitationAccess } from '@/features/library/hooks/useLibraryExploitationAccess'
 
 export function useArchiveDataHubAvailableTabs(): Array<ArchiveDataHubTabT> {
   const { canReadArchiveWarehouse, canManageArchivePermissions } =
     useArchiveWarehouseAccess()
   const { canReadDisposal } = useArchiveDisposalAccess()
   const { canSubmitArchive, canReviewArchive } = useArchiveSubmissionAccess()
-  const { canRequestBorrow, canReviewBorrow } = useArchiveBorrowAccess()
-  const { canReadExploitation } = useLibraryExploitationAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
   const { canReadCouncil, canReadDisposalSettings } = useDisposalCouncilAccess()
   const { data: disposalSettings } = useQuery({
@@ -47,9 +43,6 @@ export function useArchiveDataHubAvailableTabs(): Array<ArchiveDataHubTabT> {
         canReadCouncil,
         canSubmitArchive,
         canReviewArchive,
-        canRequestBorrow,
-        canReadBorrow: canReadExploitation,
-        canReviewBorrow,
         canManageArchiveConfig,
         canOpenPermissionTab,
       }),
@@ -60,9 +53,6 @@ export function useArchiveDataHubAvailableTabs(): Array<ArchiveDataHubTabT> {
       canReadCouncil,
       canSubmitArchive,
       canReviewArchive,
-      canRequestBorrow,
-      canReadExploitation,
-      canReviewBorrow,
       canManageArchiveConfig,
       canOpenPermissionTab,
     ],

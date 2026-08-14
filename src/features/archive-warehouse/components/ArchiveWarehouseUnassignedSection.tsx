@@ -24,6 +24,7 @@ import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/li
 import { canExportDossiers } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import { archiveWarehouseUnassignedDossiersQueryOptions } from '@/features/archive-warehouse/queries'
+import { libraryExploitationUnassignedDossiersQueryOptions } from '@/features/library/api/exploitation-queries'
 import {
   getCurrentUserRoleId,
   resolvePermissionsForUser,
@@ -42,6 +43,7 @@ type ArchiveWarehouseUnassignedSectionProps = {
   search?: string
   pickerMode?: boolean
   disposalCatalogId?: string | null
+  browseMode?: 'warehouse' | 'exploitation'
   onPageChange?: (page: number) => void
   onLimitChange?: (limit: number) => void
 }
@@ -52,6 +54,7 @@ export function ArchiveWarehouseUnassignedSection({
   search,
   pickerMode = false,
   disposalCatalogId,
+  browseMode = 'warehouse',
   onPageChange,
   onLimitChange,
 }: ArchiveWarehouseUnassignedSectionProps) {
@@ -90,12 +93,19 @@ export function ArchiveWarehouseUnassignedSection({
   const showPickerSelection = false
   const showRowSelection = showDownload || showPickerSelection
 
+  const isExploitation = browseMode === 'exploitation'
   const { data, isPending, isFetching } = useQuery(
-    archiveWarehouseUnassignedDossiersQueryOptions({
-      page,
-      limit,
-      search: search || undefined,
-    }),
+    isExploitation
+      ? libraryExploitationUnassignedDossiersQueryOptions({
+          page,
+          limit,
+          search: search || undefined,
+        })
+      : archiveWarehouseUnassignedDossiersQueryOptions({
+          page,
+          limit,
+          search: search || undefined,
+        }),
   )
 
   const items = data?.items ?? []
@@ -113,6 +123,14 @@ export function ArchiveWarehouseUnassignedSection({
   }, [page, limit, search])
 
   function openDossier(dossierId: string) {
+    if (isExploitation) {
+      void navigate({
+        to: '/app/library/exploitation/$fondId/$dossierId',
+        params: { fondId: UNASSIGNED_WAREHOUSE_FOND_ID, dossierId },
+        search: buildArchiveDossierDetailSearch({ browseView: 'unassigned' }),
+      })
+      return
+    }
     void navigate({
       to: '/app/archive-dossiers/$fondId/$dossierId',
       params: { fondId: UNASSIGNED_WAREHOUSE_FOND_ID, dossierId },

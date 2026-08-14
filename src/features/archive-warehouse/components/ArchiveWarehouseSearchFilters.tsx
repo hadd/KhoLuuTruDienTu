@@ -28,6 +28,10 @@ import {
   archiveWarehouseDocumentTypesQueryOptions,
   archiveWarehouseDossierTypesQueryOptions,
 } from '@/features/archive-warehouse/queries'
+import {
+  libraryExploitationDocumentTypesQueryOptions,
+  libraryExploitationDossierTypesQueryOptions,
+} from '@/features/library/api/exploitation-queries'
 import type {
   ArchiveWarehouseFondListItemT,
   WarehouseDossierStatusT,
@@ -88,6 +92,8 @@ type ArchiveWarehouseSearchFiltersProps = {
   layout?: 'default' | 'compact'
   /** Hub flat list mode: hide fond multi-select in the filter sheet. */
   hideFondFilter?: boolean
+  /** Catalog APIs for type filters — library must not call warehouse endpoints. */
+  catalogSource?: 'warehouse' | 'exploitation'
   className?: string
 }
 
@@ -145,6 +151,7 @@ export function ArchiveWarehouseSearchFilters({
   leading,
   layout = 'default',
   hideFondFilter = false,
+  catalogSource = 'warehouse',
   className,
 }: ArchiveWarehouseSearchFiltersProps) {
   const { t } = useTranslation('archive-warehouse')
@@ -158,8 +165,17 @@ export function ArchiveWarehouseSearchFilters({
     status: listBrowseFilters?.status ?? 'ARCHIVED',
   }))
 
-  const dossierTypesQuery = useQuery(archiveWarehouseDossierTypesQueryOptions())
-  const documentTypesQuery = useQuery(archiveWarehouseDocumentTypesQueryOptions())
+  const isExploitationCatalog = catalogSource === 'exploitation'
+  const dossierTypesQuery = useQuery(
+    isExploitationCatalog
+      ? libraryExploitationDossierTypesQueryOptions()
+      : archiveWarehouseDossierTypesQueryOptions(),
+  )
+  const documentTypesQuery = useQuery(
+    isExploitationCatalog
+      ? libraryExploitationDocumentTypesQueryOptions()
+      : archiveWarehouseDocumentTypesQueryOptions(),
+  )
 
   const dossierTypes = dossierTypesQuery.data?.items ?? []
   const documentTypes = documentTypesQuery.data?.items ?? []

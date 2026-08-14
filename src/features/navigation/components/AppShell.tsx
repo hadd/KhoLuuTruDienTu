@@ -113,6 +113,7 @@ export function AppShell() {
         '/app/archive-borrow',
         '/app/archive-config',
         '/app/archive-permission',
+        '/app/library',
       ].some(
         (route) => pathname === route || pathname.startsWith(`${route}/`),
       ),
