@@ -2,6 +2,7 @@ export const DisposalProposalCatalogStatus = {
     DRAFT: "DRAFT",
     PENDING_SUBMIT: "PENDING_SUBMIT",
     SUBMITTED: "SUBMITTED",
+    AWAITING_FEEDBACK: "AWAITING_FEEDBACK",
     APPROVED: "APPROVED",
     REJECTED: "REJECTED",
     DESTROYED: "DESTROYED",
@@ -19,6 +20,7 @@ export const DISPOSAL_PROPOSAL_CATALOG_STATUS_VALUES = Object.values(
     DisposalProposalCatalogStatusType,
     DisposalProposalCatalogStatusType,
     DisposalProposalCatalogStatusType,
+    DisposalProposalCatalogStatusType,
 ];
 
 /** Catalog statuses that block re-listing in expiry/duplicate candidates. */
@@ -26,6 +28,7 @@ export const ACTIVE_DISPOSAL_CATALOG_STATUSES = [
     DisposalProposalCatalogStatus.DRAFT,
     DisposalProposalCatalogStatus.PENDING_SUBMIT,
     DisposalProposalCatalogStatus.SUBMITTED,
+    DisposalProposalCatalogStatus.AWAITING_FEEDBACK,
     DisposalProposalCatalogStatus.APPROVED,
 ] as const;
 
@@ -158,4 +161,23 @@ export const DUPLICATE_DETECTION_RULE_KEY_VALUES = Object.values(
     DuplicateDetectionRuleKeyType,
     DuplicateDetectionRuleKeyType,
     DuplicateDetectionRuleKeyType,
+];
+
+export const DisposalAppraisalDocumentType = {
+    PL2: "PL2",
+    PL3: "PL3",
+    MINUTES_COUNCIL: "MINUTES_COUNCIL",
+    MINUTES_DESTRUCTION: "MINUTES_DESTRUCTION",
+} as const;
+
+export type DisposalAppraisalDocumentTypeType =
+    (typeof DisposalAppraisalDocumentType)[keyof typeof DisposalAppraisalDocumentType];
+
+export const DISPOSAL_APPRAISAL_DOCUMENT_TYPE_VALUES = Object.values(
+    DisposalAppraisalDocumentType,
+) as [
+    DisposalAppraisalDocumentTypeType,
+    DisposalAppraisalDocumentTypeType,
+    DisposalAppraisalDocumentTypeType,
+    DisposalAppraisalDocumentTypeType,
 ];

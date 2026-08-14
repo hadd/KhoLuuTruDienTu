@@ -44,6 +44,9 @@ import {
 import { ArchiveDisposalService } from "./archive-disposal-service.ts";
 import { DisposalCouncilService } from "./disposal-council-service.ts";
 import { DisposalAppendixExportService } from "./disposal-appendix-export-service.ts";
+import { DisposalAppraisalExportService } from "./disposal-appraisal-export-service.ts";
+import { DisposalDocumentDraftService } from "./disposal-document-draft-service.ts";
+import { assertDisposalCatalogCreator } from "./disposal-council-role-guards.ts";
 
 
 
@@ -157,6 +160,18 @@ function checkCouncilPublish(profile: UserWithRoles) {
 
 }
 
+/** Người lập danh mục có quyền gửi danh mục cũng được xuất Quyết định / biên bản. */
+async function checkCouncilPublishForCouncil(
+    profile: UserWithRoles,
+    councilId: string,
+) {
+    if (hasArchiveDisposalCouncilPublishPermission(profile)) return;
+    await assertDisposalCatalogCreator(councilId, profile.id);
+    if (!hasArchiveDisposalSubmitPermission(profile)) {
+        throw httpError.forbidden("archive.disposal.council.publish required");
+    }
+}
+
 
 
 function checkCouncilChairDecide(profile: UserWithRoles) {
@@ -263,6 +278,51 @@ const itemSourceSchema = t.Union([
 
 ]);
 
+const pl3ContentSchema = t.Object({
+    creatingAgency: t.String(),
+    formationMission: t.String(),
+    collectionSource: t.String(),
+    timePeriod: t.String(),
+    expiryDuplicateReason: t.String(),
+    priorValuation: t.String(),
+    countsDetail: t.String(),
+    timeRangeText: t.String(),
+    expiredGroupSummary: t.String(),
+    duplicateGroupSummary: t.String(),
+    otherGroupSummary: t.String(),
+});
+
+const appraisalDocumentTypeSchema = t.Union([
+    t.Literal("PL2"),
+    t.Literal("PL3"),
+    t.Literal("MINUTES_COUNCIL"),
+    t.Literal("MINUTES_DESTRUCTION"),
+]);
+
+const editableDocumentSlugSchema = t.Union([
+    t.Literal("pl3"),
+    t.Literal("minutes-council"),
+    t.Literal("minutes-destruction"),
+]);
+
+const tipTapDocumentSchema = t.Object({
+    type: t.Literal("doc"),
+    content: t.Array(t.Any()),
+});
+
+function appraisalFileResponse(
+    result: { body: Uint8Array; contentType: string; filename: string },
+) {
+    const safeName = result.filename.replace(/[\r\n"]+/g, "_").trim();
+    return new Response(Buffer.from(result.body), {
+        headers: {
+            "Content-Type": result.contentType,
+            "Content-Disposition": `attachment; filename="${safeName}"`,
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    });
+}
 
 
 export function createArchiveDisposalRouter(basePath: string = "/archive-disposal") {
@@ -673,9 +733,37 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
 
         .get(
 
-            "/catalogs/:catalogId/export/phu-luc-iii",
+            "/catalogs/:catalogId/appendix-iii/suggestions",
 
             async ({ profile, params }) => {
+
+                checkRead(profile);
+
+                return await DisposalAppendixExportService.getPl3Suggestions(
+
+                    profile,
+
+                    params.catalogId,
+
+                );
+
+            },
+
+            {
+
+                params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
+
+                detail: { tags, summary: "Gợi ý nội dung Phụ lục III — Bản thuyết minh" },
+
+            },
+
+        )
+
+        .post(
+
+            "/catalogs/:catalogId/export/phu-luc-iii",
+
+            async ({ profile, params, body }) => {
 
                 checkRead(profile);
 
@@ -684,6 +772,8 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
                     profile,
 
                     params.catalogId,
+
+                    body,
 
                 );
 
@@ -711,7 +801,559 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
 
                 params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
 
-                detail: { tags, summary: "Xuất PDF Phụ lục III — Bản thuyết minh" },
+                body: pl3ContentSchema,
+
+                detail: { tags, summary: "Xuất PDF Phụ lục III — Bản thuyết minh (nội dung form)" },
+
+            },
+
+        )
+
+        .get(
+
+            "/catalogs/:catalogId/appraisal-documents",
+
+            async ({ profile, params }) => {
+
+                checkRead(profile);
+
+                return await DisposalAppraisalExportService.getAppraisalDocuments(
+
+                    profile,
+
+                    params.catalogId,
+
+                );
+
+            },
+
+            {
+
+                params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
+
+                detail: { tags, summary: "Trạng thái bộ hồ sơ đề nghị thẩm định (4 file)" },
+
+            },
+
+        )
+
+        .get(
+
+            "/catalogs/:catalogId/appraisal-documents/pl3/content",
+
+            async ({ profile, params }) => {
+
+                checkRead(profile);
+
+                const content = await DisposalAppraisalExportService.getPl3Content(
+
+                    profile,
+
+                    params.catalogId,
+
+                );
+
+                return { content };
+
+            },
+
+            {
+
+                params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
+
+                detail: { tags, summary: "Nội dung Phụ lục III đã lưu trên server" },
+
+            },
+
+        )
+
+        .put(
+
+            "/catalogs/:catalogId/appraisal-documents/pl3/content",
+
+            async ({ profile, params, body }) => {
+
+                checkRead(profile);
+
+                await DisposalAppraisalExportService.savePl3Content(
+
+                    profile,
+
+                    params.catalogId,
+
+                    body,
+
+                );
+
+                return { ok: true };
+
+            },
+
+            {
+
+                params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
+
+                body: pl3ContentSchema,
+
+                detail: { tags, summary: "Lưu nội dung Phụ lục III" },
+
+            },
+
+        )
+
+        .get(
+
+            "/catalogs/:catalogId/appraisal-documents/drafts/:slug",
+
+            async ({ profile, params }) => {
+
+                checkRead(profile);
+
+                return await DisposalDocumentDraftService.getDraft(
+
+                    profile,
+
+                    params.catalogId,
+
+                    params.slug,
+
+                );
+
+            },
+
+            {
+
+                params: t.Object({
+
+                    catalogId: t.String({ format: "uuid" }),
+
+                    slug: editableDocumentSlugSchema,
+
+                }),
+
+                detail: { tags, summary: "Lấy bản nháp TipTap (PL III / biên bản)" },
+
+            },
+
+        )
+
+        .put(
+
+            "/catalogs/:catalogId/appraisal-documents/drafts/:slug",
+
+            async ({ profile, params, body }) => {
+
+                checkRead(profile);
+
+                await DisposalDocumentDraftService.saveDraftContent(
+
+                    profile,
+
+                    params.catalogId,
+
+                    params.slug,
+
+                    body,
+
+                );
+
+                return { ok: true };
+
+            },
+
+            {
+
+                params: t.Object({
+
+                    catalogId: t.String({ format: "uuid" }),
+
+                    slug: editableDocumentSlugSchema,
+
+                }),
+
+                body: tipTapDocumentSchema,
+
+                detail: { tags, summary: "Lưu bản nháp TipTap" },
+
+            },
+
+        )
+
+        .post(
+
+            "/catalogs/:catalogId/appraisal-documents/drafts/:slug/regenerate",
+
+            async ({ profile, params }) => {
+
+                checkRead(profile);
+
+                return await DisposalDocumentDraftService.regenerateDraft(
+
+                    profile,
+
+                    params.catalogId,
+
+                    params.slug,
+
+                );
+
+            },
+
+            {
+
+                params: t.Object({
+
+                    catalogId: t.String({ format: "uuid" }),
+
+                    slug: editableDocumentSlugSchema,
+
+                }),
+
+                detail: { tags, summary: "Tạo lại bản nháp từ dữ liệu Hội đồng" },
+
+            },
+
+        )
+
+        .get(
+
+            "/catalogs/:catalogId/appraisal-documents/drafts/:slug/docx",
+
+            async ({ profile, params }) => {
+
+                checkRead(profile);
+
+                const result = await DisposalDocumentDraftService.downloadDraftDocx(
+
+                    profile,
+
+                    params.catalogId,
+
+                    params.slug,
+
+                );
+
+                const safeName = result.filename.replace(/[\r\n"]+/g, "_").trim();
+
+                return new Response(Buffer.from(result.body), {
+
+                    headers: {
+
+                        "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+
+                        "Content-Disposition": `attachment; filename="${safeName}"`,
+
+                        "Cache-Control": "private, no-store",
+
+                        "X-Content-Type-Options": "nosniff",
+
+                    },
+
+                });
+
+            },
+
+            {
+
+                params: t.Object({
+
+                    catalogId: t.String({ format: "uuid" }),
+
+                    slug: editableDocumentSlugSchema,
+
+                }),
+
+                detail: { tags, summary: "Tải DOCX mẫu đã điền" },
+
+            },
+
+        )
+
+        .put(
+
+            "/catalogs/:catalogId/appraisal-documents/drafts/:slug/docx",
+
+            async ({ profile, params, body }) => {
+
+                checkRead(profile);
+
+                const file = body.file as File | undefined;
+
+                if (!file) throw httpError.badRequest("Cần tải lên file DOCX");
+
+                await DisposalDocumentDraftService.uploadDraftDocx(
+
+                    profile,
+
+                    params.catalogId,
+
+                    params.slug,
+
+                    file,
+
+                );
+
+                return { ok: true };
+
+            },
+
+            {
+
+                params: t.Object({
+
+                    catalogId: t.String({ format: "uuid" }),
+
+                    slug: editableDocumentSlugSchema,
+
+                }),
+
+                body: t.Object({ file: t.File() }),
+
+                detail: { tags, summary: "Tải lên DOCX đã sửa bằng Word" },
+
+            },
+
+        )
+
+        .post(
+
+            "/catalogs/:catalogId/appraisal-documents/pl2/export",
+
+            async ({ profile, params }) => {
+
+                checkRead(profile);
+
+                const result = await DisposalAppraisalExportService.exportPl2(
+
+                    profile,
+
+                    params.catalogId,
+
+                );
+
+                return appraisalFileResponse(result);
+
+            },
+
+            {
+
+                params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
+
+                detail: { tags, summary: "Xuất Phụ lục II vào bộ thẩm định" },
+
+            },
+
+        )
+
+        .post(
+
+            "/catalogs/:catalogId/appraisal-documents/pl3/export",
+
+            async ({ profile, params, body }) => {
+
+                checkRead(profile);
+
+                const result = await DisposalAppraisalExportService.exportPl3(
+
+                    profile,
+
+                    params.catalogId,
+
+                    body,
+
+                );
+
+                return appraisalFileResponse(result);
+
+            },
+
+            {
+
+                params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
+
+                body: t.Optional(pl3ContentSchema),
+
+                detail: { tags, summary: "Xuất Phụ lục III vào bộ thẩm định" },
+
+            },
+
+        )
+
+        .post(
+
+            "/catalogs/:catalogId/appraisal-documents/minutes-council/export",
+
+            async ({ profile, params }) => {
+
+                checkRead(profile);
+
+                const result = await DisposalAppraisalExportService.exportMinutesCouncil(
+
+                    profile,
+
+                    params.catalogId,
+
+                );
+
+                return appraisalFileResponse(result);
+
+            },
+
+            {
+
+                params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
+
+                detail: { tags, summary: "Xuất biên bản Họp Hội đồng xét hủy" },
+
+            },
+
+        )
+
+        .post(
+
+            "/catalogs/:catalogId/appraisal-documents/minutes-destruction/export",
+
+            async ({ profile, params }) => {
+
+                checkRead(profile);
+
+                const result = await DisposalAppraisalExportService.exportMinutesDestruction(
+
+                    profile,
+
+                    params.catalogId,
+
+                );
+
+                return appraisalFileResponse(result);
+
+            },
+
+            {
+
+                params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
+
+                detail: { tags, summary: "Xuất biên bản Về việc hủy hồ sơ hết giá trị" },
+
+            },
+
+        )
+
+        .post(
+
+            "/catalogs/:catalogId/appraisal-documents/signed-minutes",
+
+            async ({ profile, params, body }) => {
+
+                checkRead(profile);
+
+                const councilMinutes = body.councilMinutes as File | undefined;
+
+                const destructionMinutes = body.destructionMinutes as File | undefined;
+
+                if (!councilMinutes || !destructionMinutes) {
+
+                    throw httpError.badRequest("Cần tải lên đủ 2 biên bản đã ký (PDF)");
+
+                }
+
+                return await DisposalAppraisalExportService.uploadSignedMinutesPair(
+
+                    profile,
+
+                    params.catalogId,
+
+                    councilMinutes,
+
+                    destructionMinutes,
+
+                );
+
+            },
+
+            {
+
+                params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
+
+                body: t.Object({
+
+                    councilMinutes: t.File(),
+
+                    destructionMinutes: t.File(),
+
+                }),
+
+                detail: { tags, summary: "Tải lên 2 biên bản đã ký (bắt buộc đủ cả hai)" },
+
+            },
+
+        )
+
+        .get(
+
+            "/catalogs/:catalogId/appraisal-documents/:documentType/download",
+
+            async ({ profile, params, query }) => {
+
+                checkRead(profile);
+
+                const variant = query.variant === "signed" ? "signed" : "draft";
+
+                return await DisposalAppraisalExportService.downloadDocument(
+
+                    profile,
+
+                    params.catalogId,
+
+                    params.documentType,
+
+                    variant,
+
+                );
+
+            },
+
+            {
+
+                params: t.Object({
+
+                    catalogId: t.String({ format: "uuid" }),
+
+                    documentType: appraisalDocumentTypeSchema,
+
+                }),
+
+                query: t.Object({ variant: t.Optional(t.Union([t.Literal("draft"), t.Literal("signed")])) }),
+
+                detail: { tags, summary: "Liên kết tải file trong bộ thẩm định" },
+
+            },
+
+        )
+
+        .post(
+
+            "/catalogs/:catalogId/appraisal-documents/submit",
+
+            async ({ profile, params }) => {
+
+                checkSubmit(profile);
+
+                return await DisposalAppraisalExportService.markAppraisalSubmitted(
+
+                    profile,
+
+                    params.catalogId,
+
+                );
+
+            },
+
+            {
+
+                params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
+
+                detail: { tags, summary: "Đánh dấu đã gửi thẩm định (sẵn sàng gửi)" },
 
             },
 
@@ -1232,7 +1874,7 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
 
             async ({ profile, params }) => {
 
-                checkCouncilPublish(profile);
+                await checkCouncilPublishForCouncil(profile, params.councilId);
 
                 await assertCouncilCatalogAccess(profile, params.councilId);
 
@@ -1284,7 +1926,7 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
 
             async ({ profile, params, body }) => {
 
-                checkCouncilPublish(profile);
+                await checkCouncilPublishForCouncil(profile, params.councilId);
 
                 await assertCouncilCatalogAccess(profile, params.councilId);
 

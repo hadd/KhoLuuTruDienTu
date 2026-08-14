@@ -19,6 +19,20 @@ export function findMetadataFieldValue(
     return "";
 }
 
+/** Phụ lục II cột «Tiêu đề hồ sơ» — chỉ lấy đúng trường TT05 `TIEU_DE_HO_SO`. */
+export function extractPl2DossierTitle(metadata: DossierMetadata | null): string {
+    if (!metadata) return "";
+    for (const group of metadata.metadata_groups) {
+        for (const field of group.fields) {
+            if (field.name.toUpperCase() === "TIEU_DE_HO_SO") {
+                const v = field.value;
+                if (v != null && String(v).trim() !== "") return String(v).trim();
+            }
+        }
+    }
+    return "";
+}
+
 export function extractAppendixRowMetadata(metadata: DossierMetadata | null) {
     return {
         boxNumber: findMetadataFieldValue(metadata, DISPOSAL_APPENDIX_METADATA_KEYS.boxNumber),
