@@ -573,10 +573,235 @@
   cursor: nesw-resize;
 }
 
-.tiptap-editor-container[data-mode='write'] [data-resize-state='true'] {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+/* ── A4 document editor (Word Print Layout) ─────────────────────────────── */
+:root {
+  --doc-a4-width: 210mm;
+  --doc-a4-height: 297mm;
+  /* Lề theo mẫu DOCX TT06: top/right/bottom 20mm, left 30mm */
+  --doc-a4-margin-top: 20mm;
+  --doc-a4-margin-right: 20mm;
+  --doc-a4-margin-bottom: 20mm;
+  --doc-a4-margin-left: 30mm;
+  --doc-a4-content-height: calc(
+    var(--doc-a4-height) - var(--doc-a4-margin-top) - var(--doc-a4-margin-bottom)
+  );
 }
+
+.document-a4-workspace {
+  background: #525659;
+}
+
+.dark .document-a4-workspace {
+  background: #323639;
+}
+
+.document-a4-canvas {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1.5rem 3rem;
+  min-width: min-content;
+}
+
+.document-page-a4 {
+  box-sizing: border-box;
+  width: var(--doc-a4-width);
+  min-height: var(--doc-a4-height);
+  padding:
+    var(--doc-a4-margin-top)
+    var(--doc-a4-margin-right)
+    var(--doc-a4-margin-bottom)
+    var(--doc-a4-margin-left);
+  background: #fff;
+  color: #000;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 13pt;
+  line-height: 1.5;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 6px 16px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.document-page-a4-body {
+  display: block;
+  width: 100%;
+}
+
+.document-page-a4-body .ProseMirror {
+  min-height: var(--doc-a4-content-height);
+  outline: none;
+  overflow: visible;
+  word-wrap: break-word;
+  /* Gợi ý ranh giới trang khi nội dung dài hơn 1 trang A4 */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--doc-a4-content-height) - 1px),
+    rgba(0, 0, 0, 0.07) calc(var(--doc-a4-content-height) - 1px),
+    rgba(0, 0, 0, 0.07) var(--doc-a4-content-height)
+  );
+  background-size: 100% var(--doc-a4-content-height);
+  background-repeat: repeat-y;
+}
+
+.document-page-a4-body .ProseMirror p,
+.document-page-a4-body .ProseMirror h1,
+.document-page-a4-body .ProseMirror h2,
+.document-page-a4-body .ProseMirror h3 {
+  margin: 0.15em 0;
+  line-height: inherit;
+  color: inherit;
+}
+
+.document-page-a4-body .ProseMirror p:not(:has(span[style*='font-size'])) {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.document-page-a4-body .ProseMirror table {
+  width: 100%;
+  margin: 0.5em 0 0.75em;
+  border-collapse: collapse;
+  table-layout: fixed;
+  overflow: visible;
+  --table-border-color: #9ca3af;
+  border: 1px solid var(--table-border-color);
+}
+
+.document-page-a4-body .ProseMirror .tableWrapper {
+  overflow: visible;
+  margin: 0.5em 0 0.75em;
+}
+
+.document-page-a4-body .ProseMirror table td,
+.document-page-a4-body .ProseMirror table th {
+  position: relative;
+  border: 1px solid var(--table-border-color);
+  background: #fff;
+  font-weight: inherit;
+  padding: 6px 8px;
+  vertical-align: top;
+  min-width: 2.5em;
+  min-height: 1.75em;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.document-page-a4-body .ProseMirror table th {
+  background: #f3f4f6;
+  font-weight: 600;
+}
+
+.document-page-a4-body .ProseMirror table .selectedCell::after {
+  z-index: 2;
+  position: absolute;
+  content: '';
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(59, 130, 246, 0.18);
+  pointer-events: none;
+}
+
+.document-page-a4-body .ProseMirror .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background-color: #2563eb;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.document-page-a4-body .ProseMirror.resize-cursor {
+  cursor: col-resize;
+}
+
+.document-page-a4-body .ProseMirror table td::before,
+.document-page-a4-body .ProseMirror table th::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 6px;
+  bottom: 0;
+  height: 6px;
+  cursor: row-resize;
+  z-index: 6;
+}
+
+body.document-row-resizing,
+body.document-row-resizing * {
+  cursor: row-resize !important;
+  user-select: none !important;
+}
+
+.document-page-a4-body .ProseMirror table p {
+  margin: 0.1em 0;
+  min-height: 1.2em;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Bảng ẩn viền / header mẫu Word — viền đứt nét khi soạn */
+.document-page-a4-body .ProseMirror table[data-border-visible='false'],
+.document-page-a4-body .ProseMirror table[data-borderless='true'] {
+  border: 1px dashed #cbd5e1;
+}
+
+.document-page-a4-body .ProseMirror table[data-border-visible='false'] td,
+.document-page-a4-body .ProseMirror table[data-border-visible='false'] th,
+.document-page-a4-body .ProseMirror table[data-borderless='true'] td,
+.document-page-a4-body .ProseMirror table[data-borderless='true'] th {
+  border: 1px dashed #e2e8f0;
+  background: transparent;
+  padding: 1px 2px;
+}
+
+.document-page-a4-body .ProseMirror ul,
+.document-page-a4-body .ProseMirror ol {
+  margin: 0.25em 0;
+  padding-left: 1.5em;
+}
+
+@media print {
+  .document-a4-workspace {
+    background: transparent !important;
+    overflow: visible !important;
+  }
+
+  .document-a4-canvas {
+    padding: 0 !important;
+  }
+
+  .document-page-a4 {
+    width: 100% !important;
+    min-height: auto !important;
+    box-shadow: none !important;
+    padding:
+      var(--doc-a4-margin-top)
+      var(--doc-a4-margin-right)
+      var(--doc-a4-margin-bottom)
+      var(--doc-a4-margin-left) !important;
+  }
+
+  .document-page-a4-body .ProseMirror {
+    background-image: none !important;
+    min-height: auto !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .document-a4-canvas {
+    padding: 1rem 0.75rem 2rem;
+  }
+}
+
 
 .print-preview-container .custom-question-content {
   margin-top: 0 !important;

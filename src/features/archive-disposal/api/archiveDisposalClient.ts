@@ -4,6 +4,11 @@ import type {
   DisposalProposalCatalogT,
   DisposalProposalItemT,
   GetDisposalCandidatesParamsT,
+  AppraisalDocumentsResponseT,
+  DocumentDraftResponseT,
+  EditableDocumentSlugT,
+  Pl3ContentT,
+  Pl3SuggestionsResponseT,
   TransferToProposalItemT,
 } from '@/features/archive-disposal/types'
 import { apiClient } from '@/lib/api/apiClient'
@@ -194,6 +199,191 @@ export function downloadDisposalPhuLucII(catalogId: string): Promise<void> {
   return downloadDisposalAppendixExport(catalogId, 'phu-luc-ii')
 }
 
-export function downloadDisposalPhuLucIII(catalogId: string): Promise<void> {
-  return downloadDisposalAppendixExport(catalogId, 'phu-luc-iii')
+export async function getDisposalPl3Suggestions(
+  catalogId: string,
+): Promise<Pl3SuggestionsResponseT> {
+  const response = await apiClient.get<Pl3SuggestionsResponseT>(
+    `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/appendix-iii/suggestions`,
+  )
+  return response.data
+}
+
+export function exportDisposalPhuLucIII(
+  catalogId: string,
+  content: Pl3ContentT,
+): Promise<void> {
+  const flightKey = `${catalogId}:phu-luc-iii`
+  const existing = appendixExportInFlight.get(flightKey)
+  if (existing) return existing
+
+  const task = (async () => {
+    const response = await apiClient.post<Blob>(
+      `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/export/phu-luc-iii`,
+      content,
+      { responseType: 'blob' },
+    )
+    const filename =
+      filenameFromContentDisposition(response.headers['content-disposition']) ??
+      'phu-luc-iii-thuyet-minh.pdf'
+    triggerBrowserDownload(response.data, filename)
+  })()
+
+  appendixExportInFlight.set(flightKey, task)
+  return task.finally(() => {
+    appendixExportInFlight.delete(flightKey)
+  })
+}
+
+export async function getDisposalAppraisalDocuments(
+  catalogId: string,
+): Promise<AppraisalDocumentsResponseT> {
+  const response = await apiClient.get<AppraisalDocumentsResponseT>(
+    `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/appraisal-documents`,
+  )
+  return response.data
+}
+
+export async function getDisposalAppraisalPl3Content(
+  catalogId: string,
+): Promise<Pl3ContentT | null> {
+  const response = await apiClient.get<{ content: Pl3ContentT | null }>(
+    `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/appraisal-documents/pl3/content`,
+  )
+  return response.data.content
+}
+
+export async function saveDisposalAppraisalPl3Content(
+  catalogId: string,
+  content: Pl3ContentT,
+): Promise<void> {
+  await apiClient.put(
+    `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/appraisal-documents/pl3/content`,
+    content,
+  )
+}
+
+async function downloadAppraisalExportBlob(
+  catalogId: string,
+  path: string,
+  fallbackFilename: string,
+  body?: Pl3ContentT,
+): Promise<void> {
+  const response = body
+    ? await apiClient.post<Blob>(
+        `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/appraisal-documents/${path}`,
+        body,
+        { responseType: 'blob' },
+      )
+    : await apiClient.post<Blob>(
+        `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/appraisal-documents/${path}`,
+        {},
+        { responseType: 'blob' },
+      )
+  const filename =
+    filenameFromContentDisposition(response.headers['content-disposition']) ?? fallbackFilename
+  triggerBrowserDownload(response.data, filename)
+}
+
+export function exportDisposalAppraisalPl2(catalogId: string): Promise<void> {
+  return downloadAppraisalExportBlob(catalogId, 'pl2/export', 'phu-luc-ii.pdf')
+}
+
+export function exportDisposalAppraisalPl3(
+  catalogId: string,
+  content?: Pl3ContentT,
+): Promise<void> {
+  return downloadAppraisalExportBlob(catalogId, 'pl3/export', 'phu-luc-iii.pdf', content)
+}
+
+export function exportDisposalAppraisalMinutesCouncil(catalogId: string): Promise<void> {
+  return downloadAppraisalExportBlob(
+    catalogId,
+    'minutes-council/export',
+    'bien-ban-hop-hoi-dong.pdf',
+  )
+}
+
+export function exportDisposalAppraisalMinutesDestruction(catalogId: string): Promise<void> {
+  return downloadAppraisalExportBlob(
+    catalogId,
+    'minutes-destruction/export',
+    'bien-ban-huy-ho-so.pdf',
+  )
+}
+
+export async function uploadDisposalAppraisalSignedMinutes(
+  catalogId: string,
+  councilMinutes: File,
+  destructionMinutes: File,
+): Promise<AppraisalDocumentsResponseT> {
+  const formData = new FormData()
+  formData.append('councilMinutes', councilMinutes)
+  formData.append('destructionMinutes', destructionMinutes)
+  const response = await apiClient.post<AppraisalDocumentsResponseT>(
+    `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/appraisal-documents/signed-minutes`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  )
+  return response.data
+}
+
+export async function markDisposalAppraisalSubmitted(
+  catalogId: string,
+): Promise<{ appraisalSubmittedAt: string }> {
+  const response = await apiClient.post<{ appraisalSubmittedAt: string }>(
+    `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/appraisal-documents/submit`,
+  )
+  return response.data
+}
+
+function draftBasePath(catalogId: string, slug: EditableDocumentSlugT) {
+  return `/api/v1/archive-disposal/catalogs/${encodeURIComponent(catalogId)}/appraisal-documents/drafts/${slug}`
+}
+
+export async function getDisposalDocumentDraft(
+  catalogId: string,
+  slug: EditableDocumentSlugT,
+): Promise<DocumentDraftResponseT> {
+  const response = await apiClient.get<DocumentDraftResponseT>(draftBasePath(catalogId, slug))
+  return response.data
+}
+
+export async function saveDisposalDocumentDraft(
+  catalogId: string,
+  slug: EditableDocumentSlugT,
+  contentJson: Record<string, unknown>,
+): Promise<void> {
+  await apiClient.put(draftBasePath(catalogId, slug), contentJson)
+}
+
+export async function regenerateDisposalDocumentDraft(
+  catalogId: string,
+  slug: EditableDocumentSlugT,
+): Promise<DocumentDraftResponseT> {
+  const response = await apiClient.post<DocumentDraftResponseT>(
+    `${draftBasePath(catalogId, slug)}/regenerate`,
+  )
+  return response.data
+}
+
+export async function downloadDisposalDocumentDraftDocx(
+  catalogId: string,
+  slug: EditableDocumentSlugT,
+): Promise<void> {
+  const response = await apiClient.get<Blob>(`${draftBasePath(catalogId, slug)}/docx`, {
+    responseType: 'blob',
+  })
+  triggerBrowserDownload(response.data, `${slug}.docx`)
+}
+
+export async function uploadDisposalDocumentDraftDocx(
+  catalogId: string,
+  slug: EditableDocumentSlugT,
+  file: File,
+): Promise<void> {
+  const formData = new FormData()
+  formData.append('file', file)
+  await apiClient.put(`${draftBasePath(catalogId, slug)}/docx`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
 }

@@ -3,6 +3,77 @@ import type {
   MetadataExportFieldCatalogItemT,
 } from '@/features/data-config/types'
 
+type ExportTemplateGroupT = {
+  groupCode: string
+  groupName: string
+  fields: Array<{
+    key: string
+    name: string
+    display: string
+  }>
+}
+
+export function groupsToExportFieldCatalog(
+  groups: Array<ExportTemplateGroupT>,
+): Array<MetadataExportFieldCatalogItemT> {
+  return groups.flatMap((group) =>
+    group.fields.map((field) => ({
+      key: field.key,
+      groupCode: group.groupCode,
+      groupName: group.groupName,
+      fieldName: field.name,
+      display: field.display,
+    })),
+  )
+}
+
+/** Pick the template whose catalog covers the most assigned export field keys. */
+export function inferReferenceTemplateId(
+  columns: Array<MetadataExportColumnConfigT>,
+  templates: Array<{ id: string; groups: Array<ExportTemplateGroupT> }>,
+): string | undefined {
+  if (templates.length === 0) return undefined
+
+  const assignedKeys = new Set(
+    columns.flatMap((column) => column.fieldKeys).filter(Boolean),
+  )
+  if (assignedKeys.size === 0) return templates[0]?.id
+
+  let bestId = templates[0]?.id
+  let bestScore = -1
+
+  for (const template of templates) {
+    const catalogKeys = new Set(
+      groupsToExportFieldCatalog(template.groups).map((item) => item.key),
+    )
+    let score = 0
+    for (const key of assignedKeys) {
+      if (catalogKeys.has(key)) score += 1
+    }
+    if (score > bestScore) {
+      bestScore = score
+      bestId = template.id
+    }
+  }
+
+  return bestId
+}
+
+export function pruneExportColumnsToCatalog(
+  columns: Array<MetadataExportColumnConfigT>,
+  catalog: Array<MetadataExportFieldCatalogItemT>,
+): Array<MetadataExportColumnConfigT> {
+  const validKeys = new Set(catalog.map((item) => item.key))
+  const nextColumns = columns.map((column) => ({
+    ...column,
+    fieldKeys: column.fieldKeys.filter((key) => validKeys.has(key)),
+  }))
+
+  return JSON.stringify(columns) === JSON.stringify(nextColumns)
+    ? columns
+    : nextColumns
+}
+
 export const EXPORT_SEPARATOR_OPTIONS = [
   { value: ', ', labelKey: 'comma' as const },
   { value: ' ', labelKey: 'space' as const },

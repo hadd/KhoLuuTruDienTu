@@ -29,7 +29,13 @@ export function MetadataExportPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] max-w-5xl flex-col overflow-hidden">
+      {/* 
+        Sử dụng tiền tố "!" (important) để ghi đè class sm:max-w mặc định của Shadcn UI.
+        - h-[85vh] max-h-[90vh]: Đảm bảo hộp thoại cao ráo và cân đối.
+        - w-[95vw] !max-w-[95vw]: Ép chiều rộng hộp thoại đạt 95% chiều rộng màn hình.
+        - lg:!max-w-[85vw] hoặc lg:!max-w-7xl: Giới hạn độ rộng vừa phải ở màn hình cực lớn để không bị loãng dữ liệu.
+      */}
+      <DialogContent className="flex h-[85vh] max-h-[90vh] w-[95vw] !max-w-[95vw] lg:!max-w-[85vw] xl:!max-w-7xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {t('recordDetail.metadataExportPreview.title')}
