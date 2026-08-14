@@ -9,11 +9,14 @@ export type DocxParagraph = {
     align?: string;
     bold: boolean;
     underline: boolean;
+    italic?: boolean;
+    fontSize?: string;
 };
 
 export type DocxTable = {
     rows: DocxParagraph[][][];
     borderless?: boolean;
+    colWidths?: number[];
 };
 
 export type DocxBlock =
@@ -116,11 +119,15 @@ export function parseParagraphXml(block: string): DocxParagraph {
     const jc = block.match(/<w:jc\s+w:val="([^"]+)"/)?.[1];
     const bold = /<w:b(?:\s[^>]*)?\s*\/>/.test(block) || /<w:b\s+w:val="(?:true|1)"/.test(block);
     const underline = /<w:u(?:\s[^/]*)?\s*\/>/.test(block) && !/<w:u\s+w:val="none"/.test(block);
+    const italic = /<w:i(?:\s[^>]*)?\s*\/>/.test(block) || /<w:i\s+w:val="(?:true|1)"/.test(block);
+    const sz = block.match(/<w:sz\s+w:val="(\d+)"/)?.[1];
     return {
         text,
         align: mapWordAlign(jc),
         bold,
         underline,
+        italic,
+        fontSize: sz ? `${Number(sz) / 2}pt` : undefined,
     };
 }
 
@@ -140,6 +147,13 @@ function parseCellXml(cellXml: string): DocxParagraph[] {
         pos = extracted.end;
     }
     return paragraphs.length > 0 ? paragraphs : [{ text: "", bold: false, underline: false }];
+}
+
+function parseTableColWidths(tableXml: string): number[] {
+    const gridHead = tableXml.split("<w:tblGridChange")[0] ?? tableXml;
+    return [...gridHead.matchAll(/<w:gridCol\s+w:w="([\d.]+)"/g)]
+        .map((match) => Math.round(Number(match[1])))
+        .filter((width) => width > 0);
 }
 
 function isBorderlessTableXml(tableXml: string): boolean {
@@ -178,7 +192,11 @@ function parseTableXml(tableXml: string): DocxTable {
         if (cells.length > 0) rows.push(cells);
         pos = extracted.end;
     }
-    return { rows, borderless: isBorderlessTableXml(tableXml) };
+    return {
+        rows,
+        borderless: isBorderlessTableXml(tableXml),
+        colWidths: parseTableColWidths(tableXml),
+    };
 }
 
 function bodyInnerXml(documentXml: string): string {
@@ -240,7 +258,9 @@ function paragraphToTipTap(
     const text = transformText ? transformText(paragraph.text) : paragraph.text;
     const marks: TipTapMark[] = [];
     if (paragraph.bold) marks.push({ type: "bold" });
+    if (paragraph.italic) marks.push({ type: "italic" });
     if (paragraph.underline) marks.push({ type: "underline" });
+    if (paragraph.fontSize) marks.push({ type: "textStyle", attrs: { fontSize: paragraph.fontSize } });
     const node: TipTapNode = {
         type: "paragraph",
         attrs: paragraph.align ? { textAlign: paragraph.align } : { textAlign: "left" },
@@ -270,13 +290,20 @@ export function docxBlocksToTipTap(
         }
         content.push({
             type: "table",
-            attrs: block.table.borderless ? { borderless: true } : undefined,
+            attrs: {
+                ...(block.table.borderless ? { borderless: true, borderVisible: false } : {}),
+            },
             content: block.table.rows.map((row) => ({
                 type: "tableRow",
-                content: row.map((cellParas) => ({
-                    type: "tableCell",
-                    content: cellParas.map((p) => paragraphToTipTap(p, transformText)),
-                })),
+                content: row.map((cellParas, cellIndex) => {
+                    const twips = block.table.colWidths?.[cellIndex];
+                    const colwidth = twips && twips > 0 ? [Math.round(twips / 15)] : undefined;
+                    return {
+                        type: "tableCell",
+                        attrs: colwidth ? { colwidth } : undefined,
+                        content: cellParas.map((p) => paragraphToTipTap(p, transformText)),
+                    };
+                }),
             })),
         });
     }
@@ -331,7 +358,7 @@ function collectInline(node: TipTapNode): {
 }
 
 const DEFAULT_WORD_FONT = "Times New Roman";
-const DEFAULT_WORD_SZ = "28";
+const DEFAULT_WORD_SZ = "26";
 
 function ptToWordHalfPoints(fontSize?: string): string {
     if (!fontSize) return DEFAULT_WORD_SZ;
@@ -403,14 +430,57 @@ function paragraphWordXml(node: TipTapNode): string {
     return `<w:p>${pPr}${runs}</w:p>`;
 }
 
+function pxToTwips(px: number): number {
+    return Math.max(1, Math.round(px * 15));
+}
+
+function hexToWordColor(hex?: string): string {
+    if (!hex) return "000000";
+    const cleaned = hex.replace("#", "").toUpperCase();
+    if (/^[0-9A-F]{6}$/.test(cleaned)) return cleaned;
+    if (/^[0-9A-F]{3}$/.test(cleaned)) {
+        return cleaned.split("").map((c) => `${c}${c}`).join("");
+    }
+    return "000000";
+}
+
+function tableColumnWidths(node: TipTapNode, colCount: number): number[] {
+    const borderless = node.attrs?.borderless === true || node.attrs?.borderVisible === false;
+    const contentWidth = 9288;
+    const fallback = Math.floor(contentWidth / Math.max(1, colCount));
+    const widths = Array.from({ length: colCount }, () => fallback);
+    let hasExplicit = false;
+    const firstRow = node.content?.[0];
+    firstRow?.content?.forEach((cell, index) => {
+        const colwidth = cell.attrs?.colwidth;
+        const px = Array.isArray(colwidth) ? colwidth[0] : undefined;
+        if (typeof px === "number" && px > 0 && index < widths.length) {
+            widths[index] = pxToTwips(px);
+            hasExplicit = true;
+        }
+    });
+    if (!hasExplicit && borderless && colCount === 2) {
+        return [3511, 5777];
+    }
+    return widths;
+}
+
 function tableWordXml(node: TipTapNode): string {
     const rows = node.content ?? [];
-    const borderless = node.attrs?.borderless === true;
+    const borderless = node.attrs?.borderless === true || node.attrs?.borderVisible === false;
+    const borderColor = hexToWordColor(
+        typeof node.attrs?.borderColor === "string" ? node.attrs.borderColor : undefined,
+    );
     const colCount = Math.max(1, ...rows.map((row) => row.content?.length ?? 0));
-    const colWidth = Math.floor(9026 / colCount);
-    const grid = Array.from({ length: colCount }, () => `<w:gridCol w:w="${colWidth}"/>`).join("");
+    const widths = tableColumnWidths(node, colCount);
+    const tableWidth = widths.reduce((sum, width) => sum + width, 0);
+    const grid = widths.map((w) => `<w:gridCol w:w="${w}"/>`).join("");
     const rowXml = rows.map((row) => {
         const cells = row.content ?? [];
+        const rowHeight = typeof row.attrs?.height === "number" ? row.attrs.height : undefined;
+        const trPr = rowHeight
+            ? `<w:trPr><w:trHeight w:val="${pxToTwips(rowHeight)}" w:hRule="atLeast"/></w:trPr>`
+            : "";
         const cellXml = Array.from({ length: colCount }, (_, i) => {
             const cell = cells[i];
             const paras = (cell?.content ?? []).filter((c) =>
@@ -419,27 +489,34 @@ function tableWordXml(node: TipTapNode): string {
             const body = paras.length > 0
                 ? paras.map(paragraphWordXml).join("")
                 : paragraphWordXml({ type: "paragraph" });
-            return `<w:tc><w:tcPr><w:tcW w:w="${colWidth}" w:type="dxa"/><w:vAlign w:val="top"/></w:tcPr>${body}</w:tc>`;
+            const cellW = widths[i]!;
+            return `<w:tc><w:tcPr><w:tcW w:w="${cellW}" w:type="dxa"/><w:vAlign w:val="top"/></w:tcPr>${body}</w:tc>`;
         }).join("");
-        return `<w:tr>${cellXml}</w:tr>`;
+        return `<w:tr>${trPr}${cellXml}</w:tr>`;
     }).join("");
     const borders = borderless
         ? `<w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/>
       <w:insideH w:val="nil"/><w:insideV w:val="nil"/>`
-        : `<w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-      <w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-      <w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-      <w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-      <w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/>
-      <w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/>`;
+        : `<w:top w:val="single" w:sz="4" w:space="0" w:color="${borderColor}"/>
+      <w:left w:val="single" w:sz="4" w:space="0" w:color="${borderColor}"/>
+      <w:bottom w:val="single" w:sz="4" w:space="0" w:color="${borderColor}"/>
+      <w:right w:val="single" w:sz="4" w:space="0" w:color="${borderColor}"/>
+      <w:insideH w:val="single" w:sz="4" w:space="0" w:color="${borderColor}"/>
+      <w:insideV w:val="single" w:sz="4" w:space="0" w:color="${borderColor}"/>`;
+    const indent = borderless ? `<w:tblInd w:w="-108" w:type="dxa"/>` : "";
     return `<w:tbl>
   <w:tblPr>
-    <w:tblW w:w="5000" w:type="pct"/>
-    <w:jc w:val="center"/>
+    <w:tblW w:w="${tableWidth}" w:type="dxa"/>
+    <w:jc w:val="left"/>
+    ${indent}
     <w:tblBorders>
       ${borders}
     </w:tblBorders>
     <w:tblLayout w:type="fixed"/>
+    <w:tblCellMar>
+      <w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/>
+      <w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/>
+    </w:tblCellMar>
   </w:tblPr>
   <w:tblGrid>${grid}</w:tblGrid>
   ${rowXml}

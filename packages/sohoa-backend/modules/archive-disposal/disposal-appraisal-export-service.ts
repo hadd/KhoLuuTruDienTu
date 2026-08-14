@@ -4,6 +4,7 @@ import { httpError } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import {
     DisposalAppraisalDocumentType,
+    DisposalProposalCatalogStatus,
     type DisposalAppraisalDocumentTypeType,
 } from "../../db/schemas/archive-disposal-constants.ts";
 import {
@@ -433,6 +434,22 @@ export const DisposalAppraisalExportService = {
             throw httpError.badRequest("Biên bản ký phải là file PDF");
         }
 
+        const [catalog] = await db.select({
+            status: disposalProposalCatalogs.status,
+        })
+            .from(disposalProposalCatalogs)
+            .where(eq(disposalProposalCatalogs.id, catalogId))
+            .limit(1);
+        if (!catalog) throw httpError.notFound("Không tìm thấy danh mục");
+        if (
+            catalog.status !== DisposalProposalCatalogStatus.PENDING_SUBMIT &&
+            catalog.status !== DisposalProposalCatalogStatus.AWAITING_FEEDBACK
+        ) {
+            throw httpError.conflict(
+                "Chỉ tải biên bản đã ký khi danh mục đang Chờ thẩm tra hoặc đã gửi thẩm định",
+            );
+        }
+
         const councilBytes = new Uint8Array(await councilMinutesFile.arrayBuffer());
         const destructionBytes = new Uint8Array(await destructionMinutesFile.arrayBuffer());
         const now = new Date();
@@ -471,11 +488,23 @@ export const DisposalAppraisalExportService = {
             });
         }
 
+        if (catalog.status === DisposalProposalCatalogStatus.PENDING_SUBMIT) {
+            await db.update(disposalProposalCatalogs)
+                .set({
+                    status: DisposalProposalCatalogStatus.AWAITING_FEEDBACK,
+                    appraisalSubmittedAt: now,
+                    updatedAt: now,
+                })
+                .where(eq(disposalProposalCatalogs.id, catalogId));
+        }
+
         logActivity({
             userId: profile.id,
             module: "archive-disposal",
             eventType: "disposal.appraisal.signed_minutes_uploaded",
-            summary: "Tải lên 2 biên bản đã ký cho bộ hồ sơ thẩm định",
+            summary: catalog.status === DisposalProposalCatalogStatus.PENDING_SUBMIT
+                ? "Tải lên 2 biên bản đã ký — danh mục chuyển sang Đã gửi thẩm định, chờ phản hồi"
+                : "Tải lên 2 biên bản đã ký cho bộ hồ sơ thẩm định",
             entityType: "disposal_proposal_catalog",
             entityId: catalogId,
         });
@@ -518,7 +547,11 @@ export const DisposalAppraisalExportService = {
         }
         const now = new Date();
         await db.update(disposalProposalCatalogs)
-            .set({ appraisalSubmittedAt: now, updatedAt: now })
+            .set({
+                appraisalSubmittedAt: now,
+                status: DisposalProposalCatalogStatus.AWAITING_FEEDBACK,
+                updatedAt: now,
+            })
             .where(eq(disposalProposalCatalogs.id, catalogId));
         return { appraisalSubmittedAt: now.toISOString() };
     },
