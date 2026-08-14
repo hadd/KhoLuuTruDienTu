@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Eye,Loader2, Plus, Save, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { Eye, Loader2, Plus, Save, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -34,22 +34,24 @@ import {
 } from '@/components/ui/select'
 import { DataConfigSectionTabs } from '@/features/data-config/components/DataConfigSectionTabs'
 import { MetadataExportColumnEditor } from '@/features/data-config/components/MetadataExportColumnEditor'
-import type {MetadataExportColumnErrors} from '@/features/data-config/lib/metadataExportHelpers';
+import type { MetadataExportColumnErrors } from '@/features/data-config/lib/metadataExportHelpers'
 import {
   buildStructuralExportPreview,
   focusFirstExportColumnIssue,
   getExportColumnValidationMessage,
-  validateExportColumnsConfig
+  groupsToExportFieldCatalog,
+  inferReferenceTemplateId,
+  validateExportColumnsConfig,
 } from '@/features/data-config/lib/metadataExportHelpers'
 import {
   metadataExportPresetsQueryOptions,
-  metadataTemplateDetailQueryOptions,
   metadataTemplatesQueryOptions,
   useCreateMetadataExportPreset,
   useDeleteMetadataExportPreset,
   useUpdateMetadataExportPreset,
 } from '@/features/data-config/queries'
 import type {
+  DocumentTypeTemplateT,
   MetadataExportColumnConfigT,
   MetadataExportFieldCatalogItemT,
   MetadataExportPresetT,
@@ -59,11 +61,82 @@ import { cn } from '@/lib/utils/cn'
 
 const routeApi = getRouteApi('/app/data-config/metadata-export-presets')
 
+const REFERENCE_TEMPLATE_STORAGE_KEY =
+  'metadata-export-preset-reference-templates'
+
 function columnsAreEqual(
   a: Array<MetadataExportColumnConfigT>,
   b: Array<MetadataExportColumnConfigT>,
 ): boolean {
   return JSON.stringify(a) === JSON.stringify(b)
+}
+
+function draftKey(presetId: string, templateId: string) {
+  return `${presetId}:${templateId}`
+}
+
+function cloneColumns(
+  source: Array<MetadataExportColumnConfigT>,
+): Array<MetadataExportColumnConfigT> {
+  return source.map((column) => ({
+    ...column,
+    fieldKeys: [...column.fieldKeys],
+  }))
+}
+
+function readStoredReferenceTemplates(): Record<string, string> {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = window.localStorage.getItem(REFERENCE_TEMPLATE_STORAGE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {}
+    }
+    const result: Record<string, string> = {}
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === 'string' && value.length > 0) {
+        result[key] = value
+      }
+    }
+    return result
+  } catch {
+    return {}
+  }
+}
+
+function writeStoredReferenceTemplates(map: Record<string, string>) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(
+      REFERENCE_TEMPLATE_STORAGE_KEY,
+      JSON.stringify(map),
+    )
+  } catch {
+    // Ignore quota / private mode failures.
+  }
+}
+
+function resolveTemplateIdForPreset(input: {
+  presetId: string
+  presetColumns?: Array<MetadataExportColumnConfigT>
+  templates: Array<Pick<DocumentTypeTemplateT, 'id' | 'groups'>>
+  rememberedByPreset: Record<string, string>
+}): string | undefined {
+  const { presetId, presetColumns, templates, rememberedByPreset } = input
+  if (templates.length === 0) return undefined
+
+  const remembered = rememberedByPreset[presetId]
+  if (remembered && templates.some((item) => item.id === remembered)) {
+    return remembered
+  }
+
+  if (presetColumns) {
+    const inferred = inferReferenceTemplateId(presetColumns, templates)
+    if (inferred) return inferred
+  }
+
+  return templates[0]?.id
 }
 
 export function MetadataExportPresetsPage() {
@@ -82,6 +155,10 @@ export function MetadataExportPresetsPage() {
     isLoading: isLoadingTemplates,
   } = useQuery(metadataTemplatesQueryOptions())
 
+  const [referenceTemplateByPreset, setReferenceTemplateByPreset] = useState<
+    Record<string, string>
+  >(() => readStoredReferenceTemplates())
+
   const selectedPresetId =
     presetId && presets.some((item) => item.id === presetId)
       ? presetId
@@ -89,29 +166,81 @@ export function MetadataExportPresetsPage() {
 
   const selectedPreset = presets.find((item) => item.id === selectedPresetId)
 
-  const selectedTemplateId =
-    templateId && templates.some((item) => item.id === templateId)
-      ? templateId
-      : templates[0]?.id
+  const selectedTemplateId = selectedPresetId
+    ? resolveTemplateIdForPreset({
+        presetId: selectedPresetId,
+        presetColumns: selectedPreset?.columns,
+        templates,
+        rememberedByPreset: referenceTemplateByPreset,
+      })
+    : undefined
 
-  const { data: templateDetail, isLoading: isLoadingTemplateDetail } = useQuery(
-    metadataTemplateDetailQueryOptions(selectedTemplateId ?? ''),
+  const selectedTemplate = templates.find(
+    (item) => item.id === selectedTemplateId,
   )
 
   const fieldCatalog = useMemo<Array<MetadataExportFieldCatalogItemT>>(() => {
-    if (!templateDetail?.fieldCatalog) return []
-    return templateDetail.fieldCatalog.map((item) => ({
-      key: item.key,
-      groupCode: item.groupCode,
-      groupName: item.groupName,
-      fieldName: item.fieldName,
-      display: item.display,
-    }))
-  }, [templateDetail])
+    if (!selectedTemplate) return []
+    return groupsToExportFieldCatalog(selectedTemplate.groups)
+  }, [selectedTemplate])
+
+  function rememberReferenceTemplate(presetKey: string, nextTemplateId: string) {
+    setReferenceTemplateByPreset((prev) => {
+      if (prev[presetKey] === nextTemplateId) return prev
+      const next = { ...prev, [presetKey]: nextTemplateId }
+      writeStoredReferenceTemplates(next)
+      return next
+    })
+  }
+
+  useEffect(() => {
+    if (!selectedPresetId || !selectedTemplateId) return
+    if (referenceTemplateByPreset[selectedPresetId] === selectedTemplateId) {
+      return
+    }
+    setReferenceTemplateByPreset((prev) => {
+      if (prev[selectedPresetId] === selectedTemplateId) return prev
+      const next = { ...prev, [selectedPresetId]: selectedTemplateId }
+      writeStoredReferenceTemplates(next)
+      return next
+    })
+  }, [selectedPresetId, selectedTemplateId, referenceTemplateByPreset])
+
+  useEffect(() => {
+    if (!selectedPresetId && !selectedTemplateId) return
+    if (
+      selectedPresetId === presetId &&
+      selectedTemplateId === templateId
+    ) {
+      return
+    }
+
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        presetId: selectedPresetId,
+        templateId: selectedTemplateId,
+      }),
+      replace: true,
+    })
+  }, [
+    navigate,
+    presetId,
+    templateId,
+    selectedPresetId,
+    selectedTemplateId,
+  ])
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [columns, setColumns] = useState<Array<MetadataExportColumnConfigT>>([])
+  const [alignedPresetId, setAlignedPresetId] = useState<string | undefined>(
+    undefined,
+  )
+  const [alignedTemplateId, setAlignedTemplateId] = useState<string | undefined>(
+    undefined,
+  )
+
   const [createOpen, setCreateOpen] = useState(false)
   const [createName, setCreateName] = useState('')
   const [createDescription, setCreateDescription] = useState('')
@@ -123,22 +252,75 @@ export function MetadataExportPresetsPage() {
   const [nameError, setNameError] = useState(false)
   const [isHandling, setIsHandling] = useState(false)
 
+  const columnsRef = useRef(columns)
+  columnsRef.current = columns
+
+  // Session drafts keyed by preset + reference template so presets never share edits.
+  const columnsDraftRef = useRef<
+    Record<string, Array<MetadataExportColumnConfigT>>
+  >({})
+
   const createMutation = useCreateMetadataExportPreset()
   const updateMutation = useUpdateMetadataExportPreset()
   const deleteMutation = useDeleteMetadataExportPreset()
 
+  const presetResetId = selectedPreset?.id
+
   useEffect(() => {
-    if (!selectedPreset) {
+    if (!presetResetId || !selectedPreset || selectedPreset.id !== presetResetId) {
       setName('')
       setDescription('')
       setColumns([])
+      setAlignedPresetId(undefined)
+      setAlignedTemplateId(undefined)
+      setColumnErrors({})
       return
     }
 
     setName(selectedPreset.name)
     setDescription(selectedPreset.description)
-    setColumns(selectedPreset.columns)
-  }, [selectedPreset])
+    setColumnErrors({})
+  }, [presetResetId])
+
+  useEffect(() => {
+    if (!selectedPreset || !selectedTemplateId || !selectedTemplate) return
+
+    const samePreset = alignedPresetId === selectedPreset.id
+    const sameTemplate = alignedTemplateId === selectedTemplateId
+    if (samePreset && sameTemplate) return
+
+    if (alignedPresetId && alignedTemplateId) {
+      columnsDraftRef.current[draftKey(alignedPresetId, alignedTemplateId)] =
+        cloneColumns(columnsRef.current)
+    }
+
+    const key = draftKey(selectedPreset.id, selectedTemplateId)
+    const cached = columnsDraftRef.current[key]
+    if (cached) {
+      setColumns(cloneColumns(cached))
+    } else if (!samePreset) {
+      // Load persisted columns as-is. Do not prune by reference catalog —
+      // that catalog is only for picking fields and may differ after reload.
+      const initial = cloneColumns(selectedPreset.columns)
+      columnsDraftRef.current[key] = initial
+      setColumns(initial)
+    } else {
+      // Same preset, different reference template, no draft yet: keep edits.
+      const kept = cloneColumns(columnsRef.current)
+      columnsDraftRef.current[key] = kept
+      setColumns(kept)
+    }
+
+    setColumnErrors({})
+    setAlignedPresetId(selectedPreset.id)
+    setAlignedTemplateId(selectedTemplateId)
+  }, [
+    selectedPreset,
+    selectedTemplateId,
+    selectedTemplate,
+    alignedPresetId,
+    alignedTemplateId,
+  ])
 
   const isDirty =
     Boolean(selectedPreset) &&
@@ -180,6 +362,10 @@ export function MetadataExportPresetsPage() {
 
   function handleColumnsChange(nextColumns: Array<MetadataExportColumnConfigT>) {
     setColumns(nextColumns)
+    if (selectedPreset && selectedTemplateId) {
+      columnsDraftRef.current[draftKey(selectedPreset.id, selectedTemplateId)] =
+        nextColumns
+    }
     setColumnErrors({})
   }
 
@@ -191,15 +377,31 @@ export function MetadataExportPresetsPage() {
   }
 
   function selectPreset(nextPresetId: string) {
+    const nextPreset = presets.find((item) => item.id === nextPresetId)
+    const nextTemplateId = resolveTemplateIdForPreset({
+      presetId: nextPresetId,
+      presetColumns: nextPreset?.columns,
+      templates,
+      rememberedByPreset: referenceTemplateByPreset,
+    })
+
+    if (nextTemplateId) {
+      rememberReferenceTemplate(nextPresetId, nextTemplateId)
+    }
+
     void navigate({
       search: (prev) => ({
         ...prev,
         presetId: nextPresetId,
+        templateId: nextTemplateId,
       }),
     })
   }
 
   function selectTemplate(nextTemplateId: string) {
+    if (selectedPresetId) {
+      rememberReferenceTemplate(selectedPresetId, nextTemplateId)
+    }
     void navigate({
       search: (prev) => ({
         ...prev,
@@ -214,14 +416,24 @@ export function MetadataExportPresetsPage() {
     setIsHandling(true)
 
     try {
-      await updateMutation.mutateAsync({
+      const savedColumns = cloneColumns(columns)
+      const updated = await updateMutation.mutateAsync({
         presetId: selectedPreset.id,
         payload: {
           name: name.trim(),
           description: description.trim() || null,
-          columns,
+          columns: savedColumns,
         },
       })
+
+      setName(updated.name)
+      setDescription(updated.description)
+      const nextColumns = cloneColumns(updated.columns)
+      setColumns(nextColumns)
+      if (selectedTemplateId) {
+        columnsDraftRef.current[draftKey(updated.id, selectedTemplateId)] =
+          nextColumns
+      }
     } finally {
       setIsHandling(false)
     }
@@ -236,7 +448,13 @@ export function MetadataExportPresetsPage() {
       const created = await createMutation.mutateAsync({
         name: createName.trim(),
         description: createDescription.trim() || null,
-        columns: [{ header: t('metadataExport.defaultColumnHeader'), fieldKeys: [], separator: ', ' }],
+        columns: [
+          {
+            header: t('metadataExport.defaultColumnHeader'),
+            fieldKeys: [],
+            separator: ', ',
+          },
+        ],
       })
 
       setCreateOpen(false)
@@ -417,7 +635,9 @@ export function MetadataExportPresetsPage() {
                   onValueChange={selectTemplate}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={t('metadataExport.referenceTemplatePlaceholder')} />
+                    <SelectValue
+                      placeholder={t('metadataExport.referenceTemplatePlaceholder')}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {templates.map((template) => (
@@ -432,13 +652,14 @@ export function MetadataExportPresetsPage() {
                 </p>
               </div>
 
-              {isLoadingTemplateDetail ? (
+              {isLoadingTemplates ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin" />
                   {t('metadataExport.loadingFields')}
                 </div>
               ) : (
                 <MetadataExportColumnEditor
+                  key={`${selectedPreset.id}:${selectedTemplateId ?? 'no-template'}`}
                   columns={columns}
                   fieldCatalog={fieldCatalog}
                   columnErrors={columnErrors}
