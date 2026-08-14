@@ -1161,19 +1161,6 @@ export const ArchiveBorrowService = {
             placementId: input.placementId,
         });
 
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "approve_borrow",
-            summary: `Duyệt phiếu mượn ${requestId}`,
-            entityType: "archive_borrow_request",
-            entityId: requestId,
-            details: {
-                approvedFrom: input.approvedFrom.toISOString(),
-                approvedUntil: input.approvedUntil.toISOString(),
-            },
-        });
-
         return await this.getById(profile, requestId);
     },
 
@@ -1258,15 +1245,6 @@ export const ArchiveBorrowService = {
             await markDipFailed(requestId, err);
         }
 
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "regenerate_borrow_dip",
-            summary: `Tạo lại DIP phiếu mượn ${requestId}`,
-            entityType: "archive_borrow_request",
-            entityId: requestId,
-        });
-
         return await this.getById(profile, requestId);
     },
 
@@ -1331,15 +1309,6 @@ export const ArchiveBorrowService = {
             throw httpError.conflict("Request was already reviewed");
         }
 
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "reject_borrow",
-            summary: `Từ chối phiếu mượn ${requestId}`,
-            entityType: "archive_borrow_request",
-            entityId: requestId,
-        });
-
         return await this.getById(profile, requestId);
     },
 
@@ -1392,15 +1361,6 @@ export const ArchiveBorrowService = {
         if (!updated[0]) {
             throw httpError.conflict("Request could not be activated");
         }
-
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "activate_borrow",
-            summary: `Kích hoạt xem phiếu mượn ${requestId}`,
-            entityType: "archive_borrow_request",
-            entityId: requestId,
-        });
 
         return await this.getById(profile, requestId);
     },
@@ -1629,16 +1589,6 @@ export const ArchiveBorrowService = {
         }
 
         const bytes = await downloadBinaryFromStorage(entry.objectKey);
-
-        logWarehouseAudit({
-            userId: profile.id,
-            module: "archive-borrow",
-            eventType: "view_borrow_document",
-            summary: `Xem DIP file ${fileId} của phiếu ${requestId}`,
-            entityType: "archive_borrow_request",
-            entityId: requestId,
-            details: { fileId, byteSize: bytes.byteLength },
-        });
 
         return {
             bytes,

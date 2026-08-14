@@ -794,3 +794,101 @@ export function enrichSecurityLevelVerify(
         details: { levelId },
     };
 }
+
+function resolveBorrowRequestId(ctx: AuditRouteEnrichContext): string {
+    const response = asRecord(ctx.response);
+    return String(response?.id ?? ctx.params.id ?? "");
+}
+
+export function enrichArchiveBorrowCreate(
+    ctx: AuditRouteEnrichContext,
+): AuditRouteEnrichResult | null {
+    const response = asRecord(ctx.response);
+    const body = asRecord(ctx.body);
+    const id = resolveBorrowRequestId(ctx);
+    if (!id) return null;
+
+    const items = Array.isArray(response?.items) ? response.items : [];
+    return {
+        summary: `Tạo phiếu mượn điện tử ${id}`,
+        entityType: "archive_borrow_request",
+        entityId: id,
+        details: {
+            itemCount: items.length,
+            requestedFrom: body?.requestedFrom ?? response?.requestedFrom ?? null,
+            requestedUntil: body?.requestedUntil ?? response?.requestedUntil ?? null,
+        },
+    };
+}
+
+export function enrichArchiveBorrowApprove(
+    ctx: AuditRouteEnrichContext,
+): AuditRouteEnrichResult | null {
+    const body = asRecord(ctx.body);
+    const id = resolveBorrowRequestId(ctx);
+    if (!id) return null;
+
+    return {
+        summary: `Duyệt phiếu mượn ${id}`,
+        entityType: "archive_borrow_request",
+        entityId: id,
+        details: {
+            approvedFrom: body?.approvedFrom ?? null,
+            approvedUntil: body?.approvedUntil ?? null,
+        },
+    };
+}
+
+export function enrichArchiveBorrowReject(
+    ctx: AuditRouteEnrichContext,
+): AuditRouteEnrichResult | null {
+    const id = resolveBorrowRequestId(ctx);
+    if (!id) return null;
+
+    return {
+        summary: `Từ chối phiếu mượn ${id}`,
+        entityType: "archive_borrow_request",
+        entityId: id,
+    };
+}
+
+export function enrichArchiveBorrowRegenerateDip(
+    ctx: AuditRouteEnrichContext,
+): AuditRouteEnrichResult | null {
+    const id = resolveBorrowRequestId(ctx);
+    if (!id) return null;
+
+    return {
+        summary: `Tạo lại DIP phiếu mượn ${id}`,
+        entityType: "archive_borrow_request",
+        entityId: id,
+    };
+}
+
+export function enrichArchiveBorrowActivate(
+    ctx: AuditRouteEnrichContext,
+): AuditRouteEnrichResult | null {
+    const id = resolveBorrowRequestId(ctx);
+    if (!id) return null;
+
+    return {
+        summary: `Kích hoạt xem phiếu mượn ${id}`,
+        entityType: "archive_borrow_request",
+        entityId: id,
+    };
+}
+
+export function enrichArchiveBorrowViewDocument(
+    ctx: AuditRouteEnrichContext,
+): AuditRouteEnrichResult | null {
+    const requestId = ctx.params.id;
+    const fileId = ctx.params.fileId;
+    if (!requestId || !fileId) return null;
+
+    return {
+        summary: `Xem DIP file ${fileId} của phiếu ${requestId}`,
+        entityType: "archive_borrow_request",
+        entityId: requestId,
+        details: { fileId },
+    };
+}

@@ -113,17 +113,8 @@ function getUserRole(profile: UserWithRoles | null | undefined): string | null {
 
 function resolveAuditMeta(
     request: RequestWithAuditMeta,
-    method: string,
-    pathname: string,
 ): AuditRequestMeta {
-    if (request.__auditMeta) {
-        return request.__auditMeta;
-    }
-    const module = resolveModuleFromPath(pathname);
-    return {
-        module,
-        eventType: resolveEventTypeFromMethod(method),
-    };
+    return request.__auditMeta ?? {};
 }
 
 function persistAuditLog(entry: AuditLogEntry): void {
@@ -202,7 +193,7 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
                 ? Math.round(performance.now() - reqWithMeta.__startTime)
                 : null;
 
-            const auditMeta = resolveAuditMeta(reqWithMeta, request.method, url.pathname);
+            const auditMeta = resolveAuditMeta(reqWithMeta);
             let routeAudit = null;
             if (statusCode < 400) {
                 try {
