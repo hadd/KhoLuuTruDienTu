@@ -2,7 +2,12 @@ import { DisposalProposalItemSource } from "../../db/schemas/archive-disposal-co
 import type { DisposalProposalItemSourceType } from "../../db/schemas/archive-disposal-constants.ts";
 import type { DossierMetadata } from "../../libs/metadata-types.ts";
 import type { AppendixCatalogRow } from "./disposal-appendix-docx.ts";
-import { extractPl2DossierTitle } from "./disposal-appendix-metadata.ts";
+import {
+    extractAppendixRowMetadata,
+    extractPl2DossierTitle,
+    findMetadataFieldValue,
+} from "./disposal-appendix-metadata.ts";
+import { DISPOSAL_APPENDIX_METADATA_KEYS } from "./disposal-appendix-metadata-keys.ts";
 
 export type Pl2CatalogItemRow = {
     id: string;
@@ -74,7 +79,10 @@ export function buildPl2CatalogRows(
     let currentBoxKey: string | null = null;
     let volume = 0;
 
+    let seq = 0;
+
     return sorted.map((item) => {
+        seq += 1;
         const boxNumber = boxByDossier.get(item.dossierId) ?? "";
         const boxKey = boxNumber.trim() || "__none__";
         if (boxKey !== currentBoxKey) {
@@ -84,11 +92,25 @@ export function buildPl2CatalogRows(
             volume += 1;
         }
 
-        const title = extractPl2DossierTitle(metadataByDossier.get(item.dossierId) ?? null);
+        const metadata = metadataByDossier.get(item.dossierId) ?? null;
+        const meta = extractAppendixRowMetadata(metadata);
+        const title = extractPl2DossierTitle(metadata) || meta.metadataTitle;
+        const retentionPeriod = findMetadataFieldValue(
+            metadata,
+            DISPOSAL_APPENDIX_METADATA_KEYS.retentionPeriod,
+        );
+        const documentPageCount = findMetadataFieldValue(
+            metadata,
+            DISPOSAL_APPENDIX_METADATA_KEYS.documentPageCount,
+        );
         return {
+            seqNumber: String(seq),
+            archiveNumber: meta.archiveNumber,
             boxNumber,
             volumeNumber: String(volume),
             title,
+            retentionPeriod,
+            documentPageCount,
             disposalReasonLabel: disposalReasonLabel(item.source, item.reason),
             notes: item.notes.trim(),
         };

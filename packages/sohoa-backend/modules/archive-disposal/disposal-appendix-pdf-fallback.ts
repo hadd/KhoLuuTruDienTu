@@ -122,14 +122,16 @@ export async function buildPhuLucIIPdfFallback(input: {
     w.draw("DANH MỤC TÀI LIỆU HẾT THỜI HẠN LƯU TRỮ, TRÙNG LẶP", { bold: true, size: 12 });
     w.draw(`Phông (khối): ${input.fondName}`);
     w.draw("");
-    w.draw("Bó số | Tập số | Tiêu đề / Số hồ sơ | Lý do hủy | Ghi chú", { bold: true, size: 12 });
+    w.draw("STT | Mã LT | Tiêu đề | THBQ | Số TL/trang | Lý do hủy | Ghi chú", { bold: true, size: 12 });
 
     for (const row of input.rows) {
         w.draw(
             [
-                row.boxNumber || "—",
-                row.volumeNumber || "—",
+                row.seqNumber,
+                row.archiveNumber || "—",
                 row.title,
+                row.retentionPeriod || "—",
+                row.documentPageCount || "—",
                 row.disposalReasonLabel,
                 row.notes || "—",
             ].join(" | "),

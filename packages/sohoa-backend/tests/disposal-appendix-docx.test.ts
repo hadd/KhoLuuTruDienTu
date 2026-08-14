@@ -9,9 +9,13 @@ import {
 } from "../modules/archive-disposal/disposal-appendix-docx.ts";
 
 const sampleRow = {
+  seqNumber: "1",
+  archiveNumber: "HS-001",
   boxNumber: "1",
   volumeNumber: "2",
   title: "Hồ sơ mẫu",
+  retentionPeriod: "10 năm",
+  documentPageCount: "5",
   disposalReasonLabel: "Hết thời hạn lưu trữ",
   notes: "Ghi chú",
 };
@@ -36,9 +40,13 @@ Deno.test("renderDocxTemplate injects catalog rows into real PL II template", as
     tableRows: [
       sampleRow,
       {
+        seqNumber: "2",
+        archiveNumber: "HS-002",
         boxNumber: "B2",
         volumeNumber: "T2",
         title: "HOSO-SECOND-ROW",
+        retentionPeriod: "",
+        documentPageCount: "",
         disposalReasonLabel: "Trùng lặp",
         notes: "",
       },
@@ -60,9 +68,13 @@ Deno.test("fillCatalogTableInDocumentXml injects row cells", () => {
     <w:tr><w:tc><w:tcPr></w:tcPr><w:p><w:pPr></w:pPr></w:p></w:tc><w:tc><w:p></w:p></w:tc><w:tc><w:p></w:p></w:tc><w:tc><w:p></w:p></w:tc><w:tc><w:p></w:p></w:tc></w:tr>
   </w:tbl></w:body></w:document>`;
   const out = fillCatalogTableInDocumentXml(xml, [{
+    seqNumber: "1",
+    archiveNumber: "B1",
     boxNumber: "B1",
     volumeNumber: "T1",
     title: "Tiêu đề",
+    retentionPeriod: "",
+    documentPageCount: "",
     disposalReasonLabel: "Trùng lặp",
     notes: "N",
   }]);
@@ -91,9 +103,13 @@ Deno.test("renderDocxTemplate omits sample rows (1)/(2) from real PL II template
     circularLabel: "06/2025/TT-BNV",
   }, {
     tableRows: [{
+      seqNumber: "1",
+      archiveNumber: "B1",
       boxNumber: "B1",
       volumeNumber: "T1",
       title: "HOSO-REAL-ROW",
+      retentionPeriod: "",
+      documentPageCount: "",
       disposalReasonLabel: "Trùng lặp",
       notes: "",
     }],

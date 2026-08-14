@@ -4,6 +4,7 @@ import {
     index,
     jsonb,
     integer,
+    primaryKey,
     text,
     timestamp,
     uniqueIndex,
@@ -24,6 +25,7 @@ import {
     disposalCouncilMemberRepresentationTypeEnum,
     disposalCouncilReviewResultEnum,
     disposalCouncilEvaluationDecisionEnum,
+    disposalAppraisalDocumentTypeEnum,
 } from "./archive-disposal-enums.ts";
 import { DISPOSAL_SETTINGS_SINGLETON_ID } from "./archive-disposal-constants.ts";
 
@@ -45,6 +47,7 @@ export const disposalProposalCatalogs = schema.table("disposal_proposal_catalogs
     catalogDate: date("catalog_date", { mode: "date" }).notNull(),
     notes: text("notes").notNull().default(""),
     status: disposalProposalCatalogStatusEnum("status").notNull().default("DRAFT"),
+    appraisalSubmittedAt: timestamp("appraisal_submitted_at", { withTimezone: true }),
     createdBy: uuid("created_by").notNull().references(() => userProfiles.id, {
         onDelete: "restrict",
         onUpdate: "restrict",
@@ -110,6 +113,7 @@ export const disposalReviewCouncils = schema.table("disposal_review_councils", {
     decisionPublishedAt: timestamp("decision_published_at", { withTimezone: true }),
     decisionDocumentStorageKey: text("decision_document_storage_key"),
     signedMinutesStorageKey: text("signed_minutes_storage_key"),
+    bothMinutesExportedAt: timestamp("both_minutes_exported_at", { withTimezone: true }),
     createdBy: uuid("created_by").notNull().references(() => userProfiles.id, {
         onDelete: "restrict",
         onUpdate: "restrict",
@@ -264,6 +268,82 @@ export const disposalReviewCouncilItemOutcomes = schema.table(
         index("idx_disposal_council_item_outcomes_council_id").on(table.councilId),
     ],
 );
+
+export const disposalAppraisalDocuments = schema.table("disposal_appraisal_documents", {
+    catalogId: uuid("catalog_id").notNull().references(() => disposalProposalCatalogs.id, {
+        onDelete: "cascade",
+        onUpdate: "restrict",
+    }),
+    documentType: disposalAppraisalDocumentTypeEnum("document_type").notNull(),
+    draftStorageKey: text("draft_storage_key"),
+    draftExportedAt: timestamp("draft_exported_at", { withTimezone: true }),
+    draftExportedBy: uuid("draft_exported_by").references(() => userProfiles.id, {
+        onDelete: "set null",
+        onUpdate: "restrict",
+    }),
+    signedStorageKey: text("signed_storage_key"),
+    signedUploadedAt: timestamp("signed_uploaded_at", { withTimezone: true }),
+    signedUploadedBy: uuid("signed_uploaded_by").references(() => userProfiles.id, {
+        onDelete: "set null",
+        onUpdate: "restrict",
+    }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+    uniqueIndex("disposal_appraisal_documents_catalog_type_unique")
+        .on(table.catalogId, table.documentType),
+    index("idx_disposal_appraisal_documents_catalog_id").on(table.catalogId),
+]);
+
+export const disposalCatalogPl3Content = schema.table("disposal_catalog_pl3_content", {
+    catalogId: uuid("catalog_id").primaryKey().references(() => disposalProposalCatalogs.id, {
+        onDelete: "cascade",
+        onUpdate: "restrict",
+    }),
+    content: jsonb("content").notNull(),
+    updatedBy: uuid("updated_by").references(() => userProfiles.id, {
+        onDelete: "set null",
+        onUpdate: "restrict",
+    }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const disposalCatalogDocumentDrafts = schema.table("disposal_catalog_document_drafts", {
+    catalogId: uuid("catalog_id").notNull().references(() => disposalProposalCatalogs.id, {
+        onDelete: "cascade",
+        onUpdate: "restrict",
+    }),
+    documentType: disposalAppraisalDocumentTypeEnum("document_type").notNull(),
+    contentJson: jsonb("content_json").notNull(),
+    docxStorageKey: text("docx_storage_key"),
+    sourceHash: text("source_hash"),
+    generatedAt: timestamp("generated_at", { withTimezone: true }),
+    updatedBy: uuid("updated_by").references(() => userProfiles.id, {
+        onDelete: "set null",
+        onUpdate: "restrict",
+    }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+    primaryKey({ columns: [table.catalogId, table.documentType] }),
+    index("idx_disposal_catalog_document_drafts_catalog_id").on(table.catalogId),
+]);
+
+export const disposalAppraisalExportRuns = schema.table("disposal_appraisal_export_runs", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    catalogId: uuid("catalog_id").notNull().references(() => disposalProposalCatalogs.id, {
+        onDelete: "cascade",
+        onUpdate: "restrict",
+    }),
+    documentType: disposalAppraisalDocumentTypeEnum("document_type").notNull(),
+    runNumber: integer("run_number").notNull(),
+    storageKey: text("storage_key").notNull(),
+    createdBy: uuid("created_by").notNull().references(() => userProfiles.id, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+    index("idx_disposal_appraisal_export_runs_catalog_id").on(table.catalogId),
+]);
 
 export type DisposalSettings = typeof disposalSettings.$inferSelect;
 export type DisposalReviewCouncil = typeof disposalReviewCouncils.$inferSelect;

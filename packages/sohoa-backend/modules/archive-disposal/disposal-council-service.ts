@@ -152,11 +152,15 @@ function isCompleteCouncilEvaluation(
 async function assertEvaluationsEditable(councilId: string) {
     const [council] = await db.select({
         decisionPublishedAt: disposalReviewCouncils.decisionPublishedAt,
+        bothMinutesExportedAt: disposalReviewCouncils.bothMinutesExportedAt,
     })
         .from(disposalReviewCouncils)
         .where(eq(disposalReviewCouncils.id, councilId))
         .limit(1);
     if (!council) throw httpError.notFound("Không tìm thấy Hội đồng xét hủy");
+    if (council.bothMinutesExportedAt) {
+        throw httpError.conflict("Đánh giá đã bị khóa sau khi xuất đủ 2 biên bản dự thảo");
+    }
     if (council.decisionPublishedAt) {
         throw httpError.conflict("Đánh giá đã bị khóa sau khi xuất bản Quyết định");
     }
@@ -168,6 +172,7 @@ async function buildEvaluationProgress(councilId: string) {
     const [council] = await db.select({
         catalogId: disposalReviewCouncils.catalogId,
         decisionPublishedAt: disposalReviewCouncils.decisionPublishedAt,
+        bothMinutesExportedAt: disposalReviewCouncils.bothMinutesExportedAt,
     })
         .from(disposalReviewCouncils)
         .where(eq(disposalReviewCouncils.id, councilId))
@@ -237,7 +242,9 @@ async function buildEvaluationProgress(councilId: string) {
         submittedCount,
         membersComplete,
         missingMembers,
-        evaluationsLocked: Boolean(council.decisionPublishedAt),
+        evaluationsLocked: Boolean(
+            council.bothMinutesExportedAt || council.decisionPublishedAt,
+        ),
         isComplete: requiredCount > 0 && submittedCount >= requiredCount,
     };
 }

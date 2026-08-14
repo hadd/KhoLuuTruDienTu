@@ -2,9 +2,13 @@ import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 
 export type AppendixCatalogRow = {
+    seqNumber: string;
+    archiveNumber: string;
     boxNumber: string;
     volumeNumber: string;
     title: string;
+    retentionPeriod: string;
+    documentPageCount: string;
     disposalReasonLabel: string;
     notes: string;
 };
@@ -282,9 +286,11 @@ export function fillCatalogTableInDocumentXml(
     const dataRows = rows.length > 0
         ? rows.map((row) =>
             setRowCellTexts(templateRow, [
-                row.boxNumber,
-                row.volumeNumber,
+                row.seqNumber,
+                row.archiveNumber,
                 row.title,
+                row.retentionPeriod,
+                row.documentPageCount,
                 row.disposalReasonLabel,
                 row.notes,
             ])

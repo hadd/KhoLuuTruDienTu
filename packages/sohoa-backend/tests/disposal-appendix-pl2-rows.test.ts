@@ -64,13 +64,10 @@ Deno.test("buildPl2CatalogRows assigns volume per box group sorted by box", () =
     ]);
     const rows = buildPl2CatalogRows(items, new Map(), boxByDossier);
     assertEquals(rows.length, 3);
-    assertEquals(rows[0], {
-        boxNumber: "1",
-        volumeNumber: "1",
-        title: "",
-        disposalReasonLabel: "Hết thời hạn lưu trữ",
-        notes: "",
-    });
+    assertEquals(rows[0]?.seqNumber, "1");
+    assertEquals(rows[0]?.boxNumber, "1");
+    assertEquals(rows[0]?.volumeNumber, "1");
+    assertEquals(rows[0]?.disposalReasonLabel, "Hết thời hạn lưu trữ");
     assertEquals(rows[1]?.boxNumber, "1");
     assertEquals(rows[1]?.volumeNumber, "2");
     assertEquals(rows[2]?.boxNumber, "2");

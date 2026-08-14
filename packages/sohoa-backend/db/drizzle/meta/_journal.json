@@ -358,6 +358,27 @@
       "when": 1786080000000,
       "tag": "0050_council_evaluation_us",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1786680690206,
+      "tag": "0051_sloppy_talos",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1786680690207,
+      "tag": "0052_disposal_catalog_document_drafts",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1786680690208,
+      "tag": "0053_appraisal_export_tables",
+      "breakpoints": true
     }
   ]
 }

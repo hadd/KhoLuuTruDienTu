@@ -159,3 +159,22 @@ export const DUPLICATE_DETECTION_RULE_KEY_VALUES = Object.values(
     DuplicateDetectionRuleKeyType,
     DuplicateDetectionRuleKeyType,
 ];
+
+export const DisposalAppraisalDocumentType = {
+    PL2: "PL2",
+    PL3: "PL3",
+    MINUTES_COUNCIL: "MINUTES_COUNCIL",
+    MINUTES_DESTRUCTION: "MINUTES_DESTRUCTION",
+} as const;
+
+export type DisposalAppraisalDocumentTypeType =
+    (typeof DisposalAppraisalDocumentType)[keyof typeof DisposalAppraisalDocumentType];
+
+export const DISPOSAL_APPRAISAL_DOCUMENT_TYPE_VALUES = Object.values(
+    DisposalAppraisalDocumentType,
+) as [
+    DisposalAppraisalDocumentTypeType,
+    DisposalAppraisalDocumentTypeType,
+    DisposalAppraisalDocumentTypeType,
+    DisposalAppraisalDocumentTypeType,
+];
