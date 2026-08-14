@@ -25,8 +25,11 @@ import {
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  exportDisposalAppraisalPl3,
   exportDisposalPhuLucIII,
+  getDisposalAppraisalPl3Content,
   getDisposalPl3Suggestions,
+  saveDisposalAppraisalPl3Content,
 } from '@/features/archive-disposal/api/archiveDisposalClient'
 import type { Pl3ContentT } from '@/features/archive-disposal/types'
 import { PL3_REQUIRED_FORMATION_KEYS } from '@/features/archive-disposal/lib/pl3-constants'
@@ -63,6 +66,7 @@ type DisposalAppendixPl3DialogProps = {
   canEdit: boolean
   initialExport?: boolean
   onExportSuccess?: () => void
+  useServerStorage?: boolean
 }
 
 export function DisposalAppendixPl3Dialog({
@@ -72,6 +76,7 @@ export function DisposalAppendixPl3Dialog({
   canEdit,
   initialExport = false,
   onExportSuccess,
+  useServerStorage = false,
 }: DisposalAppendixPl3DialogProps) {
   const { t } = useTranslation('archive-disposal')
   const [content, setContent] = useState<Pl3ContentT | null>(null)
@@ -79,10 +84,20 @@ export function DisposalAppendixPl3Dialog({
   const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false)
   const initialExportHandled = useRef(false)
 
+  const serverContentQuery = useQuery({
+    queryKey: ['disposal-appraisal-pl3-content', catalogId],
+    queryFn: () => getDisposalAppraisalPl3Content(catalogId),
+    enabled: open && Boolean(catalogId) && useServerStorage,
+  })
+
   const suggestionsQuery = useQuery({
     queryKey: ['disposal-pl3-suggestions', catalogId],
     queryFn: () => getDisposalPl3Suggestions(catalogId),
-    enabled: open && Boolean(catalogId) && content === null,
+    enabled:
+      open &&
+      Boolean(catalogId) &&
+      content === null &&
+      (!useServerStorage || (serverContentQuery.isSuccess && !serverContentQuery.data)),
   })
 
   useEffect(() => {
@@ -90,6 +105,20 @@ export function DisposalAppendixPl3Dialog({
       setContent(null)
       setFondName('')
       initialExportHandled.current = false
+      return
+    }
+
+    if (useServerStorage) {
+      if (!serverContentQuery.isSuccess) return
+      if (serverContentQuery.data) {
+        setContent(serverContentQuery.data)
+        setFondName('')
+        return
+      }
+      if (suggestionsQuery.data) {
+        setContent(suggestionsQuery.data.content)
+        setFondName(suggestionsQuery.data.fondName)
+      }
       return
     }
 
@@ -104,18 +133,32 @@ export function DisposalAppendixPl3Dialog({
       setContent(suggestionsQuery.data.content)
       setFondName(suggestionsQuery.data.fondName)
     }
-  }, [open, catalogId, suggestionsQuery.data])
+  }, [
+    open,
+    catalogId,
+    suggestionsQuery.data,
+    serverContentQuery.data,
+    serverContentQuery.isSuccess,
+    useServerStorage,
+  ])
 
   useEffect(() => {
     if (!open || !canEdit || !content) return
     const timer = window.setTimeout(() => {
-      writeStoredPl3Content(catalogId, content)
+      if (useServerStorage) {
+        void saveDisposalAppraisalPl3Content(catalogId, content)
+      } else {
+        writeStoredPl3Content(catalogId, content)
+      }
     }, 500)
     return () => window.clearTimeout(timer)
-  }, [open, canEdit, catalogId, content])
+  }, [open, canEdit, catalogId, content, useServerStorage])
 
   const exportMutation = useMutation({
-    mutationFn: () => exportDisposalPhuLucIII(catalogId, content!),
+    mutationFn: () =>
+      useServerStorage
+        ? exportDisposalAppraisalPl3(catalogId, content!)
+        : exportDisposalPhuLucIII(catalogId, content!),
     onSuccess: () => {
       toast.success(t('proposal.exportAppendixSuccess'))
       onExportSuccess?.()
@@ -151,7 +194,13 @@ export function DisposalAppendixPl3Dialog({
   const applySuggestions = (data: Pl3ContentT, nextFondName: string) => {
     setContent(data)
     setFondName(nextFondName)
-    if (canEdit) writeStoredPl3Content(catalogId, data)
+    if (canEdit) {
+      if (useServerStorage) {
+        void saveDisposalAppraisalPl3Content(catalogId, data)
+      } else {
+        writeStoredPl3Content(catalogId, data)
+      }
+    }
   }
 
   const handleReloadSuggestions = async () => {
@@ -169,7 +218,9 @@ export function DisposalAppendixPl3Dialog({
     setContent((prev) => (prev ? { ...prev, [key]: value } : prev))
   }
 
-  const isLoading = content === null && suggestionsQuery.isPending
+  const isLoading = useServerStorage
+    ? content === null && (serverContentQuery.isPending || suggestionsQuery.isPending)
+    : content === null && suggestionsQuery.isPending
   const displayFondName = fondName || suggestionsQuery.data?.fondName
 
   return (

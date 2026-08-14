@@ -184,6 +184,18 @@ export function AppShell() {
     [permissions, catalog, primaryAppRole],
   )
 
+  const isDocumentEditorWindow = pathname.includes(
+    '/archive-warehouse/document-editor/',
+  )
+
+  if (isDocumentEditorWindow) {
+    return (
+      <div className="flex h-screen min-h-0 w-full flex-col overflow-hidden bg-background">
+        <Outlet />
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-screen min-h-0 w-full flex-col overflow-hidden bg-background">
       <AppHeader

@@ -76,6 +76,7 @@ export type DisposalProposalCatalogStatusT =
   | 'DRAFT'
   | 'PENDING_SUBMIT'
   | 'SUBMITTED'
+  | 'AWAITING_FEEDBACK'
   | 'APPROVED'
   | 'REJECTED'
   | 'DESTROYED'
@@ -154,4 +155,48 @@ export type Pl3ContentT = {
 export type Pl3SuggestionsResponseT = {
   fondName: string
   content: Pl3ContentT
+}
+
+export type AppraisalDocumentTypeT =
+  | 'PL2'
+  | 'PL3'
+  | 'MINUTES_COUNCIL'
+  | 'MINUTES_DESTRUCTION'
+
+export type AppraisalDocumentStatusT = {
+  documentType: AppraisalDocumentTypeT
+  draftExportedAt: string | null
+  signedUploadedAt: string | null
+  hasDraft: boolean
+  hasSigned: boolean
+}
+
+export type AppraisalDocumentsResponseT = {
+  catalogId: string
+  catalogCode: string
+  appraisalSubmittedAt: string | null
+  evaluationsLocked: boolean
+  bothMinutesExportedAt: string | null
+  readyToSubmit: boolean
+  missingComponents: string[]
+  documents: Array<AppraisalDocumentStatusT>
+  exportHistory: Array<{
+    id: string
+    documentType: AppraisalDocumentTypeT
+    runNumber: number
+    createdAt: string
+    createdBy: string
+  }>
+}
+
+export type EditableDocumentSlugT = 'pl3' | 'minutes-council' | 'minutes-destruction'
+
+export type DocumentDraftResponseT = {
+  documentType: AppraisalDocumentTypeT
+  contentJson: Record<string, unknown>
+  sourceHash: string | null
+  currentSourceHash: string
+  sourceStale: boolean
+  hasUploadedDocx: boolean
+  updatedAt: string | null
 }

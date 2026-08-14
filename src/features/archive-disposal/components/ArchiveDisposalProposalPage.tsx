@@ -25,17 +25,12 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   createDisposalCatalog,
   deleteDisposalCatalog,
-  downloadDisposalPhuLucII,
-  exportDisposalPhuLucIII,
   removeDisposalCatalogItem,
   submitDisposalCatalog,
   updateDisposalCatalog,
   updateDisposalCatalogItem,
 } from '@/features/archive-disposal/api/archiveDisposalClient'
-import {
-  DisposalAppendixPl3Dialog,
-  tryExportPl3FromStorage,
-} from '@/features/archive-disposal/components/DisposalAppendixPl3Dialog'
+import { DisposalAppraisalExportPanel } from '@/features/archive-disposal/components/DisposalAppraisalExportPanel'
 import { DisposalCouncilCreateDialog } from '@/features/archive-disposal-council/components/DisposalCouncilCreateDialog'
 import { DisposalCouncilViewDialog } from '@/features/archive-disposal-council/components/DisposalCouncilViewDialog'
 import {
@@ -83,6 +78,7 @@ function isCatalogStatusKey(
     status === 'DRAFT' ||
     status === 'PENDING_SUBMIT' ||
     status === 'SUBMITTED' ||
+    status === 'AWAITING_FEEDBACK' ||
     status === 'APPROVED' ||
     status === 'REJECTED' ||
     status === 'DESTROYED'
@@ -124,8 +120,7 @@ export function ArchiveDisposalProposalPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [createCouncilOpen, setCreateCouncilOpen] = useState(false)
   const [viewCouncilOpen, setViewCouncilOpen] = useState(false)
-  const [pl3DialogOpen, setPl3DialogOpen] = useState(false)
-  const [pl3DialogInitialExport, setPl3DialogInitialExport] = useState(false)
+  const [appraisalExportOpen, setAppraisalExportOpen] = useState(false)
   const [evaluationDrafts, setEvaluationDrafts] = useState<
     Record<
       string,
@@ -153,6 +148,7 @@ export function ArchiveDisposalProposalPage() {
     disposalCatalogDetailQueryOptions(selectedCatalogId),
   )
   const isPendingReview = catalogDetail?.catalog.status === 'PENDING_SUBMIT'
+  const isAwaitingFeedback = catalogDetail?.catalog.status === 'AWAITING_FEEDBACK'
 
   const { data: councilsForCatalog } = useQuery({
     ...disposalCouncilsQueryOptions({
@@ -162,9 +158,8 @@ export function ArchiveDisposalProposalPage() {
     }),
     enabled:
       Boolean(selectedCatalogId) &&
-      (viewCouncilOpen ||
-        catalogDetail?.catalog.status === 'PENDING_SUBMIT') &&
-      (canReadCouncil || catalogDetail?.catalog.status === 'PENDING_SUBMIT'),
+      (viewCouncilOpen || isPendingReview || isAwaitingFeedback) &&
+      (canReadCouncil || isPendingReview || isAwaitingFeedback),
   })
   const councilForSelectedCatalog = councilsForCatalog?.items[0]?.id ?? null
   const viewedCouncilId = useMemo(() => {
@@ -180,7 +175,7 @@ export function ArchiveDisposalProposalPage() {
 
   const { data: councilDetail } = useQuery({
     ...disposalCouncilDetailQueryOptions(viewedCouncilId),
-    enabled: Boolean(viewedCouncilId) && isPendingReview,
+    enabled: Boolean(viewedCouncilId) && (isPendingReview || isAwaitingFeedback),
   })
 
   const isCouncilMember = useMemo(() => {
@@ -208,7 +203,7 @@ export function ArchiveDisposalProposalPage() {
   ])
 
   const canAccessCouncilEvaluations =
-    isPendingReview &&
+    (isPendingReview || isAwaitingFeedback) &&
     Boolean(viewedCouncilId) &&
     (isCouncilMember || canFinalizeCouncil || canReadCouncil)
 
@@ -290,7 +285,7 @@ export function ArchiveDisposalProposalPage() {
   const { data: decisionDocuments, refetch: refetchDecisionDocuments } = useQuery({
     queryKey: ['archive-disposal', 'council-decision-docs', viewedCouncilId],
     queryFn: () => getDisposalCouncilDecisionDocuments(viewedCouncilId!),
-    enabled: Boolean(viewedCouncilId) && isPendingReview && canAccessCouncilEvaluations,
+    enabled: Boolean(viewedCouncilId) && (isPendingReview || isAwaitingFeedback) && canAccessCouncilEvaluations,
   })
 
   useEffect(() => {
@@ -584,30 +579,6 @@ export function ArchiveDisposalProposalPage() {
     onError: (error) => toast.error(translateError(error)),
   })
 
-  const exportPhuLucIIMutation = useMutation({
-    mutationFn: () => downloadDisposalPhuLucII(selectedCatalogId!),
-    onSuccess: () => toast.success(t('proposal.exportAppendixSuccess')),
-    onError: (error) => toast.error(translateError(error)),
-  })
-
-  const exportPhuLucIIIMutation = useMutation({
-    mutationFn: (content: Parameters<typeof exportDisposalPhuLucIII>[1]) =>
-      exportDisposalPhuLucIII(selectedCatalogId!, content),
-    onSuccess: () => toast.success(t('proposal.exportAppendixSuccess')),
-    onError: (error) => toast.error(translateError(error)),
-  })
-
-  const handleExportPhuLucIII = () => {
-    if (!selectedCatalogId) return
-    const stored = tryExportPl3FromStorage(selectedCatalogId)
-    if (stored) {
-      exportPhuLucIIIMutation.mutate(stored)
-      return
-    }
-    setPl3DialogInitialExport(true)
-    setPl3DialogOpen(true)
-  }
-
   const catalogs = catalogList?.items ?? []
   const catalogGroups = useMemo(
     () =>
@@ -663,7 +634,7 @@ export function ArchiveDisposalProposalPage() {
     canReadDisposal &&
     Boolean(selectedCatalogId) &&
     (catalogDetail?.items.length ?? 0) > 0 &&
-    isPendingReview &&
+    (isPendingReview || isAwaitingFeedback) &&
     Boolean(viewedCouncilId) &&
     Boolean(evaluationProgress?.isComplete) &&
     !hasPendingChairDecisions
@@ -691,7 +662,7 @@ export function ArchiveDisposalProposalPage() {
   const canShowViewCouncil =
     Boolean(selectedCatalogId) &&
     !canEditDraft &&
-    isPendingReview &&
+    (isPendingReview || isAwaitingFeedback) &&
     canReadCouncil &&
     Boolean(viewedCouncilId)
 
@@ -916,30 +887,13 @@ export function ArchiveDisposalProposalPage() {
               ) : null}
 
               {canShowAppendixExport ? (
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={exportPhuLucIIMutation.isPending || exportPhuLucIIIMutation.isPending}
-                    onClick={() => exportPhuLucIIMutation.mutate()}
-                  >
-                    {exportPhuLucIIMutation.isPending ? (
-                      <Loader2 className="mr-2 size-4 animate-spin" />
-                    ) : null}
-                    {t('proposal.exportPhuLucII')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={exportPhuLucIIMutation.isPending || exportPhuLucIIIMutation.isPending}
-                    onClick={handleExportPhuLucIII}
-                  >
-                    {exportPhuLucIIIMutation.isPending ? (
-                      <Loader2 className="mr-2 size-4 animate-spin" />
-                    ) : null}
-                    {t('proposal.exportPhuLucIII')}
-                  </Button>
-                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setAppraisalExportOpen(true)}
+                >
+                  {t('appraisalExport.openPanel')}
+                </Button>
               ) : null}
 
               {showCouncilEvaluationUi && evaluationProgress ? (
@@ -1297,13 +1251,14 @@ export function ArchiveDisposalProposalPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <DisposalAppendixPl3Dialog
-        open={pl3DialogOpen}
-        onOpenChange={setPl3DialogOpen}
-        catalogId={selectedCatalogId ?? ''}
-        canEdit={isPendingReview}
-        initialExport={pl3DialogInitialExport}
-      />
+      {selectedCatalogId ? (
+        <DisposalAppraisalExportPanel
+          open={appraisalExportOpen}
+          onOpenChange={setAppraisalExportOpen}
+          catalogId={selectedCatalogId}
+          canEditPl3={isPendingReview}
+        />
+      ) : null}
 
       <DisposalCouncilCreateDialog
         open={createCouncilOpen}
