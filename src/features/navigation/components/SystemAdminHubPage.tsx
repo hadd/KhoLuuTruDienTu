@@ -19,7 +19,14 @@ import {
 import { profileQueryOptions } from '@/features/auth/queries'
 import { GENERAL_CATALOG_SCREEN_REQUIREMENTS } from '@/features/general-catalog/lib/generalCatalogAccess'
 import type { AppScreenTo } from '@/features/navigation/config/appNav'
-import { IconHubPageLayout } from '@/features/navigation/components/IconHubPageLayout'
+import {
+  IconHubPageLayout,
+  iconHubTileGridGapClassName,
+  iconHubTileIconClassName,
+  iconHubTileIconWrapClassName,
+  iconHubTileLabelClassName,
+  iconHubTileLinkClassName,
+} from '@/features/navigation/components/IconHubPageLayout'
 import { getVisibleDataConfigNavItemDefs } from '@/features/navigation/config/dataConfigNavItems'
 import {
   permissionsCatalogQueryOptions,
@@ -131,15 +138,21 @@ export function SystemAdminHubPage() {
   }
 
   return (
-    <IconHubPageLayout title={t('admin.groups.systemAdmin')}>
+    <IconHubPageLayout
+      title={t('admin.groups.systemAdmin')}
+      maxWidth={tiles.length <= 2 ? 'max-w-3xl' : 'max-w-6xl'}
+    >
       <div
         className={cn(
-          'grid w-full gap-8 sm:gap-10',
+          'grid w-full',
+          iconHubTileGridGapClassName,
           tiles.length === 1
             ? 'max-w-xs grid-cols-1'
             : tiles.length === 2
               ? 'max-w-xl grid-cols-1 sm:grid-cols-2'
-              : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+              : tiles.length === 3
+                ? 'grid-cols-1 sm:grid-cols-3'
+                : 'grid-cols-2 sm:grid-cols-4',
         )}
       >
         {tiles.map((tile) => {
@@ -148,18 +161,16 @@ export function SystemAdminHubPage() {
             <Link
               key={tile.id}
               to={tile.to}
-              className="group flex flex-col items-center gap-4 outline-none focus-visible:rounded-2xl focus-visible:ring-2 focus-visible:ring-ring"
+              className={iconHubTileLinkClassName}
             >
-              <span className="flex size-36 items-center justify-center rounded-[2rem] bg-primary/10 text-primary transition-colors group-hover:bg-primary/15 sm:size-44">
+              <span className={iconHubTileIconWrapClassName}>
                 <Icon
-                  className="size-16 sm:size-20"
+                  className={iconHubTileIconClassName}
                   strokeWidth={1.5}
                   aria-hidden
                 />
               </span>
-              <span className="text-center text-lg font-medium text-foreground transition-colors group-hover:text-primary sm:text-xl">
-                {tile.label}
-              </span>
+              <span className={iconHubTileLabelClassName}>{tile.label}</span>
             </Link>
           )
         })}

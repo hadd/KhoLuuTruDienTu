@@ -20,6 +20,23 @@ declare module '@tanstack/react-router' {
   }
 
   interface StaticDataRouteOption {
-    crumb?: string | ((data: any) => string)
+    crumb?:
+      | string
+      | ((data: any) => string)
+      | ((data: any) => {
+          label: string
+          to?: string
+          search?: Record<string, unknown>
+          parent?: {
+            label: string
+            to: string
+            search?: Record<string, unknown>
+          }
+          parents?: Array<{
+            label: string
+            to: string
+            search?: Record<string, unknown>
+          }>
+        })
   }
 }

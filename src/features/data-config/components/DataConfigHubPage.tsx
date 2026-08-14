@@ -24,7 +24,15 @@ import {
   getVisibleDataConfigNavItemDefs,
   type DataConfigNavItemId,
 } from '@/features/navigation/config/dataConfigNavItems'
-import { IconHubPageLayout } from '@/features/navigation/components/IconHubPageLayout'
+import {
+  IconHubPageLayout,
+  iconHubNestedTileGridClassName,
+  iconHubNestedTileGridGapClassName,
+  iconHubNestedTileIconClassName,
+  iconHubNestedTileIconWrapClassName,
+  iconHubNestedTileLabelClassName,
+  iconHubNestedTileLinkClassName,
+} from '@/features/navigation/components/IconHubPageLayout'
 import { cn } from '@/lib/utils/cn'
 import {
   permissionsCatalogQueryOptions,
@@ -108,7 +116,7 @@ export function DataConfigHubPage() {
   return (
     <IconHubPageLayout
       title={tCommon('admin.dataConfig.title')}
-      maxWidth="max-w-5xl"
+      maxWidth="max-w-6xl"
       back={{
         to: '/app/system-admin',
         parentLabel: tCommon('admin.groups.systemAdmin'),
@@ -119,10 +127,8 @@ export function DataConfigHubPage() {
     >
       <div
         className={cn(
-          'grid w-full gap-8 sm:gap-10',
-          tiles.length <= 2
-            ? 'max-w-xl grid-cols-1 sm:grid-cols-2'
-            : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4',
+          iconHubNestedTileGridClassName,
+          iconHubNestedTileGridGapClassName,
         )}
       >
         {tiles.map((tile) => {
@@ -131,16 +137,16 @@ export function DataConfigHubPage() {
             <Link
               key={tile.id}
               to={tile.to}
-              className="group flex flex-col items-center gap-4 outline-none focus-visible:rounded-2xl focus-visible:ring-2 focus-visible:ring-ring"
+              className={iconHubNestedTileLinkClassName}
             >
-              <span className="flex size-36 items-center justify-center rounded-[2rem] bg-primary/10 text-primary transition-colors group-hover:bg-primary/15 sm:size-44">
+              <span className={iconHubNestedTileIconWrapClassName}>
                 <Icon
-                  className="size-16 sm:size-20"
+                  className={iconHubNestedTileIconClassName}
                   strokeWidth={1.5}
                   aria-hidden
                 />
               </span>
-              <span className="text-center text-base font-medium leading-snug text-foreground transition-colors group-hover:text-primary sm:text-lg">
+              <span className={iconHubNestedTileLabelClassName}>
                 {tile.label}
               </span>
             </Link>

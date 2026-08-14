@@ -17,6 +17,7 @@ import { ItemDeleteDialog } from '@/features/physical-warehouse/components/ItemD
 import type { ItemFormMode } from '@/features/physical-warehouse/components/ItemFormDialog'
 import { ItemFormDialog } from '@/features/physical-warehouse/components/ItemFormDialog'
 import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
+import { normalizeItemNameForCompare } from '@/features/physical-warehouse/lib/normalizeItemName'
 import { physicalWarehouseItemsQueryOptions } from '@/features/physical-warehouse/queries'
 import type { PhysicalWarehouseItemT } from '@/features/physical-warehouse/types'
 
@@ -211,11 +212,11 @@ export function WarehouseManageTable({
             mode={mode}
             item={selected}
             isNameTaken={(name) => {
-              const normalized = name.trim().toLowerCase()
+              const normalized = normalizeItemNameForCompare(name)
               return warehouses.some(
                 (warehouse) =>
                   warehouse.id !== selected?.id &&
-                  warehouse.name.trim().toLowerCase() === normalized,
+                  normalizeItemNameForCompare(warehouse.name) === normalized,
               )
             }}
           />

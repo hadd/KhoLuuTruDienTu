@@ -116,6 +116,13 @@ export type PhysicalItemPlacementRowT = {
   dossierName: string
   folderPath: string | null
   dossierStatus: string
+  /**
+   * Số văn bản (documents) hiện có trong hồ sơ này — tương ứng
+   * ArchiveWarehouseDossierItemT.documentCount bên archive-warehouse.
+   * Backend cần JOIN/COUNT documents theo dossierId khi trả về danh sách
+   * placements (GET /api/v1/physical-warehouse/placements).
+   */
+  documentCount: number
 }
 
 export async function getPlacementsByPhysicalItem(

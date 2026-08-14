@@ -11,11 +11,32 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
+import {
+  GENERAL_CATALOG_HUB_PATH,
+  getGeneralCatalogHubLabel,
+  getGeneralCatalogLeafLabel,
+  isGeneralCatalogChildPath,
+} from '@/features/general-catalog/lib/generalCatalogBreadcrumb'
 import { findActiveNavTrail } from '@/features/navigation/config/appNavTree'
 import {
   getHubTabBreadcrumb,
   normalizeAppPath,
 } from '@/features/navigation/lib/hubTabBreadcrumb'
+
+type CrumbParent = {
+  label: string
+  to: string
+  search?: Record<string, unknown>
+}
+
+type DisplayCrumb = {
+  id: string
+  label: string
+  path: string
+  search?: Record<string, unknown>
+  icon?: ReactNode
+  parents: Array<CrumbParent>
+}
 
 export function AppBreadcrumb() {
   const matches = useMatches()
@@ -54,7 +75,7 @@ export function AppBreadcrumb() {
             id: match.id,
             label: translateLabel(crumbResult),
             path: match.pathname,
-            parents: [],
+            parents: [] as Array<CrumbParent>,
           },
         }
       }
@@ -64,16 +85,8 @@ export function AppBreadcrumb() {
         icon?: ReactNode
         to?: string
         search?: Record<string, unknown>
-        parent?: {
-          label: string
-          to: string
-          search?: Record<string, unknown>
-        }
-        parents?: Array<{
-          label: string
-          to: string
-          search?: Record<string, unknown>
-        }>
+        parent?: CrumbParent
+        parents?: Array<CrumbParent>
       }
 
       const parents = objectCrumb.parents
@@ -144,7 +157,7 @@ export function AppBreadcrumb() {
     ]),
   )
 
-  let displayCrumbs =
+  let displayCrumbs: Array<DisplayCrumb> =
     crumbs.length > 0
       ? crumbs
       : navLinkLabel
@@ -153,11 +166,7 @@ export function AppBreadcrumb() {
               id: 'nav-current',
               label: navLinkLabel,
               path: navTrail?.link.to ?? pathname,
-              parents: [] as Array<{
-                label: string
-                to: string
-                search?: Record<string, unknown>
-              }>,
+              parents: [],
             },
           ]
         : []
@@ -180,20 +189,45 @@ export function AppBreadcrumb() {
     ]
   }
 
-  const extraCrumbs = getHubTabBreadcrumb(pathname, search)
-  for (const [index, tabCrumb] of extraCrumbs.entries()) {
-    if (displayCrumbs.some((crumb) => crumb.label === tabCrumb.label)) {
-      continue
-    }
+  const catalogHubLabel = getGeneralCatalogHubLabel()
+  const catalogLeafLabel = getGeneralCatalogLeafLabel(currentPath)
+  if (isGeneralCatalogChildPath(currentPath) && catalogLeafLabel) {
+    const leading = displayCrumbs.filter(
+      (crumb) =>
+        crumb.id === 'nav-hub' ||
+        (navLinkLabel != null && crumb.label === navLinkLabel),
+    )
     displayCrumbs = [
-      ...displayCrumbs,
+      ...leading,
       {
-        id: `hub-tab-${index}`,
-        label: tabCrumb.label,
+        id: 'general-catalog-hub',
+        label: catalogHubLabel,
+        path: GENERAL_CATALOG_HUB_PATH,
+        parents: [],
+      },
+      {
+        id: 'general-catalog-leaf',
+        label: catalogLeafLabel,
         path: pathname,
         parents: [],
       },
     ]
+  } else {
+    const extraCrumbs = getHubTabBreadcrumb(pathname, search)
+    for (const [index, tabCrumb] of extraCrumbs.entries()) {
+      if (displayCrumbs.some((crumb) => crumb.label === tabCrumb.label)) {
+        continue
+      }
+      displayCrumbs = [
+        ...displayCrumbs,
+        {
+          id: `hub-tab-${index}`,
+          label: tabCrumb.label,
+          path: pathname,
+          parents: [],
+        },
+      ]
+    }
   }
 
   const showGroupParent =
@@ -219,16 +253,7 @@ export function AppBreadcrumb() {
 
         {displayCrumbs.map((crumb, index) => {
           const isLast = index === displayCrumbs.length - 1
-          const parents =
-            (
-              crumb as {
-                parents?: Array<{
-                  label: string
-                  to: string
-                  search?: Record<string, unknown>
-                }>
-              }
-            ).parents || []
+          const parents = crumb.parents || []
 
           return (
             <Fragment key={crumb.id}>
@@ -247,7 +272,7 @@ export function AppBreadcrumb() {
               <BreadcrumbItem className={isLast ? 'min-w-0' : 'shrink-0'}>
                 {isLast ? (
                   <BreadcrumbPage className="flex items-center gap-1.5 truncate font-semibold text-foreground">
-                    {(crumb as { icon?: ReactNode }).icon}
+                    {crumb.icon}
                     {crumb.label}
                   </BreadcrumbPage>
                 ) : (
@@ -257,7 +282,7 @@ export function AppBreadcrumb() {
                       search={crumb.search}
                       className="flex items-center gap-1.5"
                     >
-                      {(crumb as { icon?: ReactNode }).icon}
+                      {crumb.icon}
                       {crumb.label}
                     </Link>
                   </BreadcrumbLink>

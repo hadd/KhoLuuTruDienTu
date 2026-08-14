@@ -20,6 +20,7 @@ import {
   assignDossierEditor,
   deleteDataNode,
   fetchDossierMetadataHistory,
+  fetchDossierWorkflowAssignments,
   getDataTree,
   loadNodeChildren,
   refreshDossierContent,
@@ -177,6 +178,17 @@ export const dossierMetadataHistoryQueryOptions = (dossierId: string) =>
   queryOptions({
     queryKey: dossierMetadataHistoryQueryKey(dossierId),
     queryFn: () => fetchDossierMetadataHistory(dossierId),
+    staleTime: 30_000,
+    enabled: Boolean(dossierId.trim()),
+  })
+
+export const dossierWorkflowAssignmentsQueryKey = (dossierId: string) =>
+  ['data-management', 'dossier-workflow-assignments', dossierId] as const
+
+export const dossierWorkflowAssignmentsQueryOptions = (dossierId: string) =>
+  queryOptions({
+    queryKey: dossierWorkflowAssignmentsQueryKey(dossierId),
+    queryFn: () => fetchDossierWorkflowAssignments(dossierId),
     staleTime: 30_000,
     enabled: Boolean(dossierId.trim()),
   })

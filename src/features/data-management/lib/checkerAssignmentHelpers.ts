@@ -178,6 +178,40 @@ export function getActiveCheckerLevel(
   return getCheckerLevelForDossierStatus(dossierStatus)
 }
 
+const WORKABLE_CHECKER_ASSIGNMENT = new Set(['IN_PROGRESS', 'DRAFT'])
+
+/** Checker level the current user may approve, if it matches the dossier QC step. */
+export function resolveCurrentUserCheckerLevel(input: {
+  dossierStatus?: DataDossierStatus
+  userId?: string | null
+  assignedCheckerLevel?: number
+  assignments?: Array<{
+    role: string
+    status: string
+    assignee: { id: string }
+  }>
+}): number | null {
+  const statusLevel = getCheckerLevelForDossierStatus(input.dossierStatus)
+  if (statusLevel == null) return null
+
+  if (
+    input.assignedCheckerLevel != null &&
+    input.assignedCheckerLevel === statusLevel
+  ) {
+    return input.assignedCheckerLevel
+  }
+
+  if (!input.userId?.trim() || !input.assignments?.length) return null
+
+  const expectedRole = `CHECKER_${statusLevel}`
+  const match = input.assignments.find((item) => {
+    if (String(item.role).toUpperCase() !== expectedRole) return false
+    if (item.assignee.id !== input.userId) return false
+    return WORKABLE_CHECKER_ASSIGNMENT.has(String(item.status))
+  })
+  return match ? statusLevel : null
+}
+
 export function buildLevelUserIdsFromGroup(
   group: Group,
 ): Record<number, Array<string>> {

@@ -170,7 +170,7 @@ export function InventoryManagementPage() {
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <Table className="w-full min-w-[1080px] table-fixed">
+            <Table className="w-full table-fixed" containerClassName="overflow-x-hidden">
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="w-[10%]">{t('table.columns.id')}</TableHead>

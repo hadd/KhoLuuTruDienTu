@@ -142,7 +142,7 @@ export function ArchiveFondManagementPage() {
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-          <Table className="w-full min-w-[960px] table-fixed">
+          <Table className="w-full table-fixed" containerClassName="overflow-x-hidden">
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="w-[8%]">
@@ -151,22 +151,22 @@ export function ArchiveFondManagementPage() {
                 <TableHead className="w-[18%]">
                   {t('table.columns.fondName')}
                 </TableHead>
-                <TableHead className="w-[20%]">
+                <TableHead className="w-[18%]">
                   {t('table.columns.archiveAgency')}
                 </TableHead>
                 <TableHead className="w-[18%]">
                   {t('table.columns.adminstrativeHistory')}
                 </TableHead>
-                <TableHead className="w-[14%]">
+                <TableHead className="w-[12%]">
                   {t('table.columns.fondType')}
                 </TableHead>
-                <TableHead className="w-[10%] text-left">
+                <TableHead className="w-[10%] text-center">
                   {t('table.columns.dossierCount')}
                 </TableHead>
-                <TableHead className="w-[10%] text-center">
+                <TableHead className="w-[8%] text-center">
                   {t('table.columns.active')}
                 </TableHead>
-                <TableHead className="w-16 text-center">
+                <TableHead className="w-[8%] text-center">
                   {t('table.columns.actions')}
                 </TableHead>
               </TableRow>
@@ -187,24 +187,24 @@ export function ArchiveFondManagementPage() {
                     key={fond.id}
                     className={!fond.isActive ? 'opacity-50 grayscale transition-opacity' : 'transition-opacity'}
                   >
-                    <TableCell className="align-top font-medium">
+                    <TableCell className="align-top whitespace-normal font-medium">
                       <div className="break-words">{fond.id}</div>
                     </TableCell>
-                    <TableCell className="align-top">
+                    <TableCell className="align-top whitespace-normal">
                       <div className="break-words whitespace-pre-wrap">{fond.fondName}</div>
                     </TableCell>
-                    <TableCell className="align-top">
+                    <TableCell className="align-top whitespace-normal">
                       <div className="break-words whitespace-pre-wrap">{fond.archiveAgency}</div>
                     </TableCell>
-                    <TableCell className="align-top">
+                    <TableCell className="align-top whitespace-normal">
                       <div className="break-words whitespace-pre-wrap">
                         {fond.adminstrativeHistory}
                       </div>
                     </TableCell>
-                    <TableCell className="align-top">
+                    <TableCell className="align-top whitespace-normal">
                       <div className="break-words whitespace-pre-wrap">{fond.fondType}</div>
                     </TableCell>
-                    <TableCell className="align-top text-center pr-[3%] tabular-nums">
+                    <TableCell className="align-top text-center tabular-nums">
                       {formatNumber(fond.dossierCount)}
                     </TableCell>
                     <TableCell className="align-top">

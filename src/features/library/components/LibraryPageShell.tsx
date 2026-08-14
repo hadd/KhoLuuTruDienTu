@@ -117,7 +117,8 @@ export function LibraryPageShell({
 
       <div
         className={cn(
-          'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pt-4',
+          'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
+          !hideTabs && 'pt-4',
           contentClassName,
         )}
       >

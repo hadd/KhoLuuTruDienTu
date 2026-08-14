@@ -9,6 +9,14 @@ import { useArchiveSubmissionAccess } from '@/features/archive-submission/hooks/
 import { useArchiveWarehouseAccess } from '@/features/archive-warehouse/hooks/useArchiveWarehouseAccess'
 import { getPrimaryAppRole } from '@/features/auth/constants'
 import { getUserRoles } from '@/features/auth/store'
+import {
+  IconHubPageLayout,
+  iconHubTileGridGapClassName,
+  iconHubTileIconClassName,
+  iconHubTileIconWrapClassName,
+  iconHubTileLabelClassName,
+  iconHubTileLinkClassName,
+} from '@/features/navigation/components/IconHubPageLayout'
 import { usePhysicalWarehouseAccess } from '@/features/physical-warehouse/hooks/usePhysicalWarehouseAccess'
 import { cn } from '@/lib/utils/cn'
 
@@ -68,43 +76,36 @@ export function WarehouseManagementPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center px-6 pt-10 pb-16 sm:pt-14">
-      <div className="flex w-full max-w-3xl flex-col items-center gap-10 sm:gap-12">
-        <h1 className="text-2xl font-bold uppercase tracking-[0.06em] text-primary sm:text-[1.75rem]">
-          {t('title')}
-        </h1>
-
-        <div
-          className={cn(
-            'grid w-full gap-8 sm:gap-10',
-            tiles.length === 1
-              ? 'max-w-xs grid-cols-1'
-              : 'grid-cols-1 sm:grid-cols-2',
-          )}
-        >
-          {tiles.map((tile) => {
-            const Icon = tile.icon
-            return (
-              <Link
-                key={tile.id}
-                to={tile.to}
-                className="group flex flex-col items-center gap-4 outline-none focus-visible:rounded-2xl focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span className="flex size-36 items-center justify-center rounded-[2rem] bg-primary/10 text-primary transition-colors group-hover:bg-primary/15 sm:size-44">
-                  <Icon
-                    className="size-16 sm:size-20"
-                    strokeWidth={1.5}
-                    aria-hidden
-                  />
-                </span>
-                <span className="text-center text-lg font-medium text-foreground transition-colors group-hover:text-primary sm:text-xl">
-                  {tile.label}
-                </span>
-              </Link>
-            )
-          })}
-        </div>
+    <IconHubPageLayout title={t('title')} maxWidth="max-w-3xl">
+      <div
+        className={cn(
+          'grid w-full',
+          iconHubTileGridGapClassName,
+          tiles.length === 1
+            ? 'max-w-xs grid-cols-1'
+            : 'grid-cols-1 sm:grid-cols-2',
+        )}
+      >
+        {tiles.map((tile) => {
+          const Icon = tile.icon
+          return (
+            <Link
+              key={tile.id}
+              to={tile.to}
+              className={iconHubTileLinkClassName}
+            >
+              <span className={iconHubTileIconWrapClassName}>
+                <Icon
+                  className={iconHubTileIconClassName}
+                  strokeWidth={1.5}
+                  aria-hidden
+                />
+              </span>
+              <span className={iconHubTileLabelClassName}>{tile.label}</span>
+            </Link>
+          )
+        })}
       </div>
-    </div>
+    </IconHubPageLayout>
   )
 }

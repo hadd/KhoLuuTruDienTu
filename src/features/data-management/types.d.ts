@@ -136,6 +136,64 @@ export interface DataMetadataHistoryRestoreResultT {
   s3Key: string
 }
 
+/** GET /api/v1/dossiers/:id/assignments — workflow assignment chain */
+export type DataAssignmentStatusT =
+  | 'IN_PROGRESS'
+  | 'DRAFT'
+  | 'COMPLETED'
+  | 'REJECTED'
+  | 'TRANSFERRED'
+
+export type DataWorkerRoleT =
+  | 'MAKER'
+  | 'CHECKER_1'
+  | 'CHECKER_2'
+  | 'CHECKER_3'
+  | 'CHECKER_4'
+  | 'CHECKER_5'
+
+export interface DataDossierAssignmentItemT {
+  id: string
+  role: DataWorkerRoleT | string
+  status: DataAssignmentStatusT | string
+  workQuality?: string | null
+  attemptNumber: number
+  stepNumber: number
+  assignedAt: string
+  completedAt: string | null
+  assignee: {
+    id: string
+    fullName: string | null
+    email: string | null
+  }
+}
+
+export interface DataDossierWorkflowAssignmentsT {
+  dossierId: string
+  name: string
+  status: DataDossierStatus | string
+  requiredQcCount: number
+  currentQcStep: number
+  assignments: Array<DataDossierAssignmentItemT>
+  totalAssignments: number
+}
+
+/** Step state for the Luồng duyệt UI */
+export type DataWorkflowStepPhaseT =
+  | 'pending'
+  | 'current'
+  | 'completed'
+  | 'rejected'
+
+export interface DataWorkflowStepT {
+  key: string
+  kind: 'maker' | 'checker' | 'approved'
+  level?: number
+  role?: DataWorkerRoleT | string
+  phase: DataWorkflowStepPhaseT
+  assignees: Array<{ id: string; name: string; status: string }>
+}
+
 export interface DataMetadataEditFieldChangeT {
   id: string
   groupIndex: number
