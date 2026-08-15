@@ -27,6 +27,8 @@ describe('disposal council permissions', () => {
     expect(hasDisposalSettingsReadPermission(['archive.disposal.settings.read'])).toBe(
       true,
     )
+    expect(hasDisposalSettingsReadPermission(['archive.warehouse.read'])).toBe(true)
+    expect(hasDisposalSettingsReadPermission(['archive.disposal.read'])).toBe(true)
     expect(
       hasDisposalSettingsUpdatePermission(['archive.disposal.settings.update']),
     ).toBe(true)

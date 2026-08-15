@@ -83,6 +83,7 @@ export function AppShell() {
       '/app/data',
       '/app/dossiers',
       '/app/ocr-control',
+      '/app/permissions/function-matrix',
     ]
     const isDigitizationSubPage = digitizationPaths.some(
       (route) =>

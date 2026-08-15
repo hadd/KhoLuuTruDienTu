@@ -598,14 +598,14 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
             metadata,
           )
           if (
-            role === 'editor' &&
             !isDraft &&
             result &&
             typeof result === 'object' &&
-            'dossierStatus' in result
+            'dossierStatus' in result &&
+            typeof result.dossierStatus === 'string'
           ) {
             nextTree = updateDossierWorkflowStateInTree(nextTree, dossierId, {
-              dossierStatus: result.dossierStatus,
+              dossierStatus: result.dossierStatus as DataTreeNodeT['dossierStatus'],
               assignmentStatus: 'COMPLETED',
             })
           }

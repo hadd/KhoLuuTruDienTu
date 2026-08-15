@@ -52,7 +52,7 @@ import {
   fetchDossierTargetByFolderId,
 } from '@/features/data-management/api/dataManagementClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
-import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
+import { useDataManagementResolvedPermissions } from '@/features/data-management/hooks/useDataManagementRole'
 import type { DataDeleteTargetT } from '@/features/data-management/lib/treeUtils'
 import {
   findDescendantDossierTarget,
@@ -202,7 +202,7 @@ export function DataNodeActionDialogs({
   const { t } = useTranslation('data-management')
   const { t: tCommon } = useTranslation('common')
   const queryClient = useQueryClient()
-  const permissions = getPermissionsByRole(role)
+  const permissions = useDataManagementResolvedPermissions()
   const [name, setName] = useState('')
   const [selectedProjectCode, setSelectedProjectCode] = useState('')
   const { data: groupsData } = useQuery({

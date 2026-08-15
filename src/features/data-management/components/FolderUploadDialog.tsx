@@ -536,9 +536,9 @@ export function FolderUploadDialog({
                 {progress.phase === 'preparing'
                   ? t('upload.progress.preparing')
                   : t('upload.progress.uploading', {
-                      completed: progress.completed,
-                      total: progress.total,
-                    })}
+                    completed: progress.completed,
+                    total: progress.total,
+                  })}
               </p>
               <ProgressBar value={progress.completed} max={progress.total} />
               {progress.currentFile && (
@@ -634,10 +634,10 @@ export function FolderUploadDialog({
             )}
             {(state.phase === 'partial_error' ||
               state.phase === 'validation_error') && (
-              <Button type="button" variant="outline" onClick={resetAndClose}>
-                {tCommon('common.close')}
-              </Button>
-            )}
+                <Button type="button" variant="outline" onClick={resetAndClose}>
+                  {tCommon('common.close')}
+                </Button>
+              )}
             {state.phase === 'partial_error' && (
               <Button
                 type="button"

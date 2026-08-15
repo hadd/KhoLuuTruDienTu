@@ -121,10 +121,12 @@ export function canManageDossierMetadata({
   role,
   dossierStatus,
   baseCanManage,
+  canDirectApprove = false,
 }: {
   role: DataManagementRole
   dossierStatus?: DataDossierStatus
   baseCanManage: boolean
+  canDirectApprove?: boolean
 }): boolean {
   if (!baseCanManage) return false
   if (isDossierMetadataLocked(dossierStatus)) return false
@@ -133,6 +135,7 @@ export function canManageDossierMetadata({
   const checkerLevel = getCheckerLevelForDossierStatus(dossierStatus)
   if (checkerLevel == null) return false
 
+  if (canDirectApprove) return true
   return canCheckerEditDossier(dossierStatus, checkerLevel)
 }
 
@@ -141,16 +144,19 @@ export function canEditRecordSummaryFields({
   dossierStatus,
   managementRole,
   assignedCheckerLevel,
+  canDirectApprove = false,
 }: {
   permissions: Array<string>
   dossierStatus?: DataDossierStatus
   managementRole: DataManagementRole
   assignedCheckerLevel?: number
+  canDirectApprove?: boolean
 }): boolean {
   if (!canEditDossierMetadataSummary(permissions)) return false
   if (isDossierMetadataLocked(dossierStatus)) return false
 
   if (managementRole === 'qc') {
+    if (canDirectApprove) return true
     if (assignedCheckerLevel == null) return false
     return canCheckerEditDossier(dossierStatus, assignedCheckerLevel)
   }

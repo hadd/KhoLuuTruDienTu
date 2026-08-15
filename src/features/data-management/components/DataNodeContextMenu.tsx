@@ -30,7 +30,8 @@ import {
   canShowSubmitArchiveAction,
   isDossierWorkflowNode,
 } from '@/features/data-management/lib/treeUtils'
-import type { DataTreeNodeT } from '@/features/data-management/types'
+import { useRoleAccess } from '@/features/permissions/hooks/useRoleAccess'
+import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 import { cn } from '@/lib/utils/cn'
 
 export function DataNodeContextMenu({
@@ -110,68 +111,75 @@ export function DataNodeContextMenu({
 
   const baseItems: Array<{
     key:
-      | DataNodeActionDialogMode
-      | 'viewInfo'
-      | 'exportExcel'
-      | 'uploadDossier'
-      | 'uploadDocument'
-      | 'submitArchive'
+    | DataNodeActionDialogMode
+    | 'viewInfo'
+    | 'exportExcel'
+    | 'uploadDossier'
+    | 'uploadDocument'
+    | 'submitArchive'
     label: string
     icon: React.ComponentType<{ className?: string }>
     variant?: 'destructive'
     hidden?: boolean
   }> = [
-    { key: 'viewInfo', label: t('contextMenu.viewInfo'), icon: Eye },
-    {
-      key: 'exportExcel',
-      label: t('contextMenu.exportExcel'),
-      icon: FileDown,
-    },
-    { key: 'rename', label: t('contextMenu.edit'), icon: Edit3 },
-    {
-      key: 'assignProject',
-      label: t('contextMenu.assignProject'),
-      icon: FolderKanban,
-    },
-    {
-      key: 'submitArchive',
-      label: t('contextMenu.submitArchive'),
-      icon: Package,
-    },
-    {
-      key: 'uploadDocument',
-      label: t('contextMenu.uploadDocument'),
-      icon: Upload,
-    },
-    {
-      key: 'uploadDossier',
-      label: t('contextMenu.uploadDossier'),
-      icon: Upload,
-    },
-    {
-      key: 'assignEditor',
-      label: t('contextMenu.assignEditor'),
-      icon: PenLine,
-    },
-    { key: 'assign', label: t('contextMenu.assign'), icon: UserPlus },
-    {
-      key: 'revokeAssignments',
-      label: t('contextMenu.revokeAssignments'),
-      icon: Undo2,
-    },
-    {
-      key: 'delete',
-      label: t('contextMenu.delete'),
-      icon: Trash2,
-      variant: 'destructive',
-    },
-  ]
+      { key: 'viewInfo', label: t('contextMenu.viewInfo'), icon: Eye },
+      {
+        key: 'exportExcel',
+        label: t('contextMenu.exportExcel'),
+        icon: FileDown,
+      },
+      { key: 'rename', label: t('contextMenu.edit'), icon: Edit3 },
+      {
+        key: 'assignProject',
+        label: t('contextMenu.assignProject'),
+        icon: FolderKanban,
+      },
+      {
+        key: 'submitArchive',
+        label: t('contextMenu.submitArchive'),
+        icon: Package,
+      },
+      {
+        key: 'uploadDocument',
+        label: t('contextMenu.uploadDocument'),
+        icon: Upload,
+      },
+      {
+        key: 'uploadDossier',
+        label: t('contextMenu.uploadDossier'),
+        icon: Upload,
+      },
+      {
+        key: 'assignEditor',
+        label: t('contextMenu.assignEditor'),
+        icon: PenLine,
+      },
+      { key: 'assign', label: t('contextMenu.assign'), icon: UserPlus },
+      {
+        key: 'revokeAssignments',
+        label: t('contextMenu.revokeAssignments'),
+        icon: Undo2,
+      },
+      {
+        key: 'delete',
+        label: t('contextMenu.delete'),
+        icon: Trash2,
+        variant: 'destructive',
+      },
+    ]
+
+  const { permissions: userPermissions } = useRoleAccess()
+  const canExportDossiers = isPermissionGranted(
+    userPermissions,
+    'dossiers.export',
+    'dossiers',
+  )
 
   const visibleItems = baseItems.filter((item) => {
     if (item.key === 'viewInfo') return true
 
     if (item.key === 'exportExcel') {
-      return canExportNode(node)
+      return canExportDossiers && canExportNode(node)
     }
 
     if (item.key === 'uploadDossier') {
@@ -204,7 +212,7 @@ export function DataNodeContextMenu({
       return canShowRenameAction(node)
     }
     if (item.key === 'assignProject') {
-      if (!permissions.canRename) return false
+      if (!permissions.canAssignProject) return false
       return canShowAssignProjectAction(node)
     }
     if (item.key === 'submitArchive') {
@@ -269,7 +277,7 @@ export function DataNodeContextMenu({
               className={cn(
                 'w-full justify-start gap-2 px-2 py-1.5 text-sm',
                 item.variant === 'destructive' &&
-                  'text-destructive hover:text-destructive',
+                'text-destructive hover:text-destructive',
               )}
               onClick={() => {
                 if (item.key === 'viewInfo') {

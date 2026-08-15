@@ -25,14 +25,51 @@ export function groupCatalogByModule(
   return grouped
 }
 
+const MAJOR_MODULE_ORDER = [
+  // 1. Tổng quan
+  'dashboard',
+
+  // 2. Số hóa
+  'projects',
+  'project-plans',
+  'groups',
+  'scan-intake',
+  'data-entry',
+  'dossiers',
+  'folders',
+
+  // 3. Quản lý kho
+  'archive_warehouse',
+  'archive.warehouse',
+  'archive',
+  'physical-warehouse',
+  'archive.disposal',
+
+  // 4. Khai thác dữ liệu
+  'library',
+
+  // 5. Quản trị hệ thống
+  'users',
+  'roles',
+  'metadata',
+  'document-types',
+  'dossier-types',
+  'fonds',
+  'retention-periods',
+  'inventories',
+  'security-levels',
+  'audit_logs',
+  'watermark',
+  'notifications',
+]
+
 export function sortModulesForDisplay(modules: Array<string>): Array<string> {
   return [...modules].sort((a, b) => {
-    if (a === 'projects' && b === 'metadata') {
-      return -1
-    }
-    if (a === 'metadata' && b === 'projects') {
-      return 1
-    }
+    const idxA = MAJOR_MODULE_ORDER.indexOf(a)
+    const idxB = MAJOR_MODULE_ORDER.indexOf(b)
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB
+    if (idxA !== -1) return -1
+    if (idxB !== -1) return 1
     return a.localeCompare(b)
   })
 }

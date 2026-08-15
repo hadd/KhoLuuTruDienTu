@@ -4,18 +4,15 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { getModuleLabelFromCatalog } from '@/features/permissions/lib/moduleLabels'
+import {
+  collectModuleKeysFromSubGroup,
+  PERMISSION_HIERARCHY,
+} from '@/features/permissions/lib/permissionHierarchy'
 import {
   filterCatalogBySearch,
-  getModuleCheckState,
-  getModuleKeys,
-  groupCatalogByModule,
   hasFullAccess,
-  isModuleFullyGranted,
   isPermissionGranted,
-  setModuleGranted,
   setPermissionGranted,
-  sortModulesForDisplay,
 } from '@/features/permissions/lib/permissionRules'
 import { useUpdateRolePermissions } from '@/features/permissions/queries'
 import type {
@@ -56,36 +53,9 @@ export function RolePermissionEditor({
     [catalog, searchQuery],
   )
 
-  const modulesMap = useMemo(
-    () => groupCatalogByModule(filteredCatalog),
-    [filteredCatalog],
-  )
-
-  const modules = useMemo(
-    () => sortModulesForDisplay(Array.from(modulesMap.keys())),
-    [modulesMap],
-  )
-
   const permissions = rolePermissions?.rules.permissions ?? []
   const restrictions = rolePermissions?.rules.restrictions ?? []
   const isFullAccess = hasFullAccess(permissions)
-
-  const permissionRowsByModule = useMemo(() => {
-    const rowsMap = new Map<string, Array<Array<PermissionCatalogItemT>>>()
-
-    for (const module of modules) {
-      const moduleItems = modulesMap.get(module) ?? []
-      const rows: Array<Array<PermissionCatalogItemT>> = []
-
-      for (let index = 0; index < moduleItems.length; index += 2) {
-        rows.push(moduleItems.slice(index, index + 2))
-      }
-
-      rowsMap.set(module, rows)
-    }
-
-    return rowsMap
-  }, [modules, modulesMap])
 
   const savePermissions = (
     nextPermissions: Array<string>,
@@ -106,18 +76,46 @@ export function RolePermissionEditor({
     )
   }
 
-  const handleModuleToggle = (module: string, currentlyGranted: boolean) => {
-    if (!selectedRoleId) return
+  const handleToggleItems = (
+    items: PermissionCatalogItemT[],
+    currentlyGranted: boolean,
+    pendingId: string,
+  ) => {
+    if (!selectedRoleId || items.length === 0) return
 
-    const moduleKeys = getModuleKeys(catalog, module)
-    const nextPermissions = setModuleGranted(
-      permissions,
-      module,
-      moduleKeys,
-      !currentlyGranted,
-      catalog,
-    )
-    savePermissions(nextPermissions, `module:${module}`)
+    let nextPermissions = [...permissions]
+    for (const item of items) {
+      const isGranted = isPermissionGranted(nextPermissions, item.key, item.module)
+      if (currentlyGranted && isGranted) {
+        // Revoke
+        const moduleKeys = catalog
+          .filter((c) => c.module === item.module)
+          .map((c) => c.key)
+        nextPermissions = setPermissionGranted(
+          nextPermissions,
+          item.key,
+          item.module,
+          moduleKeys,
+          false,
+          catalog,
+        )
+      } else if (!currentlyGranted && !isGranted) {
+        // Grant
+        const moduleKeys = catalog
+          .filter((c) => c.module === item.module)
+          .map((c) => c.key)
+        nextPermissions = setPermissionGranted(
+          nextPermissions,
+          item.key,
+          item.module,
+          moduleKeys,
+          true,
+          catalog,
+        )
+      }
+    }
+
+    savePermissions(nextPermissions, pendingId)
   }
 
   const handlePermissionToggle = (
@@ -126,7 +124,9 @@ export function RolePermissionEditor({
   ) => {
     if (!selectedRoleId) return
 
-    const moduleKeys = getModuleKeys(catalog, item.module)
+    const moduleKeys = catalog
+      .filter((c) => c.module === item.module)
+      .map((c) => c.key)
     const nextPermissions = setPermissionGranted(
       permissions,
       item.key,
@@ -138,9 +138,21 @@ export function RolePermissionEditor({
     savePermissions(nextPermissions, `permission:${item.key}`)
   }
 
+  // Check state helper for a list of items
+  const getItemListCheckState = (items: PermissionCatalogItemT[]) => {
+    if (items.length === 0) return false
+    const grantedCount = items.filter((item) =>
+      isPermissionGranted(permissions, item.key, item.module),
+    ).length
+    if (grantedCount === 0) return false
+    if (grantedCount === items.length) return true
+    return 'indeterminate' as const
+  }
+
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden rounded-md border border-border">
-      <section className="flex w-52 shrink-0 flex-col border-r border-border bg-card">
+      {/* Sidebar: Role selection */}
+      <section className="flex w-56 shrink-0 flex-col border-r border-border bg-card">
         <div className="border-b border-border px-4 py-3">
           <h2 className="text-sm font-medium text-foreground">
             {t('matrix.columns.role')}
@@ -149,7 +161,8 @@ export function RolePermissionEditor({
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
           {roles.map((role) => {
             const isSelected = role.id === selectedRoleId
-            const canDelete = !role.isBaseRole && Boolean(onDeleteRole) && canManageRoles
+            const canDelete =
+              !role.isBaseRole && Boolean(onDeleteRole) && canManageRoles
 
             return (
               <div
@@ -165,11 +178,11 @@ export function RolePermissionEditor({
                   className={cn(
                     'flex min-w-0 flex-1 items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors',
                     isSelected
-                      ? 'text-accent-foreground'
+                      ? 'text-accent-foreground font-semibold'
                       : 'text-foreground hover:bg-accent/50',
                   )}
                 >
-                  <span className="truncate font-medium">
+                  <span className="truncate">
                     {getRoleLabel(role.id, role.name) ?? role.name}
                   </span>
                   {isSelected ? (
@@ -194,128 +207,219 @@ export function RolePermissionEditor({
         </div>
       </section>
 
+      {/* Main panel: Hierarchical matrix */}
       <section className="flex min-w-0 flex-1 flex-col bg-card">
-        <div className="shrink-0 border-b border-border px-4 py-3">
+        <div className="shrink-0 border-b border-border px-6 py-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-sm font-medium text-foreground">
               {t('matrix.columns.module')}
             </h2>
             {isFullAccess ? (
-              <span className="text-xs text-muted-foreground">
+              <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
                 {t('matrix.fullAccessBadge')}
               </span>
             ) : null}
           </div>
         </div>
+
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           {!selectedRoleId ? (
             <p className="text-sm text-muted-foreground">
               {t('matrix.selectRoleHint')}
             </p>
-          ) : modules.length === 0 ? (
+          ) : filteredCatalog.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {t('matrix.emptyPermissions')}
             </p>
           ) : (
-            <div className="flex flex-col divide-y divide-border">
-              {modules.map((module) => {
-                const moduleItems = modulesMap.get(module) ?? []
-                const moduleKeys = moduleItems.map((item) => item.key)
-                const checkState = getModuleCheckState(
-                  permissions,
-                  module,
-                  moduleKeys,
+            <div className="flex flex-col gap-8">
+              {PERMISSION_HIERARCHY.map((majorGroup) => {
+                // Collect all items in this major group from filteredCatalog
+                const majorModuleKeys = collectModuleKeysFromSubGroup({
+                  id: majorGroup.id,
+                  label: majorGroup.label,
+                  modules: majorGroup.subModules.flatMap((s) =>
+                    collectModuleKeysFromSubGroup(s),
+                  ),
+                })
+                const majorItems = filteredCatalog.filter((item) =>
+                  majorModuleKeys.includes(item.module),
                 )
-                const isFullyGranted = isModuleFullyGranted(
-                  permissions,
-                  module,
-                  moduleKeys,
-                )
-                const isModulePending = pendingKey === `module:${module}`
-                const isModuleToggleDisabled =
-                  !canManageRoles || !selectedRoleId || isModulePending
-                const permissionRows = permissionRowsByModule.get(module) ?? []
+
+                if (majorItems.length === 0) return null
+
+                const majorCheckState = getItemListCheckState(majorItems)
+                const isMajorFullyGranted = majorCheckState === true
+                const isMajorPending = pendingKey === `major:${majorGroup.id}`
+                const isMajorDisabled =
+                  !canManageRoles || !selectedRoleId || isMajorPending
 
                 return (
                   <div
-                    key={module}
-                    className="flex flex-col gap-4 py-6 first:pt-0 last:pb-0"
+                    key={majorGroup.id}
+                    className="rounded-lg border border-border bg-card shadow-sm"
                   >
-                    <label className="grid cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-x-3">
-                      <Checkbox
-                        checked={
-                          checkState === 'indeterminate'
-                            ? 'indeterminate'
-                            : checkState
-                        }
-                        disabled={isModuleToggleDisabled}
-                        onCheckedChange={() =>
-                          handleModuleToggle(module, isFullyGranted)
-                        }
-                        aria-label={t('matrix.toggleModule', {
-                          role: rolePermissions?.roleName ?? '',
-                          module: getModuleLabelFromCatalog(catalog, module),
-                        })}
-                      />
-                      <span className="text-sm font-semibold text-foreground">
-                        {getModuleLabelFromCatalog(catalog, module)}
-                      </span>
-                    </label>
-
-                    <div className="flex flex-col gap-5 pl-8">
-                      {permissionRows.map((row, rowIndex) => (
-                        <div
-                          key={`${module}-row-${rowIndex}`}
-                          className="grid grid-cols-2 gap-x-16"
-                        >
-                          {row.map((item) => {
-                            const granted = isPermissionGranted(
-                              permissions,
-                              item.key,
-                              item.module,
+                    {/* Major Module Header */}
+                    <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-3.5">
+                      <label className="flex cursor-pointer items-center gap-3">
+                        <Checkbox
+                          checked={
+                            majorCheckState === 'indeterminate'
+                              ? 'indeterminate'
+                              : majorCheckState
+                          }
+                          disabled={isMajorDisabled}
+                          onCheckedChange={() =>
+                            handleToggleItems(
+                              majorItems,
+                              isMajorFullyGranted,
+                              `major:${majorGroup.id}`,
                             )
-                            const isPending =
-                              pendingKey === `permission:${item.key}`
-                            const isCheckboxDisabled = !canManageRoles || isPending
+                          }
+                        />
+                        <span className="text-base font-bold tracking-tight text-foreground">
+                          {majorGroup.label}
+                        </span>
+                      </label>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {majorItems.filter((i) =>
+                          isPermissionGranted(permissions, i.key, i.module),
+                        ).length}{' '}
+                        / {majorItems.length} quyền được gán
+                      </span>
+                    </div>
 
-                            return (
-                              <label
-                                key={item.key}
-                                className={cn(
-                                  'grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-3',
-                                  isCheckboxDisabled
-                                    ? 'cursor-default'
-                                    : 'cursor-pointer',
-                                )}
-                              >
+                    {/* Major Module Content: Sub-modules */}
+                    <div className="flex flex-col divide-y divide-border p-5">
+                      {majorGroup.subModules.map((sub) => {
+                        const subModuleKeys = collectModuleKeysFromSubGroup(sub)
+                        const subItems = filteredCatalog.filter((item) =>
+                          subModuleKeys.includes(item.module),
+                        )
+
+                        if (subItems.length === 0) return null
+
+                        const subCheckState = getItemListCheckState(subItems)
+                        const isSubFullyGranted = subCheckState === true
+                        const isSubPending = pendingKey === `sub:${sub.id}`
+                        const isSubDisabled =
+                          !canManageRoles || !selectedRoleId || isSubPending
+
+                        // If sub has nested sub-groups (like Danh mục dùng chung, Cấu hình dữ liệu)
+                        if (sub.groups && sub.groups.length > 0) {
+                          return (
+                            <div key={sub.id} className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0">
+                              <label className="flex cursor-pointer items-center gap-2.5">
                                 <Checkbox
-                                  checked={granted}
-                                  disabled={isCheckboxDisabled}
-                                  onCheckedChange={() =>
-                                    handlePermissionToggle(item, granted)
+                                  checked={
+                                    subCheckState === 'indeterminate'
+                                      ? 'indeterminate'
+                                      : subCheckState
                                   }
-                                  aria-label={t('matrix.toggleGrant', {
-                                    role: rolePermissions?.roleName ?? '',
-                                    permission: item.label,
-                                  })}
-                                  className="mt-0.5"
+                                  disabled={isSubDisabled}
+                                  onCheckedChange={() =>
+                                    handleToggleItems(
+                                      subItems,
+                                      isSubFullyGranted,
+                                      `sub:${sub.id}`,
+                                    )
+                                  }
                                 />
-                                <span className="min-w-0">
-                                  <span className="text-sm font-medium leading-5 text-foreground">
-                                    {item.label}
-                                  </span>
-                                  {item.description ? (
-                                    <span className="mt-1 block text-xs leading-4 text-muted-foreground">
-                                      {item.description}
-                                    </span>
-                                  ) : null}
+                                <span className="text-sm font-bold text-foreground">
+                                  {sub.label}
                                 </span>
                               </label>
-                            )
-                          })}
-                          {row.length === 1 ? <div aria-hidden="true" /> : null}
-                        </div>
-                      ))}
+
+                              <div className="ml-7 flex flex-col gap-6 border-l border-border/80 pl-4">
+                                {sub.groups.map((group) => {
+                                  const groupItems = filteredCatalog.filter((item) =>
+                                    group.modules.includes(item.module),
+                                  )
+
+                                  if (groupItems.length === 0) return null
+
+                                  const groupCheckState = getItemListCheckState(groupItems)
+                                  const isGroupFullyGranted = groupCheckState === true
+                                  const isGroupPending = pendingKey === `group:${group.id}`
+                                  const isGroupDisabled =
+                                    !canManageRoles || !selectedRoleId || isGroupPending
+
+                                  return (
+                                    <div key={group.id} className="flex flex-col gap-3">
+                                      <label className="flex cursor-pointer items-center gap-2">
+                                        <Checkbox
+                                          checked={
+                                            groupCheckState === 'indeterminate'
+                                              ? 'indeterminate'
+                                              : groupCheckState
+                                          }
+                                          disabled={isGroupDisabled}
+                                          onCheckedChange={() =>
+                                            handleToggleItems(
+                                              groupItems,
+                                              isGroupFullyGranted,
+                                              `group:${group.id}`,
+                                            )
+                                          }
+                                        />
+                                        <span className="text-sm font-semibold text-foreground/90">
+                                          {group.label}
+                                        </span>
+                                      </label>
+
+                                      <div className="ml-6">
+                                        <PermissionGrid
+                                          items={groupItems}
+                                          permissions={permissions}
+                                          pendingKey={pendingKey}
+                                          canManageRoles={canManageRoles}
+                                          onToggle={handlePermissionToggle}
+                                        />
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        }
+
+                        // Direct sub-module (no sub-groups)
+                        return (
+                          <div key={sub.id} className="flex flex-col gap-3 py-5 first:pt-0 last:pb-0">
+                            <label className="flex cursor-pointer items-center gap-2.5">
+                              <Checkbox
+                                checked={
+                                  subCheckState === 'indeterminate'
+                                    ? 'indeterminate'
+                                    : subCheckState
+                                }
+                                disabled={isSubDisabled}
+                                onCheckedChange={() =>
+                                  handleToggleItems(
+                                    subItems,
+                                    isSubFullyGranted,
+                                    `sub:${sub.id}`,
+                                  )
+                                }
+                              />
+                              <span className="text-sm font-bold text-foreground">
+                                {sub.label}
+                              </span>
+                            </label>
+
+                            <div className="ml-7 border-l border-border/80 pl-4">
+                              <PermissionGrid
+                                items={subItems}
+                                permissions={permissions}
+                                pendingKey={pendingKey}
+                                canManageRoles={canManageRoles}
+                                onToggle={handlePermissionToggle}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )
@@ -324,6 +428,67 @@ export function RolePermissionEditor({
           )}
         </div>
       </section>
+    </div>
+  )
+}
+
+function PermissionGrid({
+  items,
+  permissions,
+  pendingKey,
+  canManageRoles,
+  onToggle,
+}: {
+  items: PermissionCatalogItemT[]
+  permissions: string[]
+  pendingKey: string | null
+  canManageRoles: boolean
+  onToggle: (item: PermissionCatalogItemT, currentlyGranted: boolean) => void
+}) {
+  // Split into 2-column pairs
+  const rows: Array<Array<PermissionCatalogItemT>> = []
+  for (let index = 0; index < items.length; index += 2) {
+    rows.push(items.slice(index, index + 2))
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {rows.map((row, rowIndex) => (
+        <div key={`row-${rowIndex}`} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
+          {row.map((item) => {
+            const granted = isPermissionGranted(permissions, item.key, item.module)
+            const isPending = pendingKey === `permission:${item.key}`
+            const disabled = !canManageRoles || isPending
+
+            return (
+              <label
+                key={item.key}
+                className={cn(
+                  'flex items-start gap-3 rounded-md p-2 hover:bg-muted/40 transition-colors',
+                  disabled ? 'cursor-default' : 'cursor-pointer',
+                )}
+              >
+                <Checkbox
+                  checked={granted}
+                  disabled={disabled}
+                  onCheckedChange={() => onToggle(item, granted)}
+                  className="mt-0.5 shrink-0"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="text-sm font-medium leading-tight text-foreground block">
+                    {item.label}
+                  </span>
+                  {item.description ? (
+                    <span className="mt-0.5 block text-xs leading-normal text-muted-foreground">
+                      {item.description}
+                    </span>
+                  ) : null}
+                </span>
+              </label>
+            )
+          })}
+        </div>
+      ))}
     </div>
   )
 }

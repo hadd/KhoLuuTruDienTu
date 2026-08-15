@@ -36,10 +36,10 @@ import { ExportChoiceDialog } from '@/features/data-management/components/Export
 import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
 import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
 import {
-  getPermissionsByRole,
   isProjectScopedDataRole,
   type DataManagementRole,
 } from '@/features/data-management/config/roleConfig'
+import { useDataManagementResolvedPermissions } from '@/features/data-management/hooks/useDataManagementRole'
 import { ALL_PROJECTS_CODE } from '@/features/data-management/lib/constants'
 import type { OcrTerminalCompletePayloadT } from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { useDataManagementOcrSocket } from '@/features/data-management/hooks/useDataManagementOcrSocket'
@@ -104,6 +104,8 @@ import {
 } from '@/features/digital-sign/lib/ensureSignAgentReady'
 import { ArchiveSubmitDialog } from '@/features/archive-submission/components/ArchiveSubmitDialog'
 import { useArchiveSubmissionAccess } from '@/features/archive-submission/hooks/useArchiveSubmissionAccess'
+import { useRoleAccess } from '@/features/permissions/hooks/useRoleAccess'
+import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 
 function wrapDataDigitizationPage(content: ReactNode, className?: string) {
   return (
@@ -132,7 +134,13 @@ export function DataManagementPage({
   const queryClient = useQueryClient()
   const search = useSearch({ strict: false })
   const navigate = useNavigate()
-  const permissions = getPermissionsByRole(role)
+  const permissions = useDataManagementResolvedPermissions()
+  const { permissions: userPermissions } = useRoleAccess()
+  const canExportDossiers = isPermissionGranted(
+    userPermissions,
+    'dossiers.export',
+    'dossiers',
+  )
   const { canSubmitArchive } = useArchiveSubmissionAccess()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [uploadTargetFolder, setUploadTargetFolder] =
@@ -191,7 +199,7 @@ export function DataManagementPage({
       : undefined
   const focusGroupIndex =
     typeof search.focusGroupIndex === 'number' &&
-    Number.isFinite(search.focusGroupIndex)
+      Number.isFinite(search.focusGroupIndex)
       ? search.focusGroupIndex
       : undefined
   const isEditorDraftView = role === 'editor' && Boolean(dossierId?.trim())
@@ -251,7 +259,8 @@ export function DataManagementPage({
   )
   const claimNextMutation = useClaimNextMakerAssignmentMutation()
 
-  const needsProjectSelection = isProjectScoped && !projectCode?.trim()
+  const needsProjectSelection =
+    isProjectScoped && permissions.canReadProjects && !projectCode?.trim()
   const containerClass = 'flex h-0 min-h-0 flex-1 flex-col overflow-hidden'
   const showSearch = true
 
@@ -654,6 +663,7 @@ export function DataManagementPage({
   }
 
   function handleExportExcel(node: DataTreeNodeT) {
+    if (!canExportDossiers) return
     const ctx = resolveExportContext(node)
     if (!ctx) return
 
@@ -992,7 +1002,19 @@ export function DataManagementPage({
         return
       }
 
-      const targetNodeId = focusDocumentId ?? nodeId
+      if (reloadDossierId) {
+        await refreshDossierContentMutation
+          .mutateAsync(reloadDossierId)
+          .catch(() => null)
+        return
+      }
+
+      const targetNodeId = focusDocumentId ?? nodeId ?? reloadDossierId
+      if (targetNodeId) {
+        setTreeExpandToNodeIds((prev) => [
+          ...new Set([...prev, targetNodeId, reloadDossierId]),
+        ])
+      }
       const freshTree = await refreshTreeMutation.mutateAsync(undefined)
       if (targetNodeId) {
         await reloadTreePathToNode(freshTree, targetNodeId, loadNodeTree)
@@ -1121,9 +1143,9 @@ export function DataManagementPage({
               treeCollapsed && 'pointer-events-none',
             )}
           >
-            {showSearch || isProjectScoped ? (
+            {showSearch || (isProjectScoped && permissions.canReadProjects) ? (
               <div className="shrink-0 space-y-1.5 border-b border-border px-2.5 py-1.5">
-                {isProjectScoped ? (
+                {isProjectScoped && permissions.canReadProjects ? (
                   <ProjectSelect
                     className="w-full"
                     compact
@@ -1155,7 +1177,9 @@ export function DataManagementPage({
                 expandPathToNodeIds={treeExpandToNodeIds}
                 onExpandPathApplied={() => setTreeExpandToNodeIds([])}
                 pendingErrorReportDossierIds={pendingErrorReportDossierIds}
-                showProjectCode={isProjectScoped && isAllProjects}
+                showProjectCode={
+                  isProjectScoped && isAllProjects && permissions.canReadProjects
+                }
                 onSelect={(id) => {
                   void handleSelectNode(id)
                 }}
@@ -1227,14 +1251,14 @@ export function DataManagementPage({
                           toast.error(ready.message, {
                             action: ready.downloadUrl
                               ? {
-                                  label: 'Tải Sign Agent',
-                                  onClick: () =>
-                                    window.open(
-                                      ready.downloadUrl ?? SIGN_AGENT_DOWNLOAD_URL,
-                                      '_blank',
-                                      'noopener,noreferrer',
-                                    ),
-                                }
+                                label: 'Tải Sign Agent',
+                                onClick: () =>
+                                  window.open(
+                                    ready.downloadUrl ?? SIGN_AGENT_DOWNLOAD_URL,
+                                    '_blank',
+                                    'noopener,noreferrer',
+                                  ),
+                              }
                               : undefined,
                           })
                           return

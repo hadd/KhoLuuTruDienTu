@@ -11,6 +11,10 @@
   "modules": {
     "audit_logs": "Audit logs",
     "dashboard": "Dashboard",
+    "digitization": "Digitization",
+    "warehouse": "Warehouse Management",
+    "exploitation": "Data Exploitation",
+    "system-admin": "System Administration",
     "data-entry": "Data entry",
     "dossiers": "Dossiers",
     "folders": "Folders",

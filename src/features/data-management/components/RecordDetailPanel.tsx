@@ -26,6 +26,8 @@ import { isNodeChildrenCached } from '@/features/data-management/api/dataManagem
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
 import { useEditorErrorReports } from '@/features/data-management/hooks/useEditorErrorReports'
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
+import { useRoleAccess } from '@/features/permissions/hooks/useRoleAccess'
+import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 import { buildPdfFieldHighlight } from '@/features/data-management/lib/bboxCoords'
 import { resolveCurrentUserCheckerLevel } from '@/features/data-management/lib/checkerAssignmentHelpers'
 import {
@@ -34,6 +36,7 @@ import {
   canManageDossierMetadata,
   canQcSubmitAtAssignedLevel,
   getCheckerLevelForDossierStatus,
+  isDossierMetadataLocked,
 } from '@/features/data-management/lib/dossierStatusHelpers'
 import {
   canShowEditorErrorReportsForDossier,
@@ -148,37 +151,64 @@ export function RecordDetailPanel({
   const [dismissedRejectFieldKeys, setDismissedRejectFieldKeys] = useState<
     Set<string>
   >(() => new Set())
-  const canManage = canManageDossierMetadata({
-    role: managementRole,
-    dossierStatus,
-    baseCanManage: permissions.canEditFileMetadataFields,
-  })
+  const { permissions: userPermissions } = useRoleAccess()
+  const canDirectApprove = isPermissionGranted(
+    userPermissions,
+    'dossiers.direct_approve',
+    'dossiers',
+  )
+  const canSignDossiers = isPermissionGranted(
+    userPermissions,
+    'dossiers.sign',
+    'dossiers',
+  )
   const effectiveDossierStatus = dossierStatus ?? node.dossierStatus
+  const isDossierUnlocked =
+    !isDossierMetadataLocked(effectiveDossierStatus) &&
+    effectiveDossierStatus !== 'PENDING_ARCHIVE' &&
+    effectiveDossierStatus !== 'ARCHIVED'
+  const currentQcStepLevel = getCheckerLevelForDossierStatus(effectiveDossierStatus)
   const currentUserCheckerLevel = resolveCurrentUserCheckerLevel({
     dossierStatus: effectiveDossierStatus,
     userId: currentUser?.id,
     assignedCheckerLevel: node.assignedCheckerLevel,
     assignments: workflowQuery.data?.assignments,
   })
-  const canActAsChecker = canQcSubmitAtAssignedLevel({
-    dossierStatus: effectiveDossierStatus,
-    assignedCheckerLevel: currentUserCheckerLevel ?? undefined,
+  const canActAsChecker =
+    (canDirectApprove && isDossierUnlocked) ||
+    canQcSubmitAtAssignedLevel({
+      dossierStatus: effectiveDossierStatus,
+      assignedCheckerLevel: currentUserCheckerLevel ?? undefined,
+    })
+  const canManage = canManageDossierMetadata({
+    role: managementRole,
+    dossierStatus,
+    baseCanManage: permissions.canEditFileMetadataFields,
+    canDirectApprove,
   })
-  const isInQcStep = getCheckerLevelForDossierStatus(effectiveDossierStatus) != null
+  const isInQcStep = currentQcStepLevel != null
   const canShowSubmitButton =
-    isInQcStep
-      ? canActAsChecker
-      : canManage &&
-        (managementRole !== 'editor' ||
-          canEditorSubmitMetadata({
-            assignmentStatus: node.assignmentStatus,
-            dossierStatus: effectiveDossierStatus,
-          })) &&
-        (managementRole !== 'qc' || canActAsChecker)
-  const canExport = canExportDossierMetadata(
-    dossierStatus ?? node.dossierStatus,
+    isDossierUnlocked &&
+    (canDirectApprove ||
+      (isInQcStep
+        ? canActAsChecker
+        : canManage &&
+          (managementRole !== 'editor' ||
+            canEditorSubmitMetadata({
+              assignmentStatus: node.assignmentStatus,
+              dossierStatus: effectiveDossierStatus,
+            })) &&
+          (managementRole !== 'qc' || canActAsChecker)))
+  const canExportDossiers = isPermissionGranted(
+    userPermissions,
+    'dossiers.export',
+    'dossiers',
   )
+  const canExport =
+    canExportDossiers &&
+    canExportDossierMetadata(dossierStatus ?? node.dossierStatus)
   const canDigitalSign =
+    canSignDossiers &&
     permissions.canDigitalSign &&
     (effectiveDossierStatus === 'APPROVED' ||
       effectiveDossierStatus === 'ARCHIVE_REJECTED')
@@ -527,9 +557,9 @@ export function RecordDetailPanel({
 
   const isOcrPdfLayer = Boolean(
     pdfViewMode === 'source' &&
-      activePdfUrl &&
-      ocrPdfUrl &&
-      activePdfUrl === ocrPdfUrl,
+    activePdfUrl &&
+    ocrPdfUrl &&
+    activePdfUrl === ocrPdfUrl,
   )
 
   const handleOcrPdfLoadFailed = useCallback(() => {
@@ -1051,7 +1081,7 @@ export function RecordDetailPanel({
   const isFinalSaving = finalSaveMutation.isPending
 
   function buildFieldRejectMark(groupCode: string, field: DataDocumentFieldT) {
-    if (!isActingAsQc || !canShowSubmitButton) return undefined
+    if (!isActingAsQc || !canShowSubmitButton || canDirectApprove) return undefined
 
     const rejectKey = buildRejectFieldKey(groupCode, field.name)
     return {
@@ -1144,8 +1174,8 @@ export function RecordDetailPanel({
       ) : null}
 
       {isEditorRole &&
-      !editorPendingErrorReport &&
-      rejectedErrorReport?.rejectNote?.trim() ? (
+        !editorPendingErrorReport &&
+        rejectedErrorReport?.rejectNote?.trim() ? (
         <EditorErrorReportAlertBanner
           report={rejectedErrorReport}
           alertKey="editorErrorReport.alert.rejected"
@@ -1165,7 +1195,7 @@ export function RecordDetailPanel({
 
       {visibleMetadataGroupCount > 0 ? (
         <div className="flex flex-col gap-4">
-          {isActingAsQc && canShowSubmitButton ? (
+          {isActingAsQc && canShowSubmitButton && !canDirectApprove ? (
             <p className="shrink-0 text-xs text-muted-foreground">
               {t('metadata.rejectInline.hint')}
             </p>
@@ -1180,24 +1210,24 @@ export function RecordDetailPanel({
             <>
               {metadataDisplayLayout.hoSoEntry
                 ? renderMetadataGroupsSection(
-                    metadataDisplayLayout.hoSoEntry.group.group_name.trim() ||
-                      t('recordDetail.hoSoMetadataTitle'),
-                    [metadataDisplayLayout.hoSoEntry],
-                  )
+                  metadataDisplayLayout.hoSoEntry.group.group_name.trim() ||
+                  t('recordDetail.hoSoMetadataTitle'),
+                  [metadataDisplayLayout.hoSoEntry],
+                )
                 : null}
               {metadataDisplayLayout.taiLieuEntries.length > 0
                 ? renderMetadataGroupsSection(
-                    metadataDisplayLayout.taiLieuEntries[0]!.group.group_name.trim() ||
-                      t('recordDetail.archivalDocumentsTitle'),
-                    metadataDisplayLayout.taiLieuEntries,
-                    (entry) => getTaiLieuDocumentDisplayTitle(entry.group),
-                  )
+                  metadataDisplayLayout.taiLieuEntries[0]!.group.group_name.trim() ||
+                  t('recordDetail.archivalDocumentsTitle'),
+                  metadataDisplayLayout.taiLieuEntries,
+                  (entry) => getTaiLieuDocumentDisplayTitle(entry.group),
+                )
                 : null}
               {metadataDisplayLayout.legacyEntries.length > 0
                 ? renderMetadataGroupsSection(
-                    t('recordDetail.documentsTitle'),
-                    metadataDisplayLayout.legacyEntries,
-                  )
+                  t('recordDetail.documentsTitle'),
+                  metadataDisplayLayout.legacyEntries,
+                )
                 : null}
             </>
           ) : (
@@ -1213,7 +1243,7 @@ export function RecordDetailPanel({
         </p>
       )}
 
-      {canShowSubmitButton && isActingAsQc && qcReject.isRejectMode ? (
+      {canShowSubmitButton && isActingAsQc && !canDirectApprove && qcReject.isRejectMode ? (
         <QcInlineRejectBar
           selectedCount={qcReject.rejectFieldKeys.size}
           notes={qcReject.rejectNotes}
@@ -1253,14 +1283,14 @@ export function RecordDetailPanel({
                     toast.error(ready.message, {
                       action: ready.downloadUrl
                         ? {
-                            label: 'Tải Sign Agent',
-                            onClick: () =>
-                              window.open(
-                                ready.downloadUrl ?? SIGN_AGENT_DOWNLOAD_URL,
-                                '_blank',
-                                'noopener,noreferrer',
-                              ),
-                          }
+                          label: 'Tải Sign Agent',
+                          onClick: () =>
+                            window.open(
+                              ready.downloadUrl ?? SIGN_AGENT_DOWNLOAD_URL,
+                              '_blank',
+                              'noopener,noreferrer',
+                            ),
+                        }
                         : undefined,
                     })
                     return
@@ -1455,8 +1485,8 @@ export function RecordDetailPanel({
                     highlight={pdfViewMode === 'source' ? pdfHighlight : null}
                     maskMode={
                       pdfViewMode === 'source' &&
-                      isEditorRole &&
-                      isPdfMaskEnabled
+                        isEditorRole &&
+                        isPdfMaskEnabled
                         ? 'bbox-only'
                         : 'off'
                     }
