@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/table'
 import { DigitizationSubPageShell } from '@/features/digitization/components/DigitizationSubPageShell'
 import { useDataManagementHubAccess } from '@/features/digitization/hooks/useDataManagementHubAccess'
+import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
 import {
   resolveDataManagementRole,
 } from '@/features/data-management/lib/resolveDataManagementRole'
