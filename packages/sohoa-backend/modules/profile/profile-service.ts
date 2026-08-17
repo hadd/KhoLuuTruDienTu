@@ -741,7 +741,57 @@ export const ProfileService = {
     },
 
     async downloadTemplateExcel(): Promise<Uint8Array> {
-        return await buildUserImportTemplateBuffer();
+        // 1. Lấy buffer file template cơ bản từ hàm thư viện của bạn
+        const baseBuffer = await buildUserImportTemplateBuffer();
+
+        // 2. Load buffer vào ExcelJS Workbook để chỉnh sửa động
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(baseBuffer.buffer as ArrayBuffer);
+
+        const worksheet = workbook.getWorksheet("Import") || workbook.getWorksheet(1);
+        if (!worksheet) {
+            throw httpError.internal("Không tìm thấy sheet dữ liệu trong template");
+        }
+
+        // 3. Lấy toàn bộ vai trò thực tế đang hoạt động trong hệ thống
+        const activeRoles = await db.query.roles.findMany({
+            where: isNull(roles.deletedAt),
+            columns: { id: true, name: true }
+        });
+
+        const roleIds = activeRoles.map((r) => r.id);
+        const roleListString = roleIds.join(", ");
+        const defaultRole = roleIds.includes("editor") ? "editor" : (roleIds[0] || "");
+
+        // 4. Cập nhật ghi chú động tại ô F1 (Cột Role)
+        const cellF1 = worksheet.getCell("F1");
+        cellF1.note = {
+            texts: [
+                { 
+                    font: { size: 10, name: "Segoe UI" }, 
+                    text: `Tùy chọn. Chỉ được chọn:\n${roleListString}.\nĐể trống = ${defaultRole} (mặc định).` 
+                }
+            ],
+            margins: { left: 0.1, right: 0.1, top: 0.1, bottom: 0.1 }
+        };
+
+        // 5. Thêm Dropdown lựa chọn trực tiếp cho cột Role (Dòng 2 đến 100)
+        if (roleIds.length > 0) {
+            for (let i = 2; i <= 100; i++) {
+                worksheet.getCell(`F${i}`).dataValidation = {
+                    type: "list",
+                    allowBlank: true,
+                    formulae: [`"${roleIds.join(",")}"`],
+                    showErrorMessage: true,
+                    errorTitle: "Sai vai trò",
+                    error: `Vui lòng chọn một trong các vai trò hợp lệ sau: ${roleListString}`
+                };
+            }
+        }
+
+        // 6. Ghi lại dữ liệu và xuất ra Uint8Array trả về cho Router
+        const buffer = await workbook.xlsx.writeBuffer();
+        return new Uint8Array(buffer as ArrayBuffer);
     },
 
     async exportUsersExcel() {
@@ -804,6 +854,14 @@ export const ProfileService = {
         errors: string[];
         errorFile?: Uint8Array;
     }> {
+        // --- THÊM ĐOẠN NÀY ĐỂ LẤY VAI TRÒ THỰC TẾ ---
+        const activeRolesInDb = await db.query.roles.findMany({
+            where: isNull(roles.deletedAt),
+            columns: { id: true }
+        });
+        const systemRoleIds = activeRolesInDb.map(r => r.id);
+        // --------------------------------------------
+
         const workbook = new ExcelJS.Workbook();
         const arrayBuffer = fileBuffer.slice().buffer as ArrayBuffer;
         await workbook.xlsx.load(arrayBuffer);
@@ -915,11 +973,12 @@ export const ProfileService = {
                 }
             }
 
+            // Thay đổi đoạn kiểm tra vai trò cũ bằng đoạn kiểm tra động này:
             const roleVal = row.role.trim();
-            if (roleVal && !isUserImportAllowedRole(roleVal)) {
+            if (roleVal && !systemRoleIds.includes(roleVal)) {
                 rowErrors.set(
                     col.ROLE,
-                    `Vai trò "${roleVal}" không hợp lệ. Chỉ được chọn: ${USER_IMPORT_ALLOWED_ROLES.join(", ")}`,
+                    `Vai trò "${row.role}" không hợp lệ. Chỉ được chọn: ${systemRoleIds.join(", ")}`,
                 );
             }
 
@@ -937,7 +996,7 @@ export const ProfileService = {
 
         // Phase 2: Validate roles exist in DB (allowed set checked in phase 1)
         for (const row of rows) {
-            const roleVal = row.role.trim().toLowerCase();
+            const roleVal = row.role.trim();
             if (!roleVal) continue;
 
             const rowErrMap = cellErrors.get(row.rowNumber);
@@ -988,7 +1047,7 @@ export const ProfileService = {
             try {
                 const passwordHash = await hashPassword(row.password);
                 let roleId: string = "editor";
-                const roleVal = row.role.trim().toLowerCase();
+                const roleVal = row.role.trim();
                 if (roleVal && isUserImportAllowedRole(roleVal)) {
                     roleId = roleVal;
                 }

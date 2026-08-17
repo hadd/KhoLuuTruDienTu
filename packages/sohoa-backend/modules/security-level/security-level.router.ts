@@ -3,7 +3,7 @@ import { SecurityLevelService as service } from "./security-level-service.ts";
 import { SecurityPermissionDefService as defService } from "./security-permission-def-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
-import { Permission } from "../auth/permission-catalog.ts";
+import { Permission, SECURITY_LEVEL_CONTENT_ACCESS_PERMISSIONS } from "../auth/permission-catalog.ts";
 import {
     createPermissionDefSchema,
     createSecurityLevelSchema,
@@ -44,7 +44,10 @@ export function createSecurityLevelRouter(basePath: string = "/security-levels")
     app.get(
         "/active",
         async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.SECURITY_LEVELS_READ);
+            authHelper.checkPermissionAny(
+                profile,
+                SECURITY_LEVEL_CONTENT_ACCESS_PERMISSIONS,
+            );
             return await service.listActive();
         },
         {
@@ -58,7 +61,10 @@ export function createSecurityLevelRouter(basePath: string = "/security-levels")
     app.post(
         "/verify-access",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.SECURITY_LEVELS_READ);
+            authHelper.checkPermissionAny(
+                profile,
+                SECURITY_LEVEL_CONTENT_ACCESS_PERMISSIONS,
+            );
             return await verifyLevelPassword({
                 userId: profile.id,
                 securityLevelId: body.securityLevelId,
@@ -77,7 +83,10 @@ export function createSecurityLevelRouter(basePath: string = "/security-levels")
     app.post(
         "/verify-file-access",
         async ({ body, profile }) => {
-            authHelper.checkPermission(profile, Permission.SECURITY_LEVELS_READ);
+            authHelper.checkPermissionAny(
+                profile,
+                SECURITY_LEVEL_CONTENT_ACCESS_PERMISSIONS,
+            );
             return await verifyFilePassword({
                 userId: profile.id,
                 securityLevelId: body.securityLevelId,
