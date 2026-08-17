@@ -31,7 +31,6 @@ interface RolePermissionEditorProps {
   searchQuery?: string
   onSelectRole: (roleId: string) => void
   onDeleteRole?: (role: PermissionRoleT) => void
-  onDeleteRole?: (role: PermissionRoleT) => void
   canManageRoles?: boolean
   isAdmin?: boolean
 }
@@ -43,7 +42,6 @@ export function RolePermissionEditor({
   selectedRoleId,
   searchQuery = '',
   onSelectRole,
-  onDeleteRole,
   onDeleteRole,
   canManageRoles = false,
   isAdmin = false,
