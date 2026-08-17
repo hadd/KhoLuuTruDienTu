@@ -32,9 +32,10 @@ import {
 } from '@/components/ui/table'
 import { DigitizationSubPageShell } from '@/features/digitization/components/DigitizationSubPageShell'
 import { useDataManagementHubAccess } from '@/features/digitization/hooks/useDataManagementHubAccess'
-import { FolderUploadDialog } from '@/features/data-management/components/FolderUploadDialog'
-import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
-import { resolveDataManagementRole } from '@/features/data-management/lib/resolveDataManagementRole'
+import {
+  resolveDataManagementRole,
+} from '@/features/data-management/lib/resolveDataManagementRole'
+import { useDataManagementResolvedPermissions } from '@/features/data-management/hooks/useDataManagementRole'
 import { useAdminProjectCode } from '@/features/data-management/store'
 import { useOcrControlAccess } from '@/features/ocr-control/hooks/useOcrControlAccess'
 import { useMetadataExtractSettingsAccess } from '@/features/metadata-extract/hooks/useMetadataExtractSettingsAccess'
@@ -240,7 +241,7 @@ export function OcrControlPage() {
     () => resolveDataManagementRole(permissions, primaryAppRole),
     [permissions, primaryAppRole],
   )
-  const canUpload = getPermissionsByRole(dataRole).canUpload
+  const { canUpload } = useDataManagementResolvedPermissions()
 
   const [filter, setFilter] = useState<OcrControlFilterT>('all')
   const [page, setPage] = useState(1)

@@ -13,7 +13,10 @@ import type {
 } from '@/features/data-management/config/roleConfig'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
 import { resolveDataManagementRole } from '@/features/data-management/lib/resolveDataManagementRole'
-import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
+import {
+  hasFullAccess,
+  isPermissionGranted,
+} from '@/features/permissions/lib/permissionRules'
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 
 export function useDataManagementUserPermissions(): string[] {
@@ -57,6 +60,10 @@ export function useDataManagementResolvedPermissions(): RolePermissions {
   return useMemo(() => {
     const basePermissions = getPermissionsByRole(role)
 
+    const canWriteDossiers =
+      hasFullAccess(userPermissions) ||
+      isPermissionGranted(userPermissions, 'dossiers.write', 'dossiers')
+
     const canReadProjects = isPermissionGranted(
       userPermissions,
       'projects.read',
@@ -77,6 +84,14 @@ export function useDataManagementResolvedPermissions(): RolePermissions {
 
     return {
       ...basePermissions,
+      canUpload: basePermissions.canUpload && canWriteDossiers,
+      canDelete: basePermissions.canDelete && canWriteDossiers,
+      canRename: basePermissions.canRename && canWriteDossiers,
+      canAddDocument: basePermissions.canAddDocument && canWriteDossiers,
+      canEditRecordMetadataFields:
+        basePermissions.canEditRecordMetadataFields && canWriteDossiers,
+      canEditFileMetadataFields:
+        basePermissions.canEditFileMetadataFields && canWriteDossiers,
       canReadProjects,
       canAssignProject: basePermissions.canAssignProject && canReadProjects,
       canAssign: basePermissions.canAssign && canAssignDossiers,

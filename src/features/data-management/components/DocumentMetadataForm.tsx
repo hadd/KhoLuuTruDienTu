@@ -9,8 +9,7 @@ import { MetadataFieldInput } from '@/features/data-management/components/Metada
 import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
 import { MetadataFieldEditorRow } from '@/features/data-management/components/MetadataFieldStructurePanel'
 import { QcInlineRejectBar } from '@/features/data-management/components/QcInlineRejectBar'
-import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
-import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
+import { useDataManagementResolvedPermissions } from '@/features/data-management/hooks/useDataManagementRole'
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
 import {
   canManageDossierMetadata,
@@ -77,7 +76,7 @@ export function DocumentMetadataForm({
   highlightedFieldName?: string | null
 }) {
   const { t } = useTranslation('data-management')
-  const permissions = getPermissionsByRole(role as DataManagementRole)
+  const permissions = useDataManagementResolvedPermissions()
   const canManage = canManageDossierMetadata({
     role: role as DataManagementRole,
     dossierStatus,

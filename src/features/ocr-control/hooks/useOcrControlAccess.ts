@@ -11,7 +11,7 @@ import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissio
 import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 
-/** Viewing (dossiers.read) is already enforced by the route's beforeLoad; this hook also exposes trigger (dossiers.write) access for the UI. */
+/** Viewing (dossiers.write) is already enforced by the route's beforeLoad; this hook also exposes trigger access for the UI. */
 export function useOcrControlAccess() {
   const { data: user } = useQuery(profileQueryOptions)
   const roleId = getCurrentUserRoleId(user)
@@ -29,7 +29,11 @@ export function useOcrControlAccess() {
     return {
       permissions,
       canViewOcrControl: canAccessScreen(permissions, APP_SCREEN_ACCESS.ocrControl),
-      canTriggerOcr: isPermissionGranted(permissions, 'dossiers.write', 'dossiers'),
+      canTriggerOcr: isPermissionGranted(
+        permissions,
+        'dossiers.write',
+        'dossiers',
+      ),
     }
   }, [user, rolePermissions])
 }
