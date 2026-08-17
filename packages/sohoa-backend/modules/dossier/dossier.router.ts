@@ -202,7 +202,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.get(
     "/ocr-control/pending-manual",
     async ({ query, profile }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+      authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
       return await service.listPendingManualOcrDossiers(query);
     },
     {
@@ -219,7 +219,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.get(
     "/ocr-control/tracked",
     async ({ query, profile }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+      authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
       return await service.listTrackedManualOcrDossiers(query);
     },
     {
