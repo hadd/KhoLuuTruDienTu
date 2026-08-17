@@ -16,7 +16,7 @@ export function createRoleAdminRouter(basePath: string = "/roles") {
     app.get(
         "/",
         async ({ profile }) => {
-            const items = await service.list();
+            const items = await service.list(profile);
             return { items };
         },
         {

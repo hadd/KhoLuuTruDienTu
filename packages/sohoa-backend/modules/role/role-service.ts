@@ -1,10 +1,10 @@
 import { httpError } from "@shared/common-lib";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, ne, type SQL } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
 import { roles, type Role } from "../../db/schemas/role.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
 import { PERMISSION_CATALOG } from "../auth/permission-catalog.ts";
-import { authHelper } from "../auth/auth-helper.ts";
+import { authHelper, AuthRole } from "../auth/auth-helper.ts";
 import { type UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { ProfileService } from "../profile/profile-service.ts";
 import {
@@ -67,9 +67,14 @@ export const RoleService = {
         return catalog;
     },
 
-    async list() {
+    async list(profile?: UserWithRoles) {
+        let rolesWhere: SQL<unknown> | undefined = isNull(roles.deletedAt);
+        if (profile && !authHelper.isAdmin(profile)) {
+            rolesWhere = and(rolesWhere, ne(roles.id, AuthRole.ADMIN));
+        }
+
         const items = await db.query.roles.findMany({
-            where: isNull(roles.deletedAt),
+            where: rolesWhere,
             with: {
                 userRoles: {
                     where: isNull(userRoles.expiredAt),
