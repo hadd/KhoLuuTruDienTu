@@ -31,7 +31,7 @@ export function createRoleAdminRouter(basePath: string = "/roles") {
     app.get(
         "/:id/permissions",
         async ({ params, profile }) => {
-            const record = await service.getPermissions(params.id);
+            const record = await service.getPermissions(params.id, profile);
             return { record };
         },
         {
@@ -48,7 +48,7 @@ export function createRoleAdminRouter(basePath: string = "/roles") {
         "/:id/permissions",
         async ({ params, body, profile }) => {
             authHelper.checkPermission(profile, Permission.ROLES_MANAGE);
-            const record = await service.updatePermissions(params.id, body);
+            const record = await service.updatePermissions(params.id, body, profile);
             return { record, status: "updated" };
         },
         {

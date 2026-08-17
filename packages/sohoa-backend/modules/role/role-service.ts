@@ -56,8 +56,15 @@ function assertValidRules(rules: RoleRules) {
 }
 
 export const RoleService = {
-    getPermissionCatalog() {
-        return PERMISSION_CATALOG;
+    getPermissionCatalog(profile?: UserWithRoles) {
+        let catalog = PERMISSION_CATALOG;
+        if (profile && !authHelper.isAdmin(profile)) {
+            const userHiddenModules = authHelper.getHiddenModules(profile);
+            if (userHiddenModules.length > 0) {
+                catalog = catalog.filter(c => !userHiddenModules.includes(c.module));
+            }
+        }
+        return catalog;
     },
 
     async list() {
@@ -133,12 +140,13 @@ export const RoleService = {
         };
     },
 
-    async updatePermissions(roleId: string, input: { rules: RoleRules; hiddenModules?: string[] }, profile: UserWithRoles) {
-        assertValidRules(input.rules);
+    async updatePermissions(roleId: string, input: { permissions: string[]; restrictions: string[]; hiddenModules?: string[] }, profile: UserWithRoles) {
+        const rules = { permissions: input.permissions, restrictions: input.restrictions };
+        assertValidRules(rules);
 
         const existing = await db.query.roles.findFirst({
             where: and(eq(roles.id, roleId), isNull(roles.deletedAt)),
-            columns: { id: true, rules: true },
+            columns: { id: true, rules: true, hiddenModules: true },
         });
         if (!existing) {
             throw httpError.notFound(`Role "${roleId}" not found`);
@@ -147,7 +155,8 @@ export const RoleService = {
         const isAdmin = authHelper.isAdmin(profile);
         const userHiddenModules = authHelper.getHiddenModules(profile);
 
-        let nextRules = input.rules;
+        let nextRules = rules;
+        let nextHiddenModules = input.hiddenModules ?? (existing.hiddenModules ? JSON.parse(existing.hiddenModules) : []);
         
         if (!isAdmin && userHiddenModules.length > 0) {
             const checkHidden = (perms: string[]) => {
@@ -158,8 +167,8 @@ export const RoleService = {
                     }
                 }
             };
-            checkHidden(input.rules.permissions);
-            checkHidden(input.rules.restrictions);
+            checkHidden(rules.permissions);
+            checkHidden(rules.restrictions);
 
             const existingParsed = parseRoleRules(existing.rules);
             const preservedPermissions = existingParsed.permissions.filter(p => {
@@ -172,8 +181,8 @@ export const RoleService = {
             });
 
             nextRules = {
-                permissions: [...new Set([...input.rules.permissions, ...preservedPermissions])],
-                restrictions: [...new Set([...input.rules.restrictions, ...preservedRestrictions])],
+                permissions: [...new Set([...rules.permissions, ...preservedPermissions])],
+                restrictions: [...new Set([...rules.restrictions, ...preservedRestrictions])],
             };
         }
 
