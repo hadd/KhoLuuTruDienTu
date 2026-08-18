@@ -1,5 +1,5 @@
 {
-  "appName": "Sohoa",
+  "appName": "Phần mềm kho lưu trữ",
   "tagline": "Hệ thống Sohoa TanStack đầy đủ tính năng cho các đội ngũ hiện đại",
   "navigation": {
     "home": "Tổng quan",
@@ -83,7 +83,7 @@
     "emailAlreadyExists": "Tài khoản với email {{email}} đã tồn tại trên hệ thống."
   },
   "pageTitles": {
-    "appName": "Sohoa",
+    "appName": "Phần mềm kho lưu trữ",
     "home": "Trang chủ",
     "profile": "Trang cá nhân",
     "user": "Quản lý người dùng",

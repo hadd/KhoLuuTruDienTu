@@ -28,6 +28,7 @@ import {
   restoreDossierMetadataHistory,
   revokeFolderAssignments,
   updateDossier,
+  updateDossierWorkflowStateInClientTree,
   updateFolderProject,
   uploadDataDocuments,
   uploadDataFolder,
@@ -542,7 +543,26 @@ export function useRejectCheckerDossierMutation(role: DataManagementRole) {
         notes,
         reject_fields: rejectFields,
       }),
-    onSuccess: async () => {
+    onSuccess: async (result, { dossierId }) => {
+      if (
+        result &&
+        typeof result === 'object' &&
+        'dossierStatus' in result &&
+        typeof result.dossierStatus === 'string'
+      ) {
+        const patch = {
+          dossierStatus: result.dossierStatus as DataTreeNodeT['dossierStatus'],
+          assignmentStatus: 'REJECTED',
+        }
+        updateDossierWorkflowStateInClientTree(dossierId, patch)
+        qc.setQueriesData<DataTreeNodeT>(
+          { queryKey: [role, 'data-management', 'tree'] },
+          (currentTree) => {
+            if (!currentTree) return currentTree
+            return updateDossierWorkflowStateInTree(currentTree, dossierId, patch)
+          },
+        )
+      }
       await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
     },
   })
@@ -604,10 +624,12 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
             'dossierStatus' in result &&
             typeof result.dossierStatus === 'string'
           ) {
-            nextTree = updateDossierWorkflowStateInTree(nextTree, dossierId, {
+            const patch = {
               dossierStatus: result.dossierStatus as DataTreeNodeT['dossierStatus'],
               assignmentStatus: 'COMPLETED',
-            })
+            }
+            updateDossierWorkflowStateInClientTree(dossierId, patch)
+            nextTree = updateDossierWorkflowStateInTree(nextTree, dossierId, patch)
           }
           return nextTree
         },

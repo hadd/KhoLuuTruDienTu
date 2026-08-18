@@ -1314,6 +1314,22 @@ export function updateDossierWorkflowStateInTree(
           ...(patch.assignmentStatus
             ? { assignmentStatus: patch.assignmentStatus }
             : {}),
+          ...(node.dossierMetadata && patch.dossierStatus
+            ? {
+                dossierMetadata: {
+                  ...node.dossierMetadata,
+                  trang_thai_ho_so: patch.dossierStatus,
+                },
+              }
+            : {}),
+          ...(node.fullDossierMetadata && patch.dossierStatus
+            ? {
+                fullDossierMetadata: {
+                  ...node.fullDossierMetadata,
+                  trang_thai_ho_so: patch.dossierStatus,
+                },
+              }
+            : {}),
         }
       : node
     return {

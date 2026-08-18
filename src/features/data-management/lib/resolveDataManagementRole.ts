@@ -52,10 +52,8 @@ export function resolveDataManagementRole(
 
   const hasMaker = hasDataEntryMakerPermission(permissions)
   const hasChecker = hasDataEntryCheckerPermission(permissions)
-  const hasDossiersRead = isPermissionGranted(permissions, 'dossiers.read', 'dossiers')
-  const hasDossiersWrite = isPermissionGranted(permissions, 'dossiers.write', 'dossiers')
 
-  if ((hasMaker && hasChecker) || hasDossiersRead || hasDossiersWrite) {
+  if (hasMaker && hasChecker) {
     return 'admin'
   }
 
@@ -70,7 +68,7 @@ export function resolveDataManagementRole(
   return 'editor'
 }
 
-/** `/app/data` — visible when user has biên tập, duyệt, quản lý hồ sơ, or full access */
+/** `/app/data` — visible when user has biên tập, duyệt, or full access */
 export function canAccessDataManagementScreen(
   permissions: Array<string>,
   _primaryAppRole?: AppRoleT | null,
@@ -78,9 +76,7 @@ export function canAccessDataManagementScreen(
   return (
     hasFullAccess(permissions) ||
     hasDataEntryMakerPermission(permissions) ||
-    hasDataEntryCheckerPermission(permissions) ||
-    isPermissionGranted(permissions, 'dossiers.read', 'dossiers') ||
-    isPermissionGranted(permissions, 'dossiers.write', 'dossiers')
+    hasDataEntryCheckerPermission(permissions)
   )
 }
 
