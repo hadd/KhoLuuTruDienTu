@@ -1,4 +1,4 @@
-import { ChevronRight, Trash2 } from 'lucide-react'
+import { ChevronRight, Trash2, Eye, EyeOff } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -32,6 +32,7 @@ interface RolePermissionEditorProps {
   onSelectRole: (roleId: string) => void
   onDeleteRole?: (role: PermissionRoleT) => void
   canManageRoles?: boolean
+  isAdmin?: boolean
 }
 
 export function RolePermissionEditor({
@@ -43,6 +44,7 @@ export function RolePermissionEditor({
   onSelectRole,
   onDeleteRole,
   canManageRoles = false,
+  isAdmin = false,
 }: RolePermissionEditorProps) {
   const { t } = useTranslation('permissions')
   const updatePermissions = useUpdateRolePermissions()
@@ -60,6 +62,7 @@ export function RolePermissionEditor({
   const savePermissions = (
     nextPermissions: Array<string>,
     pendingId: string,
+    nextHiddenModules?: Array<string>,
   ) => {
     if (!selectedRoleId) return
 
@@ -69,11 +72,31 @@ export function RolePermissionEditor({
         roleId: selectedRoleId,
         permissions: nextPermissions,
         restrictions,
+        hiddenModules: nextHiddenModules ?? rolePermissions?.hiddenModules,
       },
       {
         onSettled: () => setPendingKey(null),
       },
     )
+  }
+
+  const handleToggleHideModules = (moduleKeys: string[]) => {
+    if (!selectedRoleId || moduleKeys.length === 0) return
+    const currentHidden = rolePermissions?.hiddenModules ?? []
+    
+    // Check if all moduleKeys are currently hidden
+    const isHidden = moduleKeys.every(m => currentHidden.includes(m))
+    
+    let nextHidden: string[]
+    if (isHidden) {
+      // Unhide: remove moduleKeys from hiddenModules
+      nextHidden = currentHidden.filter(m => !moduleKeys.includes(m))
+    } else {
+      // Hide: add moduleKeys to hiddenModules
+      nextHidden = [...new Set([...currentHidden, ...moduleKeys])]
+    }
+    
+    savePermissions(permissions, `hide:${moduleKeys[0]}`, nextHidden)
   }
 
   const handleToggleItems = (
@@ -248,6 +271,9 @@ export function RolePermissionEditor({
 
                 if (majorItems.length === 0) return null
 
+                const isCurrentRoleManaging = isPermissionGranted(permissions, 'roles.manage', 'roles')
+                const showHideControls = isAdmin && isCurrentRoleManaging
+
                 const majorCheckState = getItemListCheckState(majorItems)
                 const isMajorFullyGranted = majorCheckState === true
                 const isMajorPending = pendingKey === `major:${majorGroup.id}`
@@ -257,7 +283,7 @@ export function RolePermissionEditor({
                 return (
                   <div
                     key={majorGroup.id}
-                    className="rounded-lg border border-border bg-card shadow-sm"
+                    className={cn("rounded-lg border border-border bg-card shadow-sm transition-opacity", majorModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) && 'opacity-50')}
                   >
                     {/* Major Module Header */}
                     <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-3.5">
@@ -281,12 +307,26 @@ export function RolePermissionEditor({
                           {majorGroup.label}
                         </span>
                       </label>
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {majorItems.filter((i) =>
-                          isPermissionGranted(permissions, i.key, i.module),
-                        ).length}{' '}
-                        / {majorItems.length} quyền được gán
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {majorItems.filter((i) =>
+                            isPermissionGranted(permissions, i.key, i.module),
+                          ).length}{' '}
+                          / {majorItems.length} quyền được gán
+                        </span>
+                        {showHideControls && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className={cn('size-7 hover:bg-transparent', majorModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) ? 'text-muted-foreground' : 'text-primary')}
+                            onClick={(e) => { e.preventDefault(); handleToggleHideModules(majorModuleKeys); }}
+                            title="Ẩn/Hiện nhóm quyền"
+                          >
+                            {majorModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Major Module Content: Sub-modules */}
@@ -308,27 +348,41 @@ export function RolePermissionEditor({
                         // If sub has nested sub-groups (like Danh mục dùng chung, Cấu hình dữ liệu)
                         if (sub.groups && sub.groups.length > 0) {
                           return (
-                            <div key={sub.id} className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0">
-                              <label className="flex cursor-pointer items-center gap-2.5">
-                                <Checkbox
-                                  checked={
-                                    subCheckState === 'indeterminate'
-                                      ? 'indeterminate'
-                                      : subCheckState
-                                  }
-                                  disabled={isSubDisabled}
-                                  onCheckedChange={() =>
-                                    handleToggleItems(
-                                      subItems,
-                                      isSubFullyGranted,
-                                      `sub:${sub.id}`,
-                                    )
-                                  }
-                                />
-                                <span className="text-sm font-bold text-foreground">
-                                  {sub.label}
-                                </span>
-                              </label>
+                            <div key={sub.id} className={cn("flex flex-col gap-4 py-5 first:pt-0 last:pb-0 transition-opacity", subModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) && 'opacity-50')}>
+                              <div className="flex items-center gap-3">
+                                <label className="flex cursor-pointer items-center gap-2.5">
+                                  <Checkbox
+                                    checked={
+                                      subCheckState === 'indeterminate'
+                                        ? 'indeterminate'
+                                        : subCheckState
+                                    }
+                                    disabled={isSubDisabled}
+                                    onCheckedChange={() =>
+                                      handleToggleItems(
+                                        subItems,
+                                        isSubFullyGranted,
+                                        `sub:${sub.id}`,
+                                      )
+                                    }
+                                  />
+                                  <span className="text-sm font-bold text-foreground">
+                                    {sub.label}
+                                  </span>
+                                </label>
+                                {showHideControls && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn('size-6 hover:bg-transparent', subModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) ? 'text-muted-foreground' : 'text-primary')}
+                                    onClick={(e) => { e.preventDefault(); handleToggleHideModules(subModuleKeys); }}
+                                    title="Ẩn/Hiện nhóm quyền"
+                                  >
+                                    {subModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                                  </Button>
+                                )}
+                              </div>
 
                               <div className="ml-7 flex flex-col gap-6 border-l border-border/80 pl-4">
                                 {sub.groups.map((group) => {
@@ -345,27 +399,41 @@ export function RolePermissionEditor({
                                     !canManageRoles || !selectedRoleId || isGroupPending
 
                                   return (
-                                    <div key={group.id} className="flex flex-col gap-3">
-                                      <label className="flex cursor-pointer items-center gap-2">
-                                        <Checkbox
-                                          checked={
-                                            groupCheckState === 'indeterminate'
-                                              ? 'indeterminate'
-                                              : groupCheckState
-                                          }
-                                          disabled={isGroupDisabled}
-                                          onCheckedChange={() =>
-                                            handleToggleItems(
-                                              groupItems,
-                                              isGroupFullyGranted,
-                                              `group:${group.id}`,
-                                            )
-                                          }
-                                        />
-                                        <span className="text-sm font-semibold text-foreground/90">
-                                          {group.label}
-                                        </span>
-                                      </label>
+                                    <div key={group.id} className={cn("flex flex-col gap-3 transition-opacity", group.modules.every(m => rolePermissions?.hiddenModules?.includes(m)) && 'opacity-50')}>
+                                      <div className="flex items-center gap-3">
+                                        <label className="flex cursor-pointer items-center gap-2">
+                                          <Checkbox
+                                            checked={
+                                              groupCheckState === 'indeterminate'
+                                                ? 'indeterminate'
+                                                : groupCheckState
+                                            }
+                                            disabled={isGroupDisabled}
+                                            onCheckedChange={() =>
+                                              handleToggleItems(
+                                                groupItems,
+                                                isGroupFullyGranted,
+                                                `group:${group.id}`,
+                                              )
+                                            }
+                                          />
+                                          <span className="text-sm font-semibold text-foreground/90">
+                                            {group.label}
+                                          </span>
+                                        </label>
+                                        {showHideControls && (
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className={cn('size-6 hover:bg-transparent', group.modules.every(m => rolePermissions?.hiddenModules?.includes(m)) ? 'text-muted-foreground' : 'text-primary')}
+                                            onClick={(e) => { e.preventDefault(); handleToggleHideModules(group.modules); }}
+                                            title="Ẩn/Hiện nhóm quyền"
+                                          >
+                                            {group.modules.every(m => rolePermissions?.hiddenModules?.includes(m)) ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                                          </Button>
+                                        )}
+                                      </div>
 
                                       <div className="ml-6">
                                         <PermissionGrid
@@ -386,27 +454,41 @@ export function RolePermissionEditor({
 
                         // Direct sub-module (no sub-groups)
                         return (
-                          <div key={sub.id} className="flex flex-col gap-3 py-5 first:pt-0 last:pb-0">
-                            <label className="flex cursor-pointer items-center gap-2.5">
-                              <Checkbox
-                                checked={
-                                  subCheckState === 'indeterminate'
-                                    ? 'indeterminate'
-                                    : subCheckState
-                                }
-                                disabled={isSubDisabled}
-                                onCheckedChange={() =>
-                                  handleToggleItems(
-                                    subItems,
-                                    isSubFullyGranted,
-                                    `sub:${sub.id}`,
-                                  )
-                                }
-                              />
-                              <span className="text-sm font-bold text-foreground">
-                                {sub.label}
-                              </span>
-                            </label>
+                          <div key={sub.id} className={cn("flex flex-col gap-3 py-5 first:pt-0 last:pb-0 transition-opacity", subModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) && 'opacity-50')}>
+                            <div className="flex items-center gap-3">
+                              <label className="flex cursor-pointer items-center gap-2.5">
+                                <Checkbox
+                                  checked={
+                                    subCheckState === 'indeterminate'
+                                      ? 'indeterminate'
+                                      : subCheckState
+                                  }
+                                  disabled={isSubDisabled}
+                                  onCheckedChange={() =>
+                                    handleToggleItems(
+                                      subItems,
+                                      isSubFullyGranted,
+                                      `sub:${sub.id}`,
+                                    )
+                                  }
+                                />
+                                <span className="text-sm font-bold text-foreground">
+                                  {sub.label}
+                                </span>
+                              </label>
+                              {showHideControls && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn('size-6 hover:bg-transparent', subModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) ? 'text-muted-foreground' : 'text-primary')}
+                                    onClick={(e) => { e.preventDefault(); handleToggleHideModules(subModuleKeys); }}
+                                    title="Ẩn/Hiện nhóm quyền"
+                                  >
+                                    {subModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                                  </Button>
+                              )}
+                            </div>
 
                             <div className="ml-7 border-l border-border/80 pl-4">
                               <PermissionGrid

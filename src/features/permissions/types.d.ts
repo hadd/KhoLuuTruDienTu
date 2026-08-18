@@ -21,6 +21,7 @@ export interface RolePermissionsRecordT {
   roleId: string
   roleName: string
   isBaseRole: boolean
+  hiddenModules: Array<string>
   rules: RolePermissionRulesT
   catalog: Array<PermissionCatalogItemT>
 }
@@ -29,6 +30,7 @@ export interface UpdateRolePermissionsPayloadT {
   roleId: string
   permissions: Array<string>
   restrictions: Array<string>
+  hiddenModules?: Array<string>
 }
 
 export interface AdminRoleWritePayloadT {

@@ -83,7 +83,7 @@ export function ItemFormDialog({
   const showImage = mode.kind === 'location' || mode.kind === 'warehouse'
   const showAddress = mode.kind === 'warehouse'
   // KHÔNG cho sửa sức chứa ở cấp kho: ẩn trường và không bao giờ gửi capacity.
-  const showCapacity = mode.kind !== 'warehouse'
+  const showCapacity = mode.kind === 'intermediate' || mode.kind === 'storageUnit'
   const capacityRequired = mode.kind === 'intermediate' || mode.kind === 'storageUnit'
   const capacityLabel = mode.isBottomLevel
     ? t('form.fields.capacity.label')
