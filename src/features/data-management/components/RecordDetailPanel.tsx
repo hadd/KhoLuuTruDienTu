@@ -67,6 +67,7 @@ import {
   resolveDefaultMetadataGroupIndex,
   type MetadataGroupEntry,
 } from '@/features/data-management/lib/metadataLayout'
+import { findHoSoFondFieldValue } from '@/features/data-management/lib/metadataNormalize'
 import { resolveEditorPdfMaskEnabled } from '@/features/data-management/lib/pdfMaskPolicy'
 import {
   dossierMetadataHistoryQueryOptions,
@@ -971,6 +972,15 @@ export function RecordDetailPanel({
       ? activeMetadata
       : mergeMetadataFieldChanges(baseMetadata, activeMetadata)
     const storagePayload = serializeDossierMetadataForStorage(payload)
+
+    if (!isEditorRole || mode !== 'draft') {
+      const fondValue = findHoSoFondFieldValue(payload)?.trim()
+      if (!fondValue) {
+        setIsHandlingSave(false)
+        toast.error('Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ')
+        return
+      }
+    }
 
     try {
       if (isEditorRole && mode === 'final') {

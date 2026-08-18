@@ -33,6 +33,7 @@ import {
   normalizeSavedCustomFields,
   resolveGroupCodeForDocument,
 } from '@/features/data-management/lib/metadataHelpers'
+import { findHoSoFondFieldValue } from '@/features/data-management/lib/metadataNormalize'
 import { updateDossierMetadataInTree } from '@/features/data-management/lib/treeUtils'
 import {
   dataManagementTreeQueryKey,
@@ -191,6 +192,15 @@ export function DocumentMetadataForm({
     try {
       const updatedFields = buildUpdatedFields()
       const metadata = buildUpdatedMetadata()
+
+      if (isQcRole || isQcComplete) {
+        const fondValue = findHoSoFondFieldValue(metadata)?.trim()
+        if (!fondValue) {
+          setIsHandlingSave(false)
+          toast.error('Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ')
+          return
+        }
+      }
 
       if (shouldPersistMetadata) {
         await saveMutation.mutateAsync({ dossierId, metadata })

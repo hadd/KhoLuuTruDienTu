@@ -64,6 +64,7 @@ export function DataNodeContextMenu({
   canSubmitArchive?: boolean
 }) {
   const { t } = useTranslation('data-management')
+  const { permissions: userPermissions } = useRoleAccess()
   const menuRef = useRef<HTMLDivElement>(null)
   const [adjustedPosition, setAdjustedPosition] = useState<{
     x: number
@@ -168,7 +169,6 @@ export function DataNodeContextMenu({
       },
     ]
 
-  const { permissions: userPermissions } = useRoleAccess()
   const canExportDossiers = isPermissionGranted(
     userPermissions,
     'dossiers.export',

@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
-import logoSrc from '@/assets/images/vn-emblem.svg'
+import logoSrc from '@/assets/images/Lg1.png'
 import { cn } from '@/lib/utils/cn'
 
 interface AppLogoProps {

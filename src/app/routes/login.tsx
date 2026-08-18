@@ -3,7 +3,7 @@ import { CheckCircle2 } from 'lucide-react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import logoSrc from '@/assets/images/vn-emblem.svg'
+import logoSrc from '@/assets/images/Lg1.png'
 import { LoginForm } from '@/features/auth/components/LoginForm'
 import { APP_HOME_PATH } from '@/features/auth/constants'
 import { useAuthStore } from '@/features/auth/store'
@@ -52,12 +52,15 @@ function LoginRoute() {
             {/* Logo Section - 2 dòng */}
             <div className="space-y-2 sm:space-y-3">
               {/* Dòng 1: Logo và tên */}
-              <div className="flex items-center">
+              <div className="flex items-center gap-3">
                 <img
                   src={logoSrc}
                   alt={t('badge')}
                   className="h-10 w-auto sm:h-12 md:h-14 lg:h-16"
                 />
+                <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                  {t('badge')}
+                </span>
               </div>
               {/* Dòng 2: Tagline */}
               <p className="hidden md:block text-sm text-muted-foreground">

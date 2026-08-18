@@ -172,8 +172,7 @@ export function collapseTaiLieuDocuments(
   return { ...metadata, metadata_groups: collapsedGroups }
 }
 
-const DEFAULT_FOND_VALUE =
-  'Phông Cục Thi hành án dân sự tỉnh Phú Thọ'
+const DEFAULT_FOND_VALUE = ''
 
 const LEGACY_FOND_FIELD_NAMES = [
   'PHONG_LUU_TRU',
