@@ -26,6 +26,7 @@ import { createNotificationRouter } from "../modules/notification/notification.r
 import { createPhysicalWarehouseRouter } from "../modules/physical-warehouse/index.ts"
 import { createSecurityLevelRouter, createSecurityPermissionDefRouter } from "../modules/security-level/index.ts"
 import { createMetadataExtractRouter } from "../modules/metadata-extract/index.ts"
+import { createDashboardWarehouseRouter } from "../modules/dashboard/dashboard.warehouse-router.ts"
 
 export const apiV1Router = new Elysia({
     prefix: "/api/v1",
@@ -62,3 +63,4 @@ export const apiV1Router = new Elysia({
     .use(createSearchRouter("/search"))
     .use(createSecurityLevelRouter("/security-levels"))
     .use(createSecurityPermissionDefRouter("/security-permission-defs"))
+    .use(createDashboardWarehouseRouter("/dashboard"))

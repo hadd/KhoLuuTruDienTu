@@ -1,11 +1,12 @@
+// @/features/archive-fond/fond-router.ts
+
 import { Elysia, t } from "elysia";
 import { FondService as service } from "./fond-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 import { indexFondById } from "../search/adapters/fond.adapter.ts";
-
-
+import { fondEntitySchema } from "./types.ts"; // 1. Bổ sung import Schema từ types
 
 const fondIdParamSchema = t.Object({
     id: t.String({ description: "Mã phông (Fond ID)" }),
@@ -52,6 +53,30 @@ export function createFondRouter(basePath: string = "/fonds") {
         }
     );
 
+    // 2. Chuyển endpoint tĩnh này lên trước '/:id' để tránh lỗi xung đột tham số định tuyến
+    app.get(
+        "/active-with-count",
+        async ({ profile }) => {
+            // 3. Bổ sung kiểm tra quyền bảo mật tương tự như API '/active'
+            authHelper.checkPermissionAny(profile, [
+                Permission.FONDS_READ,
+                Permission.DATA_ENTRY_MAKER,
+                Permission.DATA_ENTRY_CHECKER,
+            ]);
+            // 4. Sửa FondService thành service cho khớp với tên import
+            return await service.listActiveWithDossierCount();
+        },
+        {
+            response: t.Object({
+                items: t.Array(fondEntitySchema)
+            }),
+            detail: {
+                summary: "Lấy danh sách phông hoạt động đi kèm số lượng hồ sơ",
+                tags,
+            }
+        }
+    );
+
     app.get(
         "/:id",
         async ({ params, profile }) => {
@@ -81,7 +106,6 @@ export function createFondRouter(basePath: string = "/fonds") {
         "/:id",
         async ({ params, body, profile }) => {
             authHelper.checkPermission(profile, Permission.FONDS_UPDATE);
-            // Notice: params.id is the original ID, body does not contain id per updateFondSchema
             const record = await service.update(params.id, body);
             indexFondById(params.id).catch(() => undefined);
             return { record, status: "updated" };

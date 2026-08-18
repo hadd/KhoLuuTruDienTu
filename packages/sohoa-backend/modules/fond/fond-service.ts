@@ -171,4 +171,44 @@ export const FondService = {
             items: itemsWithCount,
         };
     },
+
+    async listActiveWithDossierCount() {
+        // 1. Lấy danh sách phông đang hoạt động
+        const result = await db
+            .select()
+            .from(fonds)
+            .where(and(
+                eq(fonds.isActive, true),
+                isNull(fonds.deletedAt),
+            ))
+            .orderBy(fonds.fondName);
+
+        const fondIds = result.map((i) => i.id);
+        if (fondIds.length === 0) {
+            return { items: [] };
+        }
+
+        // 2. Tính toán số lượng hồ sơ (dossierCount) tương ứng cho từng phông
+        const counts = await db
+            .select({
+                fondId: dossiers.fondId,
+                dossierCount: sql<number>`count(${dossiers.id})`.mapWith(Number),
+            })
+            .from(dossiers)
+            .where(and(
+                inArray(dossiers.fondId, fondIds),
+                isNull(dossiers.deletedAt),
+            ))
+            .groupBy(dossiers.fondId);
+
+        const countMap = new Map(counts.map((c) => [c.fondId, c.dossierCount]));
+
+        // 3. Ghép dossierCount vào kết quả trả về
+        const itemsWithCount = result.map((item) => ({
+            ...item,
+            dossierCount: countMap.get(item.id) || 0,
+        }));
+
+        return { items: itemsWithCount.map(toPublicFond) };
+    },
 };
