@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, getRouteApi } from '@tanstack/react-router'
-import { Loader2 } from 'lucide-react'
+import { LayoutDashboard, Loader2, Warehouse } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { AdminRoleChartTypeT } from '@/features/admin-dashboard/components/AdminDashboardPage'
 import { AdminDashboardPage } from '@/features/admin-dashboard/components/AdminDashboardPage'
 import { adminDashboardQueryOptions } from '@/features/admin-dashboard/queries'
@@ -24,10 +25,12 @@ import {
   qcDashboardGroupQueryOptions,
   qcDashboardQueryOptions,
 } from '@/features/qc-dashboard/queries'
+import { WarehouseDashboard } from '@/features/warehouse-dashboard'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
 const dashboardSearchSchema = z.object({
+  tab: z.enum(['overview', 'warehouse']).optional().catch('overview'),
   roleChart: z
     .enum(['pie', 'bar', 'line', 'horizontalBar'])
     .optional()
@@ -96,22 +99,65 @@ export const Route = createFileRoute('/app/dashboard/')({
 
 function DashboardRoute() {
   const { variant } = Route.useLoaderData()
-  const { roleChart, dossierTrendGranularity, period } = routeApi.useSearch()
+  const navigate = routeApi.useNavigate()
+  const { tab, roleChart, dossierTrendGranularity, period } = routeApi.useSearch()
+  const activeTab = tab ?? 'overview'
 
-  if (variant === 'admin') {
-    return (
-      <AdminDashboardContent
-        roleChart={roleChart ?? 'pie'}
-        dossierTrendGranularity={dossierTrendGranularity ?? 'month'}
-      />
-    )
-  }
+  return (
+    <div className="flex flex-1 flex-col gap-4 w-full h-full min-h-0">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-3 shrink-0">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">
+            {activeTab === 'warehouse'
+              ? 'Dashboard Báo Cáo & Vận Hành Kho'
+              : 'Tổng Quan Hệ Thống'}
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            {activeTab === 'warehouse'
+              ? 'Theo dõi dữ liệu thực tế về sức chứa kho vật lý, kho dữ liệu số và hồ sơ lưu trữ'
+              : 'Thống kê tổng quan tiến độ số hóa, quy trình làm việc và hiệu suất toàn hệ thống'}
+          </p>
+        </div>
 
-  if (variant === 'qc') {
-    return <QcDashboardContent />
-  }
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) => {
+            void navigate({
+              search: (prev) => ({
+                ...prev,
+                tab: val as 'overview' | 'warehouse',
+              }),
+            })
+          }}
+          className="w-auto"
+        >
+          <TabsList className="h-9 p-1">
+            <TabsTrigger value="overview" className="h-7 text-xs gap-1.5 px-3">
+              <LayoutDashboard className="size-3.5" />
+              <span>Tổng Quan Hệ Thống</span>
+            </TabsTrigger>
+            <TabsTrigger value="warehouse" className="h-7 text-xs gap-1.5 px-3">
+              <Warehouse className="size-3.5" />
+              <span>Dashboard Kho</span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
-  return <EditorDashboardContent period={period ?? '30d'} />
+      {activeTab === 'warehouse' ? (
+        <WarehouseDashboard />
+      ) : variant === 'admin' ? (
+        <AdminDashboardContent
+          roleChart={roleChart ?? 'pie'}
+          dossierTrendGranularity={dossierTrendGranularity ?? 'month'}
+        />
+      ) : variant === 'qc' ? (
+        <QcDashboardContent />
+      ) : (
+        <EditorDashboardContent period={period ?? '30d'} />
+      )}
+    </div>
+  )
 }
 
 function EditorDashboardContent({

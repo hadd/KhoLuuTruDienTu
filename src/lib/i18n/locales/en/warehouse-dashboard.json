@@ -1,0 +1,93 @@
+{
+    "warehouse": {
+        "status": {
+            "normal": "Normal",
+            "quiteFull": "Quite Full",
+            "veryFull": "Very Full"
+        },
+        "card": {
+            "fallbackAddress": "Centralized Storage Facility",
+            "fillLabel": "Fill Rate:",
+            "usedCapacity": "Stored Volume",
+            "totalCapacity": "Total Capacity",
+            "remainingCapacity": "Remaining Capacity",
+            "subItems": "Sub-items / Shelves",
+            "unlimited": "Unlimited",
+            "noLimit": "No Limit"
+        },
+        "sync": {
+            "badge": "100% Real Data (Backend Database Connected)",
+            "description": "Data queried directly from backend database & search engine",
+            "loading": "Loading real-time data...",
+            "updatedAt": "Live update"
+        },
+        "kpi": {
+            "overviewTitle": "Dossier & Storage Overview",
+            "overviewDesc": "Detailed distribution statistics of dossiers by storage and editorial level",
+            "totalDossiers": "Total system dossiers",
+            "realtime": "Real-time data",
+            "archived": "Archived",
+            "editedUnarchived": "Unarchived (Edited)",
+            "uneditedUnarchived": "Unarchived (Unedited)",
+            "empty": "No system dossier data found",
+            "shortEditedUnarchived": "Unarchived - Ed",
+            "shortUneditedUnarchived": "Unarchived - Un",
+            "borrowTitle": "Borrow & Retrieval Statistics",
+            "borrowDesc": "Number of requests for digital read-only access in the system",
+            "totalBorrows": "Total borrow requests in system",
+            "borrowRequests": "Borrow Requests",
+            "allBorrowRequests": "All borrow request slips",
+            "activeBorrows": "Active Borrows (Online Read)",
+            "activeBorrowsDesc": "Currently within digital read period",
+            "borrowModuleSource": "Direct data from Archive Borrow module",
+            "manageBorrow": "Manage Borrowing"
+        },
+        "capacity": {
+            "title": "Warehouse Capacity",
+            "countBadge": "{{count}} Physical Warehouses",
+            "desc": "Overview of stored volume, maximum capacity, and fill rate from DB",
+            "emptyTitle": "No warehouse locations in the system",
+            "emptyDesc": "Go to 'Physical Warehouse' to create a warehouse and set capacity."
+        },
+        "chart": {
+            "intakeTitle": "Digital Archive Growth Chart",
+            "intakeDesc": "Number of received and digitized dossiers imported into the database",
+            "tabs": {
+                "day": "Daily",
+                "month": "Monthly"
+            },
+            "intakeLabel": "Received dossiers",
+            "digitizedLabel": "Digitized archives",
+            "empty": "No timeline archive data available"
+        },
+        "unplaced": {
+            "title": "Unplaced Dossiers",
+            "countBadge": "{{count}} dossiers",
+            "desc": "List of actual dossiers in storage without physical shelves locations",
+            "table": {
+                "colName": "ID / Name",
+                "colUpdate": "Updated At",
+                "colActions": "Actions",
+                "actionAssign": "Assign Location",
+                "empty": "All stored dossiers are fully placed in physical locations"
+            }
+        },
+        "fonds": {
+            "title": "Dossier Distribution by Fond",
+            "desc": "Distribution percentage of dossiers across each Fond unit in the system",
+            "empty": "No archive fonds defined in the system"
+        },
+        "disposal": {
+            "title": "Expiring Retention Disposal Catalog",
+            "countBadge": "{{count}} dossiers due",
+            "desc": "Dossiers whose retention period in the DB has expired",
+            "table": {
+                "colFond": "Fond",
+                "colStatus": "Status",
+                "statusPending": "Awaiting Cataloging",
+                "fallbackFond": "General Fond",
+                "empty": "No expired retention dossiers require disposal"
+            }
+        }
+    }
+}

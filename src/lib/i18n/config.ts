@@ -46,6 +46,7 @@ import enUserManagement from './locales/en/user-management.json'
 import enSecurityLevel from './locales/en/security-level.json'
 import enOcrControl from './locales/en/ocr-control.json'
 import enMetadataExtractSettings from './locales/en/metadata-extract-settings.json'
+import enWarehouseDashboard from './locales/en/warehouse-dashboard.json'
 import viAuditLog from './locales/vi/audit-log.json'
 import viAuditLogConfig from './locales/vi/audit-log-config.json'
 import viArchiveBorrow from './locales/vi/archive-borrow.json'
@@ -91,6 +92,7 @@ import customViLocale from './zod-locale-vi'
 import viSecurityLevel from './locales/vi/security-level.json'
 import viOcrControl from './locales/vi/ocr-control.json'
 import viMetadataExtractSettings from './locales/vi/metadata-extract-settings.json'
+import viWarehouseDashboard from './locales/vi/warehouse-dashboard.json'
 
 const LANGUAGE_STORAGE_KEY = 'app_language'
 
@@ -162,6 +164,7 @@ void i18n.use(initReactI18next).init({
       'metadata-extract-settings': enMetadataExtractSettings,
       'audit-log': enAuditLog,
       'audit-log-config': enAuditLogConfig,
+      'warehouse-dashboard': enWarehouseDashboard,
     },
     vi: {
       common: viCommon,
@@ -208,6 +211,7 @@ void i18n.use(initReactI18next).init({
       'metadata-extract-settings': viMetadataExtractSettings,
       'audit-log': viAuditLog,
       'audit-log-config': viAuditLogConfig,
+      'warehouse-dashboard': viWarehouseDashboard,
     },
   },
   interpolation: {

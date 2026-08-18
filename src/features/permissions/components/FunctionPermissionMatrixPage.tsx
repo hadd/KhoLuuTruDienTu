@@ -26,7 +26,7 @@ export function FunctionPermissionMatrixPage() {
   const { q, roleId } = routeApi.useSearch()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [roleToDelete, setRoleToDelete] = useState<PermissionRoleT | null>(null)
-  const { canManageRoles } = useRoleAccess()
+  const { canManageRoles, isAdmin } = useRoleAccess()
 
   const rolesQuery = useQuery(permissionRolesQueryOptions())
   const catalogQuery = useQuery(permissionsCatalogQueryOptions())
@@ -157,6 +157,7 @@ export function FunctionPermissionMatrixPage() {
           onSelectRole={handleSelectRole}
           onDeleteRole={setRoleToDelete}
           canManageRoles={canManageRoles}
+          isAdmin={isAdmin}
         />
       )}
 

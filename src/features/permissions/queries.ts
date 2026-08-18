@@ -136,6 +136,7 @@ export function useUpdateRolePermissions() {
 
         return {
           ...old,
+          hiddenModules: payload.hiddenModules ?? old.hiddenModules,
           rules: {
             permissions: payload.permissions,
             restrictions: payload.restrictions,

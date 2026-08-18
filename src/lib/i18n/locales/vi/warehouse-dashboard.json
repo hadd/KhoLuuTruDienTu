@@ -1,0 +1,93 @@
+{
+    "warehouse": {
+        "status": {
+            "normal": "Bình thường",
+            "quiteFull": "Khá đầy",
+            "veryFull": "Rất đầy"
+        },
+        "card": {
+            "fallbackAddress": "Cơ sở lưu trữ tập trung",
+            "fillLabel": "Lấp đầy:",
+            "usedCapacity": "Đang lưu giữ",
+            "totalCapacity": "Tổng sức chứa",
+            "remainingCapacity": "Chỗ trống còn lại",
+            "subItems": "Mục con / Kệ",
+            "unlimited": "Chưa giới hạn",
+            "noLimit": "Không giới hạn"
+        },
+        "sync": {
+            "badge": "100% Dữ Liệu Thực Tế (Backend Database Connected)",
+            "description": "Dữ liệu được truy vấn trực tiếp từ cơ sở dữ liệu & Search Engine hệ thống",
+            "loading": "Đang tải dữ liệu thực tế...",
+            "updatedAt": "Cập nhật trực tiếp"
+        },
+        "kpi": {
+            "overviewTitle": "Tổng Quan Hồ Sơ & Lưu Kho",
+            "overviewDesc": "Thống kê phân bổ chi tiết hồ sơ thực tế theo mức độ lưu trữ và biên tập",
+            "totalDossiers": "Tổng số hồ sơ thực tế trong hệ thống",
+            "realtime": "Dữ liệu thời gian thực",
+            "archived": "Đã lưu kho",
+            "editedUnarchived": "Đã biên tập",
+            "uneditedUnarchived": "Chưa biên tập",
+            "empty": "Chưa có dữ liệu hồ sơ hệ thống",
+            "shortEditedUnarchived": "Đã biên tập",
+            "shortUneditedUnarchived": "Chưa biên tập",
+            "borrowTitle": "Thống Kê Mượn & Tra Cứu Hồ Sơ",
+            "borrowDesc": "Số lượng yêu cầu mượn khai thác đọc số Online trên hệ thống",
+            "totalBorrows": "Tổng số yêu cầu mượn trên hệ thống",
+            "borrowRequests": "Số Yêu Cầu Mượn",
+            "allBorrowRequests": "Tất cả phiếu yêu cầu mượn",
+            "activeBorrows": "Số Đang Mượn (Đọc Online)",
+            "activeBorrowsDesc": "Đang trong thời hạn đọc Online",
+            "borrowModuleSource": "Dữ liệu trực tiếp từ Module Archive Borrow",
+            "manageBorrow": "Quản lý mượn trả"
+        },
+        "capacity": {
+            "title": "Sức Chứa Tách Riêng Từng Kho",
+            "countBadge": "{{count}} Kho thực tế",
+            "desc": "Tổng quan dung lượng lưu giữ, sức chứa tối đa và tỷ lệ lấp đầy theo con số cụ thể từ DB",
+            "emptyTitle": "Chưa có Địa điểm Kho nào trong hệ thống",
+            "emptyDesc": "Hãy truy cập mục \"Kho Vật Lý\" để tạo kho mới và thiết lập sức chứa."
+        },
+        "chart": {
+            "intakeTitle": "Biểu Đồ Tăng Trưởng Nạp Kho Số",
+            "intakeDesc": "Số lượng hồ sơ được tiếp nhận và số hóa nạp vào kho dữ liệu từ Database",
+            "tabs": {
+                "day": "Theo Ngày",
+                "month": "Theo Tháng"
+            },
+            "intakeLabel": "Hồ sơ tiếp nhận",
+            "digitizedLabel": "Đã nạp kho số hóa",
+            "empty": "Chưa có dữ liệu lịch sử nạp kho theo thời gian"
+        },
+        "unplaced": {
+            "title": "Hồ Sơ Chưa Phân Vị Trí",
+            "countBadge": "{{count}} hồ sơ",
+            "desc": "Danh sách hồ sơ thực tế trong kho chưa gắn vị trí ô/kệ vật lý",
+            "table": {
+                "colName": "Mã / Tên HS",
+                "colUpdate": "Cập nhật",
+                "colActions": "Thao tác",
+                "actionAssign": "Gán vị trí",
+                "empty": "Tất cả hồ sơ lưu trữ đã được gắn vị trí vật lý đầy đủ"
+            }
+        },
+        "fonds": {
+            "title": "Phân Bố Hồ Sơ Theo Phông Lưu Trữ",
+            "desc": "Cơ cấu tỷ lệ hồ sơ phân bổ theo từng đơn vị Phông từ hệ thống",
+            "empty": "Chưa có Phông lưu trữ nào được khai báo trong hệ thống"
+        },
+        "disposal": {
+            "title": "Danh Mục Hồ Sơ Đến Hạn Tiêu Hủy",
+            "countBadge": "{{count}} hồ sơ đến hạn",
+            "desc": "Các hồ sơ đã hết thời hạn bảo quản lưu trữ theo quy định trong DB",
+            "table": {
+                "colFond": "Phông",
+                "colStatus": "Trạng thái",
+                "statusPending": "Chờ lập danh mục",
+                "fallbackFond": "Phông chung",
+                "empty": "Không có hồ sơ nào hết thời hạn bảo quản cần tiêu hủy"
+            }
+        }
+    }
+}
