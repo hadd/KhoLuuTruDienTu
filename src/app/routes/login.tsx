@@ -3,7 +3,7 @@ import { CheckCircle2 } from 'lucide-react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import logoSrc from '@/assets/images/Lg1.png'
+import logoSrc from '@/assets/images/vn-emblem.svg'
 import { LoginForm } from '@/features/auth/components/LoginForm'
 import { APP_HOME_PATH } from '@/features/auth/constants'
 import { useAuthStore } from '@/features/auth/store'
