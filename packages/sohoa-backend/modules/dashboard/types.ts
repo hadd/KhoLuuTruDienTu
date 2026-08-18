@@ -137,3 +137,69 @@ export const adminDashboardResponseSchema = t.Object({
     performance: adminPerformanceSchema,
     groups: t.Array(adminGroupSummarySchema),
 });
+
+export const warehouseLocationResponseSchema = t.Array(
+    t.Object({
+        id: t.String(),
+        parentId: t.Union([t.String(), t.Null()]),
+        name: t.String(),
+        imageUrl: t.Union([t.String(), t.Null()]),
+        address: t.Union([t.String(), t.Null()]),
+        capacity: t.Union([t.Number(), t.Null()]),
+        usedCapacity: t.Number(),
+        childCount: t.Number(),
+    })
+);
+
+export const warehouseStatsResponseSchema = t.Object({
+    totalDossiers: t.Number(),
+    byStatus: t.Record(t.String(), t.Number()),
+    dossierChart: t.Object({
+        granularity: t.Union([t.Literal("day"), t.Literal("month"), t.Literal("year")]),
+        rangeStart: t.Date(),
+        rangeEnd: t.Date(),
+        points: t.Array(
+            t.Object({
+                period: t.String(),
+                editedCompleted: t.Number(),
+                fullyCompleted: t.Number(),
+            })
+        ),
+    }),
+});
+
+export const warehouseUnplacedResponseSchema = t.Object({
+    items: t.Array(t.Any()),
+    total: t.Number(),
+});
+
+export const warehouseActiveFondSchema = t.Object({
+    id: t.String(),
+    // Sử dụng t.Optional và t.Union để chấp nhận mọi biến thể tên trường từ database
+    name: t.Optional(t.Union([t.String(), t.Null()])),
+    fondName: t.Optional(t.Union([t.String(), t.Null()])),
+    dossierCount: t.Optional(t.Union([t.Number(), t.Null()])),
+    dossiersCount: t.Optional(t.Union([t.Number(), t.Null()])),
+});
+
+// Cho phép phản hồi chấp nhận một trong hai cấu trúc: Đối tượng { items, total } HOẶC Mảng phẳng [ ... ]
+export const warehouseActiveFondsResponseSchema = t.Union([
+    t.Object({
+        items: t.Array(warehouseActiveFondSchema),
+        total: t.Optional(t.Number()),
+    }),
+    t.Array(warehouseActiveFondSchema)
+]);
+
+export const warehouseBorrowStatsResponseSchema = t.Object({
+    pending: t.Number(),
+    approved: t.Number(),
+    returned: t.Number(),
+    rejected: t.Number(),
+    total: t.Number(),
+});
+
+export const warehouseDisposalResponseSchema = t.Object({
+    items: t.Array(t.Any()),
+    total: t.Number(),
+});
