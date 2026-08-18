@@ -569,13 +569,19 @@ async function directApproveDossier(
         const { syncDossierFondIdFromMetadata } = await import(
             "../dossier/dossier-fond-sync.ts"
         );
-        await syncDossierFondIdFromMetadata(dossierId, metadata);
+        const syncedFondId = await syncDossierFondIdFromMetadata(dossierId, metadata);
+        const effectiveFondId = syncedFondId || dossier.fondId;
+        if (!effectiveFondId) {
+            throw httpError.badRequest("Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ.");
+        }
 
         try {
             await syncDocumentTypesFromOcrMetadata(dossierId, metadata);
         } catch (err) {
             console.error("[DataEntry] Failed to sync document types on direct approve:", err);
         }
+    } else if (!dossier.fondId) {
+        throw httpError.badRequest("Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ.");
     }
 
     const now = new Date();
@@ -695,7 +701,11 @@ async function approveMetadata(input: {
     const { syncDossierFondIdFromMetadata } = await import(
         "../dossier/dossier-fond-sync.ts"
     );
-    await syncDossierFondIdFromMetadata(input.dossierId, input.metadata);
+    const syncedFondId = await syncDossierFondIdFromMetadata(input.dossierId, input.metadata);
+    const effectiveFondId = syncedFondId || dossier.fondId;
+    if (!effectiveFondId) {
+        throw httpError.badRequest("Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ.");
+    }
 
     // Đồng bộ catalog loại tài liệu từ metadata đã duyệt (group_code/group_name).
     try {

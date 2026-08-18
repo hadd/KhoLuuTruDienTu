@@ -69,11 +69,13 @@ export function metadataDocumentMatchesFilePath(
 
 export async function resolveFondIdFromMetadataValue(
     raw: string | null | undefined,
+    tx?: DbTx,
 ): Promise<string | null> {
     const trimmed = raw?.trim();
     if (!trimmed) return null;
 
-    const [byId] = await db
+    const executor = tx ?? db;
+    const [byId] = await executor
         .select({ id: fonds.id })
         .from(fonds)
         .where(and(
@@ -84,7 +86,7 @@ export async function resolveFondIdFromMetadataValue(
         .limit(1);
     if (byId) return byId.id;
 
-    const [byName] = await db
+    const [byName] = await executor
         .select({ id: fonds.id })
         .from(fonds)
         .where(and(
