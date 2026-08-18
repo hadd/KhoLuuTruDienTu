@@ -4,6 +4,7 @@ import { db } from "../db/db-conn.ts";
 import { dossierFiles } from "../db/schemas/dossier-file.ts";
 import { dossiers } from "../db/schemas/dossier.ts";
 import { folders } from "../db/schemas/folder.ts";
+import { documentNamingConfigs } from "../db/schemas/document-naming-config.ts";
 import { setPurgeDossierFromMinIOOverrideForTests } from "../modules/dossier/dossier-delete-utils.ts";
 import {
     DossierService,
@@ -144,6 +145,15 @@ Deno.test({
                 where: activeFolderWhere(eq(folders.folderPath, folderPath)),
             });
             assertExists(leafFolder);
+
+            const fond = await db.query.fonds.findFirst();
+            if (fond) {
+                await db.insert(documentNamingConfigs).values({
+                    fondId: fond.id,
+                    targetType: "file",
+                    dossierId: dossierId,
+                });
+            }
 
             const result = await DossierService.delete(dossierId, { permanent: true });
             assertEquals(result.mode, "permanent");

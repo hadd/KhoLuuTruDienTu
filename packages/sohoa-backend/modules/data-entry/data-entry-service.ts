@@ -46,6 +46,7 @@ import {
     shouldResetMakerOnReject,
 } from "../../libs/metadata-field-filter.ts";
 import { isDossierMetadata, type DossierMetadata } from "../../libs/metadata-types.ts";
+import { hasHoSoFondField } from "../../libs/metadata-normalize.ts";
 import {
     resolveEditorSlotFieldPatterns,
     resolveEffectiveAllowedFields,
@@ -571,7 +572,7 @@ async function directApproveDossier(
         );
         const syncedFondId = await syncDossierFondIdFromMetadata(dossierId, metadata);
         const effectiveFondId = syncedFondId || dossier.fondId;
-        if (!effectiveFondId) {
+        if (hasHoSoFondField(metadata) && !effectiveFondId) {
             throw httpError.badRequest("Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ.");
         }
 
@@ -580,8 +581,18 @@ async function directApproveDossier(
         } catch (err) {
             console.error("[DataEntry] Failed to sync document types on direct approve:", err);
         }
-    } else if (!dossier.fondId) {
-        throw httpError.badRequest("Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ.");
+    } else {
+        let currentMeta: unknown = null;
+        if (storedKey) {
+            try {
+                currentMeta = await downloadJsonFromStorage(resolveMetadataJsonKey(storedKey));
+            } catch {
+                currentMeta = null;
+            }
+        }
+        if (hasHoSoFondField(currentMeta) && !dossier.fondId) {
+            throw httpError.badRequest("Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ.");
+        }
     }
 
     const now = new Date();
@@ -703,7 +714,7 @@ async function approveMetadata(input: {
     );
     const syncedFondId = await syncDossierFondIdFromMetadata(input.dossierId, input.metadata);
     const effectiveFondId = syncedFondId || dossier.fondId;
-    if (!effectiveFondId) {
+    if (hasHoSoFondField(input.metadata) && !effectiveFondId) {
         throw httpError.badRequest("Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ.");
     }
 

@@ -4,6 +4,7 @@ import {
     expandTaiLieuDocuments,
     extractDocumentTypeRefsFromMetadata,
     findMetadataFieldValue,
+    hasHoSoFondField,
     HO_SO_FOND_FIELD,
     HO_SO_LUU_TRU_GROUP_CODE,
     migrateTt05MetadataLayout,
@@ -197,4 +198,30 @@ Deno.test("migrateTt05MetadataLayout moves fond from legacy PHONG group", () => 
         ),
         "Phong legacy",
     );
+});
+
+Deno.test("hasHoSoFondField identifies presence of Fond field correctly", () => {
+    const tt05Meta: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: HO_SO_LUU_TRU_GROUP_CODE,
+                group_name: "Ho so",
+                source_document: { file_name: null, file_path: null },
+                fields: [{ name: HO_SO_FOND_FIELD, display: "Phong", type: "string", value: "", page: null, bbox: null }],
+            },
+        ],
+    };
+    const thiHanhAnMeta: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "THI_HANH_AN",
+                group_name: "Thi hanh an",
+                source_document: { file_name: null, file_path: null },
+                fields: [{ name: "SOTIEN_PHAI_THI_HANH", display: "So tien", type: "string", value: "300000", page: null, bbox: null }],
+            },
+        ],
+    };
+
+    assertEquals(hasHoSoFondField(tt05Meta), true);
+    assertEquals(hasHoSoFondField(thiHanhAnMeta), false);
 });
