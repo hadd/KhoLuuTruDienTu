@@ -8,6 +8,7 @@ export const DASHBOARD_PERMISSION_KEYS = {
   editor: 'dashboard.editor',
   qc: 'dashboard.qc',
   admin: 'dashboard.admin',
+  warehouse: 'dashboard.warehouse',
 } as const
 
 export type DashboardVariantT = keyof typeof DASHBOARD_PERMISSION_KEYS
@@ -24,6 +25,10 @@ export const DASHBOARD_SCREEN_REQUIREMENTS = [
   {
     module: 'dashboard',
     permissionKey: DASHBOARD_PERMISSION_KEYS.admin,
+  },
+  {
+    module: 'dashboard',
+    permissionKey: DASHBOARD_PERMISSION_KEYS.warehouse,
   },
 ] as const satisfies ReadonlyArray<ScreenPermissionRequirement>
 
@@ -76,6 +81,16 @@ export function resolveDashboardVariant(
     )
   ) {
     return 'editor'
+  }
+
+  if (
+    isPermissionGranted(
+      permissions,
+      DASHBOARD_PERMISSION_KEYS.warehouse,
+      'dashboard',
+    )
+  ) {
+    return 'warehouse'
   }
 
   return null

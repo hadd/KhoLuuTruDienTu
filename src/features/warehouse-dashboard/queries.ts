@@ -1,47 +1,55 @@
 // @/features/warehouse-dashboard/queries.ts
 
 import { queryOptions } from '@tanstack/react-query'
-import { adminDashboardQueryOptions } from '@/features/admin-dashboard/queries'
-import { getDisposalCandidates } from '@/features/archive-disposal/api/archiveDisposalClient'
-import { getReviewArchiveBorrowRequests } from '@/features/archive-borrow/api/archiveBorrowClient'
-import { getUnplacedWarehouseDossiers } from '@/features/physical-warehouse/api/physicalWarehouseClient'
-
-import { 
-  getWarehouseDashboardLocations, 
-  getActiveFondsWithCount 
+import {
+  getWarehouseDashboardLocations,
+  getActiveFondsWithCount,
+  getWarehouseDashboardStats,
+  getWarehouseDashboardUnplaced,
+  getWarehouseDashboardBorrowStats,
+  getWarehouseDashboardDisposal
 } from './api/warehouseDashboardClient'
 
 export const warehouseDashboardQueries = {
-    adminDashboard: (granularity: 'day' | 'month') => adminDashboardQueryOptions(granularity),
+    // 1. Chỉ số tổng quan & Biểu đồ nạp kho
+    adminDashboard: (granularity: 'day' | 'month') => ({
+        queryKey: ['warehouse-dashboard', 'stats', granularity],
+        queryFn: () => getWarehouseDashboardStats({ chartGranularity: granularity }),
+        staleTime: 30_000,
+    }),
 
-    // Thay đổi Query Key ở đây để tách biệt hoàn toàn bộ nhớ đệm
+    // 2. Danh sách kho vật lý & sức chứa
     rootLocations: () => ({
         queryKey: ['warehouse-dashboard', 'root-locations'], 
         queryFn: () => getWarehouseDashboardLocations(),
         staleTime: 30_000,
     }),
 
+    // 3. Hồ sơ chưa phân vị trí
     unplacedDossiers: () => ({
-        queryKey: ['warehouse-dashboard', 'placements', 'unplaced'], // Có thể tách biệt luôn key này nếu cần
-        queryFn: () => getUnplacedWarehouseDossiers({ limit: 5 }),
+        queryKey: ['warehouse-dashboard', 'placements', 'unplaced'],
+        queryFn: () => getWarehouseDashboardUnplaced(),
         staleTime: 15_000,
     }),
 
+    // 4. Thống kê số lượng mượn trả
     borrowRequests: () => ({
-        queryKey: ['archive-borrow', 'review-list'],
-        queryFn: () => getReviewArchiveBorrowRequests({ limit: 100 }),
+        queryKey: ['warehouse-dashboard', 'borrow-stats'],
+        queryFn: () => getWarehouseDashboardBorrowStats(),
         staleTime: 30_000,
     }),
 
+    // 5. Phân bổ hồ sơ theo phông lưu trữ
     activeFonds: () => ({
-        queryKey: ['archive-fond', 'active-with-count'],
+        queryKey: ['warehouse-dashboard', 'active-fonds'],
         queryFn: () => getActiveFondsWithCount(),
         staleTime: 30_000,
     }),
 
+    // 6. Danh mục hồ sơ chờ tiêu hủy
     disposalCandidates: () => ({
-        queryKey: ['archive-disposal', 'candidates'],
-        queryFn: () => getDisposalCandidates({ limit: 5 }),
+        queryKey: ['warehouse-dashboard', 'disposal-candidates'],
+        queryFn: () => getWarehouseDashboardDisposal(),
         staleTime: 30_000,
     }),
 }

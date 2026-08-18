@@ -1,6 +1,9 @@
+// @/features/dashboard/routes/index.tsx (Hoặc tệp tin cấu hình tuyến đường dashboard chính của bạn)
+
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, getRouteApi } from '@tanstack/react-router'
 import { LayoutDashboard, Loader2, Warehouse } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react' // Thêm useEffect và useMemo
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
@@ -26,6 +29,7 @@ import {
   qcDashboardQueryOptions,
 } from '@/features/qc-dashboard/queries'
 import { WarehouseDashboard } from '@/features/warehouse-dashboard'
+import { warehouseDashboardQueries } from '@/features/warehouse-dashboard/queries'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -69,39 +73,83 @@ export const Route = createFileRoute('/app/dashboard/')({
     const { permissions } = await loadPermissionContext(context.queryClient)
     const variant = resolveDashboardVariant(permissions) ?? 'editor'
 
-    if (variant === 'admin') {
-      await context.queryClient.ensureQueryData(
-        adminDashboardQueryOptions(search.dossierTrendGranularity ?? 'month'),
-      )
-    } else if (variant === 'qc') {
-      await context.queryClient.ensureQueryData(qcDashboardQueryOptions())
-
-      try {
+    // Bọc toàn bộ logic tải trước dữ liệu trong try/catch để tránh việc API lỗi làm sập toàn bộ route tải trang
+    try {
+      if (variant === 'admin') {
         await context.queryClient.ensureQueryData(
-          qcDashboardGroupQueryOptions(),
+          adminDashboardQueryOptions(search.dossierTrendGranularity ?? 'month'),
         )
-      } catch (error) {
-        if (!isQcGroupLeaderOnlyError(error)) {
-          throw error
+      } else if (variant === 'qc') {
+        await context.queryClient.ensureQueryData(qcDashboardQueryOptions())
+
+        try {
+          await context.queryClient.ensureQueryData(
+            qcDashboardGroupQueryOptions(),
+          )
+        } catch (error) {
+          if (!isQcGroupLeaderOnlyError(error)) {
+            throw error
+          }
+        }
+      } else if (variant === 'warehouse') {
+        await context.queryClient.ensureQueryData(
+          warehouseDashboardQueries.warehouseDashboardStats(search.chartGranularity ?? 'month'),
+        )
+      } else {
+        // Chỉ nạp trước dữ liệu khi tài khoản thực sự có quyền Editor tránh bị lỗi 403 chặn tải trang
+        const hasEditorPermission = 
+          permissions.includes('dashboard.editor') || 
+          permissions.includes('DASHBOARD_EDITOR')
+
+        if (hasEditorPermission) {
+          await context.queryClient.ensureQueryData(
+            editorDashboardQueryOptions(search.period ?? '30d'),
+          )
         }
       }
-    } else {
-      await context.queryClient.ensureQueryData(
-        editorDashboardQueryOptions(search.period ?? '30d'),
-      )
+    } catch (error) {
+      console.warn('Dashboard prefetching failed safely:', error)
     }
 
-    return { variant }
+    return { variant, permissions } // Trả thêm permissions về để xử lý ở giao diện
   },
   component: DashboardRoute,
   errorComponent: DashboardErrorComponent,
 })
 
 function DashboardRoute() {
-  const { variant } = Route.useLoaderData()
+  const { variant, permissions } = Route.useLoaderData()
   const navigate = routeApi.useNavigate()
   const { tab, roleChart, dossierTrendGranularity, period } = routeApi.useSearch()
-  const activeTab = tab ?? 'overview'
+
+  // Xác định xem tài khoản đăng nhập có phải chỉ có quyền xem kho hay không
+  const isWarehouseOnly = useMemo(() => {
+    const hasOverviewPermission = 
+      permissions.includes('dashboard.admin') || 
+      permissions.includes('dashboard.qc') || 
+      permissions.includes('dashboard.editor') ||
+      permissions.includes('DASHBOARD_ADMIN') || 
+      permissions.includes('DASHBOARD_QC') || 
+      permissions.includes('DASHBOARD_EDITOR')
+      
+    return !hasOverviewPermission
+  }, [permissions])
+
+  // Nếu chỉ có quyền kho, tab mặc định sẽ được hướng thẳng vào 'warehouse'
+  const activeTab = tab ?? (isWarehouseOnly ? 'warehouse' : 'overview')
+
+  // Đẩy URL Search Parameter về tab 'warehouse' để đồng bộ hóa đúng trạng thái trên thanh địa chỉ trình duyệt
+  useEffect(() => {
+    if (isWarehouseOnly && tab !== 'warehouse') {
+      void navigate({
+        search: (prev) => ({
+          ...prev,
+          tab: 'warehouse',
+        }),
+        replace: true,
+      })
+    }
+  }, [isWarehouseOnly, tab, navigate])
 
   return (
     <div className="flex flex-1 flex-col gap-4 w-full h-full min-h-0">
@@ -119,29 +167,32 @@ function DashboardRoute() {
           </p>
         </div>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={(val) => {
-            void navigate({
-              search: (prev) => ({
-                ...prev,
-                tab: val as 'overview' | 'warehouse',
-              }),
-            })
-          }}
-          className="w-auto"
-        >
-          <TabsList className="h-9 p-1">
-            <TabsTrigger value="overview" className="h-7 text-xs gap-1.5 px-3">
-              <LayoutDashboard className="size-3.5" />
-              <span>Tổng Quan Hệ Thống</span>
-            </TabsTrigger>
-            <TabsTrigger value="warehouse" className="h-7 text-xs gap-1.5 px-3">
-              <Warehouse className="size-3.5" />
-              <span>Dashboard Kho</span>
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {/* Ẩn bộ chọn tab nếu người dùng chỉ có duy nhất quyền xem kho */}
+        {!isWarehouseOnly ? (
+          <Tabs
+            value={activeTab}
+            onValueChange={(val) => {
+              void navigate({
+                search: (prev) => ({
+                  ...prev,
+                  tab: val as 'overview' | 'warehouse',
+                }),
+              })
+            }}
+            className="w-auto"
+          >
+            <TabsList className="h-9 p-1">
+              <TabsTrigger value="overview" className="h-7 text-xs gap-1.5 px-3">
+                <LayoutDashboard className="size-3.5" />
+                <span>Tổng Quan Hệ Thống</span>
+              </TabsTrigger>
+              <TabsTrigger value="warehouse" className="h-7 text-xs gap-1.5 px-3">
+                <Warehouse className="size-3.5" />
+                <span>Dashboard Kho</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        ) : null}
       </div>
 
       {activeTab === 'warehouse' ? (
