@@ -23,7 +23,7 @@ import { RevertMetadataHistoryDialog } from '@/features/data-management/componen
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { isNodeChildrenCached } from '@/features/data-management/api/dataManagementClient'
-import { useDataManagementResolvedPermissions } from '@/features/data-management/hooks/useDataManagementRole'
+import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
 import { useEditorErrorReports } from '@/features/data-management/hooks/useEditorErrorReports'
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
 import { useRoleAccess } from '@/features/permissions/hooks/useRoleAccess'
@@ -132,7 +132,7 @@ export function RecordDetailPanel({
   const { t } = useTranslation('data-management')
   const queryClient = useQueryClient()
   const managementRole = role as DataManagementRole
-  const permissions = useDataManagementResolvedPermissions()
+  const permissions = getPermissionsByRole(managementRole)
   const isEditorRole = managementRole === 'editor'
   const { data: currentUser } = useQuery(profileQueryOptions)
   const workflowQuery = useQuery({

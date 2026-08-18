@@ -23,11 +23,7 @@ export const APP_SCREEN_ACCESS = {
   },
   data: {
     to: '/app/data',
-    requirements: [
-      ...DATA_ENTRY_SCREEN_REQUIREMENTS,
-      { module: 'dossiers', permissionKey: 'dossiers.read' },
-      { module: 'dossiers', permissionKey: 'dossiers.write' },
-    ],
+    requirements: DATA_ENTRY_SCREEN_REQUIREMENTS,
   },
   dossiers: {
     to: '/app/dossiers',
@@ -36,7 +32,7 @@ export const APP_SCREEN_ACCESS = {
   ocrControl: {
     to: '/app/ocr-control',
     module: 'dossiers',
-    permissionKey: 'dossiers.write',
+    permissionKey: 'dossiers.read',
   },
   scanIntake: {
     to: '/app/scan-intake',
@@ -49,8 +45,6 @@ export const APP_SCREEN_ACCESS = {
       { module: 'scan-intake', permissionKey: 'scan-intake.use' },
       { module: 'data-entry', permissionKey: 'data-entry.maker' },
       { module: 'data-entry', permissionKey: 'data-entry.checker' },
-      { module: 'dossiers', permissionKey: 'dossiers.read' },
-      { module: 'dossiers', permissionKey: 'dossiers.write' },
     ],
   },
   review: {
