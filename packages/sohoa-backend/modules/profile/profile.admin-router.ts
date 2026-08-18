@@ -39,7 +39,7 @@ export function createProfileAdminRouter(basePath: string = "/users") {
         "/all",
         async ({ profile, urlQuery = {} }) => {
             authHelper.checkPermission(profile, Permission.USERS_READ);
-            return await service.getAllActiveUsers(urlQuery);
+            return await service.getAllActiveUsers(urlQuery, profile);
         },
         {
             ...docs.list,
@@ -66,7 +66,7 @@ export function createProfileAdminRouter(basePath: string = "/users") {
     app.get(
         "/roles",
         async ({ profile }) => {
-            const record = await service.getAllRoles();
+            const record = await service.getAllRoles(profile);
             return { record };
         },
         {
@@ -85,8 +85,8 @@ export function createProfileAdminRouter(basePath: string = "/users") {
 
     app.get(
         "/by-permission/:permission",
-        async ({ params }) => {
-            return await service.getUsersByPermission(params.permission);
+        async ({ params, profile }) => {
+            return await service.getUsersByPermission(params.permission, profile);
         },
         {
             params: t.Object({

@@ -21,6 +21,7 @@ export const Permission = {
   DOSSIERS_ASSIGN: "dossiers.assign",
   DOSSIERS_EXPORT: "dossiers.export",
   DOSSIERS_SIGN: "dossiers.sign",
+  DOSSIERS_DIRECT_APPROVE: "dossiers.direct_approve",
   DOSSIERS_METADATA_SUMMARY_EDIT: "dossiers.metadata.summary.edit",
 
   FOLDERS_BROWSE_ALL: "folders.browse_all",
@@ -173,6 +174,19 @@ export const DOSSIER_SIGN_VIEW_PERMISSIONS = [
   Permission.DATA_ENTRY_CHECKER,
 ] as const;
 
+/** Lookup active levels / unlock protected content while viewing dossiers — not catalog admin. */
+export const SECURITY_LEVEL_CONTENT_ACCESS_PERMISSIONS = [
+  Permission.SECURITY_LEVELS_READ,
+  Permission.LIBRARY_EXPLOITATION_READ,
+  Permission.ARCHIVE_WAREHOUSE_READ,
+  Permission.ARCHIVE_WAREHOUSE_SEARCH,
+  Permission.ARCHIVE_WAREHOUSE_EDIT,
+  Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
+  Permission.DOSSIERS_READ,
+  Permission.ARCHIVE_BORROW_REQUEST,
+  Permission.ARCHIVE_DISPOSAL_READ,
+] as const;
+
 export type PermissionKey = (typeof Permission)[keyof typeof Permission];
 
 export interface PermissionDefinition {
@@ -183,6 +197,403 @@ export interface PermissionDefinition {
 }
 
 export const PERMISSION_CATALOG: PermissionDefinition[] = [
+  // --- MODULE 1: TỔNG QUAN ---
+  {
+    key: Permission.DASHBOARD_EDITOR,
+    module: "dashboard",
+    label: "Dashboard biên tập",
+    description:
+      "Xem thống kê tiến độ nhập liệu và hiệu suất cá nhân của biên tập viên",
+  },
+  {
+    key: Permission.DASHBOARD_QC,
+    module: "dashboard",
+    label: "Dashboard QC",
+    description:
+      "Xem thống kê duyệt hồ sơ, hiệu suất QC cá nhân và dashboard nhóm (trưởng nhóm)",
+  },
+  {
+    key: Permission.DASHBOARD_ADMIN,
+    module: "dashboard",
+    label: "Dashboard quản trị",
+    description:
+      "Xem tổng quan hệ thống, biểu đồ tiến độ hồ sơ và hiệu suất theo nhóm/dự án",
+  },
+
+  // --- MODULE 2: SỐ HÓA ---
+  {
+    key: Permission.PROJECTS_READ,
+    module: "projects",
+    label: "Xem dự án",
+    description: "Xem danh sách và thông tin chi tiết dự án số hóa",
+  },
+  {
+    key: Permission.PROJECTS_CREATE,
+    module: "projects",
+    label: "Tạo dự án",
+    description: "Tạo dự án số hóa mới",
+  },
+  {
+    key: Permission.PROJECTS_UPDATE,
+    module: "projects",
+    label: "Sửa dự án",
+    description:
+      "Cập nhật thông tin dự án, tiến độ và gia hạn thời gian thực hiện",
+  },
+  {
+    key: Permission.PROJECTS_DELETE,
+    module: "projects",
+    label: "Xóa dự án",
+    description: "Xóa dự án số hóa khỏi hệ thống",
+  },
+  {
+    key: Permission.PROJECT_PLANS_READ,
+    module: "project-plans",
+    label: "Xem kế hoạch dự án",
+    description: "Xem danh sách và chi tiết kế hoạch triển khai dự án",
+  },
+  {
+    key: Permission.PROJECT_PLANS_CREATE,
+    module: "project-plans",
+    label: "Tạo kế hoạch dự án",
+    description: "Tạo kế hoạch triển khai mới cho dự án",
+  },
+  {
+    key: Permission.PROJECT_PLANS_UPDATE,
+    module: "project-plans",
+    label: "Sửa kế hoạch dự án",
+    description: "Cập nhật thông tin kế hoạch, khổ giấy và hạng mục công việc",
+  },
+  {
+    key: Permission.PROJECT_PLANS_DELETE,
+    module: "project-plans",
+    label: "Xóa kế hoạch dự án",
+    description: "Xóa kế hoạch triển khai dự án",
+  },
+  {
+    key: Permission.GROUPS_READ,
+    module: "groups",
+    label: "Xem nhóm",
+    description:
+      "Xem danh sách nhóm làm việc (chỉ nhóm mình tham gia nếu không có quyền Hiển thị toàn nhóm)",
+  },
+  {
+    key: Permission.GROUPS_READ_ALL,
+    module: "groups",
+    label: "Hiển thị toàn nhóm",
+    description:
+      "Xem toàn bộ nhóm làm việc trên hệ thống, không giới hạn theo thành viên",
+  },
+  {
+    key: Permission.GROUPS_CREATE,
+    module: "groups",
+    label: "Tạo nhóm",
+    description: "Tạo nhóm làm việc mới",
+  },
+  {
+    key: Permission.GROUPS_UPDATE,
+    module: "groups",
+    label: "Sửa nhóm",
+    description: "Cập nhật tên, mô tả, số vòng duyệt và cấu hình nhóm làm việc",
+  },
+  {
+    key: Permission.GROUPS_DELETE,
+    module: "groups",
+    label: "Xóa nhóm",
+    description: "Xóa nhóm làm việc khỏi hệ thống",
+  },
+  {
+    key: Permission.GROUPS_MANAGE_MEMBERS,
+    module: "groups",
+    label: "Quản lý thành viên nhóm",
+    description: "Thêm, bớt thành viên trong nhóm",
+  },
+  {
+    key: Permission.GROUPS_START_WORKFLOW,
+    module: "groups",
+    label: "Phân công theo nhóm",
+    description:
+      "Phân công hồ sơ cho thành viên theo thư mục và đồng bộ luồng duyệt của nhóm",
+  },
+  {
+    key: Permission.SCAN_INTAKE_USE,
+    module: "scan-intake",
+    label: "Sử dụng Scan Intake",
+    description:
+      "Sử dụng màn quét tài liệu, quản lý phiên scan và đẩy tài liệu vào hệ thống",
+  },
+  {
+    key: Permission.DATA_ENTRY_MAKER,
+    module: "data-entry",
+    label: "Biên tập (Maker)",
+    description:
+      "Nhận hồ sơ được phân công, nhập và gửi metadata (giao diện biên tập)",
+  },
+  {
+    key: Permission.DATA_ENTRY_CHECKER,
+    module: "data-entry",
+    label: "Duyệt (Checker)",
+    description: "Duyệt hoặc từ chối metadata đã nhập (giao diện QC)",
+  },
+  {
+    key: Permission.DOSSIERS_READ,
+    module: "dossiers",
+    label: "Xem hồ sơ",
+    description:
+      "Xem danh sách, chi tiết hồ sơ, lịch sử metadata và file đính kèm",
+  },
+  {
+    key: Permission.DOSSIERS_WRITE,
+    module: "dossiers",
+    label: "Quản lý hồ sơ",
+    description: "Tạo, sửa, xóa hồ sơ và upload tài liệu lên kho lưu trữ",
+  },
+  {
+    key: Permission.DOSSIERS_ASSIGN,
+    module: "dossiers",
+    label: "Phân công hồ sơ",
+    description: "Gán hồ sơ cho người duyệt hoặc biên tập",
+  },
+  {
+    key: Permission.DOSSIERS_EXPORT,
+    module: "dossiers",
+    label: "Xuất hồ sơ",
+    description:
+      "Xuất metadata, gói DIP/AIP và file Excel theo hồ sơ hoặc bộ hồ sơ",
+  },
+  {
+    key: Permission.DOSSIERS_SIGN,
+    module: "dossiers",
+    label: "Ký số hồ sơ",
+    description: "Ký số USB Token cho file PDF trong hồ sơ đã duyệt",
+  },
+  {
+    key: Permission.DOSSIERS_DIRECT_APPROVE,
+    module: "dossiers",
+    label: "Duyệt hồ sơ trực tiếp (không qua phân công)",
+    description:
+      "Cho phép duyệt hoặc từ chối hồ sơ ở các bước QC mà không cần nằm trong danh sách phân công",
+  },
+  {
+    key: Permission.DOSSIERS_METADATA_SUMMARY_EDIT,
+    module: "dossiers",
+    label: "Sửa thông tin hồ sơ khi duyệt",
+    description:
+      "Cho phép chỉnh mã hồ sơ, trạng thái hồ sơ và thêm hoặc sửa các thông tin khác trong mục Thông tin hồ sơ, tại bước duyệt hồ sơ.",
+  },
+  {
+    key: Permission.FOLDERS_BROWSE_ALL,
+    module: "folders",
+    label: "Tất cả thư mục",
+    description: "Xem toàn bộ cây thư mục trên hệ thống",
+  },
+  {
+    key: Permission.FOLDERS_BROWSE_ASSIGNED,
+    module: "folders",
+    label: "Thư mục được chỉ định",
+    description: "Xem cây thư mục thuộc các dự án được gán làm quản lý dự án",
+  },
+
+  // --- MODULE 3: QUẢN LÝ KHO ---
+  {
+    key: Permission.ARCHIVE_WAREHOUSE_READ,
+    module: "archive.warehouse",
+    label: "Xem và tìm kiếm hồ sơ trong kho",
+    description:
+      "Xem hồ sơ đã lưu kho và tìm kiếm toàn văn theo phạm vi được gán",
+  },
+  {
+    key: Permission.ARCHIVE_WAREHOUSE_EDIT,
+    module: "archive.warehouse",
+    label: "Sửa hồ sơ trong kho",
+    description:
+      "Sửa thông tin / metadata hồ sơ đã lưu kho theo phạm vi được gán",
+  },
+  {
+    key: Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
+    module: "archive.warehouse",
+    label: "Cấu hình bảo mật trong kho",
+    description:
+      "Cấu hình cấp bảo mật và mật khẩu riêng cho hồ sơ và file đã lưu kho theo phạm vi được gán",
+  },
+  {
+    key: Permission.ARCHIVE_WAREHOUSE_DELETE,
+    module: "archive.warehouse",
+    label: "Xóa hồ sơ trong kho",
+    description: "Xóa hồ sơ hoặc văn bản đã lưu kho theo phạm vi được gán",
+  },
+  {
+    key: Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
+    module: "archive.warehouse",
+    label: "Upload lại file trong kho",
+    description: "Upload lại PDF hồ sơ đã lưu kho để chạy lại OCR / biên tập",
+  },
+  {
+    key: Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
+    module: "archive.warehouse",
+    label: "Tải tài liệu trong kho",
+    description:
+      "Đặt mã PIN tải và dùng nút tải/xuất tài liệu trong kho lưu trữ",
+  },
+  {
+    key: Permission.ARCHIVE_PERMISSIONS_MANAGE,
+    module: "archive.warehouse",
+    label: "Cấu hình phân quyền kho",
+    description:
+      "Cấu hình phân quyền quản lý kho theo phông / loại hồ sơ / loại tài liệu",
+  },
+  {
+    key: Permission.ARCHIVE_SUBMIT,
+    module: "archive",
+    label: "Nộp lưu kho",
+    description: "Nộp hồ sơ đã duyệt vào quy trình lưu kho",
+  },
+  {
+    key: Permission.ARCHIVE_REVIEW,
+    module: "archive",
+    label: "Duyệt lưu kho",
+    description: "Duyệt hoặc từ chối đơn nộp lưu kho",
+  },
+  {
+    key: Permission.ARCHIVE_CONFIG_MANAGE,
+    module: "archive",
+    label: "Cấu hình lưu kho",
+    description: "Cấu hình các trường thông tin khi nộp lưu kho",
+  },
+  {
+    key: Permission.PHYSICAL_WAREHOUSE_ITEM_READ,
+    module: "physical-warehouse",
+    label: "Xem kho vật lý",
+    description:
+      "Xem sơ đồ kho, quản lý cấu trúc bên trong kho, hộp/cặp và xếp hồ sơ",
+  },
+  {
+    key: Permission.PHYSICAL_WAREHOUSE_LOCATION_MANAGE,
+    module: "physical-warehouse",
+    label: "Quản lý địa điểm kho",
+    description: "Thêm, sửa, xóa địa điểm kho vật lý",
+  },
+  {
+    key: Permission.PHYSICAL_WAREHOUSE_WAREHOUSE_MANAGE,
+    module: "physical-warehouse",
+    label: "Quản lý kho vật lý",
+    description: "Thêm, sửa, xóa kho trong các địa điểm",
+  },
+  {
+    key: Permission.ARCHIVE_DISPOSAL_READ,
+    module: "archive.disposal",
+    label: "Xem hết hạn và trùng lặp",
+    description:
+      "Xem danh sách hồ sơ sắp hết hạn, đã hết hạn, trùng lặp và danh mục đề xuất hủy",
+  },
+  {
+    key: Permission.ARCHIVE_DISPOSAL_CREATE,
+    module: "archive.disposal",
+    label: "Tạo đề xuất hủy",
+    description: "Tạo danh mục đề xuất hủy và chuyển hồ sơ sang danh mục mới",
+  },
+  {
+    key: Permission.ARCHIVE_DISPOSAL_UPDATE,
+    module: "archive.disposal",
+    label: "Sửa đề xuất hủy",
+    description: "Cập nhật danh mục, thêm hoặc xóa hồ sơ và ghi lý do hủy",
+  },
+  {
+    key: Permission.ARCHIVE_DISPOSAL_SUBMIT,
+    module: "archive.disposal",
+    label: "Trình duyệt đề xuất hủy",
+    description: "Trình duyệt danh mục đề xuất hủy",
+  },
+  {
+    key: Permission.ARCHIVE_DISPOSAL_COUNCIL_READ,
+    module: "archive.disposal",
+    label: "Xem Hội đồng xét hủy",
+    description: "Xem danh sách, chi tiết và lịch sử Hội đồng xét hủy",
+  },
+  {
+    key: Permission.ARCHIVE_DISPOSAL_COUNCIL_CREATE,
+    module: "archive.disposal",
+    label: "Tạo Hội đồng xét hủy",
+    description:
+      "Thành lập Hội đồng xét hủy và sao chép thành viên từ đợt trước",
+  },
+  {
+    key: Permission.ARCHIVE_DISPOSAL_COUNCIL_UPDATE,
+    module: "archive.disposal",
+    label: "Sửa thành phần Hội đồng",
+    description: "Thêm hoặc bớt thành viên Hội đồng xét hủy",
+  },
+  {
+    key: Permission.ARCHIVE_DISPOSAL_COUNCIL_FINALIZE,
+    module: "archive.disposal",
+    label: "Phê duyệt kết quả Hội đồng xét hủy",
+    description:
+      "Quyết định cuối đồng ý hoặc từ chối hủy danh mục sau khi Hội đồng hoàn tất đánh giá",
+  },
+  {
+    key: Permission.ARCHIVE_DISPOSAL_COUNCIL_PUBLISH,
+    module: "archive.disposal",
+    label: "Xuất bản Quyết định Hội đồng xét hủy",
+    description:
+      "Tạo PDF Quyết định và khóa đánh giá sau khi Hội đồng hoàn tất phiếu",
+  },
+  {
+    key: Permission.ARCHIVE_DISPOSAL_COUNCIL_CHAIR_DECIDE,
+    module: "archive.disposal",
+    label: "Chủ tịch quyết định khi hòa phiếu",
+    description:
+      "Chủ tịch Hội đồng chốt Hủy/Không hủy khi phiếu hòa trên từng đơn vị đánh giá",
+  },
+  {
+    key: Permission.ARCHIVE_DISPOSAL_SETTINGS_READ,
+    module: "archive.disposal",
+    label: "Xem cấu hình xét hủy",
+    description: "Xem cấu hình quy trình Hội đồng thẩm tra xét hủy",
+  },
+  {
+    key: Permission.ARCHIVE_DISPOSAL_SETTINGS_UPDATE,
+    module: "archive.disposal",
+    label: "Cập nhật cấu hình xét hủy",
+    description: "Bật hoặc tắt quy trình Hội đồng thẩm tra xét hủy",
+  },
+  {
+    key: Permission.ARCHIVE_DISPOSAL_DESTROY,
+    module: "archive.disposal",
+    label: "Thực hiện hủy danh mục",
+    description: "Thực hiện hủy danh mục đề xuất (khi quy trình Hội đồng tắt)",
+  },
+
+  // --- MODULE 4: KHAI THÁC DỮ LIỆU ---
+  {
+    key: Permission.LIBRARY_EXPLOITATION_READ,
+    module: "library",
+    label: "Khai thác hồ sơ chia sẻ",
+    description:
+      "Xem và tra cứu danh sách hồ sơ, chi tiết hồ sơ đã lưu kho được phép chia sẻ",
+  },
+  {
+    key: Permission.ARCHIVE_BORROW_REQUEST,
+    module: "library",
+    label: "Đăng ký mượn tài liệu điện tử",
+    description:
+      "Gửi phiếu mượn tài liệu điện tử, kích hoạt và xem bản DIP trong hạn",
+  },
+  {
+    key: Permission.ARCHIVE_BORROW_REVIEW,
+    module: "library",
+    label: "Duyệt mượn tài liệu điện tử",
+    description:
+      "Phê duyệt hoặc từ chối phiếu mượn tài liệu điện tử trong phạm vi được gán",
+  },
+  {
+    key: Permission.LIBRARY_BORROW_APPROVAL_CONFIG_MANAGE,
+    module: "library",
+    label: "Cấu hình cấp duyệt mượn",
+    description:
+      "Gán vai trò với cấp bảo mật tối đa được phép duyệt phiếu mượn tài liệu điện tử",
+  },
+
+  // --- MODULE 5: QUẢN TRỊ HỆ THỐNG ---
   {
     key: Permission.USERS_READ,
     module: "users",
@@ -226,296 +637,6 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     module: "roles",
     label: "Quản lý phân quyền hệ thống",
     description: "Tạo, sửa, xóa vai trò và cấu hình ma trận quyền truy cập",
-  },
-
-  {
-    key: Permission.GROUPS_READ,
-    module: "groups",
-    label: "Xem nhóm",
-    description:
-      "Xem danh sách nhóm làm việc (chỉ nhóm mình tham gia nếu không có quyền Hiển thị toàn nhóm)",
-  },
-  {
-    key: Permission.GROUPS_READ_ALL,
-    module: "groups",
-    label: "Hiển thị toàn nhóm",
-    description:
-      "Xem toàn bộ nhóm làm việc trên hệ thống, không giới hạn theo thành viên",
-  },
-  {
-    key: Permission.GROUPS_CREATE,
-    module: "groups",
-    label: "Tạo nhóm",
-    description: "Tạo nhóm làm việc mới ",
-  },
-  {
-    key: Permission.GROUPS_UPDATE,
-    module: "groups",
-    label: "Sửa nhóm",
-    description: "Cập nhật tên, mô tả, số vòng duyệt và cấu hình nhóm làm việc",
-  },
-  {
-    key: Permission.GROUPS_DELETE,
-    module: "groups",
-    label: "Xóa nhóm",
-    description: "Xóa nhóm làm việc khỏi hệ thống",
-  },
-  {
-    key: Permission.GROUPS_MANAGE_MEMBERS,
-    module: "groups",
-    label: "Quản lý thành viên nhóm",
-    description: "Thêm, bớt thành viên trong nhóm",
-  },
-  {
-    key: Permission.GROUPS_START_WORKFLOW,
-    module: "groups",
-    label: "Phân công theo nhóm",
-    description:
-      "Phân công hồ sơ cho thành viên theo thư mục và đồng bộ luồng duyệt của nhóm",
-  },
-
-  {
-    key: Permission.DOSSIERS_READ,
-    module: "dossiers",
-    label: "Xem hồ sơ",
-    description:
-      "Xem danh sách, chi tiết hồ sơ, lịch sử metadata và file đính kèm",
-  },
-  {
-    key: Permission.DOSSIERS_WRITE,
-    module: "dossiers",
-    label: "Quản lý hồ sơ",
-    description: "Tạo, sửa, xóa hồ sơ và upload tài liệu lên kho lưu trữ",
-  },
-  {
-    key: Permission.DOSSIERS_ASSIGN,
-    module: "dossiers",
-    label: "Phân công hồ sơ",
-    description: "Gán hồ sơ cho người duyệt hoặc biên tập",
-  },
-  {
-    key: Permission.DOSSIERS_EXPORT,
-    module: "dossiers",
-    label: "Xuất hồ sơ",
-    description:
-      "Xuất metadata, gói DIP/AIP và file Excel theo hồ sơ hoặc bộ hồ sơ",
-  },
-  {
-    key: Permission.DOSSIERS_SIGN,
-    module: "dossiers",
-    label: "Ký số hồ sơ",
-    description: "Ký số USB Token cho file PDF trong hồ sơ đã duyệt",
-  },
-  {
-    key: Permission.DOSSIERS_METADATA_SUMMARY_EDIT,
-    module: "dossiers",
-    label: "Sửa thông tin hồ sơ khi duyệt",
-    description:
-      "Cho phép chỉnh mã hồ sơ, trạng thái hồ sơ và thêm hoặc sửa các thông tin khác trong mục Thông tin hồ sơ, tại bước duyệt hồ sơ.",
-  },
-
-  {
-    key: Permission.FOLDERS_BROWSE_ALL,
-    module: "folders",
-    label: "Tất cả",
-    description: "Xem toàn bộ cây thư mục trên hệ thống",
-  },
-  {
-    key: Permission.FOLDERS_BROWSE_ASSIGNED,
-    module: "folders",
-    label: "Được chỉ định",
-    description: "Xem cây thư mục thuộc các dự án được gán làm quản lý dự án",
-  },
-
-  {
-    key: Permission.SCAN_INTAKE_USE,
-    module: "scan-intake",
-    label: "Quét Tài Liệu",
-    description:
-      "Sử dụng màn quét tài liệu, quản lý phiên scan và đẩy tài liệu vào hệ thống",
-  },
-
-  {
-    key: Permission.PROJECTS_READ,
-    module: "projects",
-    label: "Xem dự án",
-    description: "Xem danh sách và thông tin chi tiết dự án số hóa",
-  },
-  {
-    key: Permission.PROJECTS_CREATE,
-    module: "projects",
-    label: "Tạo dự án",
-    description: "Tạo dự án số hóa mới",
-  },
-  {
-    key: Permission.PROJECTS_UPDATE,
-    module: "projects",
-    label: "Sửa dự án",
-    description:
-      "Cập nhật thông tin dự án, tiến độ và gia hạn thời gian thực hiện",
-  },
-  {
-    key: Permission.PROJECTS_DELETE,
-    module: "projects",
-    label: "Xóa dự án",
-    description: "Xóa dự án số hóa khỏi hệ thống",
-  },
-
-  {
-    key: Permission.PROJECT_PLANS_READ,
-    module: "project-plans",
-    label: "Xem kế hoạch dự án",
-    description: "Xem danh sách và chi tiết kế hoạch triển khai dự án",
-  },
-  {
-    key: Permission.PROJECT_PLANS_CREATE,
-    module: "project-plans",
-    label: "Tạo kế hoạch dự án",
-    description: "Tạo kế hoạch triển khai mới cho dự án",
-  },
-  {
-    key: Permission.PROJECT_PLANS_UPDATE,
-    module: "project-plans",
-    label: "Sửa kế hoạch dự án",
-    description: "Cập nhật thông tin kế hoạch, khổ giấy và hạng mục công việc",
-  },
-  {
-    key: Permission.PROJECT_PLANS_DELETE,
-    module: "project-plans",
-    label: "Xóa kế hoạch dự án",
-    description: "Xóa kế hoạch triển khai dự án",
-  },
-
-  {
-    key: Permission.AUDIT_LOGS_READ,
-    module: "audit_logs",
-    label: "Xem lịch sử thao tác hệ thống",
-    description: "Tra cứu log thao tác và sự kiện trong hệ thống",
-  },
-  {
-    key: Permission.AUDIT_LOGS_CONFIG,
-    module: "audit_logs",
-    label: "Cấu hình lịch sử thao tác hệ thống",
-    description: "Bật/tắt ghi log theo chức năng và cấu hình thời gian lưu trữ",
-  },
-  {
-    key: Permission.AUDIT_LOGS_DELETE,
-    module: "audit_logs",
-    label: "Xóa lịch sử thao tác hệ thống",
-    description: "Xóa lịch sử thao tác để giảm tải hệ thống",
-  },
-  {
-    key: Permission.AUDIT_LOGS_EXPORT,
-    module: "audit_logs",
-    label: "Xuất lịch sử thao tác hệ thống",
-    description: "Xuất và tải về báo cáo lịch sử thao tác hệ thống",
-  },
-
-  {
-    key: Permission.DASHBOARD_EDITOR,
-    module: "dashboard",
-    label: "Dashboard biên tập",
-    description:
-      "Xem thống kê tiến độ nhập liệu và hiệu suất cá nhân của biên tập viên",
-  },
-  {
-    key: Permission.DASHBOARD_QC,
-    module: "dashboard",
-    label: "Dashboard QC",
-    description:
-      "Xem thống kê duyệt hồ sơ, hiệu suất QC cá nhân và dashboard nhóm (trưởng nhóm)",
-  },
-  {
-    key: Permission.DASHBOARD_ADMIN,
-    module: "dashboard",
-    label: "Dashboard quản trị",
-    description:
-      "Xem tổng quan hệ thống, biểu đồ tiến độ hồ sơ và hiệu suất theo nhóm/dự án",
-  },
-
-  {
-    key: Permission.DATA_ENTRY_MAKER,
-    module: "data-entry",
-    label: "Biên tập",
-    description:
-      "Nhận hồ sơ được phân công, nhập và gửi metadata (giao diện biên tập)",
-  },
-  {
-    key: Permission.DATA_ENTRY_CHECKER,
-    module: "data-entry",
-    label: "Duyệt",
-    description: "Duyệt hoặc từ chối metadata đã nhập (giao diện QC)",
-  },
-
-  {
-    key: Permission.METADATA_TEMPLATES_MANAGE,
-    module: "metadata",
-    label: "Quản lý loại tài liệu",
-    description: "Cấu hình loại tài liệu và mẫu metadata nhập liệu cho hồ sơ",
-  },
-  {
-    key: Permission.METADATA_PERMISSIONS_MANAGE,
-    module: "metadata",
-    label: "Quản lý phân công tài liệu",
-    description:
-      "Cấu hình phân quyền trường metadata theo slot cho editor trong nhóm",
-  },
-  {
-    key: Permission.METADATA_EXPORT_PRESETS_MANAGE,
-    module: "metadata",
-    label: "Quản lý mẫu xuất Excel",
-    description: "Cấu hình mẫu xuất metadata ra file Excel",
-  },
-  {
-    key: Permission.METADATA_NAMING_MANAGE,
-    module: "metadata",
-    label: "Cấu hình tên tài liệu",
-    description: "Cấu hình quy tắc sinh tên hồ sơ và tên file theo phông",
-  },
-  {
-    key: Permission.METADATA_EXTRACT_SETTINGS_READ,
-    module: "metadata",
-    label: "Xem chế độ bóc tách metadata",
-    description:
-      "Xem cấu hình toàn hệ thống chọn luồng bóc tách (old / TT05 / tắt tự động)",
-  },
-  {
-    key: Permission.METADATA_EXTRACT_SETTINGS_UPDATE,
-    module: "metadata",
-    label: "Sửa chế độ bóc tách metadata",
-    description:
-      "Cập nhật chế độ bóc tách metadata toàn hệ thống sau khi OCR merge",
-  },
-  {
-    key: Permission.METADATA_EXTRACT_TRIGGER,
-    module: "metadata",
-    label: "Kích hoạt bóc tách metadata",
-    description: "Kích hoạt tay hoặc bóc tách lại metadata (old / TT05 / both)",
-  },
-  {
-    key: Permission.WATERMARK_CONFIG_READ,
-    module: "watermark",
-    label: "Xem cấu hình watermark",
-    description: "Xem cấu hình watermark text/ảnh và lịch sử ảnh",
-  },
-  {
-    key: Permission.WATERMARK_CONFIG_CREATE,
-    module: "watermark",
-    label: "Tạo cấu hình watermark",
-    description: "Tải lên ảnh watermark mới và tạo cấu hình placement",
-  },
-  {
-    key: Permission.WATERMARK_CONFIG_UPDATE,
-    module: "watermark",
-    label: "Sửa cấu hình watermark",
-    description:
-      "Chỉnh sửa cấu hình placement watermark (độ mờ, vị trí, kích thước)",
-  },
-  {
-    key: Permission.WATERMARK_CONFIG_DELETE,
-    module: "watermark",
-    label: "Xóa cấu hình watermark",
-    description: "Xóa ảnh watermark và cấu hình placement",
   },
   {
     key: Permission.FONDS_READ,
@@ -638,208 +759,6 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     description: "Xóa loại tài liệu",
   },
   {
-    key: Permission.ARCHIVE_SUBMIT,
-    module: "archive",
-    label: "Nộp lưu kho",
-    description: "Nộp hồ sơ đã duyệt vào quy trình lưu kho",
-  },
-  {
-    key: Permission.ARCHIVE_REVIEW,
-    module: "archive",
-    label: "Duyệt lưu kho",
-    description: "Duyệt hoặc từ chối đơn nộp lưu kho",
-  },
-  {
-    key: Permission.ARCHIVE_CONFIG_MANAGE,
-    module: "archive",
-    label: "Cấu hình lưu kho",
-    description: "Cấu hình các trường thông tin khi nộp lưu kho",
-  },
-  {
-    key: Permission.ARCHIVE_WAREHOUSE_READ,
-    module: "archive.warehouse",
-    label: "Xem và tìm kiếm hồ sơ trong kho",
-    description:
-      "Xem hồ sơ đã lưu kho và tìm kiếm toàn văn theo phạm vi được gán",
-  },
-  {
-    key: Permission.ARCHIVE_WAREHOUSE_EDIT,
-    module: "archive.warehouse",
-    label: "Sửa hồ sơ trong kho",
-    description:
-      "Sửa thông tin / metadata hồ sơ đã lưu kho theo phạm vi được gán",
-  },
-  {
-    key: Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
-    module: "archive.warehouse",
-    label: "Cấu hình bảo mật trong kho",
-    description:
-      "Cấu hình cấp bảo mật và mật khẩu riêng cho hồ sơ và file đã lưu kho theo phạm vi được gán",
-  },
-  {
-    key: Permission.ARCHIVE_WAREHOUSE_DELETE,
-    module: "archive.warehouse",
-    label: "Xóa hồ sơ trong kho",
-    description: "Xóa hồ sơ hoặc văn bản đã lưu kho theo phạm vi được gán",
-  },
-  {
-    key: Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
-    module: "archive.warehouse",
-    label: "Upload lại file trong kho",
-    description: "Upload lại PDF hồ sơ đã lưu kho để chạy lại OCR / biên tập",
-  },
-  {
-    key: Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
-    module: "archive.warehouse",
-    label: "Tải tài liệu trong kho",
-    description:
-      "Đặt mã PIN tải và dùng nút tải/xuất tài liệu trong kho lưu trữ",
-  },
-  {
-    key: Permission.ARCHIVE_PERMISSIONS_MANAGE,
-    module: "archive.warehouse",
-    label: "Cấu hình phân quyền kho",
-    description:
-      "Cấu hình phân quyền quản lý kho theo phông / loại hồ sơ / loại tài liệu",
-  },
-  {
-    key: Permission.ARCHIVE_DISPOSAL_READ,
-    module: "archive.disposal",
-    label: "Xem hết hạn và trùng lặp",
-    description:
-      "Xem danh sách hồ sơ sắp hết hạn, đã hết hạn, trùng lặp và danh mục đề xuất hủy",
-  },
-  {
-    key: Permission.ARCHIVE_DISPOSAL_CREATE,
-    module: "archive.disposal",
-    label: "Tạo đề xuất hủy",
-    description: "Tạo danh mục đề xuất hủy và chuyển hồ sơ sang danh mục mới",
-  },
-  {
-    key: Permission.ARCHIVE_DISPOSAL_UPDATE,
-    module: "archive.disposal",
-    label: "Sửa đề xuất hủy",
-    description: "Cập nhật danh mục, thêm hoặc xóa hồ sơ và ghi lý do hủy",
-  },
-  {
-    key: Permission.ARCHIVE_DISPOSAL_SUBMIT,
-    module: "archive.disposal",
-    label: "Trình duyệt đề xuất hủy",
-    description: "Trình duyệt danh mục đề xuất hủy",
-  },
-  {
-    key: Permission.ARCHIVE_DISPOSAL_COUNCIL_READ,
-    module: "archive.disposal",
-    label: "Xem Hội đồng xét hủy",
-    description: "Xem danh sách, chi tiết và lịch sử Hội đồng xét hủy",
-  },
-  {
-    key: Permission.ARCHIVE_DISPOSAL_COUNCIL_CREATE,
-    module: "archive.disposal",
-    label: "Tạo Hội đồng xét hủy",
-    description:
-      "Thành lập Hội đồng xét hủy và sao chép thành viên từ đợt trước",
-  },
-  {
-    key: Permission.ARCHIVE_DISPOSAL_COUNCIL_UPDATE,
-    module: "archive.disposal",
-    label: "Sửa thành phần Hội đồng",
-    description: "Thêm hoặc bớt thành viên Hội đồng xét hủy",
-  },
-  {
-    key: Permission.ARCHIVE_DISPOSAL_COUNCIL_FINALIZE,
-    module: "archive.disposal",
-    label: "Phê duyệt kết quả Hội đồng xét hủy",
-    description:
-      "Quyết định cuối đồng ý hoặc từ chối hủy danh mục sau khi Hội đồng hoàn tất đánh giá",
-  },
-  {
-    key: Permission.ARCHIVE_DISPOSAL_COUNCIL_PUBLISH,
-    module: "archive.disposal",
-    label: "Xuất bản Quyết định Hội đồng xét hủy",
-    description:
-      "Tạo PDF Quyết định và khóa đánh giá sau khi Hội đồng hoàn tất phiếu",
-  },
-  {
-    key: Permission.ARCHIVE_DISPOSAL_COUNCIL_CHAIR_DECIDE,
-    module: "archive.disposal",
-    label: "Chủ tịch quyết định khi hòa phiếu",
-    description:
-      "Chủ tịch Hội đồng chốt Hủy/Không hủy khi phiếu hòa trên từng đơn vị đánh giá",
-  },
-  {
-    key: Permission.ARCHIVE_DISPOSAL_SETTINGS_READ,
-    module: "archive.disposal",
-    label: "Xem cấu hình xét hủy",
-    description: "Xem cấu hình quy trình Hội đồng thẩm tra xét hủy",
-  },
-  {
-    key: Permission.ARCHIVE_DISPOSAL_SETTINGS_UPDATE,
-    module: "archive.disposal",
-    label: "Cập nhật cấu hình xét hủy",
-    description: "Bật hoặc tắt quy trình Hội đồng thẩm tra xét hủy",
-  },
-  {
-    key: Permission.ARCHIVE_DISPOSAL_DESTROY,
-    module: "archive.disposal",
-    label: "Thực hiện hủy danh mục",
-    description: "Thực hiện hủy danh mục đề xuất (khi quy trình Hội đồng tắt)",
-  },
-  {
-    key: Permission.ARCHIVE_BORROW_REQUEST,
-    module: "library",
-    label: "Đăng ký mượn tài liệu điện tử",
-    description:
-      "Gửi phiếu mượn tài liệu điện tử, kích hoạt và xem bản DIP trong hạn",
-  },
-  {
-    key: Permission.ARCHIVE_BORROW_REVIEW,
-    module: "library",
-    label: "Duyệt mượn tài liệu điện tử",
-    description:
-      "Phê duyệt hoặc từ chối phiếu mượn tài liệu điện tử trong phạm vi được gán",
-  },
-  {
-    key: Permission.LIBRARY_BORROW_APPROVAL_CONFIG_MANAGE,
-    module: "library",
-    label: "Cấu hình cấp duyệt mượn",
-    description:
-      "Gán vai trò với cấp bảo mật tối đa được phép duyệt phiếu mượn tài liệu điện tử",
-  },
-  {
-    key: Permission.LIBRARY_EXPLOITATION_READ,
-    module: "library",
-    label: "Khai thác hồ sơ chia sẻ",
-    description:
-      "Xem và tra cứu danh sách hồ sơ, chi tiết hồ sơ đã lưu kho được phép chia sẻ",
-  },
-  {
-    key: Permission.PHYSICAL_WAREHOUSE_ITEM_READ,
-    module: "physical-warehouse",
-    label: "Xem kho vật lý",
-    description:
-      "Xem sơ đồ kho, quản lý cấu trúc bên trong kho, hộp/cặp và xếp hồ sơ",
-  },
-  {
-    key: Permission.PHYSICAL_WAREHOUSE_LOCATION_MANAGE,
-    module: "physical-warehouse",
-    label: "Quản lý địa điểm",
-    description: "Thêm, sửa, xóa địa điểm kho vật lý",
-  },
-  {
-    key: Permission.PHYSICAL_WAREHOUSE_WAREHOUSE_MANAGE,
-    module: "physical-warehouse",
-    label: "Quản lý kho",
-    description: "Thêm, sửa, xóa kho trong các địa điểm",
-  },
-  {
-    key: Permission.NOTIFICATIONS_CONFIG_MANAGE,
-    module: "notifications",
-    label: "Cấu hình thông báo",
-    description:
-      "Cấu hình loại thông báo, kênh gửi, vai trò nhận và email sender",
-  },
-  {
     key: Permission.SECURITY_LEVELS_READ,
     module: "security-levels",
     label: "Xem cấp độ bảo mật",
@@ -880,6 +799,107 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     module: "security-levels",
     label: "Quản lý danh sách quyền bảo mật",
     description: "Tạo, sửa, bật/tắt và xóa quyền bảo mật trong danh mục",
+  },
+  {
+    key: Permission.AUDIT_LOGS_READ,
+    module: "audit_logs",
+    label: "Xem lịch sử thao tác hệ thống",
+    description: "Tra cứu log thao tác và sự kiện trong hệ thống",
+  },
+  {
+    key: Permission.AUDIT_LOGS_CONFIG,
+    module: "audit_logs",
+    label: "Cấu hình lịch sử thao tác hệ thống",
+    description: "Bật/tắt ghi log theo chức năng và cấu hình thời gian lưu trữ",
+  },
+  {
+    key: Permission.AUDIT_LOGS_DELETE,
+    module: "audit_logs",
+    label: "Xóa lịch sử thao tác hệ thống",
+    description: "Xóa lịch sử thao tác để giảm tải hệ thống",
+  },
+  {
+    key: Permission.AUDIT_LOGS_EXPORT,
+    module: "audit_logs",
+    label: "Xuất lịch sử thao tác hệ thống",
+    description: "Xuất và tải về báo cáo lịch sử thao tác hệ thống",
+  },
+  {
+    key: Permission.METADATA_TEMPLATES_MANAGE,
+    module: "metadata",
+    label: "Quản lý loại tài liệu & mẫu metadata",
+    description: "Cấu hình loại tài liệu và mẫu metadata nhập liệu cho hồ sơ",
+  },
+  {
+    key: Permission.METADATA_PERMISSIONS_MANAGE,
+    module: "metadata",
+    label: "Quản lý phân công tài liệu",
+    description:
+      "Cấu hình phân quyền trường metadata theo slot cho editor trong nhóm",
+  },
+  {
+    key: Permission.METADATA_EXPORT_PRESETS_MANAGE,
+    module: "metadata",
+    label: "Quản lý mẫu xuất Excel",
+    description: "Cấu hình mẫu xuất metadata ra file Excel",
+  },
+  {
+    key: Permission.METADATA_NAMING_MANAGE,
+    module: "metadata",
+    label: "Cấu hình tên tài liệu",
+    description: "Cấu hình quy tắc sinh tên hồ sơ và tên file theo phông",
+  },
+  {
+    key: Permission.METADATA_EXTRACT_SETTINGS_READ,
+    module: "metadata",
+    label: "Xem chế độ bóc tách metadata",
+    description:
+      "Xem cấu hình toàn hệ thống chọn luồng bóc tách (old / TT05 / tắt tự động)",
+  },
+  {
+    key: Permission.METADATA_EXTRACT_SETTINGS_UPDATE,
+    module: "metadata",
+    label: "Sửa chế độ bóc tách metadata",
+    description:
+      "Cập nhật chế độ bóc tách metadata toàn hệ thống sau khi OCR merge",
+  },
+  {
+    key: Permission.METADATA_EXTRACT_TRIGGER,
+    module: "metadata",
+    label: "Kích hoạt bóc tách metadata",
+    description: "Kích hoạt tay hoặc bóc tách lại metadata (old / TT05 / both)",
+  },
+  {
+    key: Permission.WATERMARK_CONFIG_READ,
+    module: "watermark",
+    label: "Xem cấu hình watermark",
+    description: "Xem cấu hình watermark text/ảnh và lịch sử ảnh",
+  },
+  {
+    key: Permission.WATERMARK_CONFIG_CREATE,
+    module: "watermark",
+    label: "Tạo cấu hình watermark",
+    description: "Tải lên ảnh watermark mới và tạo cấu hình placement",
+  },
+  {
+    key: Permission.WATERMARK_CONFIG_UPDATE,
+    module: "watermark",
+    label: "Sửa cấu hình watermark",
+    description:
+      "Chỉnh sửa cấu hình placement watermark (độ mờ, vị trí, kích thước)",
+  },
+  {
+    key: Permission.WATERMARK_CONFIG_DELETE,
+    module: "watermark",
+    label: "Xóa cấu hình watermark",
+    description: "Xóa ảnh watermark và cấu hình placement",
+  },
+  {
+    key: Permission.NOTIFICATIONS_CONFIG_MANAGE,
+    module: "notifications",
+    label: "Cấu hình thông báo",
+    description:
+      "Cấu hình loại thông báo, kênh gửi, vai trò nhận và email sender",
   },
 ];
 

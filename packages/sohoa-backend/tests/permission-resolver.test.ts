@@ -147,22 +147,38 @@ Deno.test("groups.* wildcard includes groups.read_all", () => {
 });
 
 Deno.test("userRolesHaveDataEntryMakerOnly excludes users with checker permission", () => {
-    const makerOnly = [{ role: { rules: JSON.stringify({
-        permissions: [Permission.DATA_ENTRY_MAKER],
-        restrictions: [],
-    }) } }];
-    const makerAndChecker = [{ role: { rules: JSON.stringify({
-        permissions: [Permission.DATA_ENTRY_MAKER, Permission.DATA_ENTRY_CHECKER],
-        restrictions: [],
-    }) } }];
-    const checkerOnly = [{ role: { rules: JSON.stringify({
-        permissions: [Permission.DATA_ENTRY_CHECKER],
-        restrictions: [],
-    }) } }];
-    const wildcard = [{ role: { rules: JSON.stringify({
-        permissions: ["*"],
-        restrictions: [],
-    }) } }];
+    const makerOnly = [{
+        role: {
+            rules: JSON.stringify({
+                permissions: [Permission.DATA_ENTRY_MAKER],
+                restrictions: [],
+            })
+        }
+    }];
+    const makerAndChecker = [{
+        role: {
+            rules: JSON.stringify({
+                permissions: [Permission.DATA_ENTRY_MAKER, Permission.DATA_ENTRY_CHECKER],
+                restrictions: [],
+            })
+        }
+    }];
+    const checkerOnly = [{
+        role: {
+            rules: JSON.stringify({
+                permissions: [Permission.DATA_ENTRY_CHECKER],
+                restrictions: [],
+            })
+        }
+    }];
+    const wildcard = [{
+        role: {
+            rules: JSON.stringify({
+                permissions: ["*"],
+                restrictions: [],
+            })
+        }
+    }];
 
     assertEquals(userRolesHaveDataEntryMakerOnly(makerOnly), true);
     assertEquals(userRolesHaveDataEntryMakerOnly(makerAndChecker), false);

@@ -7,8 +7,6 @@ import {
     disposalProposalCatalogs,
     disposalProposalItems,
 } from "../../db/schemas/archive-disposal.ts";
-import { DisposalProposalItemSource } from "../../db/schemas/archive-disposal-constants.ts";
-import type { DisposalProposalItemSourceType } from "../../db/schemas/archive-disposal-constants.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { fonds } from "../../db/schemas/fond.ts";
@@ -22,7 +20,6 @@ import {
 
 import { assertCanAccessDisposalCatalog } from "./archive-disposal-catalog-access.ts";
 import {
-    type AppendixCatalogRow,
     loadAppendixTemplate,
     renderDocxTemplate,
 } from "./disposal-appendix-docx.ts";
@@ -31,18 +28,23 @@ import {
     buildPhuLucIIPdfFallback,
     buildPhuLucIIIPdfFallback,
 } from "./disposal-appendix-pdf-fallback.ts";
-import { extractAppendixRowMetadata } from "./disposal-appendix-metadata.ts";
 import { DISPOSAL_APPENDIX_CIRCULAR_LABEL } from "./disposal-appendix-metadata-keys.ts";
+import {
+    buildPl2CatalogRows,
+    type Pl2CatalogItemRow,
+} from "./disposal-appendix-pl2-rows.ts";
+import { loadPhysicalBoxNumbersByDossierIds } from "./disposal-appendix-pl2-box-loader.ts";
+import {
+    formatPl3ExpiredGroupBlock,
+    formatPl3FormationBody,
+    formatPl3OtherGroupBlock,
+    listPl3ContentValidationErrors,
+    mapPl3ContentToDocxData,
+} from "./disposal-appendix-pl3-content.ts";
+import { buildPl3Suggestions } from "./disposal-appendix-pl3-suggestions.ts";
+import type { Pl3Content, Pl3SuggestionsResponse } from "./disposal-appendix-pl3-types.ts";
 
-type CatalogItemRow = {
-    id: string;
-    dossierId: string;
-    fileId: string | null;
-    source: DisposalProposalItemSourceType;
-    reason: string;
-    notes: string;
-    dossierName: string;
-    fileName: string | null;
+type CatalogItemRow = Pl2CatalogItemRow & {
     fondId: string | null;
     fondName: string | null;
     currentMetadataKey: string | null;
@@ -61,15 +63,11 @@ export type AppendixExportFile = {
     pdfBytes: Uint8Array;
 };
 
-function disposalReasonLabel(source: DisposalProposalItemSourceType, reason: string): string {
-    if (source === DisposalProposalItemSource.DUPLICATE) return "Trùng lặp";
-    if (
-        source === DisposalProposalItemSource.EXPIRED ||
-        source === DisposalProposalItemSource.EXPIRING_SOON
-    ) {
-        return "Hết thời hạn lưu trữ";
+function assertPl3ContentValid(content: Pl3Content): void {
+    const errors = listPl3ContentValidationErrors(content);
+    if (errors[0]) {
+        throw httpError.badRequest(`Thiếu nội dung: ${errors[0]}`);
     }
-    return reason.trim() || "Hết thời hạn lưu trữ";
 }
 
 async function loadMetadataMap(
@@ -102,39 +100,6 @@ async function loadMetadataMap(
     return map;
 }
 
-function buildItemTitle(item: CatalogItemRow, meta: ReturnType<typeof extractAppendixRowMetadata>): string {
-    if (meta.metadataTitle) return meta.metadataTitle;
-    if (item.fileName) return `${item.dossierName} / ${item.fileName}`;
-    if (meta.archiveNumber) return `${item.dossierName}; ${meta.archiveNumber}`;
-    return item.dossierName;
-}
-
-function buildPl3CountsDetail(items: CatalogItemRow[]): string {
-    const dossierIds = new Set(items.map((i) => i.dossierId));
-    const fileRows = items.filter((i) => i.fileId != null).length;
-    const expired = items.filter((i) =>
-        i.source === DisposalProposalItemSource.EXPIRED ||
-        i.source === DisposalProposalItemSource.EXPIRING_SOON
-    ).length;
-    const duplicate = items.filter((i) => i.source === DisposalProposalItemSource.DUPLICATE).length;
-    return [
-        `- Tổng số tài liệu đưa ra xác định lại giá trị: ${items.length} (hồ sơ: ${dossierIds.size})`,
-        `- Tổng số tài liệu giấy đưa ra chỉnh lý: ${fileRows || items.length}`,
-        `- Tài liệu giữ lại bảo quản: 0`,
-        `- Tài liệu hết thời hạn lưu trữ, trùng lặp: ${expired + duplicate}`,
-    ].join("\n");
-}
-
-function summarizeGroup(items: CatalogItemRow[], sources: DisposalProposalItemSourceType[]): string {
-    const filtered = items.filter((i) => sources.includes(i.source));
-    if (filtered.length === 0) return "Không có.";
-    const lines = filtered.slice(0, 15).map((i) =>
-        i.fileName ? `- ${i.dossierName} / ${i.fileName}` : `- ${i.dossierName}`
-    );
-    if (filtered.length > 15) lines.push(`- … và ${filtered.length - 15} mục khác`);
-    return lines.join("\n");
-}
-
 async function buildFondBundles(catalogId: string): Promise<FondBundle[]> {
     const items = await db.select({
         id: disposalProposalItems.id,
@@ -143,6 +108,7 @@ async function buildFondBundles(catalogId: string): Promise<FondBundle[]> {
         source: disposalProposalItems.source,
         reason: disposalProposalItems.reason,
         notes: disposalProposalItems.notes,
+        createdAt: disposalProposalItems.createdAt,
         dossierName: dossiers.name,
         fileName: dossierFiles.fileName,
         fondId: dossiers.fondId,
@@ -203,18 +169,10 @@ async function buildFondBundles(catalogId: string): Promise<FondBundle[]> {
 async function renderAppendixIIForFond(
     bundle: FondBundle,
     metadataByDossier: Map<string, DossierMetadata | null>,
+    boxByDossier: Map<string, string>,
 ): Promise<Uint8Array> {
     const template = await loadAppendixTemplate("phu-luc-ii-danh-muc.docx");
-    const tableRows: AppendixCatalogRow[] = bundle.items.map((item) => {
-        const meta = extractAppendixRowMetadata(metadataByDossier.get(item.dossierId) ?? null);
-        return {
-            boxNumber: meta.boxNumber,
-            volumeNumber: meta.volumeNumber,
-            title: buildItemTitle(item, meta),
-            disposalReasonLabel: disposalReasonLabel(item.source, item.reason),
-            notes: item.notes.trim(),
-        };
-    });
+    const tableRows = buildPl2CatalogRows(bundle.items, metadataByDossier, boxByDossier);
     const docx = renderDocxTemplate(template, {
         fondName: bundle.fondName,
         circularLabel: DISPOSAL_APPENDIX_CIRCULAR_LABEL,
@@ -229,42 +187,26 @@ async function renderAppendixIIForFond(
 
 async function renderAppendixIIIForFond(
     bundle: FondBundle,
-    catalogDate: string,
+    content: Pl3Content,
 ): Promise<Uint8Array> {
     const template = await loadAppendixTemplate("phu-luc-iii-thuyet-minh.docx");
-    const formation = [
-        bundle.fondHistory.trim(),
-        bundle.fondAgency ? `Cơ quan lưu trữ: ${bundle.fondAgency}` : "",
-    ].filter(Boolean).join("\n") || "Theo hồ sơ phông lưu trữ.";
-    const countsDetail = buildPl3CountsDetail(bundle.items);
-    const expiredGroupSummary = summarizeGroup(bundle.items, [
-        DisposalProposalItemSource.EXPIRED,
-        DisposalProposalItemSource.EXPIRING_SOON,
-    ]);
-    const duplicateGroupSummary = summarizeGroup(bundle.items, [
-        DisposalProposalItemSource.DUPLICATE,
-    ]);
+    const docxData = mapPl3ContentToDocxData(
+        bundle.fondName,
+        DISPOSAL_APPENDIX_CIRCULAR_LABEL,
+        content,
+    );
+    const formationText = formatPl3FormationBody(content);
 
-    const docx = renderDocxTemplate(template, {
-        fondName: bundle.fondName,
-        circularLabel: DISPOSAL_APPENDIX_CIRCULAR_LABEL,
-        formationHeading: `1. Sự hình thành khối tài liệu hết thời hạn lưu trữ, trùng lặp\n${formation}`,
-        countsHeading: `2. Số lượng tài liệu:\n${countsDetail}`,
-        timeRangeText: `3. Thời gian: ${catalogDate} (theo danh mục đề xuất hủy)`,
-        expiredGroupSummary,
-        duplicateGroupHeading: "2. Nhóm tài liệu trùng lặp",
-        duplicateGroupSummary,
-        otherGroupSummary: "3. Các nhóm tài liệu khác (nếu có): Không.",
-    });
+    const docx = renderDocxTemplate(template, docxData, { normalizePl3: true });
     return await convertDocxToPdfWithFallback(docx, () =>
         buildPhuLucIIIPdfFallback({
             fondName: bundle.fondName,
-            formationText: formation,
-            countsDetail,
-            timeRangeText: `3. Thời gian: ${catalogDate} (theo danh mục đề xuất hủy)`,
-            expiredGroupSummary,
-            duplicateGroupSummary,
-            otherGroupSummary: "3. Các nhóm tài liệu khác (nếu có): Không.",
+            formationText,
+            countsDetail: content.countsDetail.trim(),
+            timeRangeText: content.timeRangeText.trim(),
+            expiredGroupSummary: formatPl3ExpiredGroupBlock(content),
+            duplicateGroupSummary: content.duplicateGroupSummary.trim(),
+            otherGroupSummary: formatPl3OtherGroupBlock(content),
         })
     );
 }
@@ -308,12 +250,19 @@ export const DisposalAppendixExportService = {
 
         const bundles = await buildFondBundles(catalogId);
         const dossierIds = [...new Set(bundles.flatMap((b) => b.items.map((i) => i.dossierId)))];
-        const metadataByDossier = await loadMetadataMap(dossierIds);
+        const [metadataByDossier, boxByDossier] = await Promise.all([
+            loadMetadataMap(dossierIds),
+            loadPhysicalBoxNumbersByDossierIds(dossierIds),
+        ]);
 
         const files: AppendixExportFile[] = [];
         const usedFilenames = new Set<string>();
         for (const bundle of bundles) {
-            const pdfBytes = await renderAppendixIIForFond(bundle, metadataByDossier);
+            const pdfBytes = await renderAppendixIIForFond(
+                bundle,
+                metadataByDossier,
+                boxByDossier,
+            );
             const fondPart = safeFilenamePart(bundle.fondName);
             let filename = bundles.length > 1
                 ? `phu-luc-ii-danh-muc-${catalog.code}-${fondPart}.pdf`
@@ -328,7 +277,10 @@ export const DisposalAppendixExportService = {
         return packPdfResults(files, catalog.code, "ii");
     },
 
-    async exportPhuLucIII(profile: UserWithRoles, catalogId: string) {
+    async getPl3Suggestions(
+        profile: UserWithRoles,
+        catalogId: string,
+    ): Promise<Pl3SuggestionsResponse> {
         await assertCanAccessDisposalCatalog(profile, catalogId);
         const [catalog] = await db.select({
             code: disposalProposalCatalogs.code,
@@ -337,23 +289,46 @@ export const DisposalAppendixExportService = {
         if (!catalog) throw httpError.notFound("Không tìm thấy danh mục");
 
         const bundles = await buildFondBundles(catalogId);
+        const bundle = bundles[0]!;
+        const dossierIds = [...new Set(bundle.items.map((i) => i.dossierId))];
+        const metadataByDossier = await loadMetadataMap(dossierIds);
         const catalogDate = catalog.catalogDate.toISOString().slice(0, 10);
 
-        const files: AppendixExportFile[] = [];
-        const usedFilenames = new Set<string>();
-        for (const bundle of bundles) {
-            const pdfBytes = await renderAppendixIIIForFond(bundle, catalogDate);
-            const fondPart = safeFilenamePart(bundle.fondName);
-            let filename = bundles.length > 1
-                ? `phu-luc-iii-thuyet-minh-${catalog.code}-${fondPart}.pdf`
-                : `phu-luc-iii-thuyet-minh-${catalog.code}.pdf`;
-            if (usedFilenames.has(filename)) {
-                const suffix = safeFilenamePart(bundle.fondId === "__none__" ? bundle.fondName : bundle.fondId);
-                filename = `phu-luc-iii-thuyet-minh-${catalog.code}-${fondPart}-${suffix}.pdf`;
-            }
-            usedFilenames.add(filename);
-            files.push({ filename, pdfBytes });
-        }
-        return packPdfResults(files, catalog.code, "iii");
+        return {
+            fondName: bundle.fondName,
+            content: buildPl3Suggestions({
+                fondName: bundle.fondName,
+                fondAgency: bundle.fondAgency,
+                fondHistory: bundle.fondHistory,
+                catalogCode: catalog.code,
+                catalogDate,
+                items: bundle.items,
+                metadataByDossier,
+            }),
+        };
+    },
+
+    async exportPhuLucIII(
+        profile: UserWithRoles,
+        catalogId: string,
+        content: Pl3Content,
+    ) {
+        await assertCanAccessDisposalCatalog(profile, catalogId);
+        assertPl3ContentValid(content);
+
+        const [catalog] = await db.select({
+            code: disposalProposalCatalogs.code,
+        }).from(disposalProposalCatalogs).where(eq(disposalProposalCatalogs.id, catalogId)).limit(1);
+        if (!catalog) throw httpError.notFound("Không tìm thấy danh mục");
+
+        const bundles = await buildFondBundles(catalogId);
+        const bundle = bundles[0]!;
+        const pdfBytes = await renderAppendixIIIForFond(bundle, content);
+        const filename = `phu-luc-iii-thuyet-minh-${catalog.code}.pdf`;
+        return {
+            body: pdfBytes,
+            contentType: "application/pdf",
+            filename,
+        };
     },
 };

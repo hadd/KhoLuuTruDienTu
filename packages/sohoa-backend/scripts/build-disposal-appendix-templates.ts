@@ -128,6 +128,17 @@ function filterPl2Blocks(blocks: string[]): string[] {
   return out;
 }
 
+function isPl3StaticCountsLabelBlock(block: string): boolean {
+  const labels = [
+    "- Tổng số tài liệu đưa ra xác định lại giá trị",
+    "- Tổng số tài liệu giấy đưa ra chỉnh lý",
+    "- Tài liệu giữ lại bảo quản",
+    "- Tài liệu hết thời hạn lưu trữ, trùng lặp",
+  ];
+  const t = blockText(block).replace(/\s+/g, " ").trim();
+  return labels.includes(t);
+}
+
 function filterPl3Blocks(blocks: string[]): string[] {
   const titleIdx = blocks.findIndex((b) => includesTextBlock(b, PL3_START));
   if (titleIdx < 0) return [];
@@ -146,6 +157,7 @@ function filterPl3Blocks(blocks: string[]): string[] {
     const t = blockText(b);
     if (t.includes("MẪU BẢN THUYẾT MINH")) continue;
     if (/^Phụ lục III\s*$/i.test(t.trim())) continue;
+    if (isPl3StaticCountsLabelBlock(b)) continue;
     out.push(b);
   }
   return out;

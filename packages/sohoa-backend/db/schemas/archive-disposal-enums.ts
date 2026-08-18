@@ -6,6 +6,7 @@ import {
     DISPOSAL_COUNCIL_EVALUATION_DECISION_VALUES,
     DISPOSAL_PROPOSAL_CATALOG_STATUS_VALUES,
     DISPOSAL_PROPOSAL_ITEM_SOURCE_VALUES,
+    DISPOSAL_APPRAISAL_DOCUMENT_TYPE_VALUES,
     DUPLICATE_DETECTION_RULE_KEY_VALUES,
 } from "./archive-disposal-constants.ts";
 import { schema } from "./schema-helper.ts";
@@ -48,4 +49,9 @@ export const disposalCouncilReviewResultEnum = schema.enum(
 export const disposalCouncilEvaluationDecisionEnum = schema.enum(
     "disposal_council_evaluation_decision",
     DISPOSAL_COUNCIL_EVALUATION_DECISION_VALUES,
+);
+
+export const disposalAppraisalDocumentTypeEnum = schema.enum(
+    "disposal_appraisal_document_type",
+    DISPOSAL_APPRAISAL_DOCUMENT_TYPE_VALUES,
 );

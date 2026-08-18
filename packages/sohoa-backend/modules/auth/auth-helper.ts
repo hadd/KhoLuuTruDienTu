@@ -240,6 +240,66 @@ export const authHelper = {
         throw httpError.forbidden("Admin access required");
     },
 
+    isAdmin: (profile: UserWithRoles) => {
+        if (!profile) return false;
+
+        if (profileHasAnyRole(profile, [AuthRole.PROJECT_MANAGER])
+            && !profileHasAnyRole(profile, [AuthRole.ADMIN])) {
+            return false;
+        }
+
+        if (profileHasAnyRole(profile, [AuthRole.ADMIN])) {
+            return true;
+        }
+
+        for (const userRole of profile.userRoles) {
+            const rules = parseRoleRules(userRole.role.rules);
+            if (hasPermissionInRules(rules, "*")) {
+                return true;
+            }
+        }
+
+        return false;
+    },
+
+    getHiddenModules: (profile: UserWithRoles) => {
+        if (!profile) return [];
+        if (authHelper.isAdmin(profile)) {
+            return [];
+        }
+
+        const managingRoles = profile.userRoles.filter(ur => {
+            const rules = parseRoleRules(ur.role.rules);
+            return hasPermissionInRules(rules, Permission.ROLES_MANAGE);
+        });
+
+        if (managingRoles.length === 0) {
+            return [];
+        }
+
+        let hiddenModules: string[] | null = null;
+        for (const ur of managingRoles) {
+            let roleHidden: string[] = [];
+            try {
+                const raw = (ur.role as any).hiddenModules;
+                if (raw) {
+                    roleHidden = JSON.parse(raw);
+                }
+            } catch {
+                // ignore parsing error
+            }
+
+            if (hiddenModules === null) {
+                hiddenModules = [...roleHidden];
+            } else {
+                // Intersect hidden modules: a module is hidden only if ALL managing roles hide it.
+                hiddenModules = hiddenModules.filter(m => roleHidden.includes(m));
+            }
+        }
+
+        return hiddenModules || [];
+    },
+
     checkAdminOrProjectManager: (profile: UserWithRoles) => {
         assertProfile(profile);
 

@@ -24,7 +24,9 @@ import {
     parseRoleRules,
     parseRulesForResponse,
 } from "../auth/permission-resolver.ts";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, notExists, ne, type SQL } from "drizzle-orm";
+import { authHelper } from "../auth/auth-helper.ts";
+import { type UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { cache } from "@shared/cache-lib";
 import { httpError, AppError } from "@shared/common-lib";
 import { hashPassword, verifyPassword } from "../../libs/helpers/password.ts";
@@ -634,7 +636,7 @@ export const ProfileService = {
         return result;
     },
 
-    async getAllActiveUsers(query: Record<string, unknown> = {}) {
+    async getAllActiveUsers(query: Record<string, unknown> = {}, profile?: UserWithRoles) {
         return await crud.list(query, {
             withOverride: {
                 userRoles: {
@@ -644,6 +646,20 @@ export const ProfileService = {
                     },
                 },
             },
+            internalFilterQuery: () => {
+                if (profile && !authHelper.isAdmin(profile)) {
+                    return notExists(
+                        db.select()
+                        .from(userRoles)
+                        .where(and(
+                            eq(userRoles.userId, userProfiles.id),
+                            eq(userRoles.roleId, "admin"),
+                            isNull(userRoles.expiredAt)
+                        ))
+                    );
+                }
+                return undefined;
+            }
         });
     },
 
@@ -664,9 +680,14 @@ export const ProfileService = {
         return items;
     },
 
-    async getAllRoles() {
+    async getAllRoles(profile?: UserWithRoles) {
+        let rolesWhere: SQL<unknown> | undefined = isNull(roles.deletedAt);
+        if (profile && !authHelper.isAdmin(profile)) {
+            rolesWhere = and(rolesWhere, ne(roles.id, "admin"));
+        }
+
         const result = await db.query.roles.findMany({
-            where: isNull(roles.deletedAt),
+            where: rolesWhere,
             with: {
                 userRoles: {
                     where: activeRoleWhere,
@@ -679,7 +700,7 @@ export const ProfileService = {
         }));
     },
 
-    async getUsersByPermission(permission: string) {
+    async getUsersByPermission(permission: string, profile?: UserWithRoles) {
         if (!permission?.trim()) {
             throw httpError.badRequest("permission is required");
         }
@@ -693,7 +714,13 @@ export const ProfileService = {
 
         const matchingRoleIds = allRoles
             .filter((role) => hasPermissionInRules(parseRoleRules(role.rules), trimmedPermission))
-            .map((role) => role.id);
+            .map((role) => role.id)
+            .filter((id) => {
+                if (profile && !authHelper.isAdmin(profile)) {
+                    return id !== "admin";
+                }
+                return true;
+            });
 
         if (matchingRoleIds.length === 0) {
             return { items: [], total: 0 };

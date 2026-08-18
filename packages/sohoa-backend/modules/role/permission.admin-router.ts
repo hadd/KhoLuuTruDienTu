@@ -14,7 +14,7 @@ export function createPermissionAdminRouter(basePath: string = "/permissions") {
         .get(
             "/",
             async ({ profile }) => {
-                return { items: service.getPermissionCatalog() };
+                return { items: service.getPermissionCatalog(profile) };
             },
             {
                 detail: {

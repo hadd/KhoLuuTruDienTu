@@ -347,7 +347,10 @@ async function loadActiveDisposalEntries(dossierIds: string[]): Promise<{
         )
         .where(and(
             inArray(disposalProposalItems.dossierId, dossierIds),
-            inArray(disposalProposalCatalogs.status, [...ACTIVE_DISPOSAL_CATALOG_STATUSES]),
+            inArray(
+                sql`${disposalProposalCatalogs.status}::text`,
+                [...ACTIVE_DISPOSAL_CATALOG_STATUSES],
+            ),
         ));
 
     for (const row of rows) {

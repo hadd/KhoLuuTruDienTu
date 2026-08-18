@@ -1,0 +1,1 @@
+ALTER TABLE "sohoa_app"."roles" ADD COLUMN "hidden_modules" text DEFAULT '[]' NOT NULL;

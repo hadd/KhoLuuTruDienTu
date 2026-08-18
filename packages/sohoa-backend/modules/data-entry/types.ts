@@ -115,7 +115,7 @@ export const bulkSubmitDraftResponseSchema = t.Object({
 
 export const submitResponseSchema = t.Object({
     dossierId: t.String(),
-    assignmentId: t.String(),
+    assignmentId: t.Optional(t.Union([t.String(), t.Null()])),
     metadataKey: t.String(),
     dossierStatus: dossierStatusSchema,
     currentQcStep: t.Number(),

@@ -3,7 +3,7 @@ import { IdParam } from "@shared/common-lib";
 import { DossierService as service } from "./dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
-import { Permission } from "../auth/permission-catalog.ts";
+import { Permission, SECURITY_LEVEL_CONTENT_ACCESS_PERMISSIONS } from "../auth/permission-catalog.ts";
 import {
   assignByFolderIdBodySchema,
   assignDossierBodySchema,
@@ -12,6 +12,7 @@ import {
   createUploadPointBodySchema,
   listAssignmentsByRoleQuerySchema,
   listAssignmentsByRoleResponseSchema,
+  listDossierAssignmentsResponseSchema,
   listDraftAssignmentsResponseSchema,
   listPendingManualOcrQuerySchema,
   listTrackedManualOcrQuerySchema,
@@ -201,7 +202,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.get(
     "/ocr-control/pending-manual",
     async ({ query, profile }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+      authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
       return await service.listPendingManualOcrDossiers(query);
     },
     {
@@ -218,7 +219,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.get(
     "/ocr-control/tracked",
     async ({ query, profile }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+      authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
       return await service.listTrackedManualOcrDossiers(query);
     },
     {
@@ -447,6 +448,24 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   );
 
   app.get(
+    "/:id/assignments",
+    async ({ params, profile }) => {
+      authHelper.checkDossierWorkflowDataAccess(profile);
+      return await service.listAssignmentsByDossierId(params.id);
+    },
+    {
+      params: t.Object({ id: IdParam("Dossier ID") }),
+      response: listDossierAssignmentsResponseSchema,
+      detail: {
+        tags,
+        summary: "List dossier workflow assignments",
+        description:
+          "Returns requiredQcCount, currentQcStep, dossier status, and the MAKER/CHECKER assignment chain (assignee names) for the dossier detail view. Excludes TRANSFERRED assignments.",
+      },
+    },
+  );
+
+  app.get(
     "/:id",
     async ({ params, profile }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
@@ -476,7 +495,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/:id",
     async ({ params, body, profile }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
-      const record = await service.update(params.id, body);
+      const record = await service.update(params.id, body, profile.id);
       return { record, status: "updated" };
     },
     docs.update,
@@ -485,7 +504,10 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.post(
     "/:id/verify-access",
     async ({ params, body, profile }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
+      authHelper.checkPermissionAny(
+        profile,
+        SECURITY_LEVEL_CONTENT_ACCESS_PERMISSIONS,
+      );
       return await verifyDossierPassword({
         userId: profile.id,
         dossierId: params.id,

@@ -104,9 +104,7 @@ function getCheckerConfig(role: WorkerRoleType): QcCheckerWorkflowStep {
 function getCheckerConfigForCurrentQcStep(currentQcStep: number): QcCheckerWorkflowStep {
     const config = QC_CHECKER_BY_STEP.get(currentQcStep + 1);
     if (!config) {
-        throw httpError.conflict(
-            `Dossier at QC step ${currentQcStep} has no pending checker approval`,
-        );
+        return QC_CHECKER_BY_STEP.get(1)!;
     }
     return config;
 }
@@ -539,6 +537,111 @@ async function loadAssignmentForActorByDossier(
     }
 
     return assignment;
+}
+
+async function directApproveDossier(
+    dossierId: string,
+    actorId: string,
+    metadata?: unknown,
+) {
+    const dossier = await db.query.dossiers.findFirst({
+        where: activeDossierWhere(eq(dossiers.id, dossierId)),
+    });
+
+    if (!isActiveDossier(dossier)) {
+        throw httpError.notFound("Dossier not found or inactive");
+    }
+
+    if (dossier.status === DossierStatus.APPROVED || dossier.status === DossierStatus.ARCHIVED) {
+        throw httpError.conflict("Dossier is already approved or archived");
+    }
+
+    let storedKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
+
+    if (metadata) {
+        const metadataKey = buildCuratedMetadataUpdateKey(
+            dossier.ocrMetadataKey ?? "metadata/curated",
+            WorkerRole.CHECKER_1,
+            1,
+        );
+        storedKey = await uploadJsonToStorage(metadataKey, metadata);
+
+        const { syncDossierFondIdFromMetadata } = await import(
+            "../dossier/dossier-fond-sync.ts"
+        );
+        await syncDossierFondIdFromMetadata(dossierId, metadata);
+
+        try {
+            await syncDocumentTypesFromOcrMetadata(dossierId, metadata);
+        } catch (err) {
+            console.error("[DataEntry] Failed to sync document types on direct approve:", err);
+        }
+    }
+
+    const now = new Date();
+
+    const updatedDossier = await db.transaction(async (tx) => {
+        const [dossierRow] = await tx
+            .update(dossiers)
+            .set({
+                status: DossierStatus.APPROVED,
+                currentQcStep: dossier.requiredQcCount,
+                currentMetadataKey: storedKey,
+                updatedAt: now,
+            })
+            .where(activeDossierWhere(eq(dossiers.id, dossier.id)))
+            .returning();
+
+        if (!dossierRow) {
+            throw httpError.notFound("Dossier not found");
+        }
+
+        const { IssueReportService } = await import("../issue-report/issue-report-service.ts");
+        await IssueReportService.closeConfirmedOnCheckerApprove(tx, dossierId);
+        await cancelStaleDraftAssignmentsOnDossier(tx, dossierId, now);
+
+        await insertWorkflowLog(tx, {
+            dossierId: dossier.id,
+            actorId: actorId,
+            action: WORKFLOW_ACTION.DIRECT_APPROVE ?? "DIRECT_APPROVE",
+            fromStatus: dossier.status,
+            toStatus: DossierStatus.APPROVED,
+        });
+
+        return dossierRow;
+    });
+
+    recordSnapshot({
+        dossierId: dossier.id,
+        actorId,
+        role: WorkerRole.CHECKER_1,
+        action: "DIRECT_APPROVE",
+        fromStatus: dossier.status,
+        toStatus: DossierStatus.APPROVED,
+        s3Key: storedKey ?? "",
+        previousS3Key: dossier.currentMetadataKey ?? dossier.ocrMetadataKey,
+    }).catch((err) => {
+        console.error("[MetadataHistory] Failed to record direct approve snapshot:", err);
+    });
+
+    generateAndPersistAip({ dossierId: dossier.id }).catch((err) => {
+        console.error("[AIP] Failed to generate archival package:", err);
+    });
+
+    scheduleDossierApprovedNotification({
+        dossierId: dossier.id,
+        dossierName: dossier.name,
+        folderId: dossier.folderId,
+    });
+
+    return {
+        dossierId: dossier.id,
+        assignmentId: null,
+        metadataKey: storedKey ?? "",
+        dossierStatus: updatedDossier.status,
+        currentQcStep: updatedDossier.currentQcStep,
+        approvedQcStep: dossier.requiredQcCount,
+    };
 }
 
 async function approveMetadata(input: {
@@ -1150,4 +1253,6 @@ export const DataEntryService = {
             assignmentResolver: options?.assignmentResolver,
         });
     },
+
+    directApproveDossier,
 };

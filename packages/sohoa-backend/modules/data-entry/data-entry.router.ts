@@ -65,6 +65,13 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
     app.post(
         "/checker/approve/:dossierId",
         async ({ profile, params, body }) => {
+            if (authHelper.hasPermission(profile, Permission.DOSSIERS_DIRECT_APPROVE)) {
+                return await service.directApproveDossier(
+                    params.dossierId,
+                    profile.id,
+                    body.metadata,
+                );
+            }
             await authHelper.checkWorkflowAccess(profile, {
                 permission: Permission.DATA_ENTRY_CHECKER,
                 workerRoles: CHECKER_WORKER_ROLES,
