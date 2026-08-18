@@ -67,7 +67,10 @@ import {
   resolveDefaultMetadataGroupIndex,
   type MetadataGroupEntry,
 } from '@/features/data-management/lib/metadataLayout'
-import { findHoSoFondFieldValue } from '@/features/data-management/lib/metadataNormalize'
+import {
+  findHoSoFondFieldValue,
+  hasHoSoFondField,
+} from '@/features/data-management/lib/metadataNormalize'
 import { resolveEditorPdfMaskEnabled } from '@/features/data-management/lib/pdfMaskPolicy'
 import {
   dossierMetadataHistoryQueryOptions,
@@ -75,6 +78,7 @@ import {
   useRestoreDossierMetadataHistoryMutation,
   useSaveDossierMetadataMutation,
 } from '@/features/data-management/queries'
+import { translateError } from '@/lib/utils/translate-error'
 import type {
   DataDocumentFieldT,
   DataDossierMetadataT,
@@ -85,7 +89,6 @@ import type {
 } from '@/features/data-management/types'
 import { useSubmitEditorDraftFinalSaveItemsMutation } from '@/features/editor-dossiers/queries'
 import { cn } from '@/lib/utils/cn'
-import { translateError } from '@/lib/utils/translate-error'
 import { DigitalSignDialog } from '@/features/digital-sign/components/DigitalSignDialog'
 import {
   ensureSignAgentReady,
@@ -973,7 +976,7 @@ export function RecordDetailPanel({
       : mergeMetadataFieldChanges(baseMetadata, activeMetadata)
     const storagePayload = serializeDossierMetadataForStorage(payload)
 
-    if (!isEditorRole || mode !== 'draft') {
+    if ((!isEditorRole || mode !== 'draft') && hasHoSoFondField(payload)) {
       const fondValue = findHoSoFondFieldValue(payload)?.trim()
       if (!fondValue) {
         setIsHandlingSave(false)
@@ -1047,13 +1050,7 @@ export function RecordDetailPanel({
         isActingAsQc ? t('metadata.approveSuccess') : t('metadata.saveSuccess'),
       )
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : mode === 'final'
-            ? t('metadata.finalSaveError')
-            : t('metadata.saveError')
-      toast.error(message)
+      toast.error(translateError(error))
     } finally {
       setIsHandlingSave(false)
     }

@@ -33,8 +33,12 @@ import {
   normalizeSavedCustomFields,
   resolveGroupCodeForDocument,
 } from '@/features/data-management/lib/metadataHelpers'
-import { findHoSoFondFieldValue } from '@/features/data-management/lib/metadataNormalize'
+import {
+  findHoSoFondFieldValue,
+  hasHoSoFondField,
+} from '@/features/data-management/lib/metadataNormalize'
 import { updateDossierMetadataInTree } from '@/features/data-management/lib/treeUtils'
+import { translateError } from '@/lib/utils/translate-error'
 import {
   dataManagementTreeQueryKey,
   useClaimNextMakerAssignmentMutation,
@@ -193,7 +197,7 @@ export function DocumentMetadataForm({
       const updatedFields = buildUpdatedFields()
       const metadata = buildUpdatedMetadata()
 
-      if (isQcRole || isQcComplete) {
+      if ((isQcRole || isQcComplete) && hasHoSoFondField(metadata)) {
         const fondValue = findHoSoFondFieldValue(metadata)?.trim()
         if (!fondValue) {
           setIsHandlingSave(false)
@@ -231,9 +235,7 @@ export function DocumentMetadataForm({
       if (isNoAssignedDossierError(error)) {
         return
       }
-      const message =
-        error instanceof Error ? error.message : t('metadata.saveError')
-      toast.error(message)
+      toast.error(translateError(error))
     } finally {
       setIsHandlingSave(false)
     }

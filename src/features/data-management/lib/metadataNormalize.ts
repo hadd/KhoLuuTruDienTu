@@ -331,3 +331,19 @@ export function findHoSoFondFieldValue(
   )
   return findFieldValue(hoSoGroup?.fields ?? [], HO_SO_FOND_FIELD)
 }
+
+export function hasHoSoFondField(
+  metadata: DataDossierMetadataT | null | undefined,
+): boolean {
+  if (!metadata) return false
+  return metadata.metadata_groups.some((group) => {
+    const gCode = group.group_code.trim().toUpperCase()
+    if (gCode === HO_SO_LUU_TRU_GROUP_CODE || gCode === 'PHONG_LUU_TRU') {
+      return true
+    }
+    return (group.fields ?? []).some((field) => {
+      const fName = field.name.trim().toUpperCase()
+      return fName === HO_SO_FOND_FIELD || isLegacyFondFieldName(fName)
+    })
+  })
+}

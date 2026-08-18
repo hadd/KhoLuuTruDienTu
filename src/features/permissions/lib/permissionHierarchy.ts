@@ -22,7 +22,7 @@ export type MajorModuleGroup = {
 export const PERMISSION_HIERARCHY: MajorModuleGroup[] = [
   {
     id: 'dashboard',
-    label: '1. TỔNG QUAN',
+    label: 'TỔNG QUAN',
     subModules: [
       {
         id: 'dashboard-sub',
@@ -33,7 +33,7 @@ export const PERMISSION_HIERARCHY: MajorModuleGroup[] = [
   },
   {
     id: 'digitization',
-    label: '2. SỐ HÓA',
+    label: 'SỐ HÓA',
     subModules: [
       {
         id: 'projects',
@@ -74,7 +74,7 @@ export const PERMISSION_HIERARCHY: MajorModuleGroup[] = [
   },
   {
     id: 'warehouse',
-    label: '3. QUẢN LÝ KHO',
+    label: 'QUẢN LÝ KHO',
     subModules: [
       {
         id: 'archive-warehouse',
@@ -100,7 +100,7 @@ export const PERMISSION_HIERARCHY: MajorModuleGroup[] = [
   },
   {
     id: 'exploitation',
-    label: '4. KHAI THÁC DỮ LIỆU',
+    label: 'KHAI THÁC DỮ LIỆU',
     subModules: [
       {
         id: 'library',
@@ -111,7 +111,7 @@ export const PERMISSION_HIERARCHY: MajorModuleGroup[] = [
   },
   {
     id: 'system-admin',
-    label: '5. QUẢN TRỊ HỆ THỐNG',
+    label: 'QUẢN TRỊ HỆ THỐNG',
     subModules: [
       {
         id: 'users',
