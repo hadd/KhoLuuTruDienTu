@@ -10,6 +10,7 @@ export const roles = schema.table("roles", {
     description: text("description"),
     rules: text("rules").notNull(), // JSON field for permissions/rules
     hiddenModules: text("hidden_modules").notNull().default("[]"), // JSON array of hidden modules
+    hiddenPermissions: text("hidden_permissions").notNull().default("[]"), // JSON array of hidden permissions
     isBaseRole: boolean("is_base_role").notNull().default(false), // marks base roles that cannot be deleted
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
