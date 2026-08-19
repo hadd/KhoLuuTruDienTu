@@ -33,6 +33,7 @@ import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifi
 import type { DossierFolderTarget } from '@/features/data-management/lib/treeUtils'
 import {
   mergeListingChildren,
+  updateDossierWorkflowStateInTree,
   updateProjectCodeInSubtree,
 } from '@/features/data-management/lib/treeUtils'
 import { validateNoMixedRecordFolder } from '@/features/data-management/lib/treeValidator'
@@ -638,10 +639,30 @@ export async function refreshDossierContent(
   const refreshedStatus = parseDossierStatus(
     recordContent.dossierMetadata?.trang_thai_ho_so,
   )
-  if (refreshedStatus) {
+  if (recordNode.dossierStatus) {
+    if (recordNode.dossierMetadata) {
+      recordNode.dossierMetadata.trang_thai_ho_so = recordNode.dossierStatus
+    }
+    if (recordNode.fullDossierMetadata) {
+      recordNode.fullDossierMetadata.trang_thai_ho_so = recordNode.dossierStatus
+    }
+  } else if (refreshedStatus) {
     recordNode.dossierStatus = refreshedStatus
   }
 
+  return cloneTree(dynamicTree)
+}
+
+/** Update dossier status/workflow state directly in client dynamicTree cache */
+export function updateDossierWorkflowStateInClientTree(
+  dossierId: string,
+  patch: {
+    dossierStatus?: DataDossierStatus
+    assignmentStatus?: string
+  },
+): DataTreeNodeT | null {
+  if (!dynamicTree) return null
+  dynamicTree = updateDossierWorkflowStateInTree(dynamicTree, dossierId, patch)
   return cloneTree(dynamicTree)
 }
 

@@ -172,8 +172,7 @@ export function collapseTaiLieuDocuments(
   return { ...metadata, metadata_groups: collapsedGroups }
 }
 
-const DEFAULT_FOND_VALUE =
-  'Phông Cục Thi hành án dân sự tỉnh Phú Thọ'
+const DEFAULT_FOND_VALUE = ''
 
 const LEGACY_FOND_FIELD_NAMES = [
   'PHONG_LUU_TRU',
@@ -331,4 +330,20 @@ export function findHoSoFondFieldValue(
     (group) => group.group_code === HO_SO_LUU_TRU_GROUP_CODE,
   )
   return findFieldValue(hoSoGroup?.fields ?? [], HO_SO_FOND_FIELD)
+}
+
+export function hasHoSoFondField(
+  metadata: DataDossierMetadataT | null | undefined,
+): boolean {
+  if (!metadata) return false
+  return metadata.metadata_groups.some((group) => {
+    const gCode = group.group_code.trim().toUpperCase()
+    if (gCode === HO_SO_LUU_TRU_GROUP_CODE || gCode === 'PHONG_LUU_TRU') {
+      return true
+    }
+    return (group.fields ?? []).some((field) => {
+      const fName = field.name.trim().toUpperCase()
+      return fName === HO_SO_FOND_FIELD || isLegacyFondFieldName(fName)
+    })
+  })
 }

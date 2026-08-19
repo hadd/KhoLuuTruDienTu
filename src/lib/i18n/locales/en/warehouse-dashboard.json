@@ -11,9 +11,8 @@
             "usedCapacity": "Stored Volume",
             "totalCapacity": "Total Capacity",
             "remainingCapacity": "Remaining Capacity",
-            "subItems": "Sub-items / Shelves",
-            "unlimited": "Unlimited",
-            "noLimit": "No Limit"
+            "subItems": "Box / Case",
+            "unknown": "Unknown"
         },
         "sync": {
             "badge": "100% Real Data (Backend Database Connected)",

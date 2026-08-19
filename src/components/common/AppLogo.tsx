@@ -14,13 +14,13 @@ export function AppLogo({ className }: AppLogoProps) {
   return (
     <Link
       to="/app/dashboard"
-      className="inline-flex shrink-0 items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="inline-flex shrink-0 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       aria-label={t('admin.dashboard')}
     >
       <img
         src={logoSrc}
         alt={t('appName')}
-        className={cn('h-8 w-auto sm:h-10', className)}
+        className={cn('h-8 w-auto shrink-0 max-w-none sm:h-10', className)}
       />
     </Link>
   )

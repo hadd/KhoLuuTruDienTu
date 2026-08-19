@@ -9,7 +9,8 @@ import { MetadataFieldInput } from '@/features/data-management/components/Metada
 import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
 import { MetadataFieldEditorRow } from '@/features/data-management/components/MetadataFieldStructurePanel'
 import { QcInlineRejectBar } from '@/features/data-management/components/QcInlineRejectBar'
-import { useDataManagementResolvedPermissions } from '@/features/data-management/hooks/useDataManagementRole'
+import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
 import {
   canManageDossierMetadata,
@@ -32,7 +33,12 @@ import {
   normalizeSavedCustomFields,
   resolveGroupCodeForDocument,
 } from '@/features/data-management/lib/metadataHelpers'
+import {
+  findHoSoFondFieldValue,
+  hasHoSoFondField,
+} from '@/features/data-management/lib/metadataNormalize'
 import { updateDossierMetadataInTree } from '@/features/data-management/lib/treeUtils'
+import { translateError } from '@/lib/utils/translate-error'
 import {
   dataManagementTreeQueryKey,
   useClaimNextMakerAssignmentMutation,
@@ -76,7 +82,7 @@ export function DocumentMetadataForm({
   highlightedFieldName?: string | null
 }) {
   const { t } = useTranslation('data-management')
-  const permissions = useDataManagementResolvedPermissions()
+  const permissions = getPermissionsByRole(role as DataManagementRole)
   const canManage = canManageDossierMetadata({
     role: role as DataManagementRole,
     dossierStatus,
@@ -191,6 +197,15 @@ export function DocumentMetadataForm({
       const updatedFields = buildUpdatedFields()
       const metadata = buildUpdatedMetadata()
 
+      if ((isQcRole || isQcComplete) && hasHoSoFondField(metadata)) {
+        const fondValue = findHoSoFondFieldValue(metadata)?.trim()
+        if (!fondValue) {
+          setIsHandlingSave(false)
+          toast.error('Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ')
+          return
+        }
+      }
+
       if (shouldPersistMetadata) {
         await saveMutation.mutateAsync({ dossierId, metadata })
       } else {
@@ -220,9 +235,7 @@ export function DocumentMetadataForm({
       if (isNoAssignedDossierError(error)) {
         return
       }
-      const message =
-        error instanceof Error ? error.message : t('metadata.saveError')
-      toast.error(message)
+      toast.error(translateError(error))
     } finally {
       setIsHandlingSave(false)
     }
