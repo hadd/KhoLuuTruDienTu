@@ -1,7 +1,13 @@
 import { httpError } from "@shared/common-lib";
-import { and, eq, gte, inArray, isNull, sql } from "drizzle-orm";
+// Bổ sung: desc, isNotNull, lte
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
+
+// Import các schemas bị thiếu
+import { archiveBorrowRequests } from "../../db/schemas/archive-borrow.ts";
+import { fonds } from "../../db/schemas/fond.ts";
+
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { groupMembers } from "../../db/schemas/group_members.ts";
@@ -782,4 +788,142 @@ export const DashboardService = {
             groups: groupSummaries
         };
     },
+
+    async getWarehouseStats(chartGranularity: ChartGranularity = "month") {
+        const dossierScope = scopedDossierCondition();
+
+        const [statusRows, dossierChart] = await Promise.all([
+            db
+                .select({
+                    status: dossiers.status,
+                    count: sql<number>`count(*)`.mapWith(Number),
+                })
+                .from(dossiers)
+                .where(dossierScope)
+                .groupBy(dossiers.status),
+            aggregateDossierChart(chartGranularity),
+        ]);
+
+        const byStatus: Record<string, number> = {};
+        let totalDossiers = 0;
+        for (const row of statusRows) {
+            byStatus[row.status] = row.count;
+            totalDossiers += row.count;
+        }
+
+        return {
+            totalDossiers,
+            byStatus,
+            dossierChart,
+        };
+    },
+
+    async getWarehouseBorrowStats() {
+        const borrowStats = { pending: 0, approved: 0, returned: 0, rejected: 0, total: 0 };
+        try {
+            // Truy vấn trực tiếp từ bảng archiveBorrowRequests
+            const result = await db
+                .select({
+                    status: archiveBorrowRequests.status,
+                    count: sql<number>`count(*)::int`,
+                })
+                .from(archiveBorrowRequests)
+                .groupBy(archiveBorrowRequests.status);
+
+            for (const row of result) {
+                const status = String(row.status).toUpperCase();
+                if (status === 'PENDING') {
+                    borrowStats.pending = row.count;
+                } else if (status === 'APPROVED' || status === 'ACTIVE') {
+                    // Gộp cả hai trạng thái APPROVED và ACTIVE vào danh mục "Số Đang Mượn (Đọc Online)"
+                    borrowStats.approved += row.count;
+                } else if (status === 'EXPIRED' || status === 'REVOKED' || status === 'RETURNED') {
+                    // Trạng thái EXPIRED và REVOKED đại diện cho phiếu đã kết thúc/hết hạn
+                    borrowStats.returned += row.count;
+                } else if (status === 'REJECTED') {
+                    borrowStats.rejected = row.count;
+                }
+            }
+        } catch {
+            // Nhánh dự phòng cho bảng cấu trúc cũ (dossier_borrow_requests)
+            try {
+                const result = await db.execute(sql`
+                    SELECT status, COUNT(*)::int as count 
+                    FROM dossier_borrow_requests 
+                    GROUP BY status
+                `);
+                
+                // Giải quyết lỗi ts(2339): Lấy mảng trực tiếp từ result, 
+                // hoặc fallback về .rows nếu driver thô trả về cấu trúc thô.
+                const rows = (Array.isArray(result) ? result : (result as any).rows ?? result) as any[];
+
+                for (const row of rows) {
+                    const status = String(row.status).toUpperCase();
+                    if (status === 'PENDING') borrowStats.pending = row.count;
+                    else if (status === 'APPROVED' || status === 'ACTIVE') borrowStats.approved += row.count;
+                    else if (status === 'RETURNED' || status === 'EXPIRED') borrowStats.returned += row.count;
+                    else if (status === 'REJECTED') borrowStats.rejected = row.count;
+                }
+            } catch {}
+        }
+        borrowStats.total = borrowStats.pending + borrowStats.approved + borrowStats.returned + borrowStats.rejected;
+        return borrowStats;
+    },
+
+    async getWarehouseDisposalCandidates() {
+        try {
+            // Sử dụng Drizzle ORM thực hiện Left Join an toàn giữa dossiers và fonds
+            const items = await db
+                .select({
+                    dossierId: dossiers.id,
+                    id: dossiers.id,
+                    dossierName: dossiers.name,
+                    name: dossiers.name,
+                    fondName: fonds.fondName,
+                })
+                .from(dossiers)
+                .leftJoin(
+                    fonds,
+                    and(
+                        eq(dossiers.fondId, fonds.id),
+                        isNull(fonds.deletedAt)
+                    )
+                )
+                .where(
+                    and(
+                        eq(dossiers.status, DossierStatus.APPROVED), // Hoặc DossierStatus.ARCHIVED tùy theo trạng thái lưu kho của bạn
+                        isNull(dossiers.deletedAt),
+                        isNotNull(dossiers.expiresAt),
+                        lte(dossiers.expiresAt, sql`NOW()`)
+                    )
+                )
+                .orderBy(desc(dossiers.expiresAt))
+                .limit(5);
+
+            return { items, total: items.length };
+        } catch {
+            // Fallback an toàn nếu có sự cố liên kết bảng phông
+            try {
+                const items = await db
+                    .select({
+                        id: dossiers.id,
+                        dossierId: dossiers.id,
+                        name: dossiers.name,
+                        dossierName: dossiers.name,
+                    })
+                    .from(dossiers)
+                    .where(
+                        and(
+                            eq(dossiers.status, DossierStatus.APPROVED),
+                            isNull(dossiers.deletedAt)
+                        )
+                    )
+                    .limit(5);
+                return { items, total: items.length };
+            } catch {
+                return { items: [], total: 0 };
+            }
+        }   
+    }
 };
+

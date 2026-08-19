@@ -47,6 +47,7 @@ export const Permission = {
   DASHBOARD_EDITOR: "dashboard.editor",
   DASHBOARD_QC: "dashboard.qc",
   DASHBOARD_ADMIN: "dashboard.admin",
+  DASHBOARD_WAREHOUSE: "dashboard.warehouse",
 
   DATA_ENTRY_MAKER: "data-entry.maker",
   DATA_ENTRY_CHECKER: "data-entry.checker",
@@ -278,6 +279,12 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     label: "Dashboard quản trị",
     description:
       "Xem tổng quan hệ thống, biểu đồ tiến độ hồ sơ và hiệu suất theo nhóm/dự án",
+  },
+  { key: Permission.DASHBOARD_WAREHOUSE,
+    module: "dashboard",
+    label: "Dashboard kho",
+    description:
+      "Xem thống kê phân bổ chi tiết hồ sơ thực tế theo mức độ lưu trữ và chỉnh lý",
   },
 
   // --- MODULE 2: SỐ HÓA ---
