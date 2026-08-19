@@ -12,17 +12,14 @@
     "promote": "Chuyển tiếp"
   },
   "agent": {
-    "offlineTitle": "Scan Agent chưa chạy",
-    "offlineDescription": "Cài và khởi động Sohoa Scan Agent v2 trên máy tính này để dùng máy quét.",
-    "needV2": "Cần Scan Agent v2 (có POST /scan). Build lại từ mã nguồn mới và khởi động lại SohoaScanAgent.exe.",
-    "noTwainTitle": "Không thấy nguồn TWAIN",
-    "noTwainDescription": "Driver Plustek thường chỉ hiện với bản Agent 32-bit (win-x86).",
-    "currentBitness": "Agent đang chạy: {{bitness}}",
-    "step1": "Tải và giải nén SohoaScanAgent, chạy SohoaScanAgent.exe",
-    "step2": "Cài driver TWAIN Plustek nếu chưa cài",
-    "step3": "Kiểm tra http://127.0.0.1:18612/health trả về {\"status\":\"ok\"}",
-    "downloadX86": "Tải Agent win-x86",
-    "checkHealth": "Kiểm tra health"
+    "offlineTitle": "Yêu cầu cài đặt Plugin quét tài liệu",
+    "offlineDescription": "Để sử dụng máy quét trực tiếp trên hệ thống, vui lòng tải và khởi chạy Plugin hỗ trợ quét tài liệu.",
+    "step1": "Tải phần mềm Plugin quét về máy tính và mở ứng dụng.",
+    "step2": "Sau khi ứng dụng khởi chạy, hệ thống sẽ tự động nhận diện máy quét.",
+    "downloadPlugin": "Tải Plugin quét tài liệu",
+    "retryConnection": "Thử kết nối lại",
+    "noTwainTitle": "Chưa nhận diện được máy quét",
+    "noTwainDescription": "Plugin đã hoạt động nhưng chưa tìm thấy máy quét. Vui lòng kiểm tra cáp kết nối hoặc cắm lại máy quét."
   },
   "session": {
     "reset": "Bắt đầu phiên mới",
@@ -52,7 +49,7 @@
     "scanSuccess": "Đã quét xong 1 trang",
     "scanBatchSuccess": "Đã quét xong {{count}} trang",
     "scanCancelled": "Đã hủy quét hoặc khay ADF không có giấy",
-    "scanFailed": "Quét thất bại. Kiểm tra Scan Agent v2 và driver TWAIN.",
+    "scanFailed": "Quét thất bại. Vui lòng kiểm tra lại kết nối máy quét và thử lại.",
     "empty": "Chưa có trang. Bấm Quét trang để quét từ máy scan.",
     "count": "{{count}} trang",
     "pdfSaved": "Đã lưu PDF nháp",

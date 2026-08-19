@@ -1,4 +1,4 @@
-import { AlertTriangle, Download, ExternalLink } from 'lucide-react'
+import { AlertCircle, Download, PlugZap, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,7 @@ const AGENT_DOWNLOAD_URL_X86 =
 
 export function ScanAgentGuard({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation('scan-intake')
-  const { data, isPending, isError } = useScanAgentHealth()
+  const { data, isPending, isError, refetch, isFetching } = useScanAgentHealth()
 
   const isOnline = !isPending && !isError && data?.status === 'ok'
   const twainSources = data?.twainSources ?? []
@@ -24,35 +24,29 @@ export function ScanAgentGuard({ children }: { children: React.ReactNode }) {
 
   if (isOnline && needsX86) {
     return (
-      <div className="space-y-6">
-        <div className="rounded-lg border border-amber-500/50 bg-amber-500/5 p-6">
-          <div className="mb-2 flex items-center gap-2 text-amber-700 dark:text-amber-400">
-            <AlertTriangle className="h-5 w-5" />
-            <h2 className="text-lg font-semibold">{t('agent.noTwainTitle')}</h2>
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-6 dark:bg-amber-500/10">
+        <div className="flex items-start gap-4">
+          <div className="rounded-full bg-amber-500/15 p-3 text-amber-600 dark:text-amber-400">
+            <AlertCircle className="h-6 w-6" />
           </div>
-          <div className="space-y-3 text-sm text-muted-foreground">
-            <p>{data?.twainHint ?? t('agent.noTwainDescription')}</p>
-            <p>
-              {t('agent.currentBitness', {
-                bitness: data?.processBitness ?? '?',
-              })}
+          <div className="flex-1 space-y-2">
+            <h3 className="text-base font-semibold text-foreground">
+              {t('agent.noTwainTitle')}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {t('agent.noTwainDescription')}
             </p>
-            <div className="flex flex-wrap gap-2 pt-2">
-              <Button asChild size="sm" variant="outline">
-                <a href={AGENT_DOWNLOAD_URL_X86} target="_blank" rel="noreferrer">
-                  <Download className="mr-2 h-4 w-4" />
-                  {t('agent.downloadX86')}
-                </a>
-              </Button>
-              <Button asChild size="sm" variant="ghost">
-                <a
-                  href="http://127.0.0.1:18612/health"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  {t('agent.checkHealth')}
-                </a>
+            <div className="pt-2 flex items-center gap-3">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => refetch()}
+                disabled={isFetching}
+              >
+                <RefreshCw
+                  className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
+                />
+                {t('agent.retryConnection')}
               </Button>
             </div>
           </div>
@@ -62,35 +56,43 @@ export function ScanAgentGuard({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-6">
-        <div className="mb-2 flex items-center gap-2 text-destructive">
-          <AlertTriangle className="h-5 w-5" />
-          <h2 className="text-lg font-semibold">{t('agent.offlineTitle')}</h2>
+    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-6 dark:bg-amber-500/10">
+      <div className="flex items-start gap-4">
+        <div className="rounded-full bg-amber-500/15 p-3 text-amber-600 dark:text-amber-400">
+          <PlugZap className="h-6 w-6" />
         </div>
-        <div className="space-y-3 text-sm text-muted-foreground">
-          <p>{t('agent.offlineDescription')}</p>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>{t('agent.step1')}</li>
-            <li>{t('agent.step2')}</li>
-            <li>{t('agent.step3')}</li>
-          </ol>
-          <div className="flex flex-wrap gap-2 pt-2">
-            <Button asChild size="sm" variant="outline">
+        <div className="flex-1 space-y-3">
+          <div>
+            <h3 className="text-base font-semibold text-foreground">
+              {t('agent.offlineTitle')}
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t('agent.offlineDescription')}
+            </p>
+          </div>
+
+          <div className="rounded-lg bg-background/60 p-3.5 text-xs text-muted-foreground border border-border/40 space-y-1.5">
+            <p className="font-medium text-foreground">{t('agent.step1')}</p>
+            <p>{t('agent.step2')}</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <Button asChild size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
               <a href={AGENT_DOWNLOAD_URL_X86} target="_blank" rel="noreferrer">
                 <Download className="mr-2 h-4 w-4" />
-                {t('agent.downloadX86')}
+                {t('agent.downloadPlugin')}
               </a>
             </Button>
-            <Button asChild size="sm" variant="ghost">
-              <a
-                href="http://127.0.0.1:18612/health"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <ExternalLink className="mr-2 h-4 w-4" />
-                {t('agent.checkHealth')}
-              </a>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => refetch()}
+              disabled={isFetching}
+            >
+              <RefreshCw
+                className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
+              />
+              {t('agent.retryConnection')}
             </Button>
           </div>
         </div>
@@ -98,3 +100,4 @@ export function ScanAgentGuard({ children }: { children: React.ReactNode }) {
     </div>
   )
 }
+
