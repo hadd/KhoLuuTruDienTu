@@ -1,6 +1,6 @@
 import { createCrudService } from "@shared/base-crud";
 import { httpError } from "@shared/common-lib";
-import { and, asc, desc, eq, inArray, isNull, like, ne, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, like, ne, or } from "drizzle-orm";
 import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
@@ -2132,6 +2132,63 @@ export const DossierService = {
 
       return mapDossierWithRelations(relRows[0] ?? existing);
     });
+  },
+
+  /** List dossiers that have been soft-deleted (deletedAt IS NOT NULL). */
+  async listSoftDeleted(fondId?: string | null) {
+    return db.query.dossiers.findMany({
+      where: fondId
+        ? and(isNotNull(dossiers.deletedAt), eq(dossiers.fondId, fondId))
+        : isNotNull(dossiers.deletedAt),
+      columns: {
+        id: true,
+        name: true,
+        fondId: true,
+        deletedAt: true,
+        updatedAt: true,
+      },
+      orderBy: [desc(dossiers.deletedAt)],
+    });
+  },
+
+  /** Permanently delete multiple soft-deleted dossiers in one batch. */
+  async permanentDeleteBatch(ids: string[]) {
+    if (ids.length === 0) return { deletedIds: [], deletedObjectCount: 0 };
+
+    const rows = await db.query.dossiers.findMany({
+      where: and(inArray(dossiers.id, ids), isNotNull(dossiers.deletedAt)),
+      with: { files: true },
+    });
+
+    if (rows.length === 0) {
+      throw httpError.notFound("No soft-deleted dossiers found for the given IDs");
+    }
+
+    let deletedObjectCount = 0;
+    for (const dossier of rows) {
+      const assignments = await db.query.dossierAssignments.findMany({
+        where: eq(dossierAssignments.dossierId, dossier.id),
+        columns: { metadataKey: true },
+      });
+      const historyRows = await db
+        .select({ s3Key: metadataHistory.s3Key })
+        .from(metadataHistory)
+        .where(eq(metadataHistory.dossierId, dossier.id));
+
+      const storageKeys = collectDossierStorageKeys(dossier, dossier.files ?? [], assignments);
+      for (const { s3Key } of historyRows) {
+        if (s3Key) storageKeys.add(s3Key);
+      }
+      deletedObjectCount += await purgeDossierFromMinIO(storageKeys, dossier.folderPath);
+    }
+
+    const deletedIds = rows.map((r) => r.id);
+    await db.transaction(async (tx) => {
+      await purgeLinkedMetadataByDossierIds(tx, deletedIds);
+      await tx.delete(dossiers).where(inArray(dossiers.id, deletedIds));
+    });
+
+    return { deletedIds, deletedObjectCount };
   },
 
   async delete(id: string, options?: { permanent?: boolean }) {

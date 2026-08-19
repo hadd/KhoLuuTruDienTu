@@ -556,6 +556,40 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   );
 
   app.get(
+    "/soft-deleted",
+    async ({ query, profile }) => {
+      authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+      const fondId = (query as Record<string, string>).fondId ?? null;
+      return await service.listSoftDeleted(fondId);
+    },
+    {
+      detail: {
+        tags,
+        summary: "List soft-deleted dossiers",
+        description: "Returns dossiers that have been soft-deleted (deletedAt IS NOT NULL).",
+      },
+    },
+  );
+
+  app.post(
+    "/permanent-batch-delete",
+    async ({ body, profile }) => {
+      authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+      return await service.permanentDeleteBatch(body.ids);
+    },
+    {
+      body: t.Object({
+        ids: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
+      }),
+      detail: {
+        tags,
+        summary: "Permanently delete multiple soft-deleted dossiers",
+        description: "Hard-deletes multiple previously soft-deleted dossiers from DB and MinIO.",
+      },
+    },
+  );
+
+  app.get(
     "/:id/dip/export",
     async ({ params, query, profile, request }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
