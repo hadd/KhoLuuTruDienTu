@@ -2,9 +2,6 @@
 
 import { queryOptions } from '@tanstack/react-query'
 import { getWarehouseStats } from '@/features/warehouse-dashboard/api/warehouseDashboardClient'
-import { getDisposalCandidates } from '@/features/archive-disposal/api/archiveDisposalClient'
-import { getReviewArchiveBorrowRequests } from '@/features/archive-borrow/api/archiveBorrowClient'
-import { getUnplacedWarehouseDossiers } from '@/features/physical-warehouse/api/physicalWarehouseClient'
 
 import { 
   getWarehouseDashboardLocations, 

@@ -116,97 +116,27 @@ export const Route = createFileRoute('/app/dashboard/')({
 })
 
 function DashboardRoute() {
-  const { variant, permissions } = Route.useLoaderData()
-  const navigate = routeApi.useNavigate()
-  const { tab, roleChart, dossierTrendGranularity, period } = routeApi.useSearch()
+  const { variant } = Route.useLoaderData()
+  const { roleChart, dossierTrendGranularity, period } = routeApi.useSearch()
 
-  // Xác định xem tài khoản đăng nhập có phải chỉ có quyền xem kho hay không
-  const isWarehouseOnly = useMemo(() => {
-    const hasOverviewPermission = 
-      permissions.includes('dashboard.admin') || 
-      permissions.includes('dashboard.qc') || 
-      permissions.includes('dashboard.editor') ||
-      permissions.includes('DASHBOARD_ADMIN') || 
-      permissions.includes('DASHBOARD_QC') || 
-      permissions.includes('DASHBOARD_EDITOR')
-      
-    return !hasOverviewPermission
-  }, [permissions])
+  if (variant === 'admin') {
+    return (
+      <AdminDashboardContent
+        roleChart={roleChart ?? 'pie'}
+        dossierTrendGranularity={dossierTrendGranularity ?? 'month'}
+      />
+    )
+  }
 
-  // Nếu chỉ có quyền kho, tab mặc định sẽ được hướng thẳng vào 'warehouse'
-  const activeTab = tab ?? (isWarehouseOnly ? 'warehouse' : 'overview')
+  if (variant === 'qc') {
+    return <QcDashboardContent />
+  }
 
-  // Đẩy URL Search Parameter về tab 'warehouse' để đồng bộ hóa đúng trạng thái trên thanh địa chỉ trình duyệt
-  useEffect(() => {
-    if (isWarehouseOnly && tab !== 'warehouse') {
-      void navigate({
-        search: (prev) => ({
-          ...prev,
-          tab: 'warehouse',
-        }),
-        replace: true,
-      })
-    }
-  }, [isWarehouseOnly, tab, navigate])
+  if (variant === 'warehouse') {
+    return <WarehouseDashboard />
+  }
 
-  return (
-    <div className="flex flex-1 flex-col gap-4 w-full h-full min-h-0">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-3 shrink-0">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">
-            {activeTab === 'warehouse'
-              ? 'Dashboard Báo Cáo & Vận Hành Kho'
-              : 'Tổng Quan Hệ Thống'}
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            {activeTab === 'warehouse'
-              ? 'Theo dõi dữ liệu thực tế về sức chứa kho vật lý, kho dữ liệu số và hồ sơ lưu trữ'
-              : 'Thống kê tổng quan tiến độ số hóa, quy trình làm việc và hiệu suất toàn hệ thống'}
-          </p>
-        </div>
-
-        {/* Ẩn bộ chọn tab nếu người dùng chỉ có duy nhất quyền xem kho */}
-        {!isWarehouseOnly ? (
-          <Tabs
-            value={activeTab}
-            onValueChange={(val) => {
-              void navigate({
-                search: (prev) => ({
-                  ...prev,
-                  tab: val as 'overview' | 'warehouse',
-                }),
-              })
-            }}
-            className="w-auto"
-          >
-            <TabsList className="h-9 p-1">
-              <TabsTrigger value="overview" className="h-7 text-xs gap-1.5 px-3">
-                <LayoutDashboard className="size-3.5" />
-                <span>Tổng Quan Hệ Thống</span>
-              </TabsTrigger>
-              <TabsTrigger value="warehouse" className="h-7 text-xs gap-1.5 px-3">
-                <Warehouse className="size-3.5" />
-                <span>Dashboard Kho</span>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        ) : null}
-      </div>
-
-      {activeTab === 'warehouse' ? (
-        <WarehouseDashboard />
-      ) : variant === 'admin' ? (
-        <AdminDashboardContent
-          roleChart={roleChart ?? 'pie'}
-          dossierTrendGranularity={dossierTrendGranularity ?? 'month'}
-        />
-      ) : variant === 'qc' ? (
-        <QcDashboardContent />
-      ) : (
-        <EditorDashboardContent period={period ?? '30d'} />
-      )}
-    </div>
-  )
+  return <EditorDashboardContent period={period ?? '30d'} />
 }
 
 function EditorDashboardContent({

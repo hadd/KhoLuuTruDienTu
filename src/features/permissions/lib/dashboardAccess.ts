@@ -32,6 +32,7 @@ export const DASHBOARD_SCREEN_REQUIREMENTS = [
   },
 ] as const satisfies ReadonlyArray<ScreenPermissionRequirement>
 
+
 export function canAccessAnyDashboard(permissions: Array<string>): boolean {
   if (hasFullAccess(permissions)) {
     return true
