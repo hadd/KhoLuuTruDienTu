@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Shield } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -65,17 +66,17 @@ export function ArchiveSubmissionDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col overflow-hidden sm:max-w-2xl">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{t('detail.title')}</DialogTitle>
         </DialogHeader>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-10">
+          <div className="flex flex-1 items-center justify-center py-10">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : submission ? (
-          <div className="space-y-4 text-sm">
+          <div className="flex-1 space-y-4 overflow-y-auto pr-2 text-sm">
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <p className="text-muted-foreground">{t('detail.dossierName')}</p>
@@ -119,6 +120,42 @@ export function ArchiveSubmissionDetailDialog({
                   )
                 })}
               </div>
+            </div>
+
+            <div className="space-y-2 rounded-md border bg-muted/20 p-4">
+              <div className="flex items-center gap-2 font-medium">
+                <Shield className="size-4 text-primary" />
+                <span>Cấp độ bảo mật đã chọn</span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">Cấp độ bảo mật hồ sơ</p>
+                  <p className="font-medium">{submission.securityLevelName ?? 'Thường (mặc định)'}</p>
+                </div>
+              </div>
+
+              {submission.files && submission.files.length > 0 ? (
+                <div className="mt-3 space-y-1.5 border-t pt-3">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Cấp độ bảo mật từng file PDF ({submission.files.length} file)
+                  </p>
+                  <div className="max-h-36 space-y-1 overflow-y-auto pr-1">
+                    {submission.files.map((file) => (
+                      <div
+                        key={file.fileId}
+                        className="flex items-center justify-between rounded border bg-background px-2.5 py-1.5 text-xs"
+                      >
+                        <span className="max-w-[280px] truncate text-muted-foreground">
+                          {file.fileName}
+                        </span>
+                        <Badge variant="outline" className="shrink-0 text-xs font-normal">
+                          {file.securityLevelName ?? 'Theo hồ sơ'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             {isArchived && retentionPeriod ? (

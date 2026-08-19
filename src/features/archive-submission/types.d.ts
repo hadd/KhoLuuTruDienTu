@@ -40,11 +40,21 @@ export type ArchiveFieldConfigSnapshotT = {
   resolvedLabels: Record<string, { id: string; label: string }>
 }
 
+export type ArchiveSubmissionFileSecurityT = {
+  fileId: string
+  fileName: string
+  securityLevelId: string | null
+  securityLevelName: string | null
+}
+
 export type ArchiveSubmissionT = {
   id: string
   dossierId: string
   dossierName?: string
   dossierStatus?: string
+  dossierSecurityLevelId?: string | null
+  securityLevelName?: string | null
+  files?: Array<ArchiveSubmissionFileSecurityT>
   folderPath?: string
   submittedBy: string
   submitterName?: string | null
