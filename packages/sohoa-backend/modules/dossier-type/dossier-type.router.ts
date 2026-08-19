@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { DossierTypeService as service } from "./dossier-type-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
-import { Permission } from "../auth/permission-catalog.ts";
+import { Permission, DOSSIER_TYPE_ACTIVE_READ_PERMISSIONS } from "../auth/permission-catalog.ts";
 
 const idParamSchema = t.Object({
     id: t.String({ description: "Mã loại hồ sơ" }),
@@ -33,7 +33,7 @@ export function createDossierTypeRouter(basePath: string = "/dossier-types") {
     app.get(
         "/active",
         async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.DOSSIER_TYPES_READ);
+            authHelper.checkPermissionAny(profile, DOSSIER_TYPE_ACTIVE_READ_PERMISSIONS);
             return await service.listActive();
         },
         {

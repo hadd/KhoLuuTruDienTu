@@ -185,6 +185,66 @@ export const SECURITY_LEVEL_CONTENT_ACCESS_PERMISSIONS = [
   Permission.DOSSIERS_READ,
   Permission.ARCHIVE_BORROW_REQUEST,
   Permission.ARCHIVE_DISPOSAL_READ,
+  Permission.ARCHIVE_SUBMIT,
+  Permission.ARCHIVE_REVIEW,
+  Permission.DATA_ENTRY_MAKER,
+  Permission.DATA_ENTRY_CHECKER,
+] as const;
+
+/** Permissions that allow loading active Fond list for dropdowns/forms. */
+export const FOND_ACTIVE_READ_PERMISSIONS = [
+  Permission.FONDS_READ,
+  Permission.DATA_ENTRY_MAKER,
+  Permission.DATA_ENTRY_CHECKER,
+  Permission.ARCHIVE_SUBMIT,
+  Permission.ARCHIVE_REVIEW,
+  Permission.ARCHIVE_CONFIG_MANAGE,
+  Permission.ARCHIVE_WAREHOUSE_READ,
+  Permission.ARCHIVE_WAREHOUSE_EDIT,
+  Permission.ARCHIVE_WAREHOUSE_SEARCH,
+  Permission.DOSSIERS_READ,
+] as const;
+
+/** Permissions that allow loading active Dossier Types list for dropdowns/forms. */
+export const DOSSIER_TYPE_ACTIVE_READ_PERMISSIONS = [
+  Permission.DOSSIER_TYPES_READ,
+  Permission.DATA_ENTRY_MAKER,
+  Permission.DATA_ENTRY_CHECKER,
+  Permission.ARCHIVE_SUBMIT,
+  Permission.ARCHIVE_REVIEW,
+  Permission.ARCHIVE_CONFIG_MANAGE,
+  Permission.ARCHIVE_WAREHOUSE_READ,
+  Permission.ARCHIVE_WAREHOUSE_EDIT,
+  Permission.ARCHIVE_WAREHOUSE_SEARCH,
+  Permission.DOSSIERS_READ,
+] as const;
+
+/** Permissions that allow loading active Retention Periods list for dropdowns/forms. */
+export const RETENTION_PERIOD_ACTIVE_READ_PERMISSIONS = [
+  Permission.RETENTION_PERIODS_READ,
+  Permission.DATA_ENTRY_MAKER,
+  Permission.DATA_ENTRY_CHECKER,
+  Permission.ARCHIVE_SUBMIT,
+  Permission.ARCHIVE_REVIEW,
+  Permission.ARCHIVE_CONFIG_MANAGE,
+  Permission.ARCHIVE_WAREHOUSE_READ,
+  Permission.ARCHIVE_WAREHOUSE_EDIT,
+  Permission.ARCHIVE_WAREHOUSE_SEARCH,
+  Permission.DOSSIERS_READ,
+] as const;
+
+/** Permissions that allow loading active Inventories list for dropdowns/forms. */
+export const INVENTORY_ACTIVE_READ_PERMISSIONS = [
+  Permission.INVENTORIES_READ,
+  Permission.DATA_ENTRY_MAKER,
+  Permission.DATA_ENTRY_CHECKER,
+  Permission.ARCHIVE_SUBMIT,
+  Permission.ARCHIVE_REVIEW,
+  Permission.ARCHIVE_CONFIG_MANAGE,
+  Permission.ARCHIVE_WAREHOUSE_READ,
+  Permission.ARCHIVE_WAREHOUSE_EDIT,
+  Permission.ARCHIVE_WAREHOUSE_SEARCH,
+  Permission.DOSSIERS_READ,
 ] as const;
 
 export type PermissionKey = (typeof Permission)[keyof typeof Permission];

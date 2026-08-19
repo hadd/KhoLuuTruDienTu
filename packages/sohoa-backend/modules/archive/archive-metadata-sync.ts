@@ -186,6 +186,7 @@ export async function extractArchivePrefillFromMetadata(
         dossierFondId?: string | null;
         dossierSecurityLevelId?: string | null;
         pdfFiles: ArchivePdfFileRef[];
+        activeFieldKeys?: Set<string>;
     },
 ): Promise<ArchiveMetadataPrefill> {
     const hoSoGroup = findHoSoGroup(metadata);
@@ -224,13 +225,17 @@ export async function extractArchivePrefillFromMetadata(
         for (const field of hoSoGroup.fields) {
             if (field.value !== null && field.value !== undefined && field.value !== "") {
                 const val = String(field.value);
-                suggestedFieldValues[field.name] = val;
-                suggestedFieldValues[field.name.toLowerCase()] = val;
+                const normKey = field.name.trim().toLowerCase();
+                if (!input.activeFieldKeys || input.activeFieldKeys.has(normKey)) {
+                    suggestedFieldValues[normKey] = val;
+                }
             }
         }
     }
     if (fondId) {
-        suggestedFieldValues.fond = fondId;
+        if (!input.activeFieldKeys || input.activeFieldKeys.has("fond")) {
+            suggestedFieldValues.fond = fondId;
+        }
     }
 
     return {
@@ -292,6 +297,19 @@ export function patchMetadataForArchiveSubmit(
     return { ...metadata, metadata_groups };
 }
 
+export function createDefaultDossierMetadata(): DossierMetadata {
+    return {
+        metadata_groups: [
+            {
+                group_code: HO_SO_LUU_TRU_GROUP_CODE,
+                group_name: "Metadata cấp Hồ sơ lưu trữ",
+                source_document: { file_name: null, file_path: null },
+                fields: [],
+            },
+        ],
+    };
+}
+
 export async function loadDossierMetadataForArchive(
     dossierId: string,
 ): Promise<DossierMetadata> {
@@ -308,19 +326,28 @@ export async function loadDossierMetadataForArchive(
 
     const metadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
     if (!metadataKey?.trim()) {
-        throw httpError.badRequest("Hồ sơ chưa có metadata để nộp lưu kho");
+        return createDefaultDossierMetadata();
     }
 
-    const raw = await downloadJsonFromStorage(resolveMetadataJsonKey(metadataKey));
-    if (!isDossierMetadata(raw)) {
-        throw httpError.badRequest("Metadata hồ sơ không hợp lệ");
-    }
+    try {
+        const raw = await downloadJsonFromStorage(resolveMetadataJsonKey(metadataKey));
+        if (!isDossierMetadata(raw)) {
+            return createDefaultDossierMetadata();
+        }
 
-    const parsed = parseDossierMetadata(raw);
-    if (!parsed) {
-        throw httpError.badRequest("Metadata hồ sơ không hợp lệ");
+        const parsed = parseDossierMetadata(raw);
+        if (!parsed) {
+            return createDefaultDossierMetadata();
+        }
+        return parsed;
+    } catch (error) {
+        const status = (error as { status?: number })?.status;
+        const message = (error as { message?: string })?.message;
+        if (status === 404 || message?.includes("not found")) {
+            return createDefaultDossierMetadata();
+        }
+        throw error;
     }
-    return parsed;
 }
 
 export async function persistDossierMetadataForArchive(
@@ -332,6 +359,8 @@ export async function persistDossierMetadataForArchive(
     const dossier = await executor.query.dossiers.findFirst({
         where: activeDossierWhere(eq(dossiers.id, dossierId)),
         columns: {
+            folderPath: true,
+            name: true,
             currentMetadataKey: true,
             ocrMetadataKey: true,
         },
@@ -340,9 +369,9 @@ export async function persistDossierMetadataForArchive(
         throw httpError.notFound("Hồ sơ không tồn tại");
     }
 
-    const baseKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
+    let baseKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
     if (!baseKey?.trim()) {
-        throw httpError.badRequest("Hồ sơ chưa có metadata để cập nhật");
+        baseKey = `raw/${dossier.folderPath}/${dossier.name}/metadata.json`;
     }
 
     const storageMetadata = formatDossierMetadataForStorage(metadata);
