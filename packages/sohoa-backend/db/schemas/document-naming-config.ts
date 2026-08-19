@@ -17,7 +17,9 @@ export const documentNamingConfigs = schema.table("document_naming_configs", {
     id: uuid("id").defaultRandom().primaryKey(),
     fondId: text("fond_id").notNull().references(() => fonds.id),
     targetType: varchar("target_type", { length: 20 }).notNull(),
-    dossierId: uuid("dossier_id").references(() => dossiers.id),
+    dossierId: uuid("dossier_id").references(() => dossiers.id, {
+        onDelete: "cascade",
+    }),
     segments: jsonb("segments").$type<DocumentNamingSegment[]>().notNull().default([]),
     autoIncrementCounter: integer("auto_increment_counter").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

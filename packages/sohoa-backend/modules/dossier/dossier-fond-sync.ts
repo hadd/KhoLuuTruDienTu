@@ -10,19 +10,26 @@ import { dossiers } from "../../db/schemas/dossier.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+import { resolveFondIdFromMetadataValue } from "../archive/archive-metadata-sync.ts";
+
 export async function syncDossierFondIdFromMetadata(
     dossierId: string,
     metadata: unknown,
     tx?: DbTx,
-): Promise<void> {
+): Promise<string | null> {
     if (!isDossierMetadata(metadata)) {
-        return;
+        return null;
     }
 
     const parsed = parseDossierMetadata(metadata);
-    const fondId = findHoSoFondFieldValue(parsed)?.trim();
+    const fondRaw = findHoSoFondFieldValue(parsed)?.trim();
+    if (!fondRaw) {
+        return null;
+    }
+
+    const fondId = await resolveFondIdFromMetadataValue(fondRaw, tx);
     if (!fondId) {
-        return;
+        return null;
     }
 
     const executor = tx ?? db;
@@ -33,4 +40,6 @@ export async function syncDossierFondIdFromMetadata(
             updatedAt: new Date(),
         })
         .where(activeDossierWhere(eq(dossiers.id, dossierId)));
+
+    return fondId;
 }

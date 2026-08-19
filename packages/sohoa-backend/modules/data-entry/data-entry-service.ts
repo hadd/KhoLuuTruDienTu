@@ -46,6 +46,7 @@ import {
     shouldResetMakerOnReject,
 } from "../../libs/metadata-field-filter.ts";
 import { isDossierMetadata, type DossierMetadata } from "../../libs/metadata-types.ts";
+import { hasHoSoFondField } from "../../libs/metadata-normalize.ts";
 import {
     resolveEditorSlotFieldPatterns,
     resolveEffectiveAllowedFields,
@@ -569,12 +570,28 @@ async function directApproveDossier(
         const { syncDossierFondIdFromMetadata } = await import(
             "../dossier/dossier-fond-sync.ts"
         );
-        await syncDossierFondIdFromMetadata(dossierId, metadata);
+        const syncedFondId = await syncDossierFondIdFromMetadata(dossierId, metadata);
+        const effectiveFondId = syncedFondId || dossier.fondId;
+        if (hasHoSoFondField(metadata) && !effectiveFondId) {
+            throw httpError.badRequest("Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ.");
+        }
 
         try {
             await syncDocumentTypesFromOcrMetadata(dossierId, metadata);
         } catch (err) {
             console.error("[DataEntry] Failed to sync document types on direct approve:", err);
+        }
+    } else {
+        let currentMeta: unknown = null;
+        if (storedKey) {
+            try {
+                currentMeta = await downloadJsonFromStorage(resolveMetadataJsonKey(storedKey));
+            } catch {
+                currentMeta = null;
+            }
+        }
+        if (hasHoSoFondField(currentMeta) && !dossier.fondId) {
+            throw httpError.badRequest("Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ.");
         }
     }
 
@@ -695,7 +712,11 @@ async function approveMetadata(input: {
     const { syncDossierFondIdFromMetadata } = await import(
         "../dossier/dossier-fond-sync.ts"
     );
-    await syncDossierFondIdFromMetadata(input.dossierId, input.metadata);
+    const syncedFondId = await syncDossierFondIdFromMetadata(input.dossierId, input.metadata);
+    const effectiveFondId = syncedFondId || dossier.fondId;
+    if (hasHoSoFondField(input.metadata) && !effectiveFondId) {
+        throw httpError.badRequest("Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ.");
+    }
 
     // Đồng bộ catalog loại tài liệu từ metadata đã duyệt (group_code/group_name).
     try {
