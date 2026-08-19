@@ -4,7 +4,7 @@ import { Elysia, t } from "elysia";
 import { FondService as service } from "./fond-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
-import { Permission } from "../auth/permission-catalog.ts";
+import { Permission, FOND_ACTIVE_READ_PERMISSIONS } from "../auth/permission-catalog.ts";
 import { indexFondById } from "../search/adapters/fond.adapter.ts";
 import { fondEntitySchema } from "./types.ts"; // 1. Bổ sung import Schema từ types
 
@@ -37,11 +37,7 @@ export function createFondRouter(basePath: string = "/fonds") {
     app.get(
         "/active",
         async ({ profile }) => {
-            authHelper.checkPermissionAny(profile, [
-                Permission.FONDS_READ,
-                Permission.DATA_ENTRY_MAKER,
-                Permission.DATA_ENTRY_CHECKER,
-            ]);
+            authHelper.checkPermissionAny(profile, FOND_ACTIVE_READ_PERMISSIONS);
             return await service.listActive();
         },
         {
@@ -58,11 +54,7 @@ export function createFondRouter(basePath: string = "/fonds") {
         "/active-with-count",
         async ({ profile }) => {
             // 3. Bổ sung kiểm tra quyền bảo mật tương tự như API '/active'
-            authHelper.checkPermissionAny(profile, [
-                Permission.FONDS_READ,
-                Permission.DATA_ENTRY_MAKER,
-                Permission.DATA_ENTRY_CHECKER,
-            ]);
+            authHelper.checkPermissionAny(profile, FOND_ACTIVE_READ_PERMISSIONS);
             // 4. Sửa FondService thành service cho khớp với tên import
             return await service.listActiveWithDossierCount();
         },

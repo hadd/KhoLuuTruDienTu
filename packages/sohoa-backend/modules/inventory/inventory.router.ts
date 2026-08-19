@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { InventoryService as service } from "./inventory-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
-import { Permission } from "../auth/permission-catalog.ts";
+import { Permission, INVENTORY_ACTIVE_READ_PERMISSIONS } from "../auth/permission-catalog.ts";
 
 const idParamSchema = t.Object({
     id: t.String({ description: "Mã mục lục" }),
@@ -33,7 +33,7 @@ export function createInventoryRouter(basePath: string = "/inventories") {
     app.get(
         "/active",
         async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.INVENTORIES_READ);
+            authHelper.checkPermissionAny(profile, INVENTORY_ACTIVE_READ_PERMISSIONS);
             return await service.listActive();
         },
         {
