@@ -1995,6 +1995,14 @@ export const DossierService = {
       await assertActiveSecurityLevelId(input.securityLevelId);
     }
 
+    const existingName = await db.query.dossiers.findFirst({
+      where: and(eq(dossiers.name, input.name), isNull(dossiers.deletedAt)),
+      columns: { id: true },
+    });
+    if (existingName) {
+      throw httpError.conflict("Tên hồ sơ đã tồn tại trên hệ thống");
+    }
+
     const folderId = await db.transaction(async (tx) => {
       if (input.folderPath) {
         return await ensureFolderTree(tx, input.folderPath, input.projectCode);

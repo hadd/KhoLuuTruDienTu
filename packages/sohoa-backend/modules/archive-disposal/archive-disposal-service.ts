@@ -457,27 +457,30 @@ export const ArchiveDisposalService = {
 
         const duplicateRecords: DuplicateCandidateRecord[] = [];
         for (const row of dossierRows) {
+            const fullMetadataText = row.fieldValues ? Object.values(row.fieldValues).filter(v => typeof v === "string").join(" ") : "";
+            
             duplicateRecords.push({
                 dossierId: row.id,
+                fondId: row.fondId,
                 dossierName: row.name,
-                hoSoId: row.name,
                 dossierCode: extractDossierCodeFromFieldValues(
                     row.fieldValues,
                     dossierCodeFieldKey,
                 ),
+                fullMetadataText,
             });
             for (const file of fileRows.filter((f) => f.dossierId === row.id)) {
                 duplicateRecords.push({
                     dossierId: row.id,
+                    fondId: row.fondId,
                     fileId: file.id,
                     dossierName: row.name,
-                    hoSoId: row.name,
                     dossierCode: extractDossierCodeFromFieldValues(
                         row.fieldValues,
                         dossierCodeFieldKey,
                     ),
                     fileName: file.fileName,
-                    fileSizeKb: file.fileSizeKb,
+                    fullMetadataText,
                 });
             }
         }
