@@ -1,22 +1,24 @@
 // @/features/warehouse-dashboard/queries.ts
 
 import { queryOptions } from '@tanstack/react-query'
-import {
-  getWarehouseDashboardLocations,
+import { getWarehouseStats } from '@/features/warehouse-dashboard/api/warehouseDashboardClient'
+
+import { 
+  getWarehouseDashboardLocations, 
   getActiveFondsWithCount,
-  getWarehouseDashboardStats,
   getWarehouseDashboardUnplaced,
   getWarehouseDashboardBorrowStats,
-  getWarehouseDashboardDisposal
+  getWarehouseDashboardDisposal,
 } from './api/warehouseDashboardClient'
+import { WarehouseDashboardIntakeGranularityT } from './types'
 
 export const warehouseDashboardQueries = {
-    // 1. Chỉ số tổng quan & Biểu đồ nạp kho
-    adminDashboard: (granularity: 'day' | 'month') => ({
-        queryKey: ['warehouse-dashboard', 'stats', granularity],
-        queryFn: () => getWarehouseDashboardStats({ chartGranularity: granularity }),
-        staleTime: 30_000,
-    }),
+    warehouseStats: (granularity: WarehouseDashboardIntakeGranularityT) =>
+        queryOptions({
+          queryKey: ['warehouse-dashboard', 'stats', granularity],
+          queryFn: () => getWarehouseStats(granularity),
+          staleTime: 60_000,
+        }), 
 
     // 2. Danh sách kho vật lý & sức chứa
     rootLocations: () => ({
@@ -27,7 +29,7 @@ export const warehouseDashboardQueries = {
 
     // 3. Hồ sơ chưa phân vị trí
     unplacedDossiers: () => ({
-        queryKey: ['warehouse-dashboard', 'placements', 'unplaced'],
+        queryKey: ['warehouse-dashboard', 'unplaced'],
         queryFn: () => getWarehouseDashboardUnplaced(),
         staleTime: 15_000,
     }),

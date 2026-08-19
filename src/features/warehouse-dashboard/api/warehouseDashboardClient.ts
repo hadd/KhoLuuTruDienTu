@@ -2,80 +2,20 @@
 
 import { apiClient } from '@/lib/api/apiClient'
 import type { SingleResourceResponse } from '@/types/api'
-
-// ==========================================
-// 1. KIỂU DỮ LIỆU ĐẦU RA CHUẨN HÓA (NORMALIZED TYPES)
-// ==========================================
-
-export type WarehouseLocationT = {
-  id: string
-  parentId: string | null
-  name: string
-  imageUrl: string | null
-  address: string | null
-  capacity: number | null
-  usedCapacity: number
-  childCount: number
-  remainingCapacity: number | null
-}
-
-export type ActiveFondT = {
-  id: string
-  name: string
-  dossierCount: number
-}
-
-export type ActiveFondsResponseT = {
-  items: ActiveFondT[]
-  total: number
-}
-
-export type WarehouseDossierChartPointT = {
-  period: string
-  editedCompleted: number
-  fullyCompleted: number
-}
-
-export type WarehouseDossierChartT = {
-  granularity: 'day' | 'month' | 'year'
-  rangeStart: string
-  rangeEnd: string
-  points: WarehouseDossierChartPointT[]
-}
-
-export type WarehouseStatsT = {
-  totalDossiers: number
-  byStatus: Record<string, number>
-  dossierChart: WarehouseDossierChartT
-}
-
-// ==========================================
-// 2. KIỂU DỮ LIỆU THÔ TỪ API (RAW TYPES)
-// ==========================================
-
-type WarehouseLocationRawT = {
-  id?: string
-  parentId?: string | null
-  name?: string
-  imageUrl?: string | null
-  address?: string | null
-  capacity?: number | null
-  usedCapacity?: number
-  childCount?: number
-}
-
-type ActiveFondRawT = {
-  id?: string
-  name?: string
-  fondName?: string
-  dossierCount?: number
-  dossiersCount?: number
-}
-
-type ActiveFondsResponseRawT = {
-  items?: ActiveFondRawT[]
-  total?: number
-}
+import type { WarehouseLocationT
+  , ActiveFondT
+  , ActiveFondsResponseT
+  , WarehouseLocationRawT
+  , ActiveFondRawT
+  , ActiveFondsResponseRawT
+  , WarehouseStatsT 
+  , WarehouseBorrowStatsT
+  , WarehouseDisposalResponseT
+  , WarehouseUnplacedDossierT
+  , WarehouseUnplacedResponseT
+  , WarehouseUnplacedDossierRawT
+  , WarehouseUnplacedResponseRawT
+} from '../types'
 
 type WarehouseDossierChartPointRawT = {
   period?: string
@@ -185,6 +125,31 @@ function normalizeWarehouseStats(raw: WarehouseStatsRawT): WarehouseStatsT {
   }
 }
 
+function normalizeWarehouseUnplacedDossier(
+  raw: WarehouseUnplacedDossierRawT,
+): WarehouseUnplacedDossierT {
+  return {
+    id: raw.id ?? '',
+    code: raw.code ?? (raw.id ? raw.id.substring(0, 8).toUpperCase() : '-'),
+    name: raw.name ?? raw.title ?? '-',
+    fondId: raw.fondId ?? null,
+    fondName: raw.fondName ?? null,
+    status: raw.status ?? null,
+    createdAt: raw.createdAt ? String(raw.createdAt) : null,
+    updatedAt: raw.updatedAt ? String(raw.updatedAt) : null,
+  }
+}
+
+function normalizeWarehouseUnplacedResponse(
+  raw: WarehouseUnplacedResponseRawT,
+): WarehouseUnplacedResponseT {
+  const items = (raw.items ?? []).map(normalizeWarehouseUnplacedDossier)
+  return {
+    items,
+    total: raw.total ?? items.length,
+  }
+}
+
 // ==========================================
 // 5. CÁC PHƯƠNG THỨC API KHAI THÁC CHÍNH (API CALLS)
 // ==========================================
@@ -215,49 +180,44 @@ export const getActiveFondsWithCount = async (): Promise<ActiveFondsResponseT> =
 }
 
 /**
- * Lấy dữ liệu thống kê tổng quan hồ sơ & biểu đồ tăng trưởng số hóa kho dành cho Thủ kho
+ * Lấy số liệu thống kê hồ sơ và biểu đồ tăng trưởng số hóa nạp kho
  */
-export const getWarehouseDashboardStats = async (params?: {
-  chartGranularity?: 'day' | 'month'
-}): Promise<WarehouseStatsT> => {
+export const getWarehouseStats = async (
+  granularity: 'day' | 'month' = 'month'
+): Promise<WarehouseStatsT> => {
   const response = await apiClient.get<
-    WarehouseStatsRawT | SingleResourceResponse<WarehouseStatsRawT>
+    WarehouseStatsT | SingleResourceResponse<WarehouseStatsT>
   >('/api/v1/dashboard/warehouse/stats', {
-    params: params?.chartGranularity
-      ? { chartGranularity: params.chartGranularity }
-      : undefined,
+    params: { chartGranularity: granularity },
   })
 
-  const rawData = unwrapResponse(response.data)
-  return normalizeWarehouseStats(rawData)
+  return unwrapResponse(response.data)
 }
 
 /**
  * Lấy danh sách hồ sơ chưa phân vị trí trong kho vật lý dành riêng cho thủ kho
  */
-export const getWarehouseDashboardUnplaced = async (): Promise<{ items: any[]; total: number }> => {
-  const response = await apiClient.get('/api/v1/dashboard/warehouse/unplaced')
-  return unwrapResponse(response.data)
+export const getWarehouseDashboardUnplaced = async (): Promise<WarehouseUnplacedResponseT> => {
+  const response = await apiClient.get<
+    WarehouseUnplacedResponseRawT | SingleResourceResponse<WarehouseUnplacedResponseRawT>
+  >('/api/v1/dashboard/warehouse/unplaced')
+
+  const rawData = unwrapResponse(response.data)
+  return normalizeWarehouseUnplacedResponse(rawData)
 }
 
 /**
  * Lấy số liệu đếm phiếu mượn trả dành riêng cho thủ kho
  */
-export const getWarehouseDashboardBorrowStats = async (): Promise<{
-  pending: number
-  approved: number
-  returned: number
-  rejected: number
-  total: number
-}> => {
-  const response = await apiClient.get('/api/v1/dashboard/warehouse/borrow-stats')
+export const getWarehouseDashboardBorrowStats = async (): Promise<WarehouseBorrowStatsT> => {
+  const response = await apiClient.get<WarehouseBorrowStatsT>('/api/v1/dashboard/warehouse/borrow-stats')
   return unwrapResponse(response.data)
 }
 
 /**
  * Lấy danh sách hồ sơ chờ tiêu hủy dành riêng cho thủ kho
  */
-export const getWarehouseDashboardDisposal = async (): Promise<{ items: any[]; total: number }> => {
-  const response = await apiClient.get('/api/v1/dashboard/warehouse/disposal-candidates')
+export const getWarehouseDashboardDisposal = async (): Promise<WarehouseDisposalResponseT> => {
+  const response = await apiClient.get<WarehouseDisposalResponseT>('/api/v1/dashboard/warehouse/disposal-candidates')
   return unwrapResponse(response.data)
 }

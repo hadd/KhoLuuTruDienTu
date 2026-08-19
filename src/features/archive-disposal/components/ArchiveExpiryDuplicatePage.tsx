@@ -9,14 +9,13 @@ import { ListPagePagination } from '@/components/common/list-page/ListPagePagina
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { transferToDisposalProposal } from '@/features/archive-disposal/api/archiveDisposalClient'
+import { executeDirectDestroyCandidates, transferToDisposalProposal } from '@/features/archive-disposal/api/archiveDisposalClient'
 import { ArchiveDisposalCandidateFilters } from '@/features/archive-disposal/components/ArchiveDisposalCandidateFilters'
 import { DisposalCandidatesTable } from '@/features/archive-disposal/components/DisposalCandidatesTable'
 import {
   isAppendToDisposalCatalog,
   notifyDisposalTransferResult,
 } from '@/features/archive-disposal/lib/disposalTransferNotifications'
-import { DisposalWorkflowConfigSection } from '@/features/archive-disposal-council/components/DisposalWorkflowConfigSection'
 import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
 import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
@@ -206,6 +205,28 @@ export function ArchiveExpiryDuplicatePage() {
     },
   })
 
+  const destroyMutation = useMutation({
+    mutationFn: async () => {
+      const keys = Array.from(selectedKeys)
+      if (keys.length === 0) return
+      await executeDirectDestroyCandidates(keys)
+    },
+    onSuccess: () => {
+      toast.success(t('disposal.destroySuccess'))
+      setSelectedKeys(new Set())
+      void queryClient.invalidateQueries({ queryKey: disposalCandidatesQueryKeyPrefix })
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+
+  function handleDestroy() {
+    if (confirm(t('disposal.confirmDestroyCandidates'))) {
+      destroyMutation.mutate()
+    }
+  }
+
   function toggleAll(checked: boolean, keys: Array<string>) {
     if (!checked) {
       setSelectedKeys(new Set())
@@ -251,6 +272,15 @@ export function ArchiveExpiryDuplicatePage() {
             : t('disposal.sameFondRequired'),
         )
         return
+      }
+
+      if (item.duplicateGroupId) {
+        const allGroupItems = groups.flatMap(g => [g.dossierItem, ...g.documentItems]).filter(i => i && i.duplicateGroupId === item.duplicateGroupId)
+        const currentlySelectedCount = allGroupItems.filter(i => selectedKeys.has(itemKey(i!))).length
+        if (currentlySelectedCount === allGroupItems.length - 1) {
+          toast.error('Bạn phải giữ lại ít nhất 1 bản gốc trong nhóm trùng lặp này.')
+          return
+        }
       }
     }
     setSelectedKeys((prev) => {
@@ -350,10 +380,6 @@ export function ArchiveExpiryDuplicatePage() {
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-      <DisposalWorkflowConfigSection
-        settings={disposalSettings}
-        isLoading={isSettingsPending}
-      />
       {appendMode && appendCatalogName ? (
         <p className="text-sm text-muted-foreground">
           {t('disposal.pickerActiveCatalog', { name: appendCatalogName })}
@@ -390,8 +416,16 @@ export function ArchiveExpiryDuplicatePage() {
                   : t('disposal.transferAction', { count: selectedCount })}
               </Button>
             ) : showDestroyAction ? (
-              <Button variant="destructive" disabled={selectedCount === 0}>
-                <Trash2 className="mr-2 size-4" />
+              <Button
+                variant="destructive"
+                disabled={selectedCount === 0 || destroyMutation.isPending}
+                onClick={handleDestroy}
+              >
+                {destroyMutation.isPending ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 size-4" />
+                )}
                 {t('disposal.destroyAction', { count: selectedCount })}
               </Button>
             ) : null}

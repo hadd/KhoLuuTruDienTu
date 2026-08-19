@@ -7,6 +7,7 @@ import { ArchiveFieldConfigPage } from '@/features/archive-config/components/Arc
 import { useArchiveConfigAccess } from '@/features/archive-config/hooks/useArchiveConfigAccess'
 import { ArchiveDisposalProposalPage } from '@/features/archive-disposal/components/ArchiveDisposalProposalPage'
 import { ArchiveExpiryDuplicatePage } from '@/features/archive-disposal/components/ArchiveExpiryDuplicatePage'
+import { ArchiveSoftDeletedDossiersPage } from '@/features/archive-disposal/components/ArchiveSoftDeletedDossiersPage'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
 import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
 import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
@@ -149,7 +150,12 @@ export function ArchiveDataHubPage() {
             <ArchiveWarehouseFondsPage embedded />
           </div>
         ) : null}
-        {tab === 'expiryReview' && canReadDisposal && disposalView === 'list' ? (
+        {tab === 'expiryReview' && canReadDisposal && !councilReviewEnabled ? (
+          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+            <ArchiveSoftDeletedDossiersPage />
+          </div>
+        ) : null}
+        {tab === 'expiryReview' && canReadDisposal && councilReviewEnabled && disposalView === 'list' ? (
           <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
             <ArchiveExpiryDuplicatePage />
           </div>

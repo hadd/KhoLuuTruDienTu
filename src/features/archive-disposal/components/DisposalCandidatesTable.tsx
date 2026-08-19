@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { Fragment, useState, type ReactNode } from 'react'
+import { Fragment, useState, useMemo, type ReactNode } from 'react'
+import { DisposalDocumentPreviewPanel } from '@/features/archive-disposal/components/DisposalDocumentPreviewPanel'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -19,6 +20,15 @@ import type {
 import { canSelectItemFond } from '@/features/archive-disposal/lib/disposalCatalogFondSelection'
 import { cn } from '@/lib/utils/cn'
 import { formatDate } from '@/lib/utils/date'
+
+// Color palette for distinct duplicate groups (cycles if > 5 groups)
+const GROUP_COLORS = [
+  { row: 'bg-amber-50/60 dark:bg-amber-950/25', border: 'border-b-2 border-amber-300 dark:border-amber-700' },
+  { row: 'bg-sky-50/60 dark:bg-sky-950/25',    border: 'border-b-2 border-sky-300 dark:border-sky-700' },
+  { row: 'bg-violet-50/60 dark:bg-violet-950/25', border: 'border-b-2 border-violet-300 dark:border-violet-700' },
+  { row: 'bg-emerald-50/60 dark:bg-emerald-950/25', border: 'border-b-2 border-emerald-300 dark:border-emerald-700' },
+  { row: 'bg-rose-50/60 dark:bg-rose-950/25',  border: 'border-b-2 border-rose-300 dark:border-rose-700' },
+]
 
 export type DisposalCandidateToggleContextT = {
   dossierId: string
@@ -56,17 +66,52 @@ export function DisposalCandidatesTable({
   const [expandedDossierIds, setExpandedDossierIds] = useState<Set<string>>(
     () => new Set(),
   )
+  const [previewTarget, setPreviewTarget] = useState<{
+    dossierId: string
+    fileId: string
+    fileName: string
+  } | null>(null)
 
-  const dossierSelectableKeys = groups.flatMap((group) =>
-    group.dossierItem &&
-    canSelectItemFond(
-      group.dossierItem.fondId,
-      selectionAnchorFondId ?? null,
-      lockedFondId,
-    )
-      ? [itemKey(group.dossierItem)]
-      : [],
-  )
+  const visualBlocks = useMemo(() => {
+    const blocks: Array<{ duplicateGroupId: string | null; groups: typeof groups }> = []
+    const dupMap = new Map<string, typeof groups>()
+
+    for (const group of groups) {
+      const dupId = group.dossierItem?.duplicateGroupId
+      if (dupId) {
+        if (!dupMap.has(dupId)) dupMap.set(dupId, [])
+        dupMap.get(dupId)!.push(group)
+      } else {
+        blocks.push({ duplicateGroupId: null, groups: [group] })
+      }
+    }
+
+    const dupBlocks = Array.from(dupMap.entries()).map(([duplicateGroupId, g]) => ({
+      duplicateGroupId,
+      groups: g,
+    }))
+    return [...dupBlocks, ...blocks]
+  }, [groups])
+
+  const dossierSelectableKeys = useMemo(() => {
+    return visualBlocks.flatMap(block => {
+      const isDuplicateGroup = block.duplicateGroupId !== null
+      return block.groups.flatMap((group, indexInBlock) => {
+        if (isDuplicateGroup && indexInBlock === block.groups.length - 1) return []
+        if (
+          group.dossierItem &&
+          canSelectItemFond(
+            group.dossierItem.fondId,
+            selectionAnchorFondId ?? null,
+            lockedFondId,
+          )
+        ) {
+          return [itemKey(group.dossierItem)]
+        }
+        return []
+      })
+    })
+  }, [visualBlocks, selectionAnchorFondId, lockedFondId, itemKey])
 
   const selectedDossierCount = dossierSelectableKeys.filter((key) =>
     selectedKeys.has(key),
@@ -92,6 +137,7 @@ export function DisposalCandidatesTable({
   }
 
   return (
+    <>
     <Table>
       <TableHeader>
         <TableRow>
@@ -120,15 +166,33 @@ export function DisposalCandidatesTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {groups.map((group) => {
-          const hasDocuments = group.documentItems.length > 0
-          const isExpanded = expandedDossierIds.has(group.dossierId)
-          const dossierItem = group.dossierItem
-
+        {(() => {
+          // Assign sequential index only to duplicate groups for alternating colors
+          let dupGroupColorIndex = -1
+          return visualBlocks.map((block, blockIndex) => {
+          const isDuplicateGroup = block.duplicateGroupId !== null
+          if (isDuplicateGroup) dupGroupColorIndex++
+          const colorIndex = isDuplicateGroup ? dupGroupColorIndex % GROUP_COLORS.length : -1
           return (
-            <Fragment key={group.dossierId}>
-              <TableRow className="bg-muted/20">
-                <TableCell>
+            <Fragment key={block.duplicateGroupId ?? `block-${blockIndex}`}>
+              {block.groups.map((group, indexInBlock) => {
+                const hasDocuments = group.documentItems.length > 0
+                const isExpanded = expandedDossierIds.has(group.dossierId)
+                const dossierItem = group.dossierItem
+                const isLastInDuplicateGroup =
+                  isDuplicateGroup && indexInBlock === block.groups.length - 1
+
+                const colorDef = colorIndex >= 0 ? GROUP_COLORS[colorIndex] : null
+                const bgClass = cn(
+                  'bg-muted/20',
+                  colorDef?.row,
+                  isLastInDuplicateGroup && colorDef?.border
+                )
+
+                return (
+                  <Fragment key={group.dossierId}>
+                    <TableRow className={bgClass}>
+                      <TableCell>
                   {dossierItem ? (
                     <Checkbox
                       checked={selectedKeys.has(itemKey(dossierItem))}
@@ -172,7 +236,21 @@ export function DisposalCandidatesTable({
                     </Button>
                   ) : null}
                 </TableCell>
-                <TableCell className="font-medium">{group.dossierName}</TableCell>
+                <TableCell className="font-medium">
+                  <div>
+                    {group.dossierName}
+                    {dossierItem?.duplicateCriteria?.length > 0 && (
+                       <div className="text-xs text-muted-foreground mt-1">
+                         Trùng lặp: {dossierItem.duplicateCriteria.map(c => 
+                           c === 'DOSSIER_NAME' ? 'Tên hồ sơ' :
+                           c === 'DOSSIER_CODE' ? 'Mã hồ sơ' :
+                           c === 'FILE_NAME_STRICT' ? 'Tên tài liệu' :
+                           c === 'DOCUMENT_METADATA_SIMILARITY' ? 'Nội dung/trích yếu' : c
+                         ).join(', ')}
+                       </div>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="text-muted-foreground">—</TableCell>
                 <TableCell>{group.fondName ?? '—'}</TableCell>
                 <TableCell>{group.retentionPeriodName ?? '—'}</TableCell>
@@ -211,7 +289,27 @@ export function DisposalCandidatesTable({
                         ↳ {group.dossierName}
                       </TableCell>
                       <TableCell className="font-medium">
-                        {item.fileName ?? '—'}
+                        {item.fileName && item.fileId ? (
+                           <div>
+                             <button 
+                               type="button" 
+                               className="text-primary hover:underline text-left" 
+                               onClick={() => setPreviewTarget({ dossierId: item.dossierId, fileId: item.fileId!, fileName: item.fileName! })}
+                             >
+                               {item.fileName}
+                             </button>
+                             {item.duplicateCriteria?.length > 0 && (
+                               <div className="text-xs text-muted-foreground mt-1">
+                                 Trùng lặp: {item.duplicateCriteria.map(c => 
+                                   c === 'DOSSIER_NAME' ? 'Tên hồ sơ' :
+                                   c === 'DOSSIER_CODE' ? 'Mã hồ sơ' :
+                                   c === 'FILE_NAME_STRICT' ? 'Tên tài liệu' :
+                                   c === 'DOCUMENT_METADATA_SIMILARITY' ? 'Nội dung/trích yếu' : c
+                                 ).join(', ')}
+                               </div>
+                             )}
+                           </div>
+                        ) : '—'}
                       </TableCell>
                       <TableCell>{item.fondName ?? '—'}</TableCell>
                       <TableCell>{item.retentionPeriodName ?? '—'}</TableCell>
@@ -223,7 +321,18 @@ export function DisposalCandidatesTable({
             </Fragment>
           )
         })}
+          </Fragment>
+          )
+        })
+        })()} 
       </TableBody>
     </Table>
+    {previewTarget ? (
+      <DisposalDocumentPreviewPanel
+        target={previewTarget}
+        onClose={() => setPreviewTarget(null)}
+      />
+    ) : null}
+    </>
   )
 }

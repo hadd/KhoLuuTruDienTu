@@ -32,6 +32,8 @@ import { WarehouseDashboard } from '@/features/warehouse-dashboard'
 import { warehouseDashboardQueries } from '@/features/warehouse-dashboard/queries'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
+import { WarehouseDashboardIntakeGranularityT } from '@/features/warehouse-dashboard/types'
+import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 
 const dashboardSearchSchema = z.object({
   tab: z.enum(['overview', 'warehouse']).optional().catch('overview'),
@@ -47,9 +49,38 @@ const dashboardSearchSchema = z.object({
     .enum(['7d', '30d', '90d', '12m'])
     .optional()
     .catch('30d' satisfies EditorDashboardPeriodT),
+    intakeGranularity: z // Bổ sung cấu hình search param để đồng bộ hóa granular biểu đồ kho
+    .enum(['day', 'month'])
+    .optional()
+    .catch('month' satisfies WarehouseDashboardIntakeGranularityT),
 })
 
 export type DashboardSearchT = z.infer<typeof dashboardSearchSchema>
+
+// Helper kiểm tra quyền kho và xác định priority cho Overview
+function checkDashboardPermissions(permissions: string[]) {
+  // Kiểm tra quyền bình thường qua isPermissionGranted
+  const hasAdmin = isPermissionGranted(permissions, 'dashboard.admin', 'dashboard')
+  const hasQc = isPermissionGranted(permissions, 'dashboard.qc', 'dashboard')
+  const hasEditor = isPermissionGranted(permissions, 'dashboard.editor', 'dashboard')
+  const hasWarehouse = isPermissionGranted(permissions, 'dashboard.warehouse', 'dashboard')
+
+  // Priority cho tab Tổng Quan: Admin > QC > Editor
+  const overviewVariant: 'admin' | 'qc' | 'editor' = hasAdmin
+    ? 'admin'
+    : hasQc
+      ? 'qc'
+      : 'editor'
+
+  const hasOverviewAccess = hasAdmin || hasQc || hasEditor
+
+  return {
+    overviewVariant,
+    hasOverviewAccess,
+    hasWarehouseAccess: hasWarehouse,
+    isWarehouseOnly: hasWarehouse && !hasOverviewAccess,
+  }
+}
 
 const routeApi = getRouteApi('/app/dashboard/')
 
@@ -71,37 +102,28 @@ export const Route = createFileRoute('/app/dashboard/')({
   loader: async ({ context, location }) => {
     const search = dashboardSearchSchema.parse(location.search)
     const { permissions } = await loadPermissionContext(context.queryClient)
-    const variant = resolveDashboardVariant(permissions) ?? 'editor'
+    const permInfo = checkDashboardPermissions(permissions)
 
-    // Bọc toàn bộ logic tải trước dữ liệu trong try/catch để tránh việc API lỗi làm sập toàn bộ route tải trang
+    const targetTab = permInfo.isWarehouseOnly ? 'warehouse' : search.tab ?? 'overview'
+
     try {
-      if (variant === 'admin') {
+      if (targetTab === 'warehouse' && permInfo.hasWarehouseAccess) {
         await context.queryClient.ensureQueryData(
-          adminDashboardQueryOptions(search.dossierTrendGranularity ?? 'month'),
+          warehouseDashboardQueries.warehouseStats(search.intakeGranularity ?? 'month'),
         )
-      } else if (variant === 'qc') {
-        await context.queryClient.ensureQueryData(qcDashboardQueryOptions())
-
-        try {
+      } else if (permInfo.hasOverviewAccess) {
+        if (permInfo.overviewVariant === 'admin') {
           await context.queryClient.ensureQueryData(
-            qcDashboardGroupQueryOptions(),
+            adminDashboardQueryOptions(search.dossierTrendGranularity ?? 'month'),
           )
-        } catch (error) {
-          if (!isQcGroupLeaderOnlyError(error)) {
-            throw error
+        } else if (permInfo.overviewVariant === 'qc') {
+          await context.queryClient.ensureQueryData(qcDashboardQueryOptions())
+          try {
+            await context.queryClient.ensureQueryData(qcDashboardGroupQueryOptions())
+          } catch (error) {
+            if (!isQcGroupLeaderOnlyError(error)) throw error
           }
-        }
-      } else if (variant === 'warehouse') {
-        await context.queryClient.ensureQueryData(
-          warehouseDashboardQueries.warehouseDashboardStats(search.chartGranularity ?? 'month'),
-        )
-      } else {
-        // Chỉ nạp trước dữ liệu khi tài khoản thực sự có quyền Editor tránh bị lỗi 403 chặn tải trang
-        const hasEditorPermission = 
-          permissions.includes('dashboard.editor') || 
-          permissions.includes('DASHBOARD_EDITOR')
-
-        if (hasEditorPermission) {
+        } else if (permInfo.overviewVariant === 'editor') {
           await context.queryClient.ensureQueryData(
             editorDashboardQueryOptions(search.period ?? '30d'),
           )
@@ -111,41 +133,30 @@ export const Route = createFileRoute('/app/dashboard/')({
       console.warn('Dashboard prefetching failed safely:', error)
     }
 
-    return { variant, permissions } // Trả thêm permissions về để xử lý ở giao diện
+    return { permissions }
   },
   component: DashboardRoute,
   errorComponent: DashboardErrorComponent,
 })
 
 function DashboardRoute() {
-  const { variant, permissions } = Route.useLoaderData()
+  const { permissions } = Route.useLoaderData()
   const navigate = routeApi.useNavigate()
   const { tab, roleChart, dossierTrendGranularity, period } = routeApi.useSearch()
 
-  // Xác định xem tài khoản đăng nhập có phải chỉ có quyền xem kho hay không
-  const isWarehouseOnly = useMemo(() => {
-    const hasOverviewPermission = 
-      permissions.includes('dashboard.admin') || 
-      permissions.includes('dashboard.qc') || 
-      permissions.includes('dashboard.editor') ||
-      permissions.includes('DASHBOARD_ADMIN') || 
-      permissions.includes('DASHBOARD_QC') || 
-      permissions.includes('DASHBOARD_EDITOR')
-      
-    return !hasOverviewPermission
-  }, [permissions])
+  const { overviewVariant, hasOverviewAccess, hasWarehouseAccess, isWarehouseOnly } = useMemo(
+    () => checkDashboardPermissions(permissions),
+    [permissions],
+  )
 
-  // Nếu chỉ có quyền kho, tab mặc định sẽ được hướng thẳng vào 'warehouse'
-  const activeTab = tab ?? (isWarehouseOnly ? 'warehouse' : 'overview')
+  const activeTab = isWarehouseOnly ? 'warehouse' : (tab ?? 'overview')
+  const showTabSelector = hasOverviewAccess && hasWarehouseAccess
 
-  // Đẩy URL Search Parameter về tab 'warehouse' để đồng bộ hóa đúng trạng thái trên thanh địa chỉ trình duyệt
+  // Đồng bộ param tab lên URL nếu người dùng chỉ có duy nhất quyền kho
   useEffect(() => {
     if (isWarehouseOnly && tab !== 'warehouse') {
       void navigate({
-        search: (prev) => ({
-          ...prev,
-          tab: 'warehouse',
-        }),
+        search: (prev) => ({ ...prev, tab: 'warehouse' }),
         replace: true,
       })
     }
@@ -153,6 +164,7 @@ function DashboardRoute() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 w-full h-full min-h-0">
+      {/* Header đồng bộ có chuyển Tab */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-3 shrink-0">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground">
@@ -167,8 +179,7 @@ function DashboardRoute() {
           </p>
         </div>
 
-        {/* Ẩn bộ chọn tab nếu người dùng chỉ có duy nhất quyền xem kho */}
-        {!isWarehouseOnly ? (
+        {showTabSelector ? (
           <Tabs
             value={activeTab}
             onValueChange={(val) => {
@@ -195,14 +206,15 @@ function DashboardRoute() {
         ) : null}
       </div>
 
+      {/* Nội dung Dashboard */}
       {activeTab === 'warehouse' ? (
         <WarehouseDashboard />
-      ) : variant === 'admin' ? (
+      ) : overviewVariant === 'admin' ? (
         <AdminDashboardContent
           roleChart={roleChart ?? 'pie'}
           dossierTrendGranularity={dossierTrendGranularity ?? 'month'}
         />
-      ) : variant === 'qc' ? (
+      ) : overviewVariant === 'qc' ? (
         <QcDashboardContent />
       ) : (
         <EditorDashboardContent period={period ?? '30d'} />
@@ -210,6 +222,7 @@ function DashboardRoute() {
     </div>
   )
 }
+
 
 function EditorDashboardContent({
   period,
