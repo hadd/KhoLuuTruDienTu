@@ -4,6 +4,10 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { DisposalWorkflowConfigSection } from '@/features/archive-disposal-council/components/DisposalWorkflowConfigSection'
+import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
+import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
+
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Switch } from '@/components/ui/switch'
@@ -43,6 +47,11 @@ export function ArchiveFieldConfigPage({
 }: ArchiveFieldConfigPageProps) {
   const { t } = useTranslation('archive-config')
   const { canManageArchiveConfig } = useArchiveConfigAccess()
+  const { canReadDisposalSettings } = useDisposalCouncilAccess()
+  const { data: disposalSettings, isPending: isDisposalSettingsPending } = useQuery({
+    ...disposalSettingsQueryOptions(),
+    enabled: canReadDisposalSettings,
+  })
   const { data: configs = [], isPending, isError } = useQuery(
     archiveFieldConfigsQueryOptions(),
   )
@@ -336,6 +345,19 @@ export function ArchiveFieldConfigPage({
           </Table>
         </div>
       </section>
+
+      {canReadDisposalSettings ? (
+        <section className="flex flex-col gap-3">
+          <div className="space-y-0.5">
+            <h2 className="text-base font-semibold">{t('disposalConfig.title')}</h2>
+            <p className="text-sm text-muted-foreground">{t('disposalConfig.description')}</p>
+          </div>
+          <DisposalWorkflowConfigSection
+            settings={disposalSettings}
+            isLoading={isDisposalSettingsPending}
+          />
+        </section>
+      ) : null}
 
       <CustomFieldDialog
         open={customDialogOpen}

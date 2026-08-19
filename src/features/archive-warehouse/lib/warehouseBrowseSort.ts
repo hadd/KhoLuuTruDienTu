@@ -1,6 +1,8 @@
 export const WAREHOUSE_DOSSIER_BROWSE_SORT_FIELDS = [
+  'name',
   'fondName',
   'dossierTypeName',
+  'archivedAt',
 ] as const
 
 export type WarehouseDossierBrowseSortFieldT =

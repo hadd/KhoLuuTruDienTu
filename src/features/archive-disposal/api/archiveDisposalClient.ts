@@ -126,6 +126,12 @@ export async function deleteDisposalCatalog(catalogId: string): Promise<void> {
   )
 }
 
+export async function executeDirectDestroyCandidates(candidateKeys: string[]): Promise<void> {
+  await apiClient.post('/api/v1/archive-disposal/candidates/execute-destroy', {
+    candidateKeys,
+  })
+}
+
 export async function submitDisposalCatalog(
   catalogId: string,
 ): Promise<DisposalProposalCatalogT> {

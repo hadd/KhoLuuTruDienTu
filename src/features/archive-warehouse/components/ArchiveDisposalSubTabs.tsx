@@ -40,6 +40,7 @@ export function ArchiveDisposalSubTabs() {
   })
 
   if (!activeView || !canOpenDisposalModule) return null
+  if (!councilReviewEnabled) return null // When TT06 is off, no sub-tabs shown
 
   const showProposal = councilReviewEnabled && canOpenDisposalModule
   const showList = canReadDisposal
