@@ -41,6 +41,7 @@ import {
   toggleWarehouseBrowseSort,
   type WarehouseDossierBrowseSortFieldT,
 } from '@/features/archive-warehouse/lib/warehouseBrowseSort'
+import { ArchiveWarehouseDropdownFilterTableHead } from '@/features/archive-warehouse/components/ArchiveWarehouseDropdownFilterTableHead'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
 import {
@@ -203,10 +204,9 @@ export function ArchiveWarehouseFondsPage({
     [fondsData?.items],
   )
 
-  const { data: dossierTypesData, isPending: isDossierTypesPending } = useQuery({
-    ...archiveWarehouseDossierTypesQueryOptions(),
-    enabled: showBrowseGrids && browseView === 'dossierTypes',
-  })
+  const { data: dossierTypesData, isPending: isDossierTypesPending } = useQuery(
+    archiveWarehouseDossierTypesQueryOptions()
+  )
   const { data: documentTypesData, isPending: isDocumentTypesPending } =
     useQuery({
       ...archiveWarehouseDocumentTypesQueryOptions(),
@@ -235,20 +235,13 @@ export function ArchiveWarehouseFondsPage({
       showFilterResults ||
       browseView !== 'fonds' ||
       isFondsPending ||
-      sortedFonds.length !== 1 ||
+      sortedFonds.length === 0 ||
       !sortedFonds[0]
     ) {
       return
     }
-    void navigateToFond({
-      to: '/app/archive-dossiers/$fondId',
-      params: { fondId: sortedFonds[0].id },
-      search: buildWarehousePickerRouteSearch({
-        pickerMode,
-        disposalCatalogId,
-        page: 1,
-      }),
-    })
+    // We purposefully removed the auto-navigate on length === 1
+    // to allow users to see the toggle and grid even with a single fond.
   }, [
     browseView,
     disposalCatalogId,
@@ -352,6 +345,17 @@ export function ArchiveWarehouseFondsPage({
     const next = toggleWarehouseBrowseSort({ sortBy, sortDir }, field)
     void navigate({
       search: (prev) => ({ ...prev, ...next, page: 1 }),
+    })
+  }
+
+  function handleTableFilterChange(patch: Partial<typeof filterValues>) {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        ...patch,
+        page: 1,
+      }),
+      replace: true,
     })
   }
 
@@ -752,7 +756,13 @@ export function ArchiveWarehouseFondsPage({
                         />
                       </TableHead>
                     ) : null}
-                    <TableHead>{t('table.name')}</TableHead>
+                    <ArchiveWarehouseSortableTableHead
+                      label={t('table.name')}
+                      field="name"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSortChange={handleBrowseSortChange}
+                    />
                     <ArchiveWarehouseSortableTableHead
                       label={t('table.fond')}
                       field="fondName"
@@ -762,7 +772,13 @@ export function ArchiveWarehouseFondsPage({
                     />
                     <TableHead>{t('table.physicalLocation')}</TableHead>
                     <TableHead>{t('table.documentCount')}</TableHead>
-                    <TableHead>{t('table.archivedAt')}</TableHead>
+                    <ArchiveWarehouseSortableTableHead
+                      label={t('table.archivedAt')}
+                      field="archivedAt"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSortChange={handleBrowseSortChange}
+                    />
                     <ArchiveWarehouseSortableTableHead
                       label={t('table.dossierType')}
                       field="dossierTypeName"

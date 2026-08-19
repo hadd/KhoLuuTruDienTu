@@ -55,14 +55,18 @@ import {
   isEsWarehouseSearchRequired,
   resolveWarehouseDossierTypeIds,
 } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchFilters'
+import { ArchiveWarehouseSortableTableHead } from '@/features/archive-warehouse/components/ArchiveWarehouseSortableTableHead'
+import { ArchiveWarehouseDropdownFilterTableHead } from '@/features/archive-warehouse/components/ArchiveWarehouseDropdownFilterTableHead'
 import { ArchiveWarehouseSearchResults } from '@/features/archive-warehouse/components/ArchiveWarehouseSearchResults'
 import { ArchiveWarehouseStatCards } from '@/features/archive-warehouse/components/ArchiveWarehouseStatCards'
 import { buildArchiveDossierDetailSearch } from '@/features/archive-warehouse/lib/archiveDossierDetailNavigation'
 import { canExportDossiers } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { isUnassignedWarehouseFondId } from '@/features/archive-warehouse/lib/unassignedFond'
+import { toggleWarehouseBrowseSort, type WarehouseDossierBrowseSortFieldT } from '@/features/archive-warehouse/lib/warehouseBrowseSort'
 import {
   archiveWarehouseDossierDetailQueryOptions,
   archiveWarehouseDossiersQueryOptions,
+  archiveWarehouseDossierTypesQueryOptions,
   archiveWarehouseFondSummaryQueryOptions,
   archiveWarehouseSearchQueryOptions,
   archiveWarehouseUnassignedDossiersQueryOptions,
@@ -70,6 +74,7 @@ import {
 import {
   libraryExploitationDossierDetailQueryOptions,
   libraryExploitationDossiersQueryOptions,
+  libraryExploitationDossierTypesQueryOptions,
   libraryExploitationFondSummaryQueryOptions,
   libraryExploitationSearchQueryOptions,
   libraryExploitationUnassignedDossiersQueryOptions,
@@ -151,6 +156,8 @@ export function ArchiveWarehouseDossiersPage({
   const q = search.q ?? ''
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
+  const sortBy = search.sortBy
+  const sortDir = search.sortDir
   const year = search.year
   const status = search.status ?? DEFAULT_STATUS
   const pickerMode = search.pickerMode === true
@@ -267,14 +274,30 @@ export function ArchiveWarehouseDossiersPage({
     search: !isEsSearchActive && q ? q : undefined,
     year,
     status,
+    sortBy,
+    sortDir,
   }
+
+  const { data: dossierTypesData } = useQuery(
+    isExploitation
+      ? libraryExploitationDossierTypesQueryOptions()
+      : archiveWarehouseDossierTypesQueryOptions()
+  )
+
+  const sortedDossierTypes = useMemo(
+    () =>
+      [...(dossierTypesData?.items ?? [])].sort((a, b) =>
+        a.name.localeCompare(b.name, 'vi'),
+      ),
+    [dossierTypesData?.items],
+  )
 
   const summaryParams = isUnassigned ? null : { fondId, status }
   const searchParams = isEsSearchActive
     ? buildWarehouseSearchApiParams(filterValues, {
         page,
         limit,
-        lockedFondId: fondId,
+        fondId: isUnassigned ? undefined : fondId,
       })
     : null
 
@@ -301,12 +324,16 @@ export function ArchiveWarehouseDossiersPage({
           limit,
           search: q || undefined,
           status,
+          sortBy,
+          sortDir,
         })
       : archiveWarehouseUnassignedDossiersQueryOptions({
           page,
           limit,
           search: q || undefined,
           status,
+          sortBy,
+          sortDir,
         })),
     enabled: isUnassigned && !isEsSearchActive,
   })
@@ -342,6 +369,25 @@ export function ArchiveWarehouseDossiersPage({
       ? []
       : (data?.items ?? [])
   const searchItems = isEsSearchActive ? (searchData?.items ?? []) : []
+
+  function handleBrowseSortChange(field: WarehouseDossierBrowseSortFieldT) {
+    const next = toggleWarehouseBrowseSort({ sortBy, sortDir }, field)
+    void navigate({
+      search: (prev) => ({ ...prev, ...next, page: 1 }),
+    })
+  }
+
+  function handleTableFilterChange(patch: Partial<typeof filterValues>) {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        ...patch,
+        page: 1,
+      }),
+      replace: true,
+    })
+  }
+
   const totalPages = Math.max(
     1,
     isEsSearchActive
@@ -789,12 +835,30 @@ export function ArchiveWarehouseDossiersPage({
                         />
                       </TableHead>
                     ) : null}
-                    <TableHead>{t('table.name')}</TableHead>
+                    <ArchiveWarehouseSortableTableHead
+                      label={t('table.name')}
+                      field="name"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSortChange={handleBrowseSortChange}
+                    />
                     <TableHead>{t('table.physicalLocation')}</TableHead>
                     <TableHead>{t('table.documentCount')}</TableHead>
-                    <TableHead>{t('table.archivedAt')}</TableHead>
+                    <ArchiveWarehouseSortableTableHead
+                      label={t('table.archivedAt')}
+                      field="archivedAt"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSortChange={handleBrowseSortChange}
+                    />
                     <TableHead>{t('table.path')}</TableHead>
-                    <TableHead>{t('table.dossierType')}</TableHead>
+                    <ArchiveWarehouseSortableTableHead
+                      label={t('table.dossierType')}
+                      field="dossierTypeName"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSortChange={handleBrowseSortChange}
+                    />
                     <TableHead>{t('table.archiveStorageState')}</TableHead>
                     {!isExploitation && !councilReviewEnabled ? (
                       <TableHead className="w-16" />

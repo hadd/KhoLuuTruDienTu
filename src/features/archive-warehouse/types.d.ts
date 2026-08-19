@@ -62,7 +62,7 @@ export type GetArchiveWarehouseDossiersParamsT = {
   dossierTypeId?: string | string[]
   year?: number
   status?: WarehouseDossierStatusT
-  sortBy?: 'fondName' | 'dossierTypeName'
+  sortBy?: 'fondName' | 'dossierTypeName' | 'name' | 'archivedAt'
   sortDir?: 'asc' | 'desc'
 }
 
