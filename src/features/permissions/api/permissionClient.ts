@@ -118,12 +118,12 @@ export const getPermissionRoles = async (): Promise<Array<PermissionRoleT>> => {
 export const updateRolePermissions = async (
   payload: UpdateRolePermissionsPayloadT,
 ): Promise<RolePermissionsRecordT> => {
-  const { roleId, permissions, restrictions, hiddenModules } = payload
+  const { roleId, permissions, restrictions, hiddenPermissions } = payload
 
   await apiClient.put(`/api/v1/admin/roles/${roleId}/permissions`, {
     permissions,
     restrictions,
-    hiddenModules,
+    hiddenPermissions,
   })
 
   return getRolePermissions(roleId)

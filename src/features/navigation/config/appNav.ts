@@ -107,6 +107,7 @@ export const APP_SCREENS: Array<AppScreen> = [
       { module: 'dashboard', permissionKey: 'dashboard.editor' },
       { module: 'dashboard', permissionKey: 'dashboard.qc' },
       { module: 'dashboard', permissionKey: 'dashboard.admin' },
+      { module: 'dashboard', permissionKey: 'dashboard.warehouse' },
     ],
   },
   {

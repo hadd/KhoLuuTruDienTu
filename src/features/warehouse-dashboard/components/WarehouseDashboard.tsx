@@ -152,12 +152,12 @@ function WarehouseCard({ loc }: { loc: PhysicalWarehouseItemT }) {
       <div>
         <div className="flex items-start justify-between gap-2 mb-1.5">
           <div>
-          <Badge
-            variant="outline"
-            className="text-[10px] uppercase tracking-wider font-mono"
-          >
-            {`KHO-${(loc?.id ?? '').substring(0, 4).toUpperCase()}`}
-          </Badge>
+            {/* <Badge
+              variant="outline"
+              className="text-[10px] uppercase tracking-wider font-mono"
+            >
+              {`KHO-${(loc?.id ?? '').substring(0, 4).toUpperCase()}`}
+            </Badge> */}
             <h4 className="mt-1 font-semibold text-sm leading-tight text-foreground line-clamp-1">
               {loc.name}
             </h4>
@@ -203,7 +203,7 @@ function WarehouseCard({ loc }: { loc: PhysicalWarehouseItemT }) {
               {t('warehouse.card.totalCapacity')}
             </span>
             <span className="font-bold text-foreground">
-              {totalCapacity > 0 ? formatNumber(totalCapacity) : t('warehouse.card.unlimited')}
+              {totalCapacity > 0 ? formatNumber(totalCapacity) : t('warehouse.card.unknown')}
             </span>
           </div>
           <div>
@@ -211,7 +211,7 @@ function WarehouseCard({ loc }: { loc: PhysicalWarehouseItemT }) {
               {t('warehouse.card.remainingCapacity')}
             </span>
             <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-              {totalCapacity > 0 ? formatNumber(remaining) : t('warehouse.card.noLimit')}
+              {totalCapacity > 0 ? formatNumber(remaining) : t('warehouse.card.unknown')}
             </span>
           </div>
           <div>
@@ -232,7 +232,6 @@ export function WarehouseDashboard() {
   const { t } = useTranslation('warehouse-dashboard')
   const navigate = useNavigate()
 
-  // Đồng bộ trạng thái độ chia biểu đồ (day / month) trực tiếp từ URL thông qua TanStack Router
   const search = useSearch({ strict: false }) as { intakeGranularity?: 'day' | 'month' }
   const intakeGranularity = search.intakeGranularity ?? 'month'
 
@@ -245,37 +244,30 @@ export function WarehouseDashboard() {
     })
   }
 
-  // 1. SYSTEM DASHBOARD DATA FROM BACKEND API
   const { data: adminDashboard, isLoading: isLoadingAdmin } = useQuery(
     warehouseDashboardQueries.adminDashboard(intakeGranularity)
   )
 
-  // 2. PHYSICAL WAREHOUSE ROOTS FROM BACKEND API
   const { data: rootLocations, isLoading: isLoadingRoots } = useQuery(
     warehouseDashboardQueries.rootLocations()
   )
 
-  // 3. UNPLACED DOSSIERS FROM BACKEND API
   const { data: unplacedData, isLoading: isLoadingUnplaced } = useQuery(
     warehouseDashboardQueries.unplacedDossiers()
   )
 
-  // 4. ARCHIVE BORROW REQUESTS DATA FROM BACKEND API
   const { data: borrowData, isLoading: isLoadingBorrow } = useQuery(
     warehouseDashboardQueries.borrowRequests()
   )
 
-  // 5. FONDS DATA FROM BACKEND API
   const { data: fondsData, isLoading: isLoadingFonds } = useQuery(
     warehouseDashboardQueries.activeFonds()
   )
 
-  // 6. DISPOSAL CANDIDATES FROM BACKEND API
   const { data: disposalData, isLoading: isLoadingDisposal } = useQuery(
     warehouseDashboardQueries.disposalCandidates()
   )
 
-  // Sử dụng hàm helper chuẩn hóa thay vì tính toán chuỗi thủ công để tránh lỗi Logic trạng thái
   const byStatus = adminDashboard?.byStatus ?? {}
   const totalDossiers = adminDashboard?.totalDossiers ?? 0
 
@@ -284,26 +276,21 @@ export function WarehouseDashboard() {
   const editedUnarchivedDossiers = dossierCategoryTotals.waitingApproval
   const uneditedUnarchivedDossiers = dossierCategoryTotals.editing + (dossierCategoryTotals.overdue ?? 0)
 
-  // Dữ liệu biểu đồ phân bổ hình bánh
   const dossierDistributionData = [
     { name: t('warehouse.kpi.archived'), value: archivedDossiers, color: '#10b981' },
     { name: t('warehouse.kpi.editedUnarchived'), value: editedUnarchivedDossiers, color: '#3b82f6' },
     { name: t('warehouse.kpi.uneditedUnarchived'), value: uneditedUnarchivedDossiers, color: '#f59e0b' },
   ].filter((item) => item.value > 0)
 
-  // Chỉ số mượn trả
-  const borrowItems = (borrowData?.items ?? []) as BorrowRequestItemT[]
-  const totalBorrows = borrowData?.total ?? borrowItems.length
-
-  // Phân tách số lượng theo 4 trạng thái chi tiết của hệ thống mượn trả
-  const pendingBorrows = borrowItems.filter((b) => b.status === 'PENDING').length
-  const activeBorrows = borrowItems.filter((b) => b.status === 'APPROVED').length
-  const returnedBorrows = borrowItems.filter((b) => b.status === 'EXPIRED').length
-  const rejectedBorrows = borrowItems.filter((b) => b.status === 'REJECTED').length
+  // SỬA LỖI: Loại bỏ phần khai báo trùng lặp biến totalBorrows ở đây
+  const pendingBorrows = borrowData?.pending ?? 0
+  const activeBorrows = borrowData?.approved ?? 0
+  const returnedBorrows = borrowData?.returned ?? 0
+  const rejectedBorrows = borrowData?.rejected ?? 0
+  const totalBorrows = borrowData?.total ?? 0 
 
   const totalUnplacedOverall = unplacedData?.total ?? 0
 
-  // Chỉ số nạp kho số hóa
   const intakeChartPoints = (adminDashboard?.dossierChart?.points ?? []).map(
     (p) => ({
       date: p.period,
@@ -312,25 +299,16 @@ export function WarehouseDashboard() {
     }),
   )
 
-  // Dữ liệu cơ cấu theo phông
   const fondsChartItems = (fondsData?.items ?? [])
-  .map((fond) => ({
-    name: fond.fondName ?? fond.name ?? '-',
-    value: fond.dossierCount ?? 0,
-  }))
-  .sort((a, b) => {
-    // 1. Sắp xếp giảm dần theo số lượng hồ sơ
-    if (b.value !== a.value) {
-      return b.value - a.value
-    }
-    // 2. Nếu số lượng bằng nhau, sắp xếp tăng dần theo bảng chữ cái tiếng Việt
-    return a.name.localeCompare(b.name, 'vi')
-  })
-  .map((item, idx) => ({
-    ...item,
-    // Gán màu sắc sau khi đã sắp xếp để đảm bảo dải màu hiển thị mượt mà
-    color: FOND_CHART_COLORS[idx % FOND_CHART_COLORS.length],
-  }))
+    .map((fond) => ({
+      name: fond.name ?? '-',
+      value: fond.dossierCount ?? 0,
+    }))
+    .sort((a, b) => b.value - a.value)
+    .map((item, idx) => ({
+      ...item,
+      color: FOND_CHART_COLORS[idx % FOND_CHART_COLORS.length],
+    }))
 
   const disposalItems = (disposalData?.items ?? []) as DisposalCandidateItemT[]
   const totalDisposalCandidates = disposalData?.total ?? disposalItems.length
@@ -528,9 +506,6 @@ export function WarehouseDashboard() {
                   <CardTitle className="text-base font-semibold">
                     {t('warehouse.capacity.title')}
                   </CardTitle>
-                  <Badge variant="outline" className="font-normal text-xs">
-                    {t('warehouse.capacity.countBadge', { count: rootLocations?.length ?? 0 })}
-                  </Badge>
                 </div>
               </div>
             </CardHeader>
@@ -670,9 +645,6 @@ export function WarehouseDashboard() {
                       <TableHead className="text-xs py-2 px-2 font-semibold">
                         {t('warehouse.unplaced.table.colUpdate')}
                       </TableHead>
-                      <TableHead className="text-xs py-2 px-2 text-right font-semibold">
-                        {t('warehouse.unplaced.table.colActions')}
-                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -689,16 +661,6 @@ export function WarehouseDashboard() {
                             {dos.updatedAt
                               ? new Date(dos.updatedAt).toLocaleDateString()
                               : '-'}
-                          </TableCell>
-                          <TableCell className="py-2 px-2 text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-xs px-2 text-primary"
-                            >
-                              <Plus className="size-3 mr-1" />
-                              {t('warehouse.unplaced.table.actionAssign')}
-                            </Button>
                           </TableCell>
                         </TableRow>
                       ))
@@ -765,8 +727,8 @@ export function WarehouseDashboard() {
                   </div>
 
                   <div className="space-y-2 text-xs">
-                    {fondsChartItems.map((item) => (
-                      <div key={item.name} className="flex items-center justify-between">
+                    {fondsChartItems.map((item, idx) => (
+                      <div key={`${item.name}-${idx}`} className="flex items-center justify-between">
                         <div className="flex items-center gap-2 truncate">
                           <span
                             className="size-2.5 rounded-full shrink-0"
@@ -826,9 +788,9 @@ export function WarehouseDashboard() {
                   </TableHeader>
                   <TableBody>
                     {disposalItems.length > 0 ? (
-                      disposalItems.map((exp) => (
+                      disposalItems.map((exp, idx) => (
                         // Sử dụng dossierId làm key dự phòng nếu id trống
-                        <TableRow key={exp?.id ?? exp?.dossierId ?? ''} className="text-xs">
+                        <TableRow key={exp?.id ?? exp?.dossierId ?? `disposal-${idx}`} className="text-xs">
                           <TableCell 
                             className="py-2.5 px-2 max-w-[160px]" 
                             // Sử dụng dossierName làm tooltip dự phòng
