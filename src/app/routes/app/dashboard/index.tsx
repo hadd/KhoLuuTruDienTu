@@ -30,7 +30,6 @@ import {
 } from '@/features/qc-dashboard/queries'
 import { WarehouseDashboard } from '@/features/warehouse-dashboard'
 import { warehouseDashboardQueries } from '@/features/warehouse-dashboard/queries'
-import { warehouseDashboardQueries } from '@/features/warehouse-dashboard/queries'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
 import { WarehouseDashboardIntakeGranularityT } from '@/features/warehouse-dashboard/types'
@@ -99,23 +98,12 @@ export const Route = createFileRoute('/app/dashboard/')({
         }
       } else if (variant === 'warehouse') {
         await context.queryClient.ensureQueryData(
-          warehouseDashboardQueries.warehouseDashboardStats(search.chartGranularity ?? 'month'),
+          warehouseDashboardQueries.warehouseStats(search.intakeGranularity ?? 'month'),
         )
-      } else if (variant === 'warehouse') {
-      await context.queryClient.ensureQueryData(
-        warehouseDashboardQueries.warehouseStats(search.intakeGranularity ?? 'month'),
-      )
       } else {
-        // Chỉ nạp trước dữ liệu khi tài khoản thực sự có quyền Editor tránh bị lỗi 403 chặn tải trang
-        const hasEditorPermission = 
-          permissions.includes('dashboard.editor') || 
-          permissions.includes('DASHBOARD_EDITOR')
-
-        if (hasEditorPermission) {
-          await context.queryClient.ensureQueryData(
-            editorDashboardQueryOptions(search.period ?? '30d'),
-          )
-        }
+        await context.queryClient.ensureQueryData(
+          editorDashboardQueryOptions(search.period ?? '30d'),
+        )
       }
     } catch (error) {
       console.warn('Dashboard prefetching failed safely:', error)
