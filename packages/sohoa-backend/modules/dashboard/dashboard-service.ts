@@ -847,14 +847,16 @@ export const DashboardService = {
         } catch {
             // Nhánh dự phòng cho bảng cấu trúc cũ (dossier_borrow_requests)
             try {
-                const result = await db.execute(sql`
-                    SELECT status, COUNT(*)::int as count 
-                    FROM dossier_borrow_requests 
-                    GROUP BY status
-                `);
-                
-                // Giải quyết lỗi ts(2339): Lấy mảng trực tiếp từ result, 
-                // hoặc fallback về .rows nếu driver thô trả về cấu trúc thô.
+                // const result = await db.execute(sql`
+                //     SELECT status, COUNT(*)::int as count 
+                //     FROM dossier_borrow_requests 
+                //     GROUP BY status
+                // `);
+                const result = await db.select({
+                    status: archiveBorrowRequests.status,
+                    count: sql<number>`count(*)::int`,
+                }).from(archiveBorrowRequests).groupBy(archiveBorrowRequests.status);
+
                 const rows = (Array.isArray(result) ? result : (result as any).rows ?? result) as any[];
 
                 for (const row of rows) {
