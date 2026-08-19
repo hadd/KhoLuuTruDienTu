@@ -84,7 +84,7 @@ function renderWarehouseDonutLabel(props: {
     percent = 0,
   } = props
 
-  const radius = outerRadius + 24
+  const radius = outerRadius + 26
   const x = cx + radius * Math.cos(-midAngle * RADIAN)
   const y = cy + radius * Math.sin(-midAngle * RADIAN)
   const percentString = Math.round(percent * 100)
@@ -95,7 +95,7 @@ function renderWarehouseDonutLabel(props: {
       y={y}
       textAnchor={x > cx ? 'start' : 'end'}
       dominantBaseline="central"
-      className="fill-foreground text-[11px] font-medium"
+      className="fill-foreground text-[15px] font-bold"
     >
       {`${name} ${value} (${percentString}%)`}
     </text>
@@ -302,15 +302,6 @@ export function WarehouseDashboard() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-y-auto">
-      {/* HEADER ĐỘC LẬP GIỐNG CÁC TRANG DASHBOARD KHÁC */}
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">
-          {t('warehouse.title', 'Dashboard Báo Cáo & Vận Hành Kho')}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('warehouse.description', 'Theo dõi dữ liệu thực tế về sức chứa kho vật lý, kho dữ liệu số và hồ sơ lưu trữ')}
-        </p>
-      </div>
 
       <div className="flex flex-col gap-5 pb-8">
         {/* KHỐI 1: CHỈ SỐ KPI TỔNG QUAN HỆ THỐNG & CHO MƯỢN */}
