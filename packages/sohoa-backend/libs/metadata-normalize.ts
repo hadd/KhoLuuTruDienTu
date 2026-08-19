@@ -304,6 +304,20 @@ export function findHoSoFondFieldValue(
     return findMetadataFieldValue(hoSoGroup?.fields ?? [], HO_SO_FOND_FIELD);
 }
 
+export function hasHoSoFondField(metadata: unknown): boolean {
+    if (!isDossierMetadata(metadata)) return false;
+    return metadata.metadata_groups.some((group) => {
+        const gCode = group.group_code.trim().toUpperCase();
+        if (gCode === HO_SO_LUU_TRU_GROUP_CODE || gCode === "PHONG_LUU_TRU") {
+            return true;
+        }
+        return (group.fields ?? []).some((field) => {
+            const fName = field.name.trim().toUpperCase();
+            return fName === HO_SO_FOND_FIELD || isLegacyFondFieldName(fName);
+        });
+    });
+}
+
 /** Slugify TEN_LOAI_TAI_LIEU display value → document_types.id (e.g. Quyết định → QUYET_DINH). */
 export function slugifyTenLoaiTaiLieu(value: string): string {
     return value
@@ -316,8 +330,7 @@ export function slugifyTenLoaiTaiLieu(value: string): string {
         .replace(/^_+|_+$/g, "");
 }
 
-const DEFAULT_FOND_VALUE =
-    "Phông Cục Thi hành án dân sự tỉnh Phú Thọ";
+const DEFAULT_FOND_VALUE = "";
 
 const LEGACY_FOND_FIELD_NAMES = [
     "PHONG_LUU_TRU",

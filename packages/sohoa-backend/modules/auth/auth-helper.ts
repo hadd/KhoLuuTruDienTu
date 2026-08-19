@@ -262,7 +262,7 @@ export const authHelper = {
         return false;
     },
 
-    getHiddenModules: (profile: UserWithRoles) => {
+    getHiddenPermissions: (profile: UserWithRoles) => {
         if (!profile) return [];
         if (authHelper.isAdmin(profile)) {
             return [];
@@ -277,11 +277,11 @@ export const authHelper = {
             return [];
         }
 
-        let hiddenModules: string[] | null = null;
+        let hiddenPermissions: string[] | null = null;
         for (const ur of managingRoles) {
             let roleHidden: string[] = [];
             try {
-                const raw = (ur.role as any).hiddenModules;
+                const raw = (ur.role as any).hiddenPermissions;
                 if (raw) {
                     roleHidden = JSON.parse(raw);
                 }
@@ -289,15 +289,15 @@ export const authHelper = {
                 // ignore parsing error
             }
 
-            if (hiddenModules === null) {
-                hiddenModules = [...roleHidden];
+            if (hiddenPermissions === null) {
+                hiddenPermissions = [...roleHidden];
             } else {
-                // Intersect hidden modules: a module is hidden only if ALL managing roles hide it.
-                hiddenModules = hiddenModules.filter(m => roleHidden.includes(m));
+                // Intersect hidden permissions: a permission is hidden only if ALL managing roles hide it.
+                hiddenPermissions = hiddenPermissions.filter(p => roleHidden.includes(p));
             }
         }
 
-        return hiddenModules || [];
+        return hiddenPermissions || [];
     },
 
     checkAdminOrProjectManager: (profile: UserWithRoles) => {

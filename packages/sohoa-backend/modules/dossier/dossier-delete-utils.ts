@@ -8,6 +8,9 @@ import { metadataTemplates } from "../../db/schemas/metadata_template.ts";
 import { metadataPermissionConfigs } from "../../db/schemas/metadata_permission_config.ts";
 import { groups } from "../../db/schemas/groups.ts";
 import { groupMembers } from "../../db/schemas/group_members.ts";
+import { documentNamingConfigs } from "../../db/schemas/document-naming-config.ts";
+import { disposalProposalItems } from "../../db/schemas/archive-disposal.ts";
+import { archiveBorrowItems } from "../../db/schemas/archive-borrow.ts";
 import { env } from "../../env.ts";
 import { getS3Client } from "../../libs/s3.ts";
 import {
@@ -295,6 +298,18 @@ export async function purgeLinkedMetadataByDossierIds(
     dossierIds: string[],
 ): Promise<void> {
     if (dossierIds.length === 0) return;
+
+    await tx
+        .delete(documentNamingConfigs)
+        .where(inArray(documentNamingConfigs.dossierId, dossierIds));
+
+    await tx
+        .delete(disposalProposalItems)
+        .where(inArray(disposalProposalItems.dossierId, dossierIds));
+
+    await tx
+        .delete(archiveBorrowItems)
+        .where(inArray(archiveBorrowItems.dossierId, dossierIds));
 
     const templates = await tx
         .select({ id: metadataTemplates.id })
