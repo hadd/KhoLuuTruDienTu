@@ -146,9 +146,9 @@ export const DISPOSAL_PROPOSAL_ITEM_SOURCE_VALUES = Object.values(
 
 export const DuplicateDetectionRuleKey = {
     DOSSIER_NAME: "DOSSIER_NAME",
-    HO_SO_ID: "HO_SO_ID",
     DOSSIER_CODE: "DOSSIER_CODE",
-    FILE_NAME_SIZE: "FILE_NAME_SIZE",
+    DOCUMENT_METADATA_SIMILARITY: "DOCUMENT_METADATA_SIMILARITY",
+    FILE_NAME_STRICT: "FILE_NAME_STRICT",
 } as const;
 
 export type DuplicateDetectionRuleKeyType =
