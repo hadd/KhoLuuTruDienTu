@@ -8,7 +8,14 @@ import type { WarehouseLocationT
   , WarehouseLocationRawT
   , ActiveFondRawT
   , ActiveFondsResponseRawT
-  , WarehouseStatsT } from '../types'
+  , WarehouseStatsT 
+  , WarehouseBorrowStatsT
+  , WarehouseDisposalResponseT
+  , WarehouseUnplacedDossierT
+  , WarehouseUnplacedResponseT
+  , WarehouseUnplacedDossierRawT
+  , WarehouseUnplacedResponseRawT
+} from '../types'
 
 type WarehouseDossierChartPointRawT = {
   period?: string
@@ -118,6 +125,31 @@ function normalizeWarehouseStats(raw: WarehouseStatsRawT): WarehouseStatsT {
   }
 }
 
+function normalizeWarehouseUnplacedDossier(
+  raw: WarehouseUnplacedDossierRawT,
+): WarehouseUnplacedDossierT {
+  return {
+    id: raw.id ?? '',
+    code: raw.code ?? (raw.id ? raw.id.substring(0, 8).toUpperCase() : '-'),
+    name: raw.name ?? raw.title ?? '-',
+    fondId: raw.fondId ?? null,
+    fondName: raw.fondName ?? null,
+    status: raw.status ?? null,
+    createdAt: raw.createdAt ? String(raw.createdAt) : null,
+    updatedAt: raw.updatedAt ? String(raw.updatedAt) : null,
+  }
+}
+
+function normalizeWarehouseUnplacedResponse(
+  raw: WarehouseUnplacedResponseRawT,
+): WarehouseUnplacedResponseT {
+  const items = (raw.items ?? []).map(normalizeWarehouseUnplacedDossier)
+  return {
+    items,
+    total: raw.total ?? items.length,
+  }
+}
+
 // ==========================================
 // 5. CÁC PHƯƠNG THỨC API KHAI THÁC CHÍNH (API CALLS)
 // ==========================================
@@ -159,5 +191,33 @@ export const getWarehouseStats = async (
     params: { chartGranularity: granularity },
   })
 
+  return unwrapResponse(response.data)
+}
+
+/**
+ * Lấy danh sách hồ sơ chưa phân vị trí trong kho vật lý dành riêng cho thủ kho
+ */
+export const getWarehouseDashboardUnplaced = async (): Promise<WarehouseUnplacedResponseT> => {
+  const response = await apiClient.get<
+    WarehouseUnplacedResponseRawT | SingleResourceResponse<WarehouseUnplacedResponseRawT>
+  >('/api/v1/dashboard/warehouse/unplaced')
+
+  const rawData = unwrapResponse(response.data)
+  return normalizeWarehouseUnplacedResponse(rawData)
+}
+
+/**
+ * Lấy số liệu đếm phiếu mượn trả dành riêng cho thủ kho
+ */
+export const getWarehouseDashboardBorrowStats = async (): Promise<WarehouseBorrowStatsT> => {
+  const response = await apiClient.get<WarehouseBorrowStatsT>('/api/v1/dashboard/warehouse/borrow-stats')
+  return unwrapResponse(response.data)
+}
+
+/**
+ * Lấy danh sách hồ sơ chờ tiêu hủy dành riêng cho thủ kho
+ */
+export const getWarehouseDashboardDisposal = async (): Promise<WarehouseDisposalResponseT> => {
+  const response = await apiClient.get<WarehouseDisposalResponseT>('/api/v1/dashboard/warehouse/disposal-candidates')
   return unwrapResponse(response.data)
 }

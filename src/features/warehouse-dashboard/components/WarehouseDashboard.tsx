@@ -267,13 +267,11 @@ export function WarehouseDashboard() {
     { name: t('warehouse.kpi.uneditedUnarchived'), value: uneditedUnarchivedDossiers, color: '#f59e0b' },
   ].filter((item) => item.value > 0)
 
-  const borrowItems = (borrowData?.items ?? []) as any[]
-  const totalBorrows = borrowData?.total ?? borrowItems.length
-
-  const pendingBorrows = borrowItems.filter((b) => b.status === 'PENDING').length
-  const activeBorrows = borrowItems.filter((b) => b.status === 'APPROVED').length
-  const returnedBorrows = borrowItems.filter((b) => b.status === 'EXPIRED').length
-  const rejectedBorrows = borrowItems.filter((b) => b.status === 'REJECTED').length
+  const pendingBorrows = borrowData?.pending ?? 0
+  const activeBorrows = borrowData?.approved ?? 0
+  const returnedBorrows = borrowData?.returned ?? 0
+  const rejectedBorrows = borrowData?.rejected ?? 0
+  const totalBorrows = borrowData?.total ?? 0 
 
   const totalUnplacedOverall = unplacedData?.total ?? 0
 

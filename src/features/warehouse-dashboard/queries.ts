@@ -5,7 +5,10 @@ import { getWarehouseStats } from '@/features/warehouse-dashboard/api/warehouseD
 
 import { 
   getWarehouseDashboardLocations, 
-  getActiveFondsWithCount 
+  getActiveFondsWithCount,
+  getWarehouseDashboardUnplaced,
+  getWarehouseDashboardBorrowStats,
+  getWarehouseDashboardDisposal,
 } from './api/warehouseDashboardClient'
 import { WarehouseDashboardIntakeGranularityT } from './types'
 
@@ -26,7 +29,7 @@ export const warehouseDashboardQueries = {
 
     // 3. Hồ sơ chưa phân vị trí
     unplacedDossiers: () => ({
-        queryKey: ['warehouse-dashboard', 'placements', 'unplaced'],
+        queryKey: ['warehouse-dashboard', 'unplaced'],
         queryFn: () => getWarehouseDashboardUnplaced(),
         staleTime: 15_000,
     }),
