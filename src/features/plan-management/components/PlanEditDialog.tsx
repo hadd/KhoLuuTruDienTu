@@ -51,11 +51,13 @@ function PlanEditForm({ plan, paperSizes, onClose }: PlanEditFormProps) {
         event.preventDefault()
         void form.handleSubmit()
       }}
-      className="space-y-4"
+      className="flex min-h-0 flex-col gap-4"
     >
-      <PlanFormFields form={form} />
+      <div className="min-h-0 flex-1 overflow-y-auto px-1 py-1">
+        <PlanFormFields form={form} />
+      </div>
 
-      <DialogFooter>
+      <DialogFooter className="shrink-0">
         <Button
           type="button"
           variant="outline"
@@ -109,8 +111,8 @@ export function PlanEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-3xl flex max-h-[90vh] flex-col">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{t('form.editTitle')}</DialogTitle>
           <DialogDescription>{t('form.subtitle')}</DialogDescription>
         </DialogHeader>
