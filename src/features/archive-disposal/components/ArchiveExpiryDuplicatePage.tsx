@@ -16,7 +16,6 @@ import {
   isAppendToDisposalCatalog,
   notifyDisposalTransferResult,
 } from '@/features/archive-disposal/lib/disposalTransferNotifications'
-import { DisposalWorkflowConfigSection } from '@/features/archive-disposal-council/components/DisposalWorkflowConfigSection'
 import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
 import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
 import { useArchiveDisposalAccess } from '@/features/archive-disposal/hooks/useArchiveDisposalAccess'
@@ -381,10 +380,6 @@ export function ArchiveExpiryDuplicatePage() {
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-      <DisposalWorkflowConfigSection
-        settings={disposalSettings}
-        isLoading={isSettingsPending}
-      />
       {appendMode && appendCatalogName ? (
         <p className="text-sm text-muted-foreground">
           {t('disposal.pickerActiveCatalog', { name: appendCatalogName })}

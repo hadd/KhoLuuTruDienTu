@@ -528,3 +528,28 @@ export async function getArchiveWarehouseFileContent(
 export const WAREHOUSE_DOSSIER_STATUSES = [
   'ARCHIVED',
 ] as const satisfies Array<WarehouseDossierStatusT>
+
+export interface SoftDeletedDossierT {
+  id: string
+  name: string
+  fondId: string | null
+  deletedAt: string
+  updatedAt: string
+}
+
+export async function softDeleteWarehouseDossier(dossierId: string): Promise<void> {
+  await apiClient.delete(`/api/v1/dossiers/${dossierId}`)
+}
+
+export async function listSoftDeletedDossiers(): Promise<SoftDeletedDossierT[]> {
+  const response = await apiClient.get<SoftDeletedDossierT[]>('/api/v1/dossiers/soft-deleted')
+  return response.data
+}
+
+export async function permanentDeleteDossiers(ids: string[]): Promise<{
+  deletedIds: string[]
+  deletedObjectCount: number
+}> {
+  const response = await apiClient.post('/api/v1/dossiers/permanent-batch-delete', { ids })
+  return response.data
+}

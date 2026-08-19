@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { BookOpenCheck, Download, Loader2, Plus } from 'lucide-react'
+import { BookOpenCheck, Download, Loader2, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -25,6 +25,18 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { softDeleteWarehouseDossier } from '@/features/archive-warehouse/api/archiveWarehouseClient'
+import { SOFT_DELETED_DOSSIERS_QUERY_KEY } from '@/features/archive-disposal/components/ArchiveSoftDeletedDossiersPage'
 import {
   stickyTableHeaderClassName,
   Table,
@@ -153,6 +165,8 @@ export function ArchiveWarehouseDossiersPage({
   const [pendingOpen, setPendingOpen] = useState<PendingDossierOpenT | null>(
     null,
   )
+  const [deletingDossierId, setDeletingDossierId] = useState<string | null>(null)
+  const [deletingDossierName, setDeletingDossierName] = useState<string>('')
 
   const { data: profile } = useQuery(profileQueryOptions)
   const roleId = getCurrentUserRoleId(profile)
@@ -195,6 +209,19 @@ export function ArchiveWarehouseDossiersPage({
     },
     onError: (error) => {
       toast.error(translateError(error))
+    },
+  })
+
+  const softDeleteDossierMutation = useMutation({
+    mutationFn: (id: string) => softDeleteWarehouseDossier(id),
+    onSuccess: () => {
+      toast.success('Đã xóa hồ sơ.')
+      setDeletingDossierId(null)
+      void queryClient.invalidateQueries({ queryKey: SOFT_DELETED_DOSSIERS_QUERY_KEY })
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+      setDeletingDossierId(null)
     },
   })
 
@@ -769,6 +796,9 @@ export function ArchiveWarehouseDossiersPage({
                     <TableHead>{t('table.path')}</TableHead>
                     <TableHead>{t('table.dossierType')}</TableHead>
                     <TableHead>{t('table.archiveStorageState')}</TableHead>
+                    {!isExploitation && !councilReviewEnabled ? (
+                      <TableHead className="w-16" />
+                    ) : null}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -838,6 +868,25 @@ export function ArchiveWarehouseDossiersPage({
                           )}
                         </Badge>
                       </TableCell>
+                      {!isExploitation && !councilReviewEnabled ? (
+                        <TableCell
+                          className="w-16 text-right"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 text-destructive hover:bg-destructive/10"
+                            title="Xóa hồ sơ"
+                            onClick={() => {
+                              setDeletingDossierId(item.id)
+                              setDeletingDossierName(item.name)
+                            }}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </TableCell>
+                      ) : null}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -919,6 +968,34 @@ export function ArchiveWarehouseDossiersPage({
             await unlockMutation.mutateAsync(password)
           }}
         />
+
+        <AlertDialog
+          open={deletingDossierId !== null}
+          onOpenChange={(open) => { if (!open) setDeletingDossierId(null) }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Xóa hồ sơ</AlertDialogTitle>
+              <AlertDialogDescription>
+                Bạn có chắc muốn xóa hồ sơ <strong>{deletingDossierName}</strong>? Hồ sơ sẽ được
+                chuyển vào danh sách hồ sơ đã xóa và có thể xóa vĩnh viễn sau.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={softDeleteDossierMutation.isPending}>Hủy</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => { if (deletingDossierId) softDeleteDossierMutation.mutate(deletingDossierId) }}
+                disabled={softDeleteDossierMutation.isPending}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {softDeleteDossierMutation.isPending ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : null}
+                Xóa hồ sơ
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
   )
 

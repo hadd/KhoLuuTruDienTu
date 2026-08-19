@@ -63,5 +63,9 @@
   "errors": {
     "loadFailed": "Không tải được cấu hình lưu kho",
     "noPermission": "Bạn không có quyền cấu hình lưu kho"
+  },
+  "disposalConfig": {
+    "title": "Cấu hình Hủy hồ sơ",
+    "description": "Thiết lập quy trình hủy hồ sơ theo TT06 với Hội đồng xét hủy."
   }
 }
