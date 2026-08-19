@@ -34,6 +34,7 @@ export const duplicateDetectionRules = schema.table("duplicate_detection_rules",
     ruleKey: duplicateDetectionRuleKeyEnum("rule_key").notNull(),
     isEnabled: boolean("is_enabled").notNull().default(true),
     dossierCodeFieldKey: varchar("dossier_code_field_key", { length: 128 }),
+    dossierSummaryFieldKey: varchar("dossier_summary_field_key", { length: 128 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
