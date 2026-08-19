@@ -1,7 +1,7 @@
 // @/features/warehouse-dashboard/queries.ts
 
 import { queryOptions } from '@tanstack/react-query'
-import { adminDashboardQueryOptions } from '@/features/admin-dashboard/queries'
+import { getWarehouseStats } from '@/features/warehouse-dashboard/api/warehouseDashboardClient'
 import { getDisposalCandidates } from '@/features/archive-disposal/api/archiveDisposalClient'
 import { getReviewArchiveBorrowRequests } from '@/features/archive-borrow/api/archiveBorrowClient'
 import { getUnplacedWarehouseDossiers } from '@/features/physical-warehouse/api/physicalWarehouseClient'
@@ -10,9 +10,15 @@ import {
   getWarehouseDashboardLocations, 
   getActiveFondsWithCount 
 } from './api/warehouseDashboardClient'
+import { WarehouseDashboardIntakeGranularityT } from './types'
 
 export const warehouseDashboardQueries = {
-    adminDashboard: (granularity: 'day' | 'month') => adminDashboardQueryOptions(granularity),
+    warehouseStats: (granularity: WarehouseDashboardIntakeGranularityT) =>
+        queryOptions({
+          queryKey: ['warehouse-dashboard', 'stats', granularity],
+          queryFn: () => getWarehouseStats(granularity),
+          staleTime: 60_000,
+        }), 
 
     // Thay đổi Query Key ở đây để tách biệt hoàn toàn bộ nhớ đệm
     rootLocations: () => ({

@@ -67,20 +67,6 @@ const FOND_CHART_COLORS = [
   '#94a3b8',
 ]
 
-// Kiểu dữ liệu tường minh thay vì dùng "any"
-interface BorrowRequestItemT {
-  id: string
-  status?: string
-}
-
-interface DisposalCandidateItemT {
-  id: string
-  name: string
-  title?: string
-  code?: string
-  fondName?: string
-}
-
 // Hàm vẽ nhãn hướng ra ngoài kèm đường kẻ nối vào biểu đồ
 function renderWarehouseDonutLabel(props: {
   cx?: number
@@ -246,8 +232,8 @@ export function WarehouseDashboard() {
   }
 
   // 1. SYSTEM DASHBOARD DATA FROM BACKEND API
-  const { data: adminDashboard, isLoading: isLoadingAdmin } = useQuery(
-    warehouseDashboardQueries.adminDashboard(intakeGranularity)
+  const { data: warehouseStats, isLoading: isLoadingStats } = useQuery(
+    warehouseDashboardQueries.warehouseStats(intakeGranularity)
   )
 
   // 2. PHYSICAL WAREHOUSE ROOTS FROM BACKEND API
@@ -276,9 +262,9 @@ export function WarehouseDashboard() {
   )
 
   // Sử dụng hàm helper chuẩn hóa thay vì tính toán chuỗi thủ công để tránh lỗi Logic trạng thái
-  const byStatus = adminDashboard?.byStatus ?? {}
-  const totalDossiers = adminDashboard?.totalDossiers ?? 0
-
+  const byStatus = warehouseStats?.byStatus ?? {}
+  const totalDossiers = warehouseStats?.totalDossiers ?? 0
+  
   const dossierCategoryTotals = aggregateDossierStatusCategories(byStatus)
   const archivedDossiers = dossierCategoryTotals.completed
   const editedUnarchivedDossiers = dossierCategoryTotals.waitingApproval
@@ -304,7 +290,7 @@ export function WarehouseDashboard() {
   const totalUnplacedOverall = unplacedData?.total ?? 0
 
   // Chỉ số nạp kho số hóa
-  const intakeChartPoints = (adminDashboard?.dossierChart?.points ?? []).map(
+  const intakeChartPoints = (warehouseStats?.dossierChart?.points ?? []).map(
     (p) => ({
       date: p.period,
       count: p.editedCompleted + p.fullyCompleted,
@@ -336,7 +322,7 @@ export function WarehouseDashboard() {
   const totalDisposalCandidates = disposalData?.total ?? disposalItems.length
 
   const isGlobalLoading =
-    isLoadingAdmin ||
+    isLoadingStats  ||
     isLoadingRoots ||
     isLoadingUnplaced ||
     isLoadingBorrow ||

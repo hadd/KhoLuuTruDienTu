@@ -2,56 +2,13 @@
 
 import { apiClient } from '@/lib/api/apiClient'
 import type { SingleResourceResponse } from '@/types/api'
-
-// --- KIỂU DỮ LIỆU ĐẦU RA CHUẨN HÓA (NORMALIZED TYPES) ---
-
-export type WarehouseLocationT = {
-  id: string
-  parentId: string | null
-  name: string
-  imageUrl: string | null
-  address: string | null
-  capacity: number | null
-  usedCapacity: number
-  childCount: number
-  remainingCapacity: number | null
-}
-
-export type ActiveFondT = {
-  id: string
-  name: string
-  dossierCount: number
-}
-
-export type ActiveFondsResponseT = {
-  items: ActiveFondT[]
-  total: number
-}
-
-// --- KIỂU DỮ LIỆU THÔ TỪ API (RAW TYPES) ---
-
-type WarehouseLocationRawT = {
-  id?: string
-  parentId?: string | null
-  name?: string
-  imageUrl?: string | null
-  address?: string | null
-  capacity?: number | null
-  usedCapacity?: number
-  childCount?: number
-}
-
-type ActiveFondRawT = {
-  id?: string
-  fondName?: string
-  dossierCount?: number
-  dossiersCount?: number
-}
-
-type ActiveFondsResponseRawT = {
-  items?: ActiveFondRawT[]
-  total?: number
-}
+import type { WarehouseLocationT
+  , ActiveFondT
+  , ActiveFondsResponseT
+  , WarehouseLocationRawT
+  , ActiveFondRawT
+  , ActiveFondsResponseRawT
+  , WarehouseStatsT } from '../types'
 
 // --- HÀM TRỢ GIÚP CHUẨN HÓA (UTILITIES & NORMALIZERS) ---
 
@@ -131,4 +88,19 @@ export const getActiveFondsWithCount = async (): Promise<ActiveFondsResponseT> =
 
   const rawData = unwrapResponse(response.data)
   return normalizeActiveFondsResponse(rawData)
+}
+
+/**
+ * Lấy số liệu thống kê hồ sơ và biểu đồ tăng trưởng số hóa nạp kho
+ */
+export const getWarehouseStats = async (
+  granularity: 'day' | 'month' = 'month'
+): Promise<WarehouseStatsT> => {
+  const response = await apiClient.get<
+    WarehouseStatsT | SingleResourceResponse<WarehouseStatsT>
+  >('/api/v1/dashboard/warehouse/stats', {
+    params: { chartGranularity: granularity },
+  })
+
+  return unwrapResponse(response.data)
 }

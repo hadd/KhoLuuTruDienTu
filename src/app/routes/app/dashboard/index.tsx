@@ -26,8 +26,10 @@ import {
   qcDashboardQueryOptions,
 } from '@/features/qc-dashboard/queries'
 import { WarehouseDashboard } from '@/features/warehouse-dashboard'
+import { warehouseDashboardQueries } from '@/features/warehouse-dashboard/queries'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
+import { WarehouseDashboardIntakeGranularityT } from '@/features/warehouse-dashboard/types'
 
 const dashboardSearchSchema = z.object({
   tab: z.enum(['overview', 'warehouse']).optional().catch('overview'),
@@ -43,6 +45,10 @@ const dashboardSearchSchema = z.object({
     .enum(['7d', '30d', '90d', '12m'])
     .optional()
     .catch('30d' satisfies EditorDashboardPeriodT),
+    intakeGranularity: z // Bổ sung cấu hình search param để đồng bộ hóa granular biểu đồ kho
+    .enum(['day', 'month'])
+    .optional()
+    .catch('month' satisfies WarehouseDashboardIntakeGranularityT),
 })
 
 export type DashboardSearchT = z.infer<typeof dashboardSearchSchema>
@@ -85,7 +91,11 @@ export const Route = createFileRoute('/app/dashboard/')({
           throw error
         }
       }
-    } else {
+    } else if (variant === 'warehouse') {
+      await context.queryClient.ensureQueryData(
+        warehouseDashboardQueries.warehouseStats(search.intakeGranularity ?? 'month'),
+      )
+    }else {
       await context.queryClient.ensureQueryData(
         editorDashboardQueryOptions(search.period ?? '30d'),
       )
