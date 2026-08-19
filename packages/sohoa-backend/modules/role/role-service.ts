@@ -32,17 +32,17 @@ export interface UpdateRoleInput {
 
 function formatRole(role: Role) {
     const parsedRules = parseRulesForResponse(role.rules);
-    let hiddenModules: string[] = [];
+    let hiddenPermissions: string[] = [];
     try {
-        if (role.hiddenModules) {
-            hiddenModules = JSON.parse(role.hiddenModules);
+        if (role.hiddenPermissions) {
+            hiddenPermissions = JSON.parse(role.hiddenPermissions);
         }
     } catch {
         // ignore
     }
     return {
         ...role,
-        hiddenModules,
+        hiddenPermissions,
         rules: parsedRules,
         rulesRaw: role.rules,
     };
@@ -59,9 +59,9 @@ export const RoleService = {
     getPermissionCatalog(profile?: UserWithRoles) {
         let catalog = PERMISSION_CATALOG;
         if (profile && !authHelper.isAdmin(profile)) {
-            const userHiddenModules = authHelper.getHiddenModules(profile);
-            if (userHiddenModules.length > 0) {
-                catalog = catalog.filter(c => !userHiddenModules.includes(c.module));
+            const userHiddenPermissions = authHelper.getHiddenPermissions(profile);
+            if (userHiddenPermissions.length > 0) {
+                catalog = catalog.filter(c => !userHiddenPermissions.includes(c.key));
             }
         }
         return catalog;
@@ -102,7 +102,7 @@ export const RoleService = {
     async getPermissions(roleId: string, profile: UserWithRoles) {
         const role = await db.query.roles.findFirst({
             where: and(eq(roles.id, roleId), isNull(roles.deletedAt)),
-            columns: { id: true, name: true, rules: true, isBaseRole: true, hiddenModules: true },
+            columns: { id: true, name: true, rules: true, isBaseRole: true, hiddenPermissions: true },
         });
         if (!role) {
             throw httpError.notFound(`Role "${roleId}" not found`);
@@ -113,24 +113,24 @@ export const RoleService = {
             hasPermissionInRules(rules, item.key)
         );
 
-        let hiddenModules: string[] = [];
+        let hiddenPermissions: string[] = [];
         try {
-            if (role.hiddenModules) {
-                hiddenModules = JSON.parse(role.hiddenModules);
+            if (role.hiddenPermissions) {
+                hiddenPermissions = JSON.parse(role.hiddenPermissions);
             }
         } catch { }
 
-        const userHiddenModules = authHelper.getHiddenModules(profile);
-        if (userHiddenModules.length > 0) {
-            catalog = catalog.filter(c => !userHiddenModules.includes(c.module));
+        const userHiddenPermissions = authHelper.getHiddenPermissions(profile);
+        if (userHiddenPermissions.length > 0) {
+            catalog = catalog.filter(c => !userHiddenPermissions.includes(c.key));
             
             const visiblePermissions = rules.permissions.filter(p => {
                 const def = PERMISSION_CATALOG.find(c => c.key === p);
-                return def ? !userHiddenModules.includes(def.module) : true;
+                return def ? !userHiddenPermissions.includes(def.key) : true;
             });
             const visibleRestrictions = rules.restrictions.filter(p => {
                 const def = PERMISSION_CATALOG.find(c => c.key === p);
-                return def ? !userHiddenModules.includes(def.module) : true;
+                return def ? !userHiddenPermissions.includes(def.key) : true;
             });
             rules = { permissions: visiblePermissions, restrictions: visibleRestrictions };
         }
@@ -139,36 +139,36 @@ export const RoleService = {
             roleId: role.id,
             roleName: role.name,
             isBaseRole: role.isBaseRole,
-            hiddenModules,
+            hiddenPermissions,
             rules,
             catalog,
         };
     },
 
-    async updatePermissions(roleId: string, input: { permissions: string[]; restrictions: string[]; hiddenModules?: string[] }, profile: UserWithRoles) {
+    async updatePermissions(roleId: string, input: { permissions: string[]; restrictions: string[]; hiddenPermissions?: string[] }, profile: UserWithRoles) {
         const rules = { permissions: input.permissions, restrictions: input.restrictions };
         assertValidRules(rules);
 
         const existing = await db.query.roles.findFirst({
             where: and(eq(roles.id, roleId), isNull(roles.deletedAt)),
-            columns: { id: true, rules: true, hiddenModules: true },
+            columns: { id: true, rules: true, hiddenPermissions: true },
         });
         if (!existing) {
             throw httpError.notFound(`Role "${roleId}" not found`);
         }
 
         const isAdmin = authHelper.isAdmin(profile);
-        const userHiddenModules = authHelper.getHiddenModules(profile);
+        const userHiddenPermissions = authHelper.getHiddenPermissions(profile);
 
         let nextRules = rules;
-        let nextHiddenModules = input.hiddenModules ?? (existing.hiddenModules ? JSON.parse(existing.hiddenModules) : []);
+        let nextHiddenPermissions = input.hiddenPermissions ?? (existing.hiddenPermissions ? JSON.parse(existing.hiddenPermissions) : []);
         
-        if (!isAdmin && userHiddenModules.length > 0) {
+        if (!isAdmin && userHiddenPermissions.length > 0) {
             const checkHidden = (perms: string[]) => {
                 for (const p of perms) {
                     const def = PERMISSION_CATALOG.find(c => c.key === p);
-                    if (def && userHiddenModules.includes(def.module)) {
-                        throw httpError.forbidden(`Bạn không có quyền quản lý nhóm quyền ${def.module}`);
+                    if (def && userHiddenPermissions.includes(def.key)) {
+                        throw httpError.forbidden(`Bạn không có quyền quản lý quyền ${def.key}`);
                     }
                 }
             };
@@ -178,11 +178,11 @@ export const RoleService = {
             const existingParsed = parseRoleRules(existing.rules);
             const preservedPermissions = existingParsed.permissions.filter(p => {
                 const def = PERMISSION_CATALOG.find(c => c.key === p);
-                return def ? userHiddenModules.includes(def.module) : false;
+                return def ? userHiddenPermissions.includes(def.key) : false;
             });
             const preservedRestrictions = existingParsed.restrictions.filter(p => {
                 const def = PERMISSION_CATALOG.find(c => c.key === p);
-                return def ? userHiddenModules.includes(def.module) : false;
+                return def ? userHiddenPermissions.includes(def.key) : false;
             });
 
             nextRules = {
@@ -196,8 +196,8 @@ export const RoleService = {
             updatedAt: new Date(),
         };
 
-        if (isAdmin && input.hiddenModules !== undefined) {
-            updateData.hiddenModules = JSON.stringify(input.hiddenModules);
+        if (isAdmin && input.hiddenPermissions !== undefined) {
+            updateData.hiddenPermissions = JSON.stringify(input.hiddenPermissions);
         }
 
         const [updated] = await db.update(roles)

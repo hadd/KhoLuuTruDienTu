@@ -20,5 +20,5 @@ export const updateRoleBodySchema = t.Object({
 export const updateRolePermissionsBodySchema = t.Object({
     permissions: t.Array(t.String()),
     restrictions: t.Array(t.String()),
-    hiddenModules: t.Optional(t.Array(t.String())),
+    hiddenPermissions: t.Optional(t.Array(t.String())),
 });

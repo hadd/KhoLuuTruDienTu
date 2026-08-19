@@ -54,8 +54,6 @@ export async function applyDisposalCandidateLockToWarehouseActions(
     if (!scope) return;
 
     if (scope.dossierLocked || scope.lockedFileIds.size > 0) {
-        actions.edit = false;
         actions.delete = false;
-        actions.reupload = false;
     }
 }

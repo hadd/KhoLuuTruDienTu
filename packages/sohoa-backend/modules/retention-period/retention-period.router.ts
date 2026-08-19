@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { RetentionPeriodService as service } from "./retention-period-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
-import { Permission } from "../auth/permission-catalog.ts";
+import { Permission, RETENTION_PERIOD_ACTIVE_READ_PERMISSIONS } from "../auth/permission-catalog.ts";
 
 const idParamSchema = t.Object({
     id: t.String({ description: "Mã thời hạn lưu trữ" }),
@@ -33,7 +33,7 @@ export function createRetentionPeriodRouter(basePath: string = "/retention-perio
     app.get(
         "/active",
         async ({ profile }) => {
-            authHelper.checkPermission(profile, Permission.RETENTION_PERIODS_READ);
+            authHelper.checkPermissionAny(profile, RETENTION_PERIOD_ACTIVE_READ_PERMISSIONS);
             return await service.listActive();
         },
         {

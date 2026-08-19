@@ -14,6 +14,7 @@ import {
 } from "../../db/schemas/archive-submission.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
+import { securityLevels } from "../../db/schemas/security-level.ts";
 import { toSearchablePdfKey } from "../dossier/dossier-path-utils.ts";
 import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
@@ -171,8 +172,29 @@ async function validateFieldValues(
 ): Promise<ArchiveFieldConfigSnapshot> {
     const activeConfigs = configs.filter((config) => config.isActive);
     const resolvedLabels: Record<string, { id: string; label: string }> = {};
-    const configByKey = new Map(activeConfigs.map((config) => [config.fieldKey, config]));
-    const providedKeys = new Set(Object.keys(fieldValues));
+
+    const configByNormalizedKey = new Map<string, ArchiveFieldConfig>();
+    for (const config of activeConfigs) {
+        configByNormalizedKey.set(config.fieldKey.trim().toLowerCase(), config);
+    }
+
+    const normalizedFieldValues: ArchiveFieldValueSnapshot = {};
+    for (const [key, value] of Object.entries(fieldValues)) {
+        const normKey = key.trim().toLowerCase();
+        const matchingConfig = configByNormalizedKey.get(normKey);
+        if (!matchingConfig) {
+            // Ignore extra unconfigured metadata fields (e.g. ma_ho_so) instead of failing
+            continue;
+        }
+        if (normalizedFieldValues[matchingConfig.fieldKey] === undefined || !isEmptyValue(value)) {
+            normalizedFieldValues[matchingConfig.fieldKey] = value;
+        }
+    }
+
+    for (const key of Object.keys(fieldValues)) {
+        delete fieldValues[key];
+    }
+    Object.assign(fieldValues, normalizedFieldValues);
 
     for (const config of activeConfigs) {
         const rawValue = fieldValues[config.fieldKey];
@@ -243,12 +265,6 @@ async function validateFieldValues(
         }
     }
 
-    for (const key of providedKeys) {
-        if (!configByKey.has(key)) {
-            throw httpError.badRequest(`Trường "${key}" không có trong cấu hình lưu kho`);
-        }
-    }
-
     return {
         fields: activeConfigs,
         resolvedLabels,
@@ -299,9 +315,9 @@ export const ArchiveSubmissionService = {
         const limit = Math.min(100, Math.max(1, query.limit ?? 20));
         const offset = (page - 1) * limit;
 
-        const statusFilter = query.status
+        const statusFilter = query.status && (query.status as string) !== "ALL"
             ? [query.status]
-            : [DossierStatus.APPROVED];
+            : ARCHIVE_LIST_DOSSIER_STATUSES;
 
         const searchTerm = query.search?.trim();
         const searchCondition = searchTerm
@@ -460,6 +476,7 @@ export const ArchiveSubmissionService = {
                 dossierId: archiveSubmissions.dossierId,
                 dossierName: dossiers.name,
                 dossierStatus: dossiers.status,
+                dossierSecurityLevelId: dossiers.securityLevelId,
                 folderPath: dossiers.folderPath,
                 submittedBy: archiveSubmissions.submittedBy,
                 submitterName: userProfiles.fullName,
@@ -481,7 +498,36 @@ export const ArchiveSubmissionService = {
         if (!row) {
             throw httpError.notFound("Đơn nộp lưu kho không tồn tại");
         }
-        return row;
+
+        let securityLevelName: string | null = null;
+        if (row.dossierSecurityLevelId) {
+            const [level] = await db
+                .select({ name: securityLevels.name })
+                .from(securityLevels)
+                .where(eq(securityLevels.id, row.dossierSecurityLevelId))
+                .limit(1);
+            if (level) securityLevelName = level.name;
+        }
+
+        const filesWithSecurity = await db
+            .select({
+                fileId: dossierFiles.id,
+                fileName: dossierFiles.fileName,
+                securityLevelId: dossierFiles.securityLevelId,
+                securityLevelName: securityLevels.name,
+            })
+            .from(dossierFiles)
+            .leftJoin(securityLevels, eq(dossierFiles.securityLevelId, securityLevels.id))
+            .where(eq(dossierFiles.dossierId, row.dossierId))
+            .orderBy(asc(dossierFiles.fileName));
+
+        const pdfFiles = filesWithSecurity.filter((f) => isArchiveSubmitPdfFile(f));
+
+        return {
+            ...row,
+            securityLevelName,
+            files: pdfFiles,
+        };
     },
 
     async prepareArchiveSubmit(dossierId: string) {
@@ -532,6 +578,9 @@ export const ArchiveSubmissionService = {
         let files = dbFiles;
 
         try {
+            const activeConfigs = await ArchiveFieldConfigService.listActiveFieldConfigs();
+            const activeFieldKeys = new Set(activeConfigs.map((c) => c.fieldKey.trim().toLowerCase()));
+
             const metadata = await loadDossierMetadataForArchive(dossierId);
             const prefill = await extractArchivePrefillFromMetadata(metadata, {
                 dossierFondId: dossier.fondId,
@@ -541,6 +590,7 @@ export const ArchiveSubmissionService = {
                     filePath: file.filePath,
                     securityLevelId: file.securityLevelId,
                 })),
+                activeFieldKeys,
             });
             suggestedFieldValues = prefill.suggestedFieldValues;
             dossierSecurityLevelId = prefill.dossierSecurityLevelId;
@@ -641,12 +691,11 @@ export const ArchiveSubmissionService = {
             if (existingFieldIndex !== -1) {
                 const existingField = updatedHoSoFields[existingFieldIndex];
                 const existingValue = existingField.value;
-                if (existingValue !== null && existingValue !== undefined && existingValue.trim() !== "") {
-                    delete finalFieldValues[key];
-                } else {
+                const newStrValue = typeof submittedValue === "string" ? submittedValue : String(submittedValue);
+                if (existingValue !== newStrValue) {
                     updatedHoSoFields[existingFieldIndex] = { 
                         ...existingField, 
-                        value: typeof submittedValue === "string" ? submittedValue : String(submittedValue) 
+                        value: newStrValue
                     };
                     metadataChanged = true;
                 }
