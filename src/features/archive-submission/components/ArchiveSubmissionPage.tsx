@@ -10,6 +10,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -62,6 +69,7 @@ export function ArchiveSubmissionPage({
   const q = search.q ?? ''
   const page = search.page ?? 1
   const limit = search.limit ?? DEFAULT_LIST_PAGE_LIMIT
+  const statusParam = (search.status as ArchiveDossierStatusT | 'ALL' | undefined) ?? 'ALL'
 
   const [inputValue, setInputValue] = useState(q)
   const [submitTarget, setSubmitTarget] = useState<ArchiveDossierListItemT | null>(
@@ -76,7 +84,7 @@ export function ArchiveSubmissionPage({
       page,
       limit,
       search: q || undefined,
-      status: 'APPROVED',
+      status: statusParam === 'ALL' ? undefined : (statusParam as ArchiveDossierStatusT),
     }),
   )
 
@@ -109,6 +117,17 @@ export function ArchiveSubmissionPage({
     })
   }
 
+  function handleStatusFilterChange(nextStatus: string) {
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        status: nextStatus === 'ALL' ? undefined : (nextStatus as ArchiveDossierStatusT),
+        page: 1,
+      }),
+      replace: true,
+    })
+  }
+
   if (!canSubmitArchive) {
     return (
       <div className="rounded-lg border bg-card p-8 text-center text-sm text-muted-foreground">
@@ -126,13 +145,32 @@ export function ArchiveSubmissionPage({
         </div>
       ) : null}
 
-      <div className="shrink-0">
-        <ListPageSearchInput
-          value={inputValue}
-          onChange={setInputValue}
-          onSearch={submitSearch}
-          placeholder={t('page.searchPlaceholder')}
-        />
+      <div className="flex shrink-0 flex-wrap items-center gap-3">
+        <div className="min-w-[240px] flex-1">
+          <ListPageSearchInput
+            value={inputValue}
+            onChange={setInputValue}
+            onSearch={submitSearch}
+            placeholder={t('page.searchPlaceholder')}
+          />
+        </div>
+        <div className="w-[200px] shrink-0">
+          <Select
+            value={statusParam}
+            onValueChange={handleStatusFilterChange}
+          >
+            <SelectTrigger size="default">
+              <SelectValue placeholder={t('page.statusFilterLabel')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">{t('statusFilter.ALL')}</SelectItem>
+              <SelectItem value="APPROVED">{t('statusFilter.APPROVED')}</SelectItem>
+              <SelectItem value="PENDING_ARCHIVE">{t('statusFilter.PENDING_ARCHIVE')}</SelectItem>
+              <SelectItem value="ARCHIVE_REJECTED">{t('statusFilter.ARCHIVE_REJECTED')}</SelectItem>
+              <SelectItem value="ARCHIVED">{t('statusFilter.ARCHIVED')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {isPending && items.length === 0 ? (
@@ -166,10 +204,16 @@ export function ArchiveSubmissionPage({
                   <TableCell className="max-w-xs truncate text-muted-foreground">
                     {item.folderPath}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="max-w-xs">
                     <Badge variant={statusBadgeVariant(item.status)}>
                       {t(`dossierStatus.${item.status}`)}
                     </Badge>
+                    {item.status === 'ARCHIVE_REJECTED' && item.latestSubmission?.rejectNotes ? (
+                      <div className="mt-1.5 rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+                        <span className="font-semibold">Lý do từ chối:</span>{' '}
+                        {item.latestSubmission.rejectNotes}
+                      </div>
+                    ) : null}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {item.latestSubmission
@@ -193,10 +237,11 @@ export function ArchiveSubmissionPage({
                         <Button
                           type="button"
                           size="sm"
+                          variant={item.status === 'ARCHIVE_REJECTED' ? 'destructive' : 'default'}
                           onClick={() => setSubmitTarget(item)}
                         >
                           <Package className="mr-1 size-4" />
-                          {t('submit.action')}
+                          {item.status === 'ARCHIVE_REJECTED' ? 'Nộp lại' : t('submit.action')}
                         </Button>
                       ) : null}
                     </div>

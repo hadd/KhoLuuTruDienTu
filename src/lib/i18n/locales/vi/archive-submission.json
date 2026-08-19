@@ -8,13 +8,13 @@
   },
   "statusFilter": {
     "ALL": "Tất cả",
-    "APPROVED": "Đã duyệt",
+    "APPROVED": "Chưa lưu kho",
     "PENDING_ARCHIVE": "Chờ duyệt lưu kho",
     "ARCHIVED": "Đã lưu kho",
     "ARCHIVE_REJECTED": "Từ chối lưu kho"
   },
   "dossierStatus": {
-    "APPROVED": "Đã duyệt",
+    "APPROVED": "Chưa lưu kho",
     "PENDING_ARCHIVE": "Chờ duyệt lưu kho",
     "ARCHIVED": "Đã lưu kho",
     "ARCHIVE_REJECTED": "Từ chối lưu kho"
