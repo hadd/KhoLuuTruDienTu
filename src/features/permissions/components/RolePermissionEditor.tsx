@@ -62,7 +62,7 @@ export function RolePermissionEditor({
   const savePermissions = (
     nextPermissions: Array<string>,
     pendingId: string,
-    nextHiddenModules?: Array<string>,
+    nextHiddenPermissions?: Array<string>,
   ) => {
     if (!selectedRoleId) return
 
@@ -72,7 +72,7 @@ export function RolePermissionEditor({
         roleId: selectedRoleId,
         permissions: nextPermissions,
         restrictions,
-        hiddenModules: nextHiddenModules ?? rolePermissions?.hiddenModules,
+        hiddenPermissions: nextHiddenPermissions ?? rolePermissions?.hiddenPermissions,
       },
       {
         onSettled: () => setPendingKey(null),
@@ -80,23 +80,23 @@ export function RolePermissionEditor({
     )
   }
 
-  const handleToggleHideModules = (moduleKeys: string[]) => {
-    if (!selectedRoleId || moduleKeys.length === 0) return
-    const currentHidden = rolePermissions?.hiddenModules ?? []
+  const handleToggleHidePermissions = (permissionKeys: string[]) => {
+    if (!selectedRoleId || permissionKeys.length === 0) return
+    const currentHidden = rolePermissions?.hiddenPermissions ?? []
     
-    // Check if all moduleKeys are currently hidden
-    const isHidden = moduleKeys.every(m => currentHidden.includes(m))
+    // Check if all permissionKeys are currently hidden
+    const isHidden = permissionKeys.every(p => currentHidden.includes(p))
     
     let nextHidden: string[]
     if (isHidden) {
-      // Unhide: remove moduleKeys from hiddenModules
-      nextHidden = currentHidden.filter(m => !moduleKeys.includes(m))
+      // Unhide: remove permissionKeys from hiddenPermissions
+      nextHidden = currentHidden.filter(p => !permissionKeys.includes(p))
     } else {
-      // Hide: add moduleKeys to hiddenModules
-      nextHidden = [...new Set([...currentHidden, ...moduleKeys])]
+      // Hide: add permissionKeys to hiddenPermissions
+      nextHidden = [...new Set([...currentHidden, ...permissionKeys])]
     }
     
-    savePermissions(permissions, `hide:${moduleKeys[0]}`, nextHidden)
+    savePermissions(permissions, `hide:${permissionKeys[0]}`, nextHidden)
   }
 
   const handleToggleItems = (
@@ -279,11 +279,14 @@ export function RolePermissionEditor({
                 const isMajorPending = pendingKey === `major:${majorGroup.id}`
                 const isMajorDisabled =
                   !canManageRoles || !selectedRoleId || isMajorPending
+                  
+                const majorKeys = majorItems.map(i => i.key)
+                const isMajorHidden = majorKeys.length > 0 && majorKeys.every(k => rolePermissions?.hiddenPermissions?.includes(k))
 
                 return (
                   <div
                     key={majorGroup.id}
-                    className={cn("rounded-lg border border-border bg-card shadow-sm transition-opacity", majorModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) && 'opacity-50')}
+                    className={cn("rounded-lg border border-border bg-card shadow-sm transition-opacity", isMajorHidden && 'opacity-50')}
                   >
                     {/* Major Module Header */}
                     <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-3.5">
@@ -319,11 +322,11 @@ export function RolePermissionEditor({
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className={cn('size-7 hover:bg-transparent', majorModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) ? 'text-muted-foreground' : 'text-primary')}
-                            onClick={(e) => { e.preventDefault(); handleToggleHideModules(majorModuleKeys); }}
+                            className={cn('size-7 hover:bg-transparent', isMajorHidden ? 'text-muted-foreground' : 'text-primary')}
+                            onClick={(e) => { e.preventDefault(); handleToggleHidePermissions(majorKeys); }}
                             title="Ẩn/Hiện nhóm quyền"
                           >
-                            {majorModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                            {isMajorHidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                           </Button>
                         )}
                       </div>
@@ -344,11 +347,14 @@ export function RolePermissionEditor({
                         const isSubPending = pendingKey === `sub:${sub.id}`
                         const isSubDisabled =
                           !canManageRoles || !selectedRoleId || isSubPending
+                          
+                        const subKeys = subItems.map(i => i.key)
+                        const isSubHidden = subKeys.length > 0 && subKeys.every(k => rolePermissions?.hiddenPermissions?.includes(k))
 
                         // If sub has nested sub-groups (like Danh mục dùng chung, Cấu hình dữ liệu)
                         if (sub.groups && sub.groups.length > 0) {
                           return (
-                            <div key={sub.id} className={cn("flex flex-col gap-4 py-5 first:pt-0 last:pb-0 transition-opacity", subModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) && 'opacity-50')}>
+                            <div key={sub.id} className={cn("flex flex-col gap-4 py-5 first:pt-0 last:pb-0 transition-opacity", isSubHidden && 'opacity-50')}>
                               <div className="flex items-center gap-3">
                                 <label className="flex cursor-pointer items-center gap-2.5">
                                   <Checkbox
@@ -375,11 +381,11 @@ export function RolePermissionEditor({
                                     type="button"
                                     variant="ghost"
                                     size="icon"
-                                    className={cn('size-6 hover:bg-transparent', subModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) ? 'text-muted-foreground' : 'text-primary')}
-                                    onClick={(e) => { e.preventDefault(); handleToggleHideModules(subModuleKeys); }}
+                                    className={cn('size-6 hover:bg-transparent', isSubHidden ? 'text-muted-foreground' : 'text-primary')}
+                                    onClick={(e) => { e.preventDefault(); handleToggleHidePermissions(subKeys); }}
                                     title="Ẩn/Hiện nhóm quyền"
                                   >
-                                    {subModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                                    {isSubHidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                                   </Button>
                                 )}
                               </div>
@@ -397,9 +403,12 @@ export function RolePermissionEditor({
                                   const isGroupPending = pendingKey === `group:${group.id}`
                                   const isGroupDisabled =
                                     !canManageRoles || !selectedRoleId || isGroupPending
+                                    
+                                  const groupKeys = groupItems.map(i => i.key)
+                                  const isGroupHidden = groupKeys.length > 0 && groupKeys.every(k => rolePermissions?.hiddenPermissions?.includes(k))
 
                                   return (
-                                    <div key={group.id} className={cn("flex flex-col gap-3 transition-opacity", group.modules.every(m => rolePermissions?.hiddenModules?.includes(m)) && 'opacity-50')}>
+                                    <div key={group.id} className={cn("flex flex-col gap-3 transition-opacity", isGroupHidden && 'opacity-50')}>
                                       <div className="flex items-center gap-3">
                                         <label className="flex cursor-pointer items-center gap-2">
                                           <Checkbox
@@ -426,11 +435,11 @@ export function RolePermissionEditor({
                                             type="button"
                                             variant="ghost"
                                             size="icon"
-                                            className={cn('size-6 hover:bg-transparent', group.modules.every(m => rolePermissions?.hiddenModules?.includes(m)) ? 'text-muted-foreground' : 'text-primary')}
-                                            onClick={(e) => { e.preventDefault(); handleToggleHideModules(group.modules); }}
+                                            className={cn('size-6 hover:bg-transparent', isGroupHidden ? 'text-muted-foreground' : 'text-primary')}
+                                            onClick={(e) => { e.preventDefault(); handleToggleHidePermissions(groupKeys); }}
                                             title="Ẩn/Hiện nhóm quyền"
                                           >
-                                            {group.modules.every(m => rolePermissions?.hiddenModules?.includes(m)) ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                                            {isGroupHidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                                           </Button>
                                         )}
                                       </div>
@@ -442,6 +451,9 @@ export function RolePermissionEditor({
                                           pendingKey={pendingKey}
                                           canManageRoles={canManageRoles}
                                           onToggle={handlePermissionToggle}
+                                          showHideControls={showHideControls}
+                                          hiddenPermissions={rolePermissions?.hiddenPermissions ?? []}
+                                          onToggleHide={handleToggleHidePermissions}
                                         />
                                       </div>
                                     </div>
@@ -454,7 +466,7 @@ export function RolePermissionEditor({
 
                         // Direct sub-module (no sub-groups)
                         return (
-                          <div key={sub.id} className={cn("flex flex-col gap-3 py-5 first:pt-0 last:pb-0 transition-opacity", subModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) && 'opacity-50')}>
+                          <div key={sub.id} className={cn("flex flex-col gap-3 py-5 first:pt-0 last:pb-0 transition-opacity", isSubHidden && 'opacity-50')}>
                             <div className="flex items-center gap-3">
                               <label className="flex cursor-pointer items-center gap-2.5">
                                 <Checkbox
@@ -481,23 +493,26 @@ export function RolePermissionEditor({
                                     type="button"
                                     variant="ghost"
                                     size="icon"
-                                    className={cn('size-6 hover:bg-transparent', subModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) ? 'text-muted-foreground' : 'text-primary')}
-                                    onClick={(e) => { e.preventDefault(); handleToggleHideModules(subModuleKeys); }}
+                                    className={cn('size-6 hover:bg-transparent', isSubHidden ? 'text-muted-foreground' : 'text-primary')}
+                                    onClick={(e) => { e.preventDefault(); handleToggleHidePermissions(subKeys); }}
                                     title="Ẩn/Hiện nhóm quyền"
                                   >
-                                    {subModuleKeys.every(m => rolePermissions?.hiddenModules?.includes(m)) ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                                    {isSubHidden ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                                   </Button>
                               )}
                             </div>
 
                             <div className="ml-7 border-l border-border/80 pl-4">
                               <PermissionGrid
-                                items={subItems}
-                                permissions={permissions}
-                                pendingKey={pendingKey}
-                                canManageRoles={canManageRoles}
-                                onToggle={handlePermissionToggle}
-                              />
+                                          items={subItems}
+                                          permissions={permissions}
+                                          pendingKey={pendingKey}
+                                          canManageRoles={canManageRoles}
+                                          onToggle={handlePermissionToggle}
+                                          showHideControls={showHideControls}
+                                          hiddenPermissions={rolePermissions?.hiddenPermissions ?? []}
+                                          onToggleHide={handleToggleHidePermissions}
+                                        />
                             </div>
                           </div>
                         )
@@ -520,12 +535,18 @@ function PermissionGrid({
   pendingKey,
   canManageRoles,
   onToggle,
+  showHideControls = false,
+  hiddenPermissions = [],
+  onToggleHide,
 }: {
   items: PermissionCatalogItemT[]
   permissions: string[]
   pendingKey: string | null
   canManageRoles: boolean
   onToggle: (item: PermissionCatalogItemT, currentlyGranted: boolean) => void
+  showHideControls?: boolean
+  hiddenPermissions?: string[]
+  onToggleHide?: (keys: string[]) => void
 }) {
   // Split into 2-column pairs
   const rows: Array<Array<PermissionCatalogItemT>> = []
@@ -541,32 +562,46 @@ function PermissionGrid({
             const granted = isPermissionGranted(permissions, item.key, item.module)
             const isPending = pendingKey === `permission:${item.key}`
             const disabled = !canManageRoles || isPending
+            const isHidden = hiddenPermissions.includes(item.key)
 
             return (
-              <label
-                key={item.key}
-                className={cn(
-                  'flex items-start gap-3 rounded-md p-2 hover:bg-muted/40 transition-colors',
-                  disabled ? 'cursor-default' : 'cursor-pointer',
-                )}
-              >
-                <Checkbox
-                  checked={granted}
-                  disabled={disabled}
-                  onCheckedChange={() => onToggle(item, granted)}
-                  className="mt-0.5 shrink-0"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="text-sm font-medium leading-tight text-foreground block">
-                    {item.label}
-                  </span>
-                  {item.description ? (
-                    <span className="mt-0.5 block text-xs leading-normal text-muted-foreground">
-                      {item.description}
+              <div key={item.key} className={cn("flex items-start gap-2 rounded-md hover:bg-muted/40 transition-colors", isHidden && "opacity-50")}>
+                <label
+                  className={cn(
+                    'flex flex-1 items-start gap-3 p-2',
+                    disabled ? 'cursor-default' : 'cursor-pointer',
+                  )}
+                >
+                  <Checkbox
+                    checked={granted}
+                    disabled={disabled}
+                    onCheckedChange={() => onToggle(item, granted)}
+                    className="mt-0.5 shrink-0"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="text-sm font-medium leading-tight text-foreground block">
+                      {item.label}
                     </span>
-                  ) : null}
-                </span>
-              </label>
+                    {item.description ? (
+                      <span className="mt-0.5 block text-xs leading-normal text-muted-foreground">
+                        {item.description}
+                      </span>
+                    ) : null}
+                  </span>
+                </label>
+                {showHideControls && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={cn('size-7 mt-1.5 shrink-0 hover:bg-transparent', isHidden ? 'text-muted-foreground' : 'text-primary')}
+                    onClick={(e) => { e.preventDefault(); onToggleHide?.([item.key]); }}
+                    title="Ẩn/Hiện quyền này"
+                  >
+                    {isHidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </Button>
+                )}
+              </div>
             )
           })}
         </div>
