@@ -143,7 +143,7 @@ export type BrowseArchiveWarehouseQuery = {
   search?: string
   year?: number
   status?: WarehouseDossierStatus
-  sortBy?: "fondName" | "dossierTypeName"
+  sortBy?: "fondName" | "dossierTypeName" | "name" | "archivedAt"
   sortDir?: "asc" | "desc"
 }
 
@@ -617,6 +617,20 @@ function resolveWarehouseBrowseOrderBy(
   }
   if (sortBy === "dossierTypeName") {
     return [direction(dossierTypes.name), desc(dossiers.updatedAt)]
+  }
+  if (sortBy === "name") {
+    return [direction(dossiers.name), desc(dossiers.updatedAt)]
+  }
+  if (sortBy === "archivedAt") {
+    const archivedAtSql = sql`(
+      SELECT ${archiveSubmissions.reviewedAt} 
+      FROM ${archiveSubmissions} 
+      WHERE ${archiveSubmissions.dossierId} = ${dossiers.id} 
+        AND ${archiveSubmissions.status} = ${ArchiveSubmissionStatus.APPROVED} 
+      ORDER BY ${archiveSubmissions.reviewedAt} DESC 
+      LIMIT 1
+    )`
+    return [direction(archivedAtSql), desc(dossiers.updatedAt)]
   }
   return [desc(dossiers.updatedAt)]
 }
@@ -1195,7 +1209,7 @@ export const ArchiveWarehouseService = {
 
   async browseUnassignedDossiers(
     profile: UserWithRoles,
-    query: { page?: number; limit?: number; search?: string; status?: string },
+    query: { page?: number; limit?: number; search?: string; status?: string; sortBy?: "dossierTypeName" | "name"; sortDir?: "asc" | "desc" },
     context: BrowseContext = "warehouse",
   ) {
     const page = Math.max(1, query.page ?? 1)
@@ -1241,7 +1255,7 @@ export const ArchiveWarehouseService = {
         .from(dossiers)
         .leftJoin(dossierTypes, eq(dossierTypes.id, dossiers.dossierTypeId))
         .where(whereClause)
-        .orderBy(desc(dossiers.updatedAt))
+        .orderBy(...resolveWarehouseBrowseOrderBy(query.sortBy, query.sortDir))
         .limit(limit)
         .offset(offset),
       db

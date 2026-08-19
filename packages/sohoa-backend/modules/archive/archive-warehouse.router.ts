@@ -141,6 +141,8 @@ export function createArchiveWarehouseRouter(basePath: string = "/archive-wareho
           limit: urlQuery.limit != null ? Number(urlQuery.limit) : undefined,
           search: urlQuery.search,
           status: urlQuery.status,
+          sortBy: urlQuery.sortBy,
+          sortDir: urlQuery.sortDir,
         })
       },
       {
