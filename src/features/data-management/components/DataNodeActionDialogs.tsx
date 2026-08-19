@@ -52,7 +52,7 @@ import {
   fetchDossierTargetByFolderId,
 } from '@/features/data-management/api/dataManagementClient'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
-import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
+import { useDataManagementResolvedPermissions } from '@/features/data-management/hooks/useDataManagementRole'
 import type { DataDeleteTargetT } from '@/features/data-management/lib/treeUtils'
 import {
   findDescendantDossierTarget,
@@ -64,6 +64,8 @@ import {
 } from '@/features/data-management/lib/treeUtils'
 import {
   dataManagementTreeQueryKey,
+  dossierWorkflowAssignmentsQueryKey,
+  dossierWorkflowAssignmentsQueryOptions,
   useAddDataFolderMutation,
   useAssignDataRecordMutation,
   useAssignDossierEditorMutation,
@@ -73,9 +75,91 @@ import {
   useUpdateDossierMutation,
   useUpdateFolderProjectMutation,
 } from '@/features/data-management/queries'
-import type { DataTreeNodeT } from '@/features/data-management/types'
+import type {
+  DataDossierWorkflowAssignmentsT,
+  DataTreeNodeT,
+} from '@/features/data-management/types'
 import { cn } from '@/lib/utils/cn'
 import { translateError } from '@/lib/utils/translate-error'
+
+const CHECKER_ROLE_PATTERN = /^CHECKER_([1-5])$/i
+
+function parseCheckerLevelFromRole(role: string): number | null {
+  const match = CHECKER_ROLE_PATTERN.exec(role.trim())
+  if (!match?.[1]) return null
+  const level = Number(match[1])
+  return level >= 1 && level <= 5 ? level : null
+}
+
+function completedCheckerLevels(
+  workflow: DataDossierWorkflowAssignmentsT | undefined,
+): Set<number> {
+  const levels = new Set<number>()
+  for (const item of workflow?.assignments ?? []) {
+    if (String(item.status) !== 'COMPLETED') continue
+    const level = parseCheckerLevelFromRole(String(item.role))
+    if (level != null) levels.add(level)
+  }
+  return levels
+}
+
+function resolveImmediateDossierId(node: DataTreeNodeT): string | null {
+  return (
+    resolveDossierUpdateId(node) ??
+    resolveDossierEditorAssignId(node) ??
+    node.dossierId ??
+    findDescendantDossierTarget(node)?.dossierId ??
+    null
+  )
+}
+
+function buildCheckerAssigneeMap(
+  workflow: DataDossierWorkflowAssignmentsT | undefined,
+  node: DataTreeNodeT | null,
+): Map<number, string> {
+  const byLevel = new Map<number, string>()
+
+  for (const assignment of node?.checkerAssignments ?? []) {
+    const assigneeId = assignment.assignees[0]?.id
+    if (assigneeId) byLevel.set(assignment.level, assigneeId)
+  }
+
+  for (const item of workflow?.assignments ?? []) {
+    const match = CHECKER_ROLE_PATTERN.exec(String(item.role))
+    if (!match?.[1]) continue
+    const level = Number(match[1])
+    const status = String(item.status)
+    const existing = byLevel.get(level)
+    if (
+      !existing ||
+      status === 'IN_PROGRESS' ||
+      status === 'DRAFT' ||
+      status === 'COMPLETED'
+    ) {
+      byLevel.set(level, item.assignee.id)
+    }
+  }
+
+  return byLevel
+}
+
+function resolveExistingMakerId(
+  workflow: DataDossierWorkflowAssignmentsT | undefined,
+  node: DataTreeNodeT | null,
+): string | null {
+  if (node?.editor?.id) return node.editor.id
+
+  const makers = (workflow?.assignments ?? []).filter(
+    (item) => String(item.role).toUpperCase() === 'MAKER',
+  )
+  const preferred =
+    makers.find((item) => item.status === 'IN_PROGRESS') ??
+    makers.find((item) => item.status === 'DRAFT') ??
+    makers.find((item) => item.status === 'COMPLETED') ??
+    makers[0]
+
+  return preferred?.assignee.id ?? null
+}
 
 export type DataNodeActionDialogMode =
   | 'rename'
@@ -118,7 +202,7 @@ export function DataNodeActionDialogs({
   const { t } = useTranslation('data-management')
   const { t: tCommon } = useTranslation('common')
   const queryClient = useQueryClient()
-  const permissions = getPermissionsByRole(role)
+  const permissions = useDataManagementResolvedPermissions()
   const [name, setName] = useState('')
   const [selectedProjectCode, setSelectedProjectCode] = useState('')
   const { data: groupsData } = useQuery({
@@ -152,6 +236,9 @@ export function DataNodeActionDialogs({
   const [assignments, setAssignments] = useState<Record<string, string>>({})
   const [selectedEditorId, setSelectedEditorId] = useState('')
   const [selectedGroupId, setSelectedGroupId] = useState('')
+  const [resolvedDossierId, setResolvedDossierId] = useState<string | null>(
+    null,
+  )
   const { data: selectedGroupDetail } = useQuery({
     ...groupDetailQueryOptions(selectedGroupId),
     enabled: mode === 'assignGroup' && Boolean(selectedGroupId),
@@ -167,6 +254,8 @@ export function DataNodeActionDialogs({
   )
   const [deleteMode, setDeleteMode] = useState<DeleteModeT>('soft')
   const [isHandlingSubmit, setIsHandlingSubmit] = useState(false)
+  const [assignPrefillKey, setAssignPrefillKey] = useState<string | null>(null)
+  const [editorPrefillKey, setEditorPrefillKey] = useState<string | null>(null)
   const assignmentTargets = useMemo<Array<number>>(() => {
     const clamped = Math.min(Math.max(assignmentCount, 1), MAX_APPROVAL_LEVELS)
     return Array.from({ length: clamped }, (_, index) => index + 1)
@@ -187,6 +276,36 @@ export function DataNodeActionDialogs({
   const assignEditorMutation = useAssignDossierEditorMutation(role)
   const assignGroupMutation = useAssignGroupByFolderMutation()
   const open = Boolean(node && mode)
+  const needsWorkflowPrefill = mode === 'assign' || mode === 'assignEditor'
+
+  useEffect(() => {
+    if (!needsWorkflowPrefill || !node) {
+      setResolvedDossierId(null)
+      return
+    }
+
+    let cancelled = false
+    async function resolveDossierId() {
+      const immediate = resolveImmediateDossierId(node!)
+      if (immediate) {
+        if (!cancelled) setResolvedDossierId(immediate)
+        return
+      }
+      const folderId = resolveAdminAssignFolderId(node!)
+      const fetched = await fetchDossierIdByFolderId(folderId)
+      if (!cancelled) setResolvedDossierId(fetched)
+    }
+
+    void resolveDossierId()
+    return () => {
+      cancelled = true
+    }
+  }, [needsWorkflowPrefill, node?.id, node?.dossierId, node?.folderId])
+
+  const workflowQuery = useQuery({
+    ...dossierWorkflowAssignmentsQueryOptions(resolvedDossierId ?? ''),
+    enabled: needsWorkflowPrefill && Boolean(resolvedDossierId?.trim()),
+  })
 
   useEffect(() => {
     setName(node?.name ?? '')
@@ -198,16 +317,100 @@ export function DataNodeActionDialogs({
   }, [mode, node?.projectCode, node?.id])
 
   useEffect(() => {
-    if (mode !== 'assign') return
-    const count = Math.min(node?.requiredQcCount ?? 1, MAX_APPROVAL_LEVELS)
+    if (mode !== 'assign' || !node) {
+      setAssignPrefillKey(null)
+      return
+    }
+    if (assigneeUsers.length === 0) return
+    if (resolvedDossierId && workflowQuery.isLoading) return
+
+    const nextKey = `${node.id}:${resolvedDossierId ?? 'none'}:${workflowQuery.dataUpdatedAt}`
+    if (assignPrefillKey === nextKey) return
+
+    const fromApi = workflowQuery.data?.requiredQcCount
+    const fromNode = node.requiredQcCount
+    const count = Math.min(
+      Math.max(fromApi ?? fromNode ?? 1, 1),
+      MAX_APPROVAL_LEVELS,
+    )
     setAssignmentCount(count)
     setAssignmentCountInput(String(count))
-  }, [mode, node?.id, node?.requiredQcCount])
+
+    const existingByLevel = buildCheckerAssigneeMap(workflowQuery.data, node)
+    const nextAssignments: Record<string, string> = {}
+    for (let level = 1; level <= count; level += 1) {
+      const existing = existingByLevel.get(level)
+      const isValid =
+        existing != null &&
+        assigneeUsers.some((user) => user.id === existing)
+      nextAssignments[String(level)] = isValid
+        ? existing!
+        : (assigneeUsers[0]?.id ?? '')
+    }
+    setAssignments(nextAssignments)
+    setAssignPrefillKey(nextKey)
+  }, [
+    mode,
+    node,
+    assigneeUsers,
+    resolvedDossierId,
+    workflowQuery.isLoading,
+    workflowQuery.data,
+    workflowQuery.dataUpdatedAt,
+    assignPrefillKey,
+  ])
 
   useEffect(() => {
-    if (mode !== 'assignEditor') return
-    setSelectedEditorId(editors[0]?.id ?? '')
-  }, [mode, editors])
+    if (mode !== 'assign' || !assignPrefillKey) return
+    setAssignments((prev) => {
+      const next: Record<string, string> = {}
+      let changed = false
+      for (const target of assignmentTargets) {
+        const key = String(target)
+        const prevValue = prev[key]
+        const isValid =
+          prevValue != null &&
+          assigneeUsers.some((user) => user.id === prevValue)
+        const value = isValid ? prevValue : (assigneeUsers[0]?.id ?? '')
+        next[key] = value
+        if (prev[key] !== value) changed = true
+      }
+      if (Object.keys(prev).length !== Object.keys(next).length) changed = true
+      return changed ? next : prev
+    })
+  }, [assignmentTargets, assigneeUsers, mode, assignPrefillKey])
+
+  useEffect(() => {
+    if (mode !== 'assignEditor' || !node) {
+      setEditorPrefillKey(null)
+      return
+    }
+    if (editors.length === 0) return
+    if (resolvedDossierId && workflowQuery.isLoading) return
+
+    const nextKey = `${node.id}:${resolvedDossierId ?? 'none'}:${workflowQuery.dataUpdatedAt}`
+    if (editorPrefillKey === nextKey) return
+
+    const existingMakerId = resolveExistingMakerId(workflowQuery.data, node)
+    if (
+      existingMakerId &&
+      editors.some((editor) => editor.id === existingMakerId)
+    ) {
+      setSelectedEditorId(existingMakerId)
+    } else {
+      setSelectedEditorId(editors[0]?.id ?? '')
+    }
+    setEditorPrefillKey(nextKey)
+  }, [
+    mode,
+    node,
+    editors,
+    resolvedDossierId,
+    workflowQuery.isLoading,
+    workflowQuery.data,
+    workflowQuery.dataUpdatedAt,
+    editorPrefillKey,
+  ])
 
   useEffect(() => {
     if (mode !== 'assignGroup') return
@@ -220,23 +423,6 @@ export function DataNodeActionDialogs({
     if (mode !== 'delete') return
     setDeleteMode('soft')
   }, [mode, node?.id])
-
-  useEffect(() => {
-    if (mode !== 'assign') return
-    setAssignments((prev) => {
-      const next: Record<string, string> = {}
-      for (const target of assignmentTargets) {
-        const key = String(target)
-        const prevValue = prev[key]
-        const isValid =
-          prevValue && assigneeUsers.some((user) => user.id === prevValue)
-        next[key] = isValid
-          ? prevValue
-          : (assigneeUsers[0]?.id ?? '')
-      }
-      return next
-    })
-  }, [assignmentTargets, assigneeUsers, mode])
 
   const handleSelectLevelUser = (level: number, userId: string) => {
     setAssignments((prev) => ({
@@ -411,7 +597,9 @@ export function DataNodeActionDialogs({
           name: (targetNode.name.trim() || node.name).trim(),
           requiredQcCount: assignmentCount,
         })
+        const alreadyCompleted = completedCheckerLevels(workflowQuery.data)
         for (const target of assignmentTargets) {
+          if (alreadyCompleted.has(target)) continue
           const assigneeId = assignments[String(target)]
           if (!assigneeId) continue
           await assignMutation.mutateAsync({
@@ -420,6 +608,12 @@ export function DataNodeActionDialogs({
             role: ASSIGN_FOLDER_ROLE.checker(target),
           })
         }
+        await queryClient.invalidateQueries({
+          queryKey: dossierWorkflowAssignmentsQueryKey(dossierId),
+        })
+        await queryClient.invalidateQueries({
+          queryKey: dataManagementTreeQueryKey(role, projectCode),
+        })
       }
       if (currentMode === 'assignEditor') {
         if (!selectedEditorId) return

@@ -11,9 +11,8 @@
             "usedCapacity": "Đang lưu giữ",
             "totalCapacity": "Tổng sức chứa",
             "remainingCapacity": "Chỗ trống còn lại",
-            "subItems": "Mục con / Kệ",
-            "unlimited": "Chưa giới hạn",
-            "noLimit": "Không giới hạn"
+            "subItems": "Hộp / Cặp",
+            "unknown": "Không xác định"
         },
         "sync": {
             "badge": "100% Dữ Liệu Thực Tế (Backend Database Connected)",
@@ -23,15 +22,15 @@
         },
         "kpi": {
             "overviewTitle": "Tổng Quan Hồ Sơ & Lưu Kho",
-            "overviewDesc": "Thống kê phân bổ chi tiết hồ sơ thực tế theo mức độ lưu trữ và biên tập",
+            "overviewDesc": "Thống kê phân bổ chi tiết hồ sơ thực tế theo mức độ lưu trữ và chỉnh lý",
             "totalDossiers": "Tổng số hồ sơ thực tế trong hệ thống",
             "realtime": "Dữ liệu thời gian thực",
             "archived": "Đã lưu kho",
-            "editedUnarchived": "Đã biên tập",
-            "uneditedUnarchived": "Chưa biên tập",
+            "editedUnarchived": "Đã chỉnh lý",
+            "uneditedUnarchived": "Chưa chỉnh lý",
             "empty": "Chưa có dữ liệu hồ sơ hệ thống",
-            "shortEditedUnarchived": "Đã biên tập",
-            "shortUneditedUnarchived": "Chưa biên tập",
+            "shortEditedUnarchived": "Đã chỉnh lý",
+            "shortUneditedUnarchived": "Chưa chỉnh lý",
             "borrowTitle": "Thống Kê Mượn & Tra Cứu Hồ Sơ",
             "borrowDesc": "Số lượng yêu cầu mượn khai thác đọc số Online trên hệ thống",
             "totalBorrows": "Tổng số yêu cầu mượn trên hệ thống",

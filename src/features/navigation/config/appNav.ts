@@ -15,6 +15,7 @@ import { DIGITIZATION_SCREEN_REQUIREMENTS } from '@/features/digitization/lib/di
 import { GENERAL_CATALOG_SCREEN_REQUIREMENTS } from '@/features/general-catalog/lib/generalCatalogAccess'
 import { PROJECT_MANAGEMENT_SCREEN_REQUIREMENTS } from '@/features/project-management/lib/projectManagementAccess'
 import { USER_MANAGEMENT_SCREEN_REQUIREMENTS } from '@/features/user/lib/userManagementAccess'
+import { LIBRARY_SCREEN_REQUIREMENTS } from '@/features/library/lib/libraryExploitationAccess'
 import type { ScreenPermissionRequirement } from '@/features/permissions/config/screenPermissionMap'
 
 export type AppScreenTo =
@@ -106,6 +107,7 @@ export const APP_SCREENS: Array<AppScreen> = [
       { module: 'dashboard', permissionKey: 'dashboard.editor' },
       { module: 'dashboard', permissionKey: 'dashboard.qc' },
       { module: 'dashboard', permissionKey: 'dashboard.admin' },
+      { module: 'dashboard', permissionKey: 'dashboard.warehouse' },
     ],
   },
   {
@@ -113,6 +115,7 @@ export const APP_SCREENS: Array<AppScreen> = [
     to: '/app/library',
     labelKey: 'admin.library',
     icon: Library,
+    requiredPermission: [...LIBRARY_SCREEN_REQUIREMENTS],
   },
   {
     id: 'project-management',

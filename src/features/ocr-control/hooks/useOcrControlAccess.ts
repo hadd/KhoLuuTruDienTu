@@ -2,16 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
 import {
-  canAccessScreen,
+  getPrimaryAppRoleFromProfile,
   getCurrentUserRoleId,
   resolvePermissionsForUser,
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
-import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
-import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
+import { canAccessDataManagementScreen } from '@/features/data-management/lib/resolveDataManagementRole'
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 
-/** Viewing (dossiers.read) is already enforced by the route's beforeLoad; this hook also exposes trigger (dossiers.write) access for the UI. */
 export function useOcrControlAccess() {
   const { data: user } = useQuery(profileQueryOptions)
   const roleId = getCurrentUserRoleId(user)
@@ -25,11 +23,13 @@ export function useOcrControlAccess() {
       user,
       rolePermissions?.rules.permissions,
     )
+    const primaryAppRole = getPrimaryAppRoleFromProfile(user)
+    const canAccess = canAccessDataManagementScreen(permissions, primaryAppRole)
 
     return {
       permissions,
-      canViewOcrControl: canAccessScreen(permissions, APP_SCREEN_ACCESS.ocrControl),
-      canTriggerOcr: isPermissionGranted(permissions, 'dossiers.write', 'dossiers'),
+      canViewOcrControl: canAccess,
+      canTriggerOcr: canAccess,
     }
   }, [user, rolePermissions])
 }

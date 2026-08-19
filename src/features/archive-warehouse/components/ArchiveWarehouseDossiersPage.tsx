@@ -575,6 +575,7 @@ export function ArchiveWarehouseDossiersPage({
         {!forbiddenMessage ? (
           <div className="flex flex-col gap-3">
             <ArchiveWarehouseSearchFilters
+              catalogSource={isExploitation ? 'exploitation' : 'warehouse'}
               values={filterValues}
               searchInput={inputValue}
               onSearchInputChange={setInputValue}

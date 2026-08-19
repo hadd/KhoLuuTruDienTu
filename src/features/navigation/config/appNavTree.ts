@@ -18,6 +18,7 @@ import type {
   AppScreenTo,
 } from '@/features/navigation/config/appNav'
 import { DASHBOARD_SCREEN_REQUIREMENTS } from '@/features/permissions/lib/dashboardAccess'
+import { LIBRARY_SCREEN_REQUIREMENTS } from '@/features/library/lib/libraryExploitationAccess'
 
 export type NavLabelKey =
   | 'admin.dashboard'
@@ -93,6 +94,7 @@ export const APP_NAV_TREE: Array<NavNode> = [
     to: '/app/library',
     labelKey: 'admin.library',
     icon: Library,
+    requiredPermission: [...LIBRARY_SCREEN_REQUIREMENTS],
     relatedPaths: ['/app/library', '/app/archive-borrow'],
   },
   {

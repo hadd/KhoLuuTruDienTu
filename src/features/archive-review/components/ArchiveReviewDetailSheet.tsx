@@ -1,6 +1,8 @@
-import { CheckCircle2, FolderOpen, Loader2, UserRound, XCircle } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { CheckCircle2, FolderOpen, Loader2, Shield, UserRound, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -11,6 +13,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { archiveSubmissionQueryOptions } from '@/features/archive-submission/queries'
 import type { ArchiveSubmissionT } from '@/features/archive-submission/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { cn } from '@/lib/utils/cn'
@@ -39,7 +42,7 @@ function fieldDisplayValue(submission: ArchiveSubmissionT, fieldKey: string): st
 export function ArchiveReviewDetailSheet({
   open,
   onOpenChange,
-  submission,
+  submission: initialSubmission,
   isApproving = false,
   isRejecting = false,
   onApprove,
@@ -48,6 +51,14 @@ export function ArchiveReviewDetailSheet({
   const { t } = useTranslation('archive-review')
   const language = useCurrentLanguage()
   const busy = isApproving || isRejecting
+
+  const submissionId = initialSubmission?.id ?? null
+  const submissionQuery = useQuery({
+    ...archiveSubmissionQueryOptions(submissionId ?? ''),
+    enabled: open && Boolean(submissionId),
+  })
+
+  const submission = submissionQuery.data ?? initialSubmission
 
   const fields = submission
     ? [...submission.fieldConfigSnapshot.fields].sort(
@@ -169,6 +180,48 @@ export function ArchiveReviewDetailSheet({
                   </div>
                 </section>
               ) : null}
+
+              <Separator />
+
+              <section className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Shield className="size-4 text-primary" />
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Cấp độ bảo mật đã chọn
+                  </h3>
+                </div>
+                <div className="rounded-md border bg-muted/20 p-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Cấp độ bảo mật hồ sơ</span>
+                    <span className="font-medium">
+                      {submission.securityLevelName ?? 'Thường (mặc định)'}
+                    </span>
+                  </div>
+
+                  {submission.files && submission.files.length > 0 ? (
+                    <div className="mt-3 space-y-1.5 border-t pt-3">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Cấp độ bảo mật từng file PDF ({submission.files.length} file)
+                      </p>
+                      <div className="max-h-36 space-y-1 overflow-y-auto pr-1">
+                        {submission.files.map((file) => (
+                          <div
+                            key={file.fileId}
+                            className="flex items-center justify-between rounded border bg-background px-2.5 py-1.5 text-xs"
+                          >
+                            <span className="max-w-[260px] truncate text-muted-foreground">
+                              {file.fileName}
+                            </span>
+                            <Badge variant="outline" className="shrink-0 text-xs font-normal">
+                              {file.securityLevelName ?? 'Theo hồ sơ'}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </section>
 
               {fields.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t('detail.noFields')}</p>

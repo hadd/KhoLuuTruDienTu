@@ -3,10 +3,6 @@ import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { ArchiveBorrowApprovalPage } from '@/features/archive-borrow/components/ArchiveBorrowApprovalPage'
-import { ArchiveBorrowReadingPage } from '@/features/archive-borrow/components/ArchiveBorrowReadingPage'
-import { MyArchiveBorrowRequestsPage } from '@/features/archive-borrow/components/MyArchiveBorrowRequestsPage'
-import { useArchiveBorrowAccess } from '@/features/archive-borrow/hooks/useArchiveBorrowAccess'
 import { ArchiveFieldConfigPage } from '@/features/archive-config/components/ArchiveFieldConfigPage'
 import { useArchiveConfigAccess } from '@/features/archive-config/hooks/useArchiveConfigAccess'
 import { ArchiveDisposalProposalPage } from '@/features/archive-disposal/components/ArchiveDisposalProposalPage'
@@ -24,7 +20,6 @@ import { ArchiveWarehouseHubNavGrid } from '@/features/archive-warehouse/compone
 import { useArchiveDataHubAvailableTabs } from '@/features/archive-warehouse/hooks/useArchiveDataHubAvailableTabs'
 import { useArchiveWarehouseAccess } from '@/features/archive-warehouse/hooks/useArchiveWarehouseAccess'
 import { resolveArchiveDisposalView } from '@/features/archive-warehouse/lib/resolveArchiveDisposalView'
-import { useLibraryExploitationAccess } from '@/features/library/hooks/useLibraryExploitationAccess'
 
 const routeApi = getRouteApi('/app/archive-warehouse/')
 
@@ -35,8 +30,6 @@ export function ArchiveDataHubPage() {
   const { canReadArchiveWarehouse } = useArchiveWarehouseAccess()
   const { canReadDisposal } = useArchiveDisposalAccess()
   const { canSubmitArchive, canReviewArchive } = useArchiveSubmissionAccess()
-  const { canRequestBorrow, canReviewBorrow } = useArchiveBorrowAccess()
-  const { canReadExploitation } = useLibraryExploitationAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
   const { canReadDisposalSettings, canReadCouncil } = useDisposalCouncilAccess()
   const { data: disposalSettings } = useQuery({
@@ -58,6 +51,15 @@ export function ArchiveDataHubPage() {
   })
 
   useEffect(() => {
+    if (tab === 'borrow' || tab === 'reading' || tab === 'borrowReview') {
+      void navigate({
+        to: '/app/library',
+        search: { tab },
+        replace: true,
+      })
+      return
+    }
+
     if (tab === 'disposalProposal' || tab === 'disposalCouncil') {
       void navigate({
         search: (prev) => ({
@@ -165,21 +167,6 @@ export function ArchiveDataHubPage() {
         ) : null}
         {tab === 'review' && canReviewArchive ? (
           <ArchiveReviewPage embedded />
-        ) : null}
-        {tab === 'borrow' && canRequestBorrow ? (
-          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-            <MyArchiveBorrowRequestsPage source="warehouse" />
-          </div>
-        ) : null}
-        {tab === 'reading' && canReadExploitation ? (
-          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-            <ArchiveBorrowReadingPage source="warehouse" />
-          </div>
-        ) : null}
-        {tab === 'borrowReview' && canReviewBorrow ? (
-          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-            <ArchiveBorrowApprovalPage />
-          </div>
         ) : null}
         {tab === 'config' && canManageArchiveConfig ? (
           <div className="min-h-0 flex-1 overflow-y-auto">

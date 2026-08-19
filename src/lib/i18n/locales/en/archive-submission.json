@@ -8,13 +8,13 @@
   },
   "statusFilter": {
     "ALL": "All",
-    "APPROVED": "Approved",
+    "APPROVED": "Not submitted",
     "PENDING_ARCHIVE": "Pending archive review",
     "ARCHIVED": "Archived",
     "ARCHIVE_REJECTED": "Archive rejected"
   },
   "dossierStatus": {
-    "APPROVED": "Approved",
+    "APPROVED": "Not submitted",
     "PENDING_ARCHIVE": "Pending archive review",
     "ARCHIVED": "Archived",
     "ARCHIVE_REJECTED": "Archive rejected"

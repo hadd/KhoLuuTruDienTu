@@ -95,21 +95,10 @@ function useViewerSearch() {
 
 function BackLink() {
   const { t } = useTranslation('archive-borrow')
-  const { from } = useViewerSearch()
-
-  if (from === 'library') {
-    return (
-      <Button asChild variant="outline">
-        <Link to="/app/library" search={{ tab: 'borrow' }}>
-          {t('page.back')}
-        </Link>
-      </Button>
-    )
-  }
 
   return (
     <Button asChild variant="outline">
-      <Link to="/app/archive-warehouse/" search={{ tab: 'borrow' }}>
+      <Link to="/app/library" search={{ tab: 'borrow' }}>
         {t('page.back')}
       </Link>
     </Button>

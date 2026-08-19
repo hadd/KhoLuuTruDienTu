@@ -20,7 +20,7 @@ import i18n from '@/lib/i18n/config'
 
 export const Route = createFileRoute('/app/permissions/function-matrix')({
   staticData: {
-    crumb: () => i18n.t('admin.users', { ns: 'common' }),
+    crumb: () => i18n.t('admin.permissions', { ns: 'common' }),
   },
   beforeLoad: async ({ context }) => {
     requireAuth()
@@ -53,7 +53,7 @@ export const Route = createFileRoute('/app/permissions/function-matrix')({
   head: () => ({
     meta: [
       {
-        title: `${i18n.t('pageTitles.functionMatrix', { ns: 'permissions' })} - ${i18n.t('appName', { ns: 'common' })}`,
+        title: `${i18n.t('admin.permissions', { ns: 'common' })} - ${i18n.t('appName', { ns: 'common' })}`,
       },
     ],
   }),

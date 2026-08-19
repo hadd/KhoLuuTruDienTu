@@ -26,7 +26,7 @@ export function FunctionPermissionMatrixPage() {
   const { q, roleId } = routeApi.useSearch()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [roleToDelete, setRoleToDelete] = useState<PermissionRoleT | null>(null)
-  const { canManageRoles } = useRoleAccess()
+  const { canManageRoles, isAdmin } = useRoleAccess()
 
   const rolesQuery = useQuery(permissionRolesQueryOptions())
   const catalogQuery = useQuery(permissionsCatalogQueryOptions())
@@ -112,10 +112,7 @@ export function FunctionPermissionMatrixPage() {
   }
 
   return (
-    <div
-      className="-m-6 flex min-h-0 flex-col gap-4 overflow-hidden p-6"
-      style={{ height: 'calc(100vh - 4rem)' }}
-    >
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden p-6">
       <div className="flex shrink-0 items-center justify-between gap-3">
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -160,6 +157,7 @@ export function FunctionPermissionMatrixPage() {
           onSelectRole={handleSelectRole}
           onDeleteRole={setRoleToDelete}
           canManageRoles={canManageRoles}
+          isAdmin={isAdmin}
         />
       )}
 

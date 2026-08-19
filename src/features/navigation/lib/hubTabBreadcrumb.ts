@@ -101,6 +101,10 @@ const PATH_LEAF_CRUMBS: Record<string, { ns: string; key: string }> = {
     ns: 'general-catalog',
     key: 'tiles.securityLevel',
   },
+  '/app/permissions/function-matrix': {
+    ns: 'common',
+    key: 'admin.permissions',
+  },
 }
 
 export function getHubTabBreadcrumb(

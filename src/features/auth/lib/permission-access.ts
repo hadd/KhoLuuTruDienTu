@@ -136,10 +136,6 @@ export function isNavLinkVisibleOnSidebar(
   catalog: Array<PermissionCatalogItemT>,
   primaryAppRole: AppRoleT | null,
 ): boolean {
-  if (link.id === 'library') {
-    return true
-  }
-
   if (link.id === 'system-administration') {
     return isSystemAdminHubVisible(permissions, catalog)
   }

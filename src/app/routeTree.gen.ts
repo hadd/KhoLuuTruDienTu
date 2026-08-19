@@ -73,6 +73,7 @@ import { Route as AppArchiveDossiersByDocumentTypeDocumentTypeIdIndexRouteImport
 import { Route as AppLibraryExploitationByDossierTypeDossierTypeIdRouteImport } from './routes/app/library/exploitation/by-dossier-type/$dossierTypeId'
 import { Route as AppLibraryExploitationByDocumentTypeDocumentTypeIdRouteImport } from './routes/app/library/exploitation/by-document-type/$documentTypeId'
 import { Route as AppLibraryExploitationFondIdDossierIdRouteImport } from './routes/app/library/exploitation/$fondId/$dossierId'
+import { Route as AppArchiveWarehouseDocumentEditorCatalogIdSlugRouteImport } from './routes/app/archive-warehouse/document-editor/$catalogId/$slug'
 
 const TestRoute = TestRouteImport.update({
   id: '/test',
@@ -421,6 +422,12 @@ const AppLibraryExploitationFondIdDossierIdRoute =
     path: '/library/exploitation/$fondId/$dossierId',
     getParentRoute: () => AppRouteRoute,
   } as any)
+const AppArchiveWarehouseDocumentEditorCatalogIdSlugRoute =
+  AppArchiveWarehouseDocumentEditorCatalogIdSlugRouteImport.update({
+    id: '/archive-warehouse/document-editor/$catalogId/$slug',
+    path: '/archive-warehouse/document-editor/$catalogId/$slug',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -481,6 +488,7 @@ export interface FileRoutesByFullPath {
   '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
   '/app/archive-dossiers/$fondId': typeof AppArchiveDossiersFondIdIndexRoute
   '/app/library/exploitation': typeof AppLibraryExploitationIndexRoute
+  '/app/archive-warehouse/document-editor/$catalogId/$slug': typeof AppArchiveWarehouseDocumentEditorCatalogIdSlugRoute
   '/app/library/exploitation/$fondId/$dossierId': typeof AppLibraryExploitationFondIdDossierIdRoute
   '/app/library/exploitation/by-document-type/$documentTypeId': typeof AppLibraryExploitationByDocumentTypeDocumentTypeIdRoute
   '/app/library/exploitation/by-dossier-type/$dossierTypeId': typeof AppLibraryExploitationByDossierTypeDossierTypeIdRoute
@@ -546,6 +554,7 @@ export interface FileRoutesByTo {
   '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
   '/app/archive-dossiers/$fondId': typeof AppArchiveDossiersFondIdIndexRoute
   '/app/library/exploitation': typeof AppLibraryExploitationIndexRoute
+  '/app/archive-warehouse/document-editor/$catalogId/$slug': typeof AppArchiveWarehouseDocumentEditorCatalogIdSlugRoute
   '/app/library/exploitation/$fondId/$dossierId': typeof AppLibraryExploitationFondIdDossierIdRoute
   '/app/library/exploitation/by-document-type/$documentTypeId': typeof AppLibraryExploitationByDocumentTypeDocumentTypeIdRoute
   '/app/library/exploitation/by-dossier-type/$dossierTypeId': typeof AppLibraryExploitationByDossierTypeDossierTypeIdRoute
@@ -613,6 +622,7 @@ export interface FileRoutesById {
   '/app/archive-dossiers/$fondId/$dossierId': typeof AppArchiveDossiersFondIdDossierIdRoute
   '/app/archive-dossiers/$fondId/': typeof AppArchiveDossiersFondIdIndexRoute
   '/app/library/exploitation/': typeof AppLibraryExploitationIndexRoute
+  '/app/archive-warehouse/document-editor/$catalogId/$slug': typeof AppArchiveWarehouseDocumentEditorCatalogIdSlugRoute
   '/app/library/exploitation/$fondId/$dossierId': typeof AppLibraryExploitationFondIdDossierIdRoute
   '/app/library/exploitation/by-document-type/$documentTypeId': typeof AppLibraryExploitationByDocumentTypeDocumentTypeIdRoute
   '/app/library/exploitation/by-dossier-type/$dossierTypeId': typeof AppLibraryExploitationByDossierTypeDossierTypeIdRoute
@@ -681,6 +691,7 @@ export interface FileRouteTypes {
     | '/app/archive-dossiers/$fondId/$dossierId'
     | '/app/archive-dossiers/$fondId'
     | '/app/library/exploitation'
+    | '/app/archive-warehouse/document-editor/$catalogId/$slug'
     | '/app/library/exploitation/$fondId/$dossierId'
     | '/app/library/exploitation/by-document-type/$documentTypeId'
     | '/app/library/exploitation/by-dossier-type/$dossierTypeId'
@@ -746,6 +757,7 @@ export interface FileRouteTypes {
     | '/app/archive-dossiers/$fondId/$dossierId'
     | '/app/archive-dossiers/$fondId'
     | '/app/library/exploitation'
+    | '/app/archive-warehouse/document-editor/$catalogId/$slug'
     | '/app/library/exploitation/$fondId/$dossierId'
     | '/app/library/exploitation/by-document-type/$documentTypeId'
     | '/app/library/exploitation/by-dossier-type/$dossierTypeId'
@@ -812,6 +824,7 @@ export interface FileRouteTypes {
     | '/app/archive-dossiers/$fondId/$dossierId'
     | '/app/archive-dossiers/$fondId/'
     | '/app/library/exploitation/'
+    | '/app/archive-warehouse/document-editor/$catalogId/$slug'
     | '/app/library/exploitation/$fondId/$dossierId'
     | '/app/library/exploitation/by-document-type/$documentTypeId'
     | '/app/library/exploitation/by-dossier-type/$dossierTypeId'
@@ -1278,6 +1291,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLibraryExploitationFondIdDossierIdRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/archive-warehouse/document-editor/$catalogId/$slug': {
+      id: '/app/archive-warehouse/document-editor/$catalogId/$slug'
+      path: '/archive-warehouse/document-editor/$catalogId/$slug'
+      fullPath: '/app/archive-warehouse/document-editor/$catalogId/$slug'
+      preLoaderRoute: typeof AppArchiveWarehouseDocumentEditorCatalogIdSlugRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
   }
 }
 
@@ -1335,6 +1355,7 @@ interface AppRouteRouteChildren {
   AppArchiveDossiersFondIdDossierIdRoute: typeof AppArchiveDossiersFondIdDossierIdRoute
   AppArchiveDossiersFondIdIndexRoute: typeof AppArchiveDossiersFondIdIndexRoute
   AppLibraryExploitationIndexRoute: typeof AppLibraryExploitationIndexRoute
+  AppArchiveWarehouseDocumentEditorCatalogIdSlugRoute: typeof AppArchiveWarehouseDocumentEditorCatalogIdSlugRoute
   AppLibraryExploitationFondIdDossierIdRoute: typeof AppLibraryExploitationFondIdDossierIdRoute
   AppLibraryExploitationByDocumentTypeDocumentTypeIdRoute: typeof AppLibraryExploitationByDocumentTypeDocumentTypeIdRoute
   AppLibraryExploitationByDossierTypeDossierTypeIdRoute: typeof AppLibraryExploitationByDossierTypeDossierTypeIdRoute
@@ -1401,6 +1422,8 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
     AppArchiveDossiersFondIdDossierIdRoute,
   AppArchiveDossiersFondIdIndexRoute: AppArchiveDossiersFondIdIndexRoute,
   AppLibraryExploitationIndexRoute: AppLibraryExploitationIndexRoute,
+  AppArchiveWarehouseDocumentEditorCatalogIdSlugRoute:
+    AppArchiveWarehouseDocumentEditorCatalogIdSlugRoute,
   AppLibraryExploitationFondIdDossierIdRoute:
     AppLibraryExploitationFondIdDossierIdRoute,
   AppLibraryExploitationByDocumentTypeDocumentTypeIdRoute:

@@ -60,7 +60,12 @@ export function hasDisposalCouncilChairDecidePermission(
 export function hasDisposalSettingsReadPermission(
   permissions: Parameters<typeof isPermissionGranted>[0],
 ): boolean {
-  return hasPermission(permissions, DISPOSAL_COUNCIL_PERMISSIONS.settingsRead)
+  return (
+    hasPermission(permissions, DISPOSAL_COUNCIL_PERMISSIONS.settingsRead) ||
+    hasPermission(permissions, DISPOSAL_COUNCIL_PERMISSIONS.councilRead) ||
+    isPermissionGranted(permissions, 'archive.disposal.read', 'archive.disposal') ||
+    isPermissionGranted(permissions, 'archive.warehouse.read', 'archive.warehouse')
+  )
 }
 
 export function hasDisposalSettingsUpdatePermission(

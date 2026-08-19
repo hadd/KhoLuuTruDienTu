@@ -4,7 +4,6 @@ import type { ScreenPermissionRequirement } from '@/features/permissions/config/
 export const DIGITIZATION_SCREEN_REQUIREMENTS = [
   { module: 'scan-intake', permissionKey: 'scan-intake.use' },
   ...DATA_ENTRY_SCREEN_REQUIREMENTS,
-  { module: 'dossiers', permissionKey: 'dossiers.read' },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
 /** Landing hub + các màn con thuộc menu Số hóa hồ sơ, tài liệu. */

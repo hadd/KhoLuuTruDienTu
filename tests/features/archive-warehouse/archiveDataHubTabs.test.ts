@@ -13,9 +13,6 @@ const baseInput = {
   canReadCouncil: true,
   canSubmitArchive: false,
   canReviewArchive: false,
-  canRequestBorrow: false,
-  canReadBorrow: false,
-  canReviewBorrow: false,
   canManageArchiveConfig: false,
   canOpenPermissionTab: false,
 }
@@ -58,50 +55,24 @@ describe('resolveArchiveDataHubTabs', () => {
     ).toEqual(['dossiers'])
   })
 
-  it('includes borrow tabs when request/review permissions are granted', () => {
+  it('does not open Kho dữ liệu for library/exploitation permissions', () => {
     expect(
       resolveArchiveDataHubTabs({
         ...baseInput,
         canReadArchiveWarehouse: false,
         canReadDisposal: false,
         canReadCouncil: false,
-        canRequestBorrow: true,
-        canReadBorrow: true,
-        canReviewBorrow: true,
       }),
-    ).toEqual(['borrow', 'reading', 'borrowReview'])
-  })
-
-  it('shows reading from exploitation without borrow request', () => {
-    expect(
-      resolveArchiveDataHubTabs({
-        ...baseInput,
-        canReadArchiveWarehouse: false,
-        canReadDisposal: false,
-        canReadCouncil: false,
-        canRequestBorrow: false,
-        canReadBorrow: true,
-      }),
-    ).toEqual(['reading'])
-  })
-
-  it('hides reading when exploitation is not granted even with borrow request', () => {
-    expect(
-      resolveArchiveDataHubTabs({
-        ...baseInput,
-        canReadArchiveWarehouse: false,
-        canReadDisposal: false,
-        canReadCouncil: false,
-        canRequestBorrow: true,
-        canReadBorrow: false,
-      }),
-    ).toEqual(['borrow'])
+    ).toEqual([])
   })
 })
 
 describe('ARCHIVE_DATA_HUB_RELATED_PATHS', () => {
-  it('whitelists archive-borrow viewer path for sidebar gate', () => {
-    expect(ARCHIVE_DATA_HUB_RELATED_PATHS).toContain('/app/archive-borrow')
-    expect(WAREHOUSE_MANAGEMENT_RELATED_PATHS).toContain('/app/archive-borrow')
+  it('keeps warehouse hub paths without library borrow routes', () => {
+    expect(ARCHIVE_DATA_HUB_RELATED_PATHS).toContain('/app/archive-warehouse')
+    expect(ARCHIVE_DATA_HUB_RELATED_PATHS).not.toContain('/app/archive-borrow')
+    expect(WAREHOUSE_MANAGEMENT_RELATED_PATHS).not.toContain(
+      '/app/archive-borrow',
+    )
   })
 })

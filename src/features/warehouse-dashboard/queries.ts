@@ -20,34 +20,38 @@ export const warehouseDashboardQueries = {
           staleTime: 60_000,
         }), 
 
-    // Thay đổi Query Key ở đây để tách biệt hoàn toàn bộ nhớ đệm
+    // 2. Danh sách kho vật lý & sức chứa
     rootLocations: () => ({
         queryKey: ['warehouse-dashboard', 'root-locations'], 
         queryFn: () => getWarehouseDashboardLocations(),
         staleTime: 30_000,
     }),
 
+    // 3. Hồ sơ chưa phân vị trí
     unplacedDossiers: () => ({
-        queryKey: ['warehouse-dashboard', 'placements', 'unplaced'], // Có thể tách biệt luôn key này nếu cần
-        queryFn: () => getUnplacedWarehouseDossiers({ limit: 5 }),
+        queryKey: ['warehouse-dashboard', 'placements', 'unplaced'],
+        queryFn: () => getWarehouseDashboardUnplaced(),
         staleTime: 15_000,
     }),
 
+    // 4. Thống kê số lượng mượn trả
     borrowRequests: () => ({
-        queryKey: ['archive-borrow', 'review-list'],
-        queryFn: () => getReviewArchiveBorrowRequests({ limit: 100 }),
+        queryKey: ['warehouse-dashboard', 'borrow-stats'],
+        queryFn: () => getWarehouseDashboardBorrowStats(),
         staleTime: 30_000,
     }),
 
+    // 5. Phân bổ hồ sơ theo phông lưu trữ
     activeFonds: () => ({
-        queryKey: ['archive-fond', 'active-with-count'],
+        queryKey: ['warehouse-dashboard', 'active-fonds'],
         queryFn: () => getActiveFondsWithCount(),
         staleTime: 30_000,
     }),
 
+    // 6. Danh mục hồ sơ chờ tiêu hủy
     disposalCandidates: () => ({
-        queryKey: ['archive-disposal', 'candidates'],
-        queryFn: () => getDisposalCandidates({ limit: 5 }),
+        queryKey: ['warehouse-dashboard', 'disposal-candidates'],
+        queryFn: () => getWarehouseDashboardDisposal(),
         staleTime: 30_000,
     }),
 }

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { CheckCircle2, Eye, Inbox, Loader2 } from 'lucide-react'
+import { CheckCircle2, Eye, Inbox, Loader2, XCircle } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -26,6 +26,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { ArchiveReviewDetailSheet } from '@/features/archive-review/components/ArchiveReviewDetailSheet'
 import { useArchiveSubmissionAccess } from '@/features/archive-submission/hooks/useArchiveSubmissionAccess'
 import {
@@ -212,7 +217,7 @@ export function ArchiveReviewPage({ embedded = false }: ArchiveReviewPageProps) 
                   <TableHead className="hidden sm:table-cell">
                     {t('columns.submittedAt')}
                   </TableHead>
-                  <TableHead className="w-[220px] text-right">
+                  <TableHead className="w-[120px] text-right">
                     {t('columns.actions')}
                   </TableHead>
                 </TableRow>
@@ -220,6 +225,15 @@ export function ArchiveReviewPage({ embedded = false }: ArchiveReviewPageProps) 
               <TableBody>
                 {items.map((submission) => {
                   const chips = getPreviewChips(submission)
+                  const isApprovingThis =
+                    approveMutation.isPending &&
+                    approveMutation.variables === submission.id
+                  const isRejectingThis =
+                    rejectMutation.isPending &&
+                    rejectMutation.variables?.id === submission.id
+                  const rowBusy =
+                    approveMutation.isPending || rejectMutation.isPending
+
                   return (
                     <TableRow
                       key={submission.id}
@@ -263,39 +277,71 @@ export function ArchiveReviewPage({ embedded = false }: ArchiveReviewPageProps) 
                         {formatDate(submission.submittedAt, 'PP', language)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1.5">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              setDetailSubmission(submission)
-                            }}
-                          >
-                            <Eye className="mr-1 size-3.5" />
-                            {t('actions.view')}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={
-                              approveMutation.isPending ||
-                              rejectMutation.isPending
-                            }
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              void handleApprove(submission)
-                            }}
-                          >
-                            {approveMutation.isPending &&
-                            approveMutation.variables === submission.id ? (
-                              <Loader2 className="mr-1 size-3.5 animate-spin" />
-                            ) : (
-                              <CheckCircle2 className="mr-1 size-3.5" />
-                            )}
-                            {t('actions.approve')}
-                          </Button>
+                        <div className="flex justify-end gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                size="icon-sm"
+                                variant="outline"
+                                aria-label={t('actions.view')}
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  setDetailSubmission(submission)
+                                }}
+                              >
+                                <Eye className="size-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t('actions.view')}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                size="icon-sm"
+                                disabled={rowBusy}
+                                aria-label={t('actions.approve')}
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  void handleApprove(submission)
+                                }}
+                              >
+                                {isApprovingThis ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="size-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {t('actions.approve')}
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                size="icon-sm"
+                                variant="destructive"
+                                disabled={rowBusy}
+                                aria-label={t('actions.reject')}
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  openReject(submission)
+                                }}
+                              >
+                                {isRejectingThis ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  <XCircle className="size-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {t('actions.reject')}
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                       </TableCell>
                     </TableRow>

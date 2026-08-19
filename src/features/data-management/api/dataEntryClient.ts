@@ -117,10 +117,12 @@ export async function getEditorDraftMetadataFromApi(
 export async function approveCheckerDossier(
   dossierId: string,
   metadata: DataDossierMetadataT | Record<string, unknown>,
-): Promise<void> {
-  await apiClient.post(`/api/v1/data-entry/checker/approve/${dossierId}`, {
-    metadata,
-  })
+): Promise<SaveDossierMetadataResultT> {
+  const response = await apiClient.post<SaveDossierMetadataResultT>(
+    `/api/v1/data-entry/checker/approve/${dossierId}`,
+    { metadata },
+  )
+  return response.data
 }
 
 /** PUT /api/v1/folders/dossiers/:dossierId/metadata/summary — save root summary only */
@@ -174,5 +176,5 @@ export async function persistDossierMetadataByRole(
     return
   }
 
-  await approveCheckerDossier(dossierId, payload)
+  return await approveCheckerDossier(dossierId, payload)
 }

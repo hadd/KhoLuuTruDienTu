@@ -23,6 +23,39 @@ export function getCheckerLevelForDossierStatus(
   return null
 }
 
+const POST_ENTRY_HIDE_EDITOR_ASSIGN_STATUSES = new Set<DataDossierStatus>([
+  'APPROVED',
+  'PENDING_ARCHIVE',
+  'ARCHIVE_REJECTED',
+  'ARCHIVED',
+  'WAITING_ISSUE_RESOLUTION',
+  'ERROR',
+])
+
+const HIDE_QC_ASSIGN_STATUSES = new Set<DataDossierStatus>([
+  'APPROVED',
+  'PENDING_ARCHIVE',
+  'ARCHIVE_REJECTED',
+  'ARCHIVED',
+])
+
+/** True when maker reassignment is no longer allowed (QC / approved / archive). */
+export function isDossierPastMakerAssignment(
+  dossierStatus: DataDossierStatus | undefined,
+): boolean {
+  if (!dossierStatus) return false
+  if (getCheckerLevelForDossierStatus(dossierStatus) != null) return true
+  return POST_ENTRY_HIDE_EDITOR_ASSIGN_STATUSES.has(dossierStatus)
+}
+
+/** True when QC reassignment is no longer allowed (đã duyệt / lưu kho). */
+export function isDossierPastQcAssignment(
+  dossierStatus: DataDossierStatus | undefined,
+): boolean {
+  if (!dossierStatus) return false
+  return HIDE_QC_ASSIGN_STATUSES.has(dossierStatus)
+}
+
 export function getCheckerLevelForRole(
   role: DataManagementRole,
   dossierStatus?: DataDossierStatus,
@@ -88,10 +121,12 @@ export function canManageDossierMetadata({
   role,
   dossierStatus,
   baseCanManage,
+  canDirectApprove = false,
 }: {
   role: DataManagementRole
   dossierStatus?: DataDossierStatus
   baseCanManage: boolean
+  canDirectApprove?: boolean
 }): boolean {
   if (!baseCanManage) return false
   if (isDossierMetadataLocked(dossierStatus)) return false
@@ -100,6 +135,7 @@ export function canManageDossierMetadata({
   const checkerLevel = getCheckerLevelForDossierStatus(dossierStatus)
   if (checkerLevel == null) return false
 
+  if (canDirectApprove) return true
   return canCheckerEditDossier(dossierStatus, checkerLevel)
 }
 
@@ -108,16 +144,19 @@ export function canEditRecordSummaryFields({
   dossierStatus,
   managementRole,
   assignedCheckerLevel,
+  canDirectApprove = false,
 }: {
   permissions: Array<string>
   dossierStatus?: DataDossierStatus
   managementRole: DataManagementRole
   assignedCheckerLevel?: number
+  canDirectApprove?: boolean
 }): boolean {
   if (!canEditDossierMetadataSummary(permissions)) return false
   if (isDossierMetadataLocked(dossierStatus)) return false
 
   if (managementRole === 'qc') {
+    if (canDirectApprove) return true
     if (assignedCheckerLevel == null) return false
     return canCheckerEditDossier(dossierStatus, assignedCheckerLevel)
   }

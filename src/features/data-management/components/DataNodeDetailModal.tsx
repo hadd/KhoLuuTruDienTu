@@ -1,6 +1,7 @@
+import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -8,12 +9,27 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { DossierStatusBadge } from '@/features/data-management/components/DossierStatusBadge'
-import { getActiveCheckerLevel } from '@/features/data-management/lib/checkerAssignmentHelpers'
+import { RecordWorkflowSection } from '@/features/data-management/components/RecordWorkflowSection'
+import {
+  isDossierWorkflowNode,
+  resolveDossierUpdateId,
+  resolveRecordDossierId,
+} from '@/features/data-management/lib/treeUtils'
+import { dossierWorkflowAssignmentsQueryOptions } from '@/features/data-management/queries'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
-import { cn } from '@/lib/utils/cn'
 import { formatDate } from '@/lib/utils/date'
 import { formatFileSize } from '@/lib/utils/format'
+
+function resolveDetailModalDossierId(node: DataTreeNodeT): string | null {
+  if (node.type === 'record') {
+    return resolveRecordDossierId(node)
+  }
+  if (isDossierWorkflowNode(node)) {
+    return resolveDossierUpdateId(node) ?? node.dossierId ?? null
+  }
+  return null
+}
 
 export function DataNodeDetailModal({
   node,
@@ -27,16 +43,25 @@ export function DataNodeDetailModal({
   const { t } = useTranslation('data-management')
   const lang = useCurrentLanguage()
 
+  const dossierId = useMemo(
+    () => (node ? resolveDetailModalDossierId(node) : null),
+    [node],
+  )
+
+  const workflowQuery = useQuery({
+    ...dossierWorkflowAssignmentsQueryOptions(dossierId ?? ''),
+    enabled: open && Boolean(dossierId?.trim()),
+  })
+
   if (!node) return null
 
-  const activeCheckerLevel = getActiveCheckerLevel(node.dossierStatus)
-  const checkerAssignments = node.checkerAssignments ?? []
+  const showWorkflow = Boolean(dossierId)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+        <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
+          <div className="flex items-center gap-2 pr-6">
             <DialogTitle className="truncate">{node.name}</DialogTitle>
             {node.dossierStatus ? (
               <DossierStatusBadge status={node.dossierStatus} />
@@ -44,71 +69,40 @@ export function DataNodeDetailModal({
           </div>
         </DialogHeader>
 
-        <dl className="grid gap-3 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-muted-foreground">{t('detail.type')}</dt>
-            <dd className="font-medium text-foreground">
-              {t(`nodeType.${node.type}` as const)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">{t('detail.size')}</dt>
-            <dd className="font-medium text-foreground">
-              {formatFileSize(node.sizeBytes)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">{t('detail.uploadedAt')}</dt>
-            <dd className="font-medium text-foreground">
-              {formatDate(node.uploadedAt, 'PPp', lang)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">{t('detail.uploadedBy')}</dt>
-            <dd className="font-medium text-foreground">{node.uploadedBy}</dd>
-          </div>
-          {node.type === 'record' && node.editor ? (
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
+          <dl className="grid gap-3 text-sm sm:grid-cols-2">
             <div>
-              <dt className="text-muted-foreground">{t('detail.editor')}</dt>
+              <dt className="text-muted-foreground">{t('detail.type')}</dt>
               <dd className="font-medium text-foreground">
-                {node.editor.name}
+                {t(`nodeType.${node.type}` as const)}
               </dd>
             </div>
-          ) : null}
-          {node.type === 'record' && checkerAssignments.length > 0
-            ? checkerAssignments.map((assignment) => {
-                const isActive = activeCheckerLevel === assignment.level
+            <div>
+              <dt className="text-muted-foreground">{t('detail.size')}</dt>
+              <dd className="font-medium text-foreground">
+                {formatFileSize(node.sizeBytes)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{t('detail.uploadedAt')}</dt>
+              <dd className="font-medium text-foreground">
+                {formatDate(node.uploadedAt, 'PPp', lang)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{t('detail.uploadedBy')}</dt>
+              <dd className="font-medium text-foreground">{node.uploadedBy}</dd>
+            </div>
+          </dl>
 
-                return (
-                  <div
-                    key={assignment.role}
-                    className={cn(
-                      'sm:col-span-2 rounded-md border border-border p-3',
-                      isActive && 'border-primary bg-primary/5',
-                    )}
-                  >
-                    <dt className="flex items-center gap-2 text-muted-foreground">
-                      <span>
-                        {t('detail.checkerLevel', { level: assignment.level })}
-                      </span>
-                      {isActive ? (
-                        <Badge variant="outline" className="text-xs">
-                          {t('detail.checkerActive')}
-                        </Badge>
-                      ) : null}
-                    </dt>
-                    <dd className="mt-2 flex flex-wrap gap-1.5">
-                      {assignment.assignees.map((assignee) => (
-                        <Badge key={assignee.id} variant="secondary">
-                          {assignee.name}
-                        </Badge>
-                      ))}
-                    </dd>
-                  </div>
-                )
-              })
-            : null}
-        </dl>
+          {showWorkflow ? (
+            <RecordWorkflowSection
+              data={workflowQuery.data}
+              isLoading={workflowQuery.isLoading}
+              isError={workflowQuery.isError}
+            />
+          ) : null}
+        </div>
       </DialogContent>
     </Dialog>
   )

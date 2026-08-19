@@ -33,6 +33,7 @@ import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifi
 import type { DossierFolderTarget } from '@/features/data-management/lib/treeUtils'
 import {
   mergeListingChildren,
+  updateDossierWorkflowStateInTree,
   updateProjectCodeInSubtree,
 } from '@/features/data-management/lib/treeUtils'
 import { validateNoMixedRecordFolder } from '@/features/data-management/lib/treeValidator'
@@ -47,6 +48,7 @@ import {
 import type {
   DataDossierStatus,
   DataFolderEntityType,
+  DataDossierWorkflowAssignmentsT,
   DataMetadataHistoryEntryT,
   DataMetadataHistoryRestoreResultT,
   DataRecordStatus,
@@ -637,10 +639,30 @@ export async function refreshDossierContent(
   const refreshedStatus = parseDossierStatus(
     recordContent.dossierMetadata?.trang_thai_ho_so,
   )
-  if (refreshedStatus) {
+  if (recordNode.dossierStatus) {
+    if (recordNode.dossierMetadata) {
+      recordNode.dossierMetadata.trang_thai_ho_so = recordNode.dossierStatus
+    }
+    if (recordNode.fullDossierMetadata) {
+      recordNode.fullDossierMetadata.trang_thai_ho_so = recordNode.dossierStatus
+    }
+  } else if (refreshedStatus) {
     recordNode.dossierStatus = refreshedStatus
   }
 
+  return cloneTree(dynamicTree)
+}
+
+/** Update dossier status/workflow state directly in client dynamicTree cache */
+export function updateDossierWorkflowStateInClientTree(
+  dossierId: string,
+  patch: {
+    dossierStatus?: DataDossierStatus
+    assignmentStatus?: string
+  },
+): DataTreeNodeT | null {
+  if (!dynamicTree) return null
+  dynamicTree = updateDossierWorkflowStateInTree(dynamicTree, dossierId, patch)
   return cloneTree(dynamicTree)
 }
 
@@ -1431,6 +1453,7 @@ function applyDossierFieldsToTreeNode(
     requiredQcCount?: number
     fondId?: string
     projectCode?: string
+    dossierStatus?: DataDossierStatus
   },
 ): DataTreeNodeT {
   if (node.dossierId !== dossierId && node.id !== dossierId) {
@@ -1446,6 +1469,9 @@ function applyDossierFieldsToTreeNode(
     ...(updates.fondId !== undefined ? { fondId: updates.fondId } : {}),
     ...(updates.projectCode !== undefined
       ? { projectCode: updates.projectCode }
+      : {}),
+    ...(updates.dossierStatus !== undefined
+      ? { dossierStatus: updates.dossierStatus }
       : {}),
   }
 }
@@ -1469,7 +1495,14 @@ export async function updateDossier({
   if (requiredQcCount !== undefined) body.requiredQcCount = requiredQcCount
   if (fondId !== undefined) body.fondId = fondId
   if (projectCode !== undefined) body.projectCode = projectCode
-  await apiClient.put(`/api/v1/dossiers/${id}`, body)
+  const response = await apiClient.put<{
+    record?: Record<string, unknown>
+  }>(`/api/v1/dossiers/${id}`, body)
+  const record = response.data?.record ?? response.data
+  const nextStatus =
+    record && typeof record === 'object'
+      ? parseDossierStatus((record as Record<string, unknown>).status)
+      : undefined
 
   if (!dynamicTree) {
     return undefined
@@ -1481,6 +1514,7 @@ export async function updateDossier({
       requiredQcCount,
       fondId,
       projectCode,
+      ...(nextStatus ? { dossierStatus: nextStatus } : {}),
     }),
   )
 
@@ -1552,6 +1586,16 @@ export async function fetchDossierMetadataHistory(
 ): Promise<Array<DataMetadataHistoryEntryT>> {
   const response = await apiClient.get<Array<DataMetadataHistoryEntryT>>(
     `/api/v1/dossiers/${dossierId}/metadata-history`,
+  )
+  return response.data
+}
+
+/** GET /api/v1/dossiers/:id/assignments — workflow assignment chain */
+export async function fetchDossierWorkflowAssignments(
+  dossierId: string,
+): Promise<DataDossierWorkflowAssignmentsT> {
+  const response = await apiClient.get<DataDossierWorkflowAssignmentsT>(
+    `/api/v1/dossiers/${encodeURIComponent(dossierId)}/assignments`,
   )
   return response.data
 }

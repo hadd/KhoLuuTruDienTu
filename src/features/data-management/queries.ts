@@ -20,6 +20,7 @@ import {
   assignDossierEditor,
   deleteDataNode,
   fetchDossierMetadataHistory,
+  fetchDossierWorkflowAssignments,
   getDataTree,
   loadNodeChildren,
   refreshDossierContent,
@@ -27,6 +28,7 @@ import {
   restoreDossierMetadataHistory,
   revokeFolderAssignments,
   updateDossier,
+  updateDossierWorkflowStateInClientTree,
   updateFolderProject,
   uploadDataDocuments,
   uploadDataFolder,
@@ -177,6 +179,17 @@ export const dossierMetadataHistoryQueryOptions = (dossierId: string) =>
   queryOptions({
     queryKey: dossierMetadataHistoryQueryKey(dossierId),
     queryFn: () => fetchDossierMetadataHistory(dossierId),
+    staleTime: 30_000,
+    enabled: Boolean(dossierId.trim()),
+  })
+
+export const dossierWorkflowAssignmentsQueryKey = (dossierId: string) =>
+  ['data-management', 'dossier-workflow-assignments', dossierId] as const
+
+export const dossierWorkflowAssignmentsQueryOptions = (dossierId: string) =>
+  queryOptions({
+    queryKey: dossierWorkflowAssignmentsQueryKey(dossierId),
+    queryFn: () => fetchDossierWorkflowAssignments(dossierId),
     staleTime: 30_000,
     enabled: Boolean(dossierId.trim()),
   })
@@ -530,7 +543,26 @@ export function useRejectCheckerDossierMutation(role: DataManagementRole) {
         notes,
         reject_fields: rejectFields,
       }),
-    onSuccess: async () => {
+    onSuccess: async (result, { dossierId }) => {
+      if (
+        result &&
+        typeof result === 'object' &&
+        'dossierStatus' in result &&
+        typeof result.dossierStatus === 'string'
+      ) {
+        const patch = {
+          dossierStatus: result.dossierStatus as DataTreeNodeT['dossierStatus'],
+          assignmentStatus: 'REJECTED',
+        }
+        updateDossierWorkflowStateInClientTree(dossierId, patch)
+        qc.setQueriesData<DataTreeNodeT>(
+          { queryKey: [role, 'data-management', 'tree'] },
+          (currentTree) => {
+            if (!currentTree) return currentTree
+            return updateDossierWorkflowStateInTree(currentTree, dossierId, patch)
+          },
+        )
+      }
       await qc.invalidateQueries({ queryKey: dataManagementTreeQueryKey(role) })
     },
   })
@@ -586,16 +618,18 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
             metadata,
           )
           if (
-            role === 'editor' &&
             !isDraft &&
             result &&
             typeof result === 'object' &&
-            'dossierStatus' in result
+            'dossierStatus' in result &&
+            typeof result.dossierStatus === 'string'
           ) {
-            nextTree = updateDossierWorkflowStateInTree(nextTree, dossierId, {
-              dossierStatus: result.dossierStatus,
+            const patch = {
+              dossierStatus: result.dossierStatus as DataTreeNodeT['dossierStatus'],
               assignmentStatus: 'COMPLETED',
-            })
+            }
+            updateDossierWorkflowStateInClientTree(dossierId, patch)
+            nextTree = updateDossierWorkflowStateInTree(nextTree, dossierId, patch)
           }
           return nextTree
         },

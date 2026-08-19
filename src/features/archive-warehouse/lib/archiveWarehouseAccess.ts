@@ -42,7 +42,8 @@ export const ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS = [
   },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
-/** Bất kỳ quyền nào mở được màn Kho dữ liệu (hub tabbed). */
+/** Bất kỳ quyền quản lý kho nào mở được màn Kho dữ liệu (hub tabbed).
+ *  Quyền module library (khai thác / mượn) thuộc menu Khai thác dữ liệu, không mở kho. */
 export const ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS = [
   ...ARCHIVE_WAREHOUSE_DOSSIER_SCREEN_REQUIREMENTS,
   {
@@ -77,14 +78,6 @@ export const ARCHIVE_DATA_HUB_SCREEN_REQUIREMENTS = [
     module: 'archive.disposal',
     permissionKey: 'archive.disposal.submit',
   },
-  {
-    module: 'library',
-    permissionKey: 'library.borrow.request',
-  },
-  {
-    module: 'library',
-    permissionKey: 'library.borrow.review',
-  },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
 /** Drill-down / URL cũ vẫn thuộc phạm vi hub (sidebar path gate). */
@@ -93,7 +86,6 @@ export const ARCHIVE_DATA_HUB_RELATED_PATHS = [
   '/app/archive-dossiers',
   '/app/archive-submission',
   '/app/archive-review',
-  '/app/archive-borrow',
   '/app/archive-config',
   '/app/archive-permission',
 ] as const

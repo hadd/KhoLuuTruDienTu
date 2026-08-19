@@ -1,4 +1,5 @@
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
+import { isDossierPastMakerAssignment, isDossierPastQcAssignment } from '@/features/data-management/lib/dossierStatusHelpers'
 import { DATA_TREE_ROOT_ID } from '@/features/data-management/lib/constants'
 import {
   findAllMetadataGroupIndicesForDocument,
@@ -285,10 +286,12 @@ export function canShowAssignProjectAction(node: DataTreeNodeT): boolean {
   return true
 }
 
-/** Context menu: "Phân biên tập" for dossier nodes with backend status. */
+/** Context menu: "Phân biên tập" — ẩn khi hồ sơ đã vào QC / đã duyệt. */
 export function canShowAssignEditorAction(node: DataTreeNodeT): boolean {
   if (node.type === 'document') return false
-  return isDossierWorkflowNode(node)
+  if (!isDossierWorkflowNode(node)) return false
+  if (isDossierPastMakerAssignment(node.dossierStatus)) return false
+  return true
 }
 
 /** Context menu: rename only dossier workflow nodes/records (persisted via API). */
@@ -323,7 +326,7 @@ export function canShowAssignGroupAction(node: DataTreeNodeT): boolean {
   return true
 }
 
-/** Context menu: "Phân công" for regular folders and admin dossier workflow nodes. */
+/** Context menu: "Phân công duyệt" — ẩn khi hồ sơ đã duyệt / lưu kho. */
 export function canShowAssignAction(
   node: DataTreeNodeT,
   options?: {
@@ -332,6 +335,7 @@ export function canShowAssignAction(
 ): boolean {
   if (node.type === 'document') return false
   if (!isDossierWorkflowNode(node)) return true
+  if (isDossierPastQcAssignment(node.dossierStatus)) return false
 
   // Admin: mọi dossier workflow node ở bất kỳ độ sâu (vd. raw/hoso5/hoso5.1/test.pdf)
   if (options?.role === 'admin') return true
@@ -1309,6 +1313,22 @@ export function updateDossierWorkflowStateInTree(
           ...(patch.dossierStatus ? { dossierStatus: patch.dossierStatus } : {}),
           ...(patch.assignmentStatus
             ? { assignmentStatus: patch.assignmentStatus }
+            : {}),
+          ...(node.dossierMetadata && patch.dossierStatus
+            ? {
+                dossierMetadata: {
+                  ...node.dossierMetadata,
+                  trang_thai_ho_so: patch.dossierStatus,
+                },
+              }
+            : {}),
+          ...(node.fullDossierMetadata && patch.dossierStatus
+            ? {
+                fullDossierMetadata: {
+                  ...node.fullDossierMetadata,
+                  trang_thai_ho_so: patch.dossierStatus,
+                },
+              }
             : {}),
         }
       : node

@@ -165,7 +165,7 @@ export function QcDashboardPage({
   )
 
   return (
-    <div className="flex flex-1 flex-col gap-6 overflow-y-auto">
+    <div className="flex min-w-0 w-full flex-1 flex-col gap-6 overflow-x-hidden">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
@@ -230,7 +230,7 @@ export function QcDashboardPage({
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-72">
+                <div className="h-72 min-w-0 overflow-hidden">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={stepByLevelChartData}>
                       <CartesianGrid
@@ -280,7 +280,7 @@ export function QcDashboardPage({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-72">
+              <div className="h-72 min-w-0 overflow-hidden">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={efficiencyChartData}>
                     <CartesianGrid

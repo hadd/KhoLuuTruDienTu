@@ -87,38 +87,40 @@ export function LibraryPageShell({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
+    <div className="-mx-6 flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background px-6">
       {!hideTabs ? (
-        <nav
-          className={cn(sectionBoxedTabsListClassName, 'shrink-0')}
-          aria-label="Library sections"
-        >
-          {tabs.map((tab) => {
-            const Icon = tab.icon
-            return (
-              <Link
-                key={tab.id}
-                to={tab.to}
-                search={tab.search}
-                className={cn(
-                  sectionBoxedTabsTriggerCompactClassName,
-                  'inline-flex items-center',
-                )}
-                data-state={tab.isActive ? 'active' : 'inactive'}
-                aria-current={tab.isActive ? 'page' : undefined}
-              >
-                <Icon className="size-4 shrink-0" aria-hidden />
-                {tab.label}
-              </Link>
-            )
-          })}
-        </nav>
+        <div className="flex shrink-0 items-end">
+          <nav
+            className={cn(sectionBoxedTabsListClassName, 'min-w-0 flex-1')}
+            aria-label="Library sections"
+          >
+            {tabs.map((tab) => {
+              const Icon = tab.icon
+              return (
+                <Link
+                  key={tab.id}
+                  to={tab.to}
+                  search={tab.search}
+                  className={cn(
+                    sectionBoxedTabsTriggerCompactClassName,
+                    'inline-flex items-center',
+                  )}
+                  data-state={tab.isActive ? 'active' : 'inactive'}
+                  aria-current={tab.isActive ? 'page' : undefined}
+                >
+                  <Icon className="size-3.5 shrink-0" aria-hidden />
+                  {tab.label}
+                </Link>
+              )
+            })}
+          </nav>
+        </div>
       ) : null}
 
       <div
         className={cn(
           'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
-          !hideTabs && 'pt-4',
+          !hideTabs && 'mt-1.5',
           contentClassName,
         )}
       >

@@ -19,15 +19,11 @@ export function AppHeader({ collapsed, onToggleSidebar }: AppHeaderProps) {
     <div className="flex h-14 shrink-0 border-b border-border bg-card">
       <div
         className={cn(
-          'flex h-full shrink-0 items-center border-r border-border transition-[width] duration-300 ease-in-out',
-          collapsed ? 'w-[4.5rem] justify-center px-2' : 'w-64 px-4',
+          'flex h-full shrink-0 items-center justify-center overflow-hidden border-r border-border transition-[width] duration-300 ease-in-out px-2',
+          collapsed ? 'w-[4.5rem]' : 'w-64',
         )}
       >
-        <AppLogo
-          className={
-            collapsed ? 'h-7 max-w-full sm:h-7' : 'h-9 max-w-full sm:h-9'
-          }
-        />
+        <AppLogo className="h-9 max-w-none shrink-0 sm:h-9" />
       </div>
 
       <header className="flex min-w-0 flex-1 items-center justify-between px-3 sm:px-4">

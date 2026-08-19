@@ -83,6 +83,7 @@ export function AppShell() {
       '/app/data',
       '/app/dossiers',
       '/app/ocr-control',
+      '/app/permissions/function-matrix',
     ]
     const isDigitizationSubPage = digitizationPaths.some(
       (route) =>
@@ -113,6 +114,7 @@ export function AppShell() {
         '/app/archive-borrow',
         '/app/archive-config',
         '/app/archive-permission',
+        '/app/library',
       ].some(
         (route) => pathname === route || pathname.startsWith(`${route}/`),
       ),
@@ -184,6 +186,18 @@ export function AppShell() {
     [permissions, catalog, primaryAppRole],
   )
 
+  const isDocumentEditorWindow = pathname.includes(
+    '/archive-warehouse/document-editor/',
+  )
+
+  if (isDocumentEditorWindow) {
+    return (
+      <div className="flex h-screen min-h-0 w-full flex-col overflow-hidden bg-background">
+        <Outlet />
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-screen min-h-0 w-full flex-col overflow-hidden bg-background">
       <AppHeader
@@ -193,11 +207,10 @@ export function AppShell() {
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
       <aside
         className={cn(
-          'flex h-full shrink-0 flex-col overflow-hidden border-r border-border bg-card transition-[width] duration-300 ease-in-out',
+          'flex h-full shrink-0 flex-col overflow-hidden border-r border-border bg-card transition-[width] duration-300 ease-in-out will-change-[width]',
           collapsed ? 'w-[4.5rem]' : 'w-64',
         )}
-      >
-        <nav className="flex w-64 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3 py-3">
+      >        <nav className="flex w-full min-w-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-3 py-3">
           {visibleNavTree.map((node) => (
             <AppNavNode
               key={node.type === 'link' ? node.id : node.id}
@@ -212,10 +225,10 @@ export function AppShell() {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div
             className={cn(
-              'flex min-h-0 flex-1 flex-col overflow-hidden',
+              'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
               lockContentScroll
                 ? 'p-0'
                 : useDossierDetailFlushBottom
@@ -227,12 +240,12 @@ export function AppShell() {
           >
             <div
               className={cn(
-                'relative flex min-h-0 min-w-0 flex-1 flex-col',
+                'relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden',
                 lockContentScroll
                   ? 'h-0 overflow-hidden'
                   : lockLibraryListScroll
                     ? 'overflow-hidden'
-                    : 'overflow-x-hidden overflow-y-auto',
+                    : 'overflow-y-auto',
               )}
             >
               <Outlet />

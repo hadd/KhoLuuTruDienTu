@@ -2,7 +2,7 @@
   "title": "Hội đồng xét hủy",
   "description": "Quản lý thành phần Hội đồng xét hủy cho từng danh mục đề nghị hủy.",
   "settings": {
-    "title": "Cấu hình quy trình xét hủy",
+    "title": "Áp dụng quy trình hủy theo TT06",
     "councilReviewEnabled": "Bật quy trình Hội đồng thẩm tra xét hủy",
     "councilReviewEnabledHint": "Khi bật: lập danh mục đề xuất hủy, thành lập Hội đồng và thực hiện quy trình xét hủy đầy đủ. Khi tắt: ẩn tab Đề xuất hủy và nút thêm vào danh mục; chỉ xem danh sách hết hạn và trùng lặp.",
     "readOnlyHint": "Bạn chỉ có quyền xem cấu hình.",

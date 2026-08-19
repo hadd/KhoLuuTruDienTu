@@ -2,7 +2,7 @@
   "title": "Disposal review council",
   "description": "Manage disposal review council members for each disposal proposal catalog.",
   "settings": {
-    "title": "Disposal workflow settings",
+    "title": "Apply disposal workflow according to TT06",
     "councilReviewEnabled": "Enable council review workflow",
     "councilReviewEnabledHint": "When enabled: use disposal catalogs, council review, and the full disposal workflow. When disabled: hide the disposal proposal sub-tab and add-to-catalog actions; the list view remains available.",
     "readOnlyHint": "You only have read access to settings.",
