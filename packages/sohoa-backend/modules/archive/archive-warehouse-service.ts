@@ -3013,11 +3013,7 @@ export const ArchiveWarehouseService = {
       input.fileId,
       Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
     )
-    await assertDisposalCandidateWarehouseUnlocked({
-      profile,
-      dossierId: dossier.id,
-      fileId: file.id,
-    })
+
 
     const rawPrefix = getRawStoragePrefix()
     const prefix = `${rawPrefix}/warehouse-reupload/${dossier.id}/`
@@ -3055,11 +3051,7 @@ export const ArchiveWarehouseService = {
       input.fileId,
       Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
     )
-    await assertDisposalCandidateWarehouseUnlocked({
-      profile,
-      dossierId: dossier.id,
-      fileId: file.id,
-    })
+
 
     const rawPrefix = getRawStoragePrefix()
     let nextFilePath = file.filePath
@@ -3275,11 +3267,7 @@ export const ArchiveWarehouseService = {
       input.targetDossierId,
       Permission.ARCHIVE_WAREHOUSE_EDIT,
     )
-    await assertDisposalCandidateWarehouseUnlocked({
-      profile,
-      dossierId: source.id,
-      fileId: file.id,
-    })
+
 
     const [{ value: sourceCount }] = await db
       .select({ value: count() })
@@ -3388,11 +3376,7 @@ export const ArchiveWarehouseService = {
     }
 
     for (const file of selectedFiles) {
-      await assertDisposalCandidateWarehouseUnlocked({
-        profile,
-        dossierId: source.id,
-        fileId: file.id,
-      })
+
     }
 
     const movedFiles = []
