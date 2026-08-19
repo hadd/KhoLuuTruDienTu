@@ -7,10 +7,9 @@ import { isDossierMetadata } from "../../libs/metadata-types.ts";
 import { activeDossierWhere } from "./active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
+import { resolveFondIdFromMetadataValue } from "../archive/archive-metadata-sync.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-import { resolveFondIdFromMetadataValue } from "../archive/archive-metadata-sync.ts";
 
 export async function syncDossierFondIdFromMetadata(
     dossierId: string,
@@ -29,10 +28,14 @@ export async function syncDossierFondIdFromMetadata(
 
     const fondId = await resolveFondIdFromMetadataValue(fondRaw, tx);
     if (!fondId) {
+        console.warn(
+            `[syncDossierFondIdFromMetadata] No fond found for value "${fondRaw}" — skipping fondId sync for dossier ${dossierId}`,
+        );
         return null;
     }
 
     const executor = tx ?? db;
+
     await executor
         .update(dossiers)
         .set({
@@ -43,3 +46,4 @@ export async function syncDossierFondIdFromMetadata(
 
     return fondId;
 }
+

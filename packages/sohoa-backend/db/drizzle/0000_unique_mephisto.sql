@@ -188,6 +188,7 @@ CREATE TABLE "sohoa_app"."fonds" (
 	"deleted_at" timestamp with time zone
 );
 --> statement-breakpoint
+CREATE TYPE "sohoa_app"."group_member_role" AS ENUM('leader', 'editor', 'qc1', 'qc2', 'qc3', 'qc4', 'qc5');--> statement-breakpoint
 CREATE TABLE "sohoa_app"."group_members" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"group_id" text NOT NULL,
