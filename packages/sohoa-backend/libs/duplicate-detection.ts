@@ -38,32 +38,19 @@ export function detectDuplicateMatches(
     enabledRules: Set<DuplicateDetectionRuleKeyType>,
     dossierCodeFieldKey?: string | null,
 ): Map<string, DuplicateMatch> {
-    const matches = new Map<string, DuplicateMatch>();
+    // Track group membership: groupId → Set of entityKeys
     const groupMembers = new Map<string, Set<string>>();
+    // Track criterion per group: groupId → criterion
+    const groupCriterion = new Map<string, DuplicateDetectionRuleKeyType>();
 
     function addToGroup(groupId: string, entityKey: string, criterion: DuplicateDetectionRuleKeyType) {
         let members = groupMembers.get(groupId);
         if (!members) {
             members = new Set();
             groupMembers.set(groupId, members);
+            groupCriterion.set(groupId, criterion);
         }
         members.add(entityKey);
-
-        const existing = matches.get(entityKey);
-        if (existing) {
-            if (!existing.duplicateCriteria.includes(criterion)) {
-                existing.duplicateCriteria.push(criterion);
-            }
-            if (!(groupId.startsWith("metadata-sim:") && existing.duplicateGroupId.startsWith("metadata-sim:"))) {
-                existing.duplicateGroupId = groupId;
-            }
-        } else {
-            matches.set(entityKey, {
-                duplicateGroupId: groupId,
-                duplicateCriteria: [criterion],
-                duplicatePeerCount: 0,
-            });
-        }
     }
 
     for (const record of records) {
@@ -71,32 +58,33 @@ export function detectDuplicateMatches(
             ? `file:${record.fileId}`
             : `dossier:${record.dossierId}`;
 
-        if (enabledRules.has("DOSSIER_NAME") && record.dossierName.trim()) {
-            const key = `${normalizeComparable(record.dossierName)}|fond:${record.fondId || ""}`;
-            addToGroup(buildGroupId("name", key), entityKey, "DOSSIER_NAME");
+        // Dossier-only criteria
+        if (!record.fileId) {
+            if (enabledRules.has("DOSSIER_NAME") && record.dossierName.trim()) {
+                const key = `${normalizeComparable(record.dossierName)}|fond:${record.fondId || ""}`;
+                addToGroup(buildGroupId("name", key), entityKey, "DOSSIER_NAME");
+            }
+
+            if (enabledRules.has("DOSSIER_CODE") && record.dossierCode?.trim()) {
+                const key = normalizeComparable(record.dossierCode);
+                addToGroup(buildGroupId("code", key), entityKey, "DOSSIER_CODE");
+            }
         }
 
-        if (enabledRules.has("DOSSIER_CODE") && record.dossierCode?.trim()) {
-            const key = normalizeComparable(record.dossierCode);
-            addToGroup(buildGroupId("code", key), entityKey, "DOSSIER_CODE");
-        }
-
-        if (enabledRules.has("FILE_NAME_STRICT") && record.fileId && record.fileName?.trim()) {
-            const fName = normalizeComparable(record.fileName);
-            if (fName) {
-                addToGroup(buildGroupId("file-strict", `${fName}|dossierId:${record.dossierId}`), entityKey, "FILE_NAME_STRICT");
-                if (record.dossierCode?.trim()) {
-                    addToGroup(buildGroupId("file-strict", `${fName}|code:${normalizeComparable(record.dossierCode)}`), entityKey, "FILE_NAME_STRICT");
-                }
-                if (record.dossierName.trim()) {
-                    addToGroup(buildGroupId("file-strict", `${fName}|name:${normalizeComparable(record.dossierName)}|fond:${record.fondId || ""}`), entityKey, "FILE_NAME_STRICT");
+        // File-only criteria
+        if (record.fileId) {
+            if (enabledRules.has("FILE_NAME_STRICT") && record.fileName?.trim()) {
+                const fName = normalizeComparable(record.fileName);
+                if (fName) {
+                    // Match files with same name across DIFFERENT dossiers in same fond
+                    addToGroup(buildGroupId("file-strict", `${fName}|fond:${record.fondId || ""}`), entityKey, "FILE_NAME_STRICT");
                 }
             }
         }
     }
 
     if (enabledRules.has("DOCUMENT_METADATA_SIMILARITY")) {
-        const tokenizedRecords = new Map<string, Set<string>>();
+        const tokenizedRecords = new Map<string, { tokens: Set<string>; dossierId: string }>();
         const invertedIndex = new Map<string, Set<string>>();
 
         for (const record of records) {
@@ -104,7 +92,7 @@ export function detectDuplicateMatches(
                 const entityKey = record.fileId ? `file:${record.fileId}` : `dossier:${record.dossierId}`;
                 const tokens = getTokens(normalizeComparable(record.fullMetadataText));
                 if (tokens.size > 0) {
-                    tokenizedRecords.set(entityKey, tokens);
+                    tokenizedRecords.set(entityKey, { tokens, dossierId: record.dossierId });
                     for (const token of tokens) {
                         let list = invertedIndex.get(token);
                         if (!list) {
@@ -119,14 +107,18 @@ export function detectDuplicateMatches(
 
         const processedPairs = new Set<string>();
 
-        for (const [entityKey, tokens] of tokenizedRecords.entries()) {
+        for (const [entityKey, data] of tokenizedRecords.entries()) {
             const candidateCounts = new Map<string, number>();
-            for (const token of tokens) {
+            for (const token of data.tokens) {
                 const matchedEntities = invertedIndex.get(token);
                 if (matchedEntities) {
                     for (const match of matchedEntities) {
                         if (match !== entityKey) {
-                            candidateCounts.set(match, (candidateCounts.get(match) || 0) + 1);
+                            const matchData = tokenizedRecords.get(match);
+                            // Only compare entities from DIFFERENT dossiers
+                            if (matchData && matchData.dossierId !== data.dossierId) {
+                                candidateCounts.set(match, (candidateCounts.get(match) || 0) + 1);
+                            }
                         }
                     }
                 }
@@ -137,41 +129,47 @@ export function detectDuplicateMatches(
                 if (processedPairs.has(pairKey)) continue;
                 processedPairs.add(pairKey);
 
-                const candidateTokens = tokenizedRecords.get(candidateKey)!;
-                const dice = (2 * intersectionSize) / (tokens.size + candidateTokens.size);
+                const candidateData = tokenizedRecords.get(candidateKey)!;
+                const dice = (2 * intersectionSize) / (data.tokens.size + candidateData.tokens.size);
                 
                 if (dice >= 0.85) {
-                    let groupId = buildGroupId("metadata-sim", pairKey);
-                    const existingA = matches.get(entityKey);
-                    const existingB = matches.get(candidateKey);
-                    
-                    if (existingA?.duplicateGroupId.startsWith("metadata-sim:")) {
-                        groupId = existingA.duplicateGroupId;
-                    } else if (existingB?.duplicateGroupId.startsWith("metadata-sim:")) {
-                        groupId = existingB.duplicateGroupId;
-                    }
-
-                    addToGroup(groupId, entityKey, "DOCUMENT_METADATA_SIMILARITY");
-                    addToGroup(groupId, candidateKey, "DOCUMENT_METADATA_SIMILARITY");
+                    addToGroup(buildGroupId("metadata-sim", pairKey), entityKey, "DOCUMENT_METADATA_SIMILARITY");
+                    addToGroup(buildGroupId("metadata-sim", pairKey), candidateKey, "DOCUMENT_METADATA_SIMILARITY");
                 }
             }
         }
     }
 
-    for (const [groupId, members] of groupMembers) {
-        if (members.size <= 1) {
-            for (const entityKey of members) {
-                const match = matches.get(entityKey);
-                if (match && match.duplicateGroupId === groupId) {
-                    matches.delete(entityKey);
-                }
-            }
-            continue;
-        }
+    // Build final matches from ONLY groups that have >= 2 members.
+    // Criteria are derived per-group AFTER filtering, so singleton groups
+    // never contribute criteria to the final output.
+    const matches = new Map<string, DuplicateMatch>();
+
+    for (const [groupId, members] of groupMembers.entries()) {
+        if (members.size < 2) continue; // Singleton groups: skip entirely
+
+        const criterion = groupCriterion.get(groupId)!;
+
         for (const entityKey of members) {
-            const match = matches.get(entityKey);
-            if (match && match.duplicateGroupId === groupId) {
-                match.duplicatePeerCount = members.size - 1;
+            const existing = matches.get(entityKey);
+            if (existing) {
+                if (!existing.duplicateCriteria.includes(criterion)) {
+                    existing.duplicateCriteria.push(criterion);
+                }
+                existing.duplicatePeerCount = Math.max(existing.duplicatePeerCount, members.size - 1);
+                // Keep the most specific group as the primary groupId
+                if (
+                    existing.duplicateGroupId.startsWith("metadata-sim:") &&
+                    !groupId.startsWith("metadata-sim:")
+                ) {
+                    existing.duplicateGroupId = groupId;
+                }
+            } else {
+                matches.set(entityKey, {
+                    duplicateGroupId: groupId,
+                    duplicateCriteria: [criterion],
+                    duplicatePeerCount: members.size - 1,
+                });
             }
         }
     }

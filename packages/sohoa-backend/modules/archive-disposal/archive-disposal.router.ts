@@ -1997,34 +1997,36 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
             },
 
         )
-
         .post(
-
             "/catalogs/:catalogId/execute-destroy",
-
             async ({ profile, params }) => {
-
                 checkDestroy(profile);
-
                 return await DisposalCouncilService.executeDirectDestroy(
-
                     profile,
-
                     params.catalogId,
-
                 );
-
             },
-
             {
-
                 params: t.Object({ catalogId: t.String({ format: "uuid" }) }),
-
                 detail: { tags, summary: "Thực hiện hủy trực tiếp danh mục" },
-
             },
-
+        )
+        .post(
+            "/candidates/execute-destroy",
+            async ({ profile, body }) => {
+                checkDestroy(profile);
+                await ArchiveDisposalService.executeDirectDestroyCandidates(
+                    profile,
+                    body.candidateKeys,
+                );
+                return { success: true };
+            },
+            {
+                body: t.Object({
+                    candidateKeys: t.Array(t.String()),
+                }),
+                detail: { tags, summary: "Thực hiện hủy trực tiếp danh sách ứng viên (bỏ qua TT06)" },
+            },
         );
-
 }
 

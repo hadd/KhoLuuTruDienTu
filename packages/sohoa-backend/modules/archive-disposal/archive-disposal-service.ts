@@ -392,7 +392,6 @@ function matchesDateRange(
     if (to && target.getTime() > to.getTime()) return false;
     return true;
 }
-
 function generateCatalogCode(): string {
     const now = new Date();
     const stamp = now.toISOString().slice(0, 10).replace(/-/g, "");
@@ -400,7 +399,58 @@ function generateCatalogCode(): string {
     return `DLT-${stamp}-${suffix}`;
 }
 
+async function executeDirectDestroyCandidates(
+    profile: UserWithRoles,
+    candidateKeys: string[],
+) {
+    if (!candidateKeys || candidateKeys.length === 0) return;
+
+    const dossierIds = new Set<string>();
+    const fileIds = new Set<string>();
+
+    for (const key of candidateKeys) {
+        if (key.startsWith("dossier:")) {
+            dossierIds.add(key.replace("dossier:", ""));
+        } else if (key.startsWith("file:")) {
+            fileIds.add(key.replace("file:", ""));
+        }
+    }
+
+    const now = new Date();
+
+    await db.transaction(async (tx) => {
+        if (dossierIds.size > 0) {
+            await tx.update(dossiers)
+                .set({ 
+                    archiveStorageState: ArchiveStorageState.DESTROYED,
+                    updatedAt: now,
+                })
+                .where(inArray(dossiers.id, Array.from(dossierIds)));
+        }
+
+        if (fileIds.size > 0) {
+            await tx.update(dossierFiles)
+                .set({
+                    deletedAt: now,
+                    updatedAt: now,
+                })
+                .where(inArray(dossierFiles.id, Array.from(fileIds)));
+        }
+    });
+
+    logActivity({
+        userId: profile.id,
+        module: "archive-disposal",
+        eventType: "disposal.candidates.destroyed",
+        summary: `Thực hiện hủy trực tiếp ${dossierIds.size} hồ sơ và ${fileIds.size} tài liệu`,
+        entityType: "system",
+        entityId: "archive-disposal",
+        entityLabel: "Trực tiếp",
+    });
+}
+
 export const ArchiveDisposalService = {
+    executeDirectDestroyCandidates,
     async listCandidates(profile: UserWithRoles, query: ListDisposalCandidatesQuery) {
         const { scope, fondScope } = await resolveWarehouseScope(profile);
         if (scope.mode === "none") {
@@ -480,7 +530,9 @@ export const ArchiveDisposalService = {
                         dossierCodeFieldKey,
                     ),
                     fileName: file.fileName,
-                    fullMetadataText,
+                    // Files don't have their own metadata - don't pass fullMetadataText
+                    // to avoid false positives from all files in same dossier matching each other
+                    fullMetadataText: null,
                 });
             }
         }
