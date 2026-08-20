@@ -37,15 +37,14 @@ import {
   useAssignAllArchiveMetadataView,
   useSaveArchiveMetadataViewMatrix,
 } from '@/features/archive-permission/queries'
-import { cn } from '@/lib/utils/cn'
-import { translateError } from '@/lib/utils/translate-error'
+import { createRandomUuid } from '@/lib/utils/id'
 
 function principalKey(p: ArchiveAclPrincipalT) {
   return `${p.kind}:${p.id}`
 }
 
 function newSlotCode(): string {
-  return `col_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`
+  return `col_${createRandomUuid().replace(/-/g, '').slice(0, 12)}`
 }
 
 function PrincipalPickerDialog({
