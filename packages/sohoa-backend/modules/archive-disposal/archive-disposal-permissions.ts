@@ -49,15 +49,11 @@ export const ARCHIVE_DISPOSAL_COUNCIL_CHAIR_DECIDE_PERMISSIONS = [
     Permission.ARCHIVE_DISPOSAL_COUNCIL_CHAIR_DECIDE,
 ] as const;
 
-export const ARCHIVE_DISPOSAL_SETTINGS_READ_PERMISSIONS = [
-    Permission.ARCHIVE_DISPOSAL_SETTINGS_READ,
+export const ARCHIVE_DISPOSAL_SETTINGS_MANAGE_PERMISSIONS = [
+    Permission.ARCHIVE_DISPOSAL_SETTINGS_MANAGE,
     Permission.ARCHIVE_DISPOSAL_READ,
     Permission.ARCHIVE_DISPOSAL_COUNCIL_READ,
     Permission.ARCHIVE_WAREHOUSE_READ,
-] as const;
-
-export const ARCHIVE_DISPOSAL_SETTINGS_UPDATE_PERMISSIONS = [
-    Permission.ARCHIVE_DISPOSAL_SETTINGS_UPDATE,
 ] as const;
 
 export const ARCHIVE_DISPOSAL_DESTROY_PERMISSIONS = [
@@ -117,12 +113,8 @@ export function hasArchiveDisposalCouncilChairDecidePermission(profile: UserWith
     return hasAnyPermission(profile, ARCHIVE_DISPOSAL_COUNCIL_CHAIR_DECIDE_PERMISSIONS);
 }
 
-export function hasArchiveDisposalSettingsReadPermission(profile: UserWithRoles): boolean {
-    return hasAnyPermission(profile, ARCHIVE_DISPOSAL_SETTINGS_READ_PERMISSIONS);
-}
-
-export function hasArchiveDisposalSettingsUpdatePermission(profile: UserWithRoles): boolean {
-    return hasAnyPermission(profile, ARCHIVE_DISPOSAL_SETTINGS_UPDATE_PERMISSIONS);
+export function hasArchiveDisposalSettingsManagePermission(profile: UserWithRoles): boolean {
+    return hasAnyPermission(profile, ARCHIVE_DISPOSAL_SETTINGS_MANAGE_PERMISSIONS);
 }
 
 export function hasArchiveDisposalDestroyPermission(profile: UserWithRoles): boolean {
@@ -196,15 +188,9 @@ export function assertArchiveDisposalCouncilChairDecide(profile: UserWithRoles):
     }
 }
 
-export function assertArchiveDisposalSettingsRead(profile: UserWithRoles): void {
-    if (!hasArchiveDisposalSettingsReadPermission(profile)) {
-        throw new Error("archive.disposal.settings.read required");
-    }
-}
-
-export function assertArchiveDisposalSettingsUpdate(profile: UserWithRoles): void {
-    if (!hasArchiveDisposalSettingsUpdatePermission(profile)) {
-        throw new Error("archive.disposal.settings.update required");
+export function assertManageDisposalSettings(profile: UserWithRoles): void {
+    if (!hasArchiveDisposalSettingsManagePermission(profile)) {
+        throw new Error("archive.disposal.settings.manage required");
     }
 }
 

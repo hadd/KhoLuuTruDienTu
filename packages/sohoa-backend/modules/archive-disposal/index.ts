@@ -10,7 +10,6 @@ export {
     hasArchiveDisposalCouncilReadPermission,
     hasArchiveDisposalCouncilCreatePermission,
     hasArchiveDisposalCouncilUpdatePermission,
-    hasArchiveDisposalSettingsReadPermission,
-    hasArchiveDisposalSettingsUpdatePermission,
+    hasArchiveDisposalSettingsManagePermission,
     hasArchiveDisposalDestroyPermission,
 } from "./archive-disposal-permissions.ts";
