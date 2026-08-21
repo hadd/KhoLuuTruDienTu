@@ -742,11 +742,13 @@ export const ScanIntakeService = {
             const { pdfKey: sourceKey, pdfName, draftFolderPath, rawKey } = item;
 
             try {
-                await copyToRawPrefix(sourceKey, rawKey);
+                const runMode = input.runMode ?? "manual";
+                await copyToRawPrefix(sourceKey, rawKey, runMode);
                 // raw/ documents are never scoped to a project.
                 const registerResult = await DossierService.createDocumentFromStorage({
                     key: rawKey,
                     projectCode: input.projectCode ?? null,
+                    runMode,
                 });
                 await deleteStorageObject(sourceKey);
                 results.push({
