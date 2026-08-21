@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { permissionConfigQueryOptions } from '@/features/data-config/queries'
+import { useGroupAccess } from '@/features/group/hooks/useGroupAccess'
 import { buildSlotAssignmentsFromGroup } from '@/features/group/lib/mapAdminGroup'
 import { getLevelGridClass } from '@/features/group/lib/qcLevels'
 import {
@@ -263,8 +264,10 @@ export function GroupPermissionSlotsView({
     )
   }
 
+  const { canManageGroupMembers } = useGroupAccess()
   const isBusy = isHandling || isSaving || isAssigningConfig
-  const canManageMembers = isEditing || Boolean(metadataPermissionConfigId)
+  const canManageMembers =
+    (isEditing || Boolean(metadataPermissionConfigId)) && canManageGroupMembers
 
   return (
     <>
@@ -307,23 +310,25 @@ export function GroupPermissionSlotsView({
                     {slot.slotName ||
                       t('card.approverLevel', { level: index + 1 })}
                   </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 shrink-0 px-2 text-xs"
-                    disabled={isBusy || !canManageMembers}
-                    onClick={() => {
-                      setAddTargetSlotCode(slot.slotCode)
-                      setAddMemberOpen(true)
-                    }}
-                    aria-label={t('card.actions.addMember')}
-                  >
-                    {isBusy ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <UserPlus className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
+                  {canManageMembers ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 shrink-0 px-2 text-xs"
+                      disabled={isBusy}
+                      onClick={() => {
+                        setAddTargetSlotCode(slot.slotCode)
+                        setAddMemberOpen(true)
+                      }}
+                      aria-label={t('card.actions.addMember')}
+                    >
+                      {isBusy ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <UserPlus className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  ) : null}
                 </CardHeader>
                 <CardContent className="min-h-[56px] px-3 py-3 pt-3">
                   {members.length > 0 ? (

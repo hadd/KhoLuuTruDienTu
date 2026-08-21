@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { CreateGroupDialog } from '@/features/group/components/CreateGroupDialog'
 import { GroupTable } from '@/features/group/components/GroupTable'
+import { useGroupAccess } from '@/features/group/hooks/useGroupAccess'
 import {
   adminGroupsQueryOptions,
   DEFAULT_ADMIN_GROUPS_LIMIT,
@@ -24,6 +25,7 @@ export function GroupManagementPage() {
   const search = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
+  const { canCreateGroup } = useGroupAccess()
 
   const q = search.q ?? ''
   const page = search.page ?? 1
@@ -105,14 +107,16 @@ export function GroupManagementPage() {
           placeholder={t('search')}
           aria-label={t('search')}
         />
-        <Button
-          type="button"
-          onClick={() => setCreateGroupOpen(true)}
-          className="shrink-0 self-end sm:self-auto"
-        >
-          <Plus className="size-4" />
-          {t('createGroup')}
-        </Button>
+        {canCreateGroup ? (
+          <Button
+            type="button"
+            onClick={() => setCreateGroupOpen(true)}
+            className="shrink-0 self-end sm:self-auto"
+          >
+            <Plus className="size-4" />
+            {t('createGroup')}
+          </Button>
+        ) : null}
       </div>
 
       <Card

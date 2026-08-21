@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { permissionTemplateOptionsQueryOptions } from '@/features/data-config/queries'
+import { useGroupAccess } from '@/features/group/hooks/useGroupAccess'
 import {
   metadataPermissionConfigsQueryOptions,
   useAssignGroupMetadataPermissionConfig,
@@ -31,6 +32,7 @@ export function GroupConfigTemplateSelect({
   serverMetadataPermissionConfigId,
 }: GroupConfigTemplateSelectProps) {
   const { t } = useTranslation('group')
+  const { canUpdateGroup } = useGroupAccess()
   const {
     useMetadataPermissionConfig,
     metadataTemplateId,
@@ -184,6 +186,7 @@ export function GroupConfigTemplateSelect({
             useMetadataPermissionConfig
               ? 'border-primary bg-muted'
               : 'border-border hover:bg-accent',
+            !canUpdateGroup && 'pointer-events-none opacity-60',
           )}
         >
           <input
@@ -191,7 +194,9 @@ export function GroupConfigTemplateSelect({
             type="radio"
             name={`config-template-mode-${groupId}`}
             checked={useMetadataPermissionConfig}
+            disabled={!canUpdateGroup}
             onClick={() => {
+              if (!canUpdateGroup) return
               const nextEnabled = !useMetadataPermissionConfig
               groupConfigStore.setGroupMetadataPermissionMode(
                 groupId,
@@ -224,7 +229,9 @@ export function GroupConfigTemplateSelect({
               value={selectedMetadataTemplateId}
               onValueChange={handleSelectMetadataTemplate}
               disabled={
-                isLoadingTemplateOptions || templateOptions.length === 0
+                !canUpdateGroup ||
+                isLoadingTemplateOptions ||
+                templateOptions.length === 0
               }
             >
               <SelectTrigger className="h-8 w-full">
@@ -252,6 +259,7 @@ export function GroupConfigTemplateSelect({
               value={selectedMetadataConfigId}
               onValueChange={handleAssignMetadataPermissionConfig}
               disabled={
+                !canUpdateGroup ||
                 isLoadingMetadataConfigs ||
                 !selectedMetadataTemplateId ||
                 filteredConfigs.length === 0
