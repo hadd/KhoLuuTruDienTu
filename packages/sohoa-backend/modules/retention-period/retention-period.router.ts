@@ -24,7 +24,7 @@ export function createRetentionPeriodRouter(basePath: string = "/retention-perio
     app.get(
         "/",
         async ({ urlQuery, profile }) => {
-            authHelper.checkPermission(profile, Permission.RETENTION_PERIODS_READ);
+            // authHelper.checkPermission(profile, Permission.RETENTION_PERIODS_READ);
             return await service.list(urlQuery);
         },
         docs.list,
