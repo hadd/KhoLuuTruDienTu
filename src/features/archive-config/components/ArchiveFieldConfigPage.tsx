@@ -47,14 +47,15 @@ export function ArchiveFieldConfigPage({
 }: ArchiveFieldConfigPageProps) {
   const { t } = useTranslation('archive-config')
   const { canManageArchiveConfig } = useArchiveConfigAccess()
-  const { canReadDisposalSettings } = useDisposalCouncilAccess()
+  const { canFetchDisposalSettings, canViewDisposalSettingsUI } = useDisposalCouncilAccess()
   const { data: disposalSettings, isPending: isDisposalSettingsPending } = useQuery({
     ...disposalSettingsQueryOptions(),
-    enabled: canReadDisposalSettings,
+    enabled: canFetchDisposalSettings,
   })
-  const { data: configs = [], isPending, isError } = useQuery(
-    archiveFieldConfigsQueryOptions(),
-  )
+  const { data: configs = [], isPending, isError } = useQuery({
+    ...archiveFieldConfigsQueryOptions(),
+    enabled: canManageArchiveConfig,
+  })
   const createMutation = useCreateArchiveFieldConfigMutation()
   const updateMutation = useUpdateArchiveFieldConfigMutation()
 
@@ -187,7 +188,7 @@ export function ArchiveFieldConfigPage({
     setDeleteDialogOpen(true)
   }
 
-  if (!canManageArchiveConfig) {
+  if (!canManageArchiveConfig && !canViewDisposalSettingsUI) {
     return (
       <div className="rounded-lg border bg-card p-8 text-center text-sm text-muted-foreground">
         {t('errors.noPermission')}
@@ -195,20 +196,22 @@ export function ArchiveFieldConfigPage({
     )
   }
 
-  if (isPending) {
-    return (
-      <div className="flex flex-1 items-center justify-center py-16">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
+  if (canManageArchiveConfig) {
+    if (isPending) {
+      return (
+        <div className="flex flex-1 items-center justify-center py-16">
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
+      )
+    }
 
-  if (isError) {
-    return (
-      <div className="rounded-lg border border-destructive bg-card p-8 text-center text-sm text-destructive">
-        {t('errors.loadFailed')}
-      </div>
-    )
+    if (isError) {
+      return (
+        <div className="rounded-lg border border-destructive bg-card p-8 text-center text-sm text-destructive">
+          {t('errors.loadFailed')}
+        </div>
+      )
+    }
   }
 
   return (
@@ -220,7 +223,8 @@ export function ArchiveFieldConfigPage({
         </div>
       ) : null}
 
-      <section className="space-y-3">
+      {canManageArchiveConfig ? (
+        <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-medium">{t('sections.fields')}</h2>
           <Button
@@ -345,8 +349,9 @@ export function ArchiveFieldConfigPage({
           </Table>
         </div>
       </section>
+      ) : null}
 
-      {canReadDisposalSettings ? (
+      {canViewDisposalSettingsUI ? (
         <section className="flex flex-col gap-3">
           <div className="space-y-0.5">
             <h2 className="text-base font-semibold">{t('disposalConfig.title')}</h2>

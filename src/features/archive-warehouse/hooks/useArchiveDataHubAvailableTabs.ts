@@ -18,10 +18,10 @@ export function useArchiveDataHubAvailableTabs(): Array<ArchiveDataHubTabT> {
   const { canReadDisposal } = useArchiveDisposalAccess()
   const { canSubmitArchive, canReviewArchive } = useArchiveSubmissionAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
-  const { canReadCouncil, canReadDisposalSettings } = useDisposalCouncilAccess()
+  const { canReadCouncil, canFetchDisposalSettings, canManageDisposalSettings } = useDisposalCouncilAccess()
   const { data: disposalSettings } = useQuery({
     ...disposalSettingsQueryOptions(),
-    enabled: canReadDisposalSettings,
+    enabled: canFetchDisposalSettings,
   })
 
   const primaryRole = getPrimaryAppRole(getUserRoles())
@@ -30,9 +30,9 @@ export function useArchiveDataHubAvailableTabs(): Array<ArchiveDataHubTabT> {
     primaryRole === 'admin' ||
     primaryRole === 'manager'
 
-  const councilReviewEnabled = canReadDisposalSettings
+  const councilReviewEnabled = canFetchDisposalSettings
     ? (disposalSettings?.councilReviewEnabled ?? true)
-    : true
+    : false
 
   return useMemo(
     () =>
@@ -43,7 +43,7 @@ export function useArchiveDataHubAvailableTabs(): Array<ArchiveDataHubTabT> {
         canReadCouncil,
         canSubmitArchive,
         canReviewArchive,
-        canManageArchiveConfig,
+        canManageArchiveConfig: canManageArchiveConfig || canManageDisposalSettings,
         canOpenPermissionTab,
       }),
     [
@@ -54,6 +54,7 @@ export function useArchiveDataHubAvailableTabs(): Array<ArchiveDataHubTabT> {
       canSubmitArchive,
       canReviewArchive,
       canManageArchiveConfig,
+      canManageDisposalSettings,
       canOpenPermissionTab,
     ],
   )

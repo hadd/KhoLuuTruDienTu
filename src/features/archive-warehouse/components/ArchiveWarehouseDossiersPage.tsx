@@ -187,14 +187,14 @@ export function ArchiveWarehouseDossiersPage({
     [profile, rolePermissions?.rules.permissions],
   )
   const { canUpdateDisposal } = useArchiveDisposalAccess()
-  const { canReadDisposalSettings } = useDisposalCouncilAccess()
+  const { canFetchDisposalSettings } = useDisposalCouncilAccess()
   const { data: disposalSettings } = useQuery({
     ...disposalSettingsQueryOptions(),
-    enabled: canReadDisposalSettings,
+    enabled: canFetchDisposalSettings,
   })
-  const councilReviewEnabled = canReadDisposalSettings
+  const councilReviewEnabled = canFetchDisposalSettings
     ? (disposalSettings?.councilReviewEnabled ?? true)
-    : true
+    : false
 
   const pickerTransferMutation = useMutation({
     mutationFn: transferToDisposalProposal,
