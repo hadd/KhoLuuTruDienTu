@@ -88,7 +88,7 @@ export function ArchiveSubmissionPage({
     }),
   )
 
-  const items = data?.items ?? []
+  const items = (data?.items ?? []).filter((item) => item.status !== 'ARCHIVED')
   const totalPages = Math.max(1, data?.totalPages ?? 1)
   const safePage = Math.min(Math.max(page, 1), totalPages)
 
@@ -167,7 +167,6 @@ export function ArchiveSubmissionPage({
               <SelectItem value="APPROVED">{t('statusFilter.APPROVED')}</SelectItem>
               <SelectItem value="PENDING_ARCHIVE">{t('statusFilter.PENDING_ARCHIVE')}</SelectItem>
               <SelectItem value="ARCHIVE_REJECTED">{t('statusFilter.ARCHIVE_REJECTED')}</SelectItem>
-              <SelectItem value="ARCHIVED">{t('statusFilter.ARCHIVED')}</SelectItem>
             </SelectContent>
           </Select>
         </div>

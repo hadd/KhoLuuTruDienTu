@@ -189,7 +189,7 @@ export function ArchiveSubmissionDetailDialog({
                           ? formatDate(retentionExpiresAt, 'PP', language)
                           : '—'}
                     </p>
-                  </div>
+                  </div>  
                 </div>
               </div>
             ) : null}
