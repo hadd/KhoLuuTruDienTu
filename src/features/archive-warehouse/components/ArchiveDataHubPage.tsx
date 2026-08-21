@@ -32,14 +32,14 @@ export function ArchiveDataHubPage() {
   const { canReadDisposal } = useArchiveDisposalAccess()
   const { canSubmitArchive, canReviewArchive } = useArchiveSubmissionAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
-  const { canReadDisposalSettings, canReadCouncil } = useDisposalCouncilAccess()
+  const { canFetchDisposalSettings, canReadCouncil } = useDisposalCouncilAccess()
   const { data: disposalSettings } = useQuery({
     ...disposalSettingsQueryOptions(),
-    enabled: canReadDisposalSettings,
+    enabled: canFetchDisposalSettings,
   })
-  const councilReviewEnabled = canReadDisposalSettings
+  const councilReviewEnabled = canFetchDisposalSettings
     ? (disposalSettings?.councilReviewEnabled ?? true)
-    : true
+    : false
   const canOpenDisposalProposal = canReadDisposal || canReadCouncil
 
   const availableTabs = useArchiveDataHubAvailableTabs()

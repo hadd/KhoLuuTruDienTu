@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
+import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
+
 import {
   hasDisposalCouncilCreatePermission,
   hasDisposalCouncilReadPermission,
@@ -9,8 +12,8 @@ import {
   hasDisposalCouncilPublishPermission,
   hasDisposalCouncilChairDecidePermission,
   hasDisposalDestroyPermission,
-  hasDisposalSettingsReadPermission,
-  hasDisposalSettingsUpdatePermission,
+  hasDisposalSettingsUIManagePermission,
+  hasDisposalSettingsManagePermission,
 } from '@/features/archive-disposal-council/lib/disposalCouncilAccess'
 import {
   getCurrentUserRoleId,
@@ -41,8 +44,8 @@ export function useDisposalCouncilAccess() {
       canFinalizeCouncil: hasDisposalCouncilFinalizePermission(permissions),
       canPublishCouncil: hasDisposalCouncilPublishPermission(permissions),
       canChairDecideCouncil: hasDisposalCouncilChairDecidePermission(permissions),
-      canReadDisposalSettings: hasDisposalSettingsReadPermission(permissions),
-      canUpdateDisposalSettings: hasDisposalSettingsUpdatePermission(permissions),
+      canViewDisposalSettingsUI: hasDisposalSettingsUIManagePermission(permissions),
+      canFetchDisposalSettings: hasDisposalSettingsManagePermission(permissions),
       canDestroyDisposal: hasDisposalDestroyPermission(permissions),
     }
   }, [user, rolePermissions])

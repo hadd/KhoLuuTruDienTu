@@ -25,7 +25,7 @@ export function DisposalWorkflowConfigSection({
 }: DisposalWorkflowConfigSectionProps) {
   const { t } = useTranslation('archive-disposal-council')
   const queryClient = useQueryClient()
-  const { canReadDisposalSettings, canUpdateDisposalSettings } =
+  const { canViewDisposalSettingsUI } =
     useDisposalCouncilAccess()
 
   const mutation = useMutation({
@@ -38,7 +38,7 @@ export function DisposalWorkflowConfigSection({
     },
   })
 
-  if (!canReadDisposalSettings) return null
+  if (!canViewDisposalSettingsUI) return null
 
   return (
     <Card className="w-fit max-w-full">
@@ -52,7 +52,7 @@ export function DisposalWorkflowConfigSection({
           <Switch
             id="council-review-enabled"
             checked={settings?.councilReviewEnabled ?? true}
-            disabled={!canUpdateDisposalSettings || mutation.isPending}
+            disabled={!canViewDisposalSettingsUI || mutation.isPending}
             onCheckedChange={(checked) => mutation.mutate({ councilReviewEnabled: checked })}
           />
         )}

@@ -9,8 +9,7 @@ export const DISPOSAL_COUNCIL_PERMISSIONS = {
   councilFinalize: 'archive.disposal.council.finalize',
   councilPublish: 'archive.disposal.council.publish',
   councilChairDecide: 'archive.disposal.council.chair_decide',
-  settingsRead: 'archive.disposal.settings.read',
-  settingsUpdate: 'archive.disposal.settings.update',
+  settingsManage: 'archive.disposal.settings.manage',
   destroy: 'archive.disposal.destroy',
 } as const
 
@@ -57,21 +56,21 @@ export function hasDisposalCouncilChairDecidePermission(
   return hasPermission(permissions, DISPOSAL_COUNCIL_PERMISSIONS.councilChairDecide)
 }
 
-export function hasDisposalSettingsReadPermission(
+export function hasDisposalSettingsUIManagePermission(
+  permissions: Parameters<typeof isPermissionGranted>[0],
+): boolean {
+  return hasPermission(permissions, DISPOSAL_COUNCIL_PERMISSIONS.settingsManage)
+}
+
+export function hasDisposalSettingsManagePermission(
   permissions: Parameters<typeof isPermissionGranted>[0],
 ): boolean {
   return (
-    hasPermission(permissions, DISPOSAL_COUNCIL_PERMISSIONS.settingsRead) ||
+    hasPermission(permissions, DISPOSAL_COUNCIL_PERMISSIONS.settingsManage) ||
     hasPermission(permissions, DISPOSAL_COUNCIL_PERMISSIONS.councilRead) ||
     isPermissionGranted(permissions, 'archive.disposal.read', 'archive.disposal') ||
     isPermissionGranted(permissions, 'archive.warehouse.read', 'archive.warehouse')
   )
-}
-
-export function hasDisposalSettingsUpdatePermission(
-  permissions: Parameters<typeof isPermissionGranted>[0],
-): boolean {
-  return hasPermission(permissions, DISPOSAL_COUNCIL_PERMISSIONS.settingsUpdate)
 }
 
 export function hasDisposalDestroyPermission(

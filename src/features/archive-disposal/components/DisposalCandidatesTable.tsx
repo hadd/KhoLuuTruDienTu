@@ -6,6 +6,12 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
   Table,
   TableBody,
   TableCell,
@@ -77,7 +83,7 @@ export function DisposalCandidatesTable({
     const dupMap = new Map<string, typeof groups>()
 
     for (const group of groups) {
-      const dupId = group.dossierItem?.duplicateGroupId
+      const dupId = group.dossierItem?.duplicateGroupId || group.documentItems.find(d => d.duplicateGroupId)?.duplicateGroupId
       if (dupId) {
         if (!dupMap.has(dupId)) dupMap.set(dupId, [])
         dupMap.get(dupId)!.push(group)
@@ -193,25 +199,48 @@ export function DisposalCandidatesTable({
                   <Fragment key={group.dossierId}>
                     <TableRow className={bgClass}>
                       <TableCell>
-                  {dossierItem ? (
-                    <Checkbox
-                      checked={selectedKeys.has(itemKey(dossierItem))}
-                      disabled={
-                        !canSelectItemFond(
-                          dossierItem.fondId,
-                          selectionAnchorFondId ?? null,
-                          lockedFondId,
-                        )
-                      }
-                      onCheckedChange={(checked) =>
-                        onToggleOne(itemKey(dossierItem), checked === true, {
-                          dossierId: group.dossierId,
-                          kind: 'dossier',
-                        })
-                      }
-                      aria-label={group.dossierName}
-                    />
-                  ) : null}
+                  {dossierItem ? (() => {
+                    const canSelect = canSelectItemFond(
+                      dossierItem.fondId,
+                      selectionAnchorFondId ?? null,
+                      lockedFondId,
+                    )
+                    const noFond = !dossierItem.fondId?.trim()
+                    const wrongFond = !noFond && !canSelect
+                    const disabledReason = noFond
+                      ? 'Hồ sơ chưa được gán phông — không thể thêm vào đề xuất hủy'
+                      : wrongFond
+                        ? 'Chỉ được chọn hồ sơ cùng phông trong một đề xuất hủy'
+                        : null
+                    const checkbox = (
+                      <Checkbox
+                        checked={selectedKeys.has(itemKey(dossierItem))}
+                        disabled={!canSelect}
+                        onCheckedChange={(checked) =>
+                          onToggleOne(itemKey(dossierItem), checked === true, {
+                            dossierId: group.dossierId,
+                            kind: 'dossier',
+                          })
+                        }
+                        aria-label={group.dossierName}
+                      />
+                    )
+                    if (disabledReason) {
+                      return (
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex cursor-not-allowed">{checkbox}</span>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-56 text-xs">
+                              {disabledReason}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )
+                    }
+                    return checkbox
+                  })() : null}
                 </TableCell>
                 <TableCell>
                   {hasDocuments ? (
