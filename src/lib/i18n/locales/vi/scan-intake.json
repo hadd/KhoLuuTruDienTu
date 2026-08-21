@@ -131,7 +131,7 @@
     "buttonSelected": "Chuyển tiếp ({{count}} PDF)",
     "buttonFolder": "Chuyển tiếp thư mục ({{count}} PDF)",
     "buttonFolders": "Chuyển tiếp ({{count}} PDF, {{folderCount}} thư mục)",
-    "title": "Chuyển tiếp lên MinIO",
+    "title": "Chuyển tiếp qua OCR",
     "description": "Promote {{documents}} PDF từ {{folders}} thư mục lên data lake.",
     "descriptionSelected": "Chuyển tiếp {{count}} PDF đã chọn lên thư mục raw/ trên MinIO.",
     "descriptionFolder": "Chuyển tiếp toàn bộ thư mục «{{folder}}» ({{count}} PDF) sang MinIO, giữ nguyên cấu trúc thư mục con.",

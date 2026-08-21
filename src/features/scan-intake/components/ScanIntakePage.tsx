@@ -220,119 +220,99 @@ export function ScanIntakePage() {
             {t('session.loadingDetail')}
           </div>
         ) : (
-          <Tabs
-            value={phase}
-            onValueChange={(v) => {
-              if (v === 'scan' || v === 'organize') {
-                setPhase(v)
-              }
-            }}
+          // Tìm đoạn <Tabs> trong ScanIntakePage.tsx và thay bằng đoạn này:
+<Tabs
+  value={phase}
+  onValueChange={(v) => {
+    if (v === 'scan' || v === 'organize') {
+      setPhase(v)
+    }
+  }}
+  className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
+>
+  <TabsList className="shrink-0 self-start">
+    <TabsTrigger value="scan">{t('phases.scan')}</TabsTrigger>
+    <TabsTrigger value="organize">{t('phases.organize')}</TabsTrigger>
+  </TabsList>
+
+  {/* KHẮC PHỤC Ở ĐÂY: Thêm data-[state=active]:flex data-[state=active]:flex-col data-[state=active]:h-full h-0 min-h-0 */}
+  <TabsContent
+    value="scan"
+    className="mt-2 h-0 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
+  >
+    <div className="grid h-full min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[200px_1fr]">
+      {/* Danh sách tài liệu */}
+      <section className="flex h-full min-h-0 flex-col rounded-lg border bg-card p-3 overflow-hidden">
+        <div className="mb-2 shrink-0 flex items-center justify-between">
+          <h2 className="text-sm font-medium">{t('documents.title')}</h2>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            onClick={() => setDocumentDialogOpen(true)}
           >
-            <TabsList>
-              <TabsTrigger value="scan">{t('phases.scan')}</TabsTrigger>
-              <TabsTrigger value="organize">{t('phases.organize')}</TabsTrigger>
-            </TabsList>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+        <ul className="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1">
+          {mergedInbox.map((doc) => (
+            <li key={doc.docSlug} className="group flex items-center gap-1">
+              <button
+                type="button"
+                className={cn(
+                  'flex min-w-0 flex-1 items-center justify-between rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted',
+                  selectedDocSlug === doc.docSlug && 'bg-muted font-medium',
+                )}
+                onClick={() => setSelectedDocSlug(doc.docSlug)}
+              >
+                <span className="truncate">{doc.displayName}</span>
+                <span className="ml-2 text-[10px] text-muted-foreground">
+                  {doc.pageCount}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
 
-            <TabsContent value="scan" className="mt-4">
-              <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
-                <section className="rounded-lg border bg-card p-3">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h2 className="text-sm font-medium">{t('documents.title')}</h2>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      onClick={() => setDocumentDialogOpen(true)}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <ul className="space-y-1">
-                    {mergedInbox.map((doc) => (
-                      <li key={doc.docSlug} className="group flex items-center gap-1">
-                        <button
-                          type="button"
-                          className={cn(
-                            'flex min-w-0 flex-1 items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted',
-                            selectedDocSlug === doc.docSlug &&
-                              'bg-muted font-medium',
-                          )}
-                          onClick={() => setSelectedDocSlug(doc.docSlug)}
-                        >
-                          <span className="truncate">{doc.displayName}</span>
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {doc.pageCount}
-                          </span>
-                        </button>
-                        <div className="flex items-center opacity-0 group-hover:opacity-100">
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 shrink-0"
-                            onClick={() => openRenameDocDialog(doc)}
-                            title={t('documents.renameTitle')}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
-                            onClick={() =>
-                              setDeleteDocDialog({
-                                open: true,
-                                docSlug: doc.docSlug,
-                                displayName: doc.displayName,
-                              })
-                            }
-                            title={t('documents.delete')}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
+      {/* Vùng PageGrid */}
+      <section className="flex h-full min-h-0 flex-col rounded-lg border bg-card p-3 overflow-hidden">
+        {selectedDocument ? (
+          <PageGrid
+            document={selectedDocument}
+            mutations={mutations}
+            scanDisabled={!agentOk}
+            onRename={() => openRenameDocDialog(selectedDocument)}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {t('pages.selectDocument')}
+          </p>
+        )}
+      </section>
+    </div>
+  </TabsContent>
 
-                <section className="rounded-lg border bg-card p-4">
-                  {selectedDocument ? (
-                    <PageGrid
-                      document={selectedDocument}
-                      mutations={mutations}
-                      scanDisabled={!agentOk}
-                      onRename={() => openRenameDocDialog(selectedDocument)}
-                    />
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      {t('pages.selectDocument')}
-                    </p>
-                  )}
-                </section>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="organize" className="mt-4">
-              {session ? (
-                <OrganizePanel
-                  session={session}
-                  mutations={mutations}
-                  extraFolders={extraFolders}
-                  onAddFolder={(path) =>
-                    setExtraFolders((prev) =>
-                      prev.includes(path) ? prev : [...prev, path],
-                    )
-                  }
-                  onRenameFolder={handleRenameExtraFolder}
-                  onCommitted={() => {
-                    /* Giữ phiên hiện tại; chỉ đẩy các mục đã chọn */
-                  }}
-                />
-              ) : null}
-            </TabsContent>
-          </Tabs>
+  <TabsContent
+    value="organize"
+    className="mt-2 h-0 min-h-0 flex-1 overflow-y-auto data-[state=active]:flex data-[state=active]:flex-col"
+  >
+    {session ? (
+      <OrganizePanel
+        session={session}
+        mutations={mutations}
+        extraFolders={extraFolders}
+        onAddFolder={(path) =>
+          setExtraFolders((prev) =>
+            prev.includes(path) ? prev : [...prev, path],
+          )
+        }
+        onRenameFolder={handleRenameExtraFolder}
+        onCommitted={() => {}}
+      />
+    ) : null}
+  </TabsContent>
+</Tabs>
         )}
           </div>
         </ScanAgentGuard>

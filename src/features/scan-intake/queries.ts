@@ -230,17 +230,19 @@ export function useScanIntakeMutations(sessionId: string | undefined) {
 
   const promoteMutation = useMutation({
     mutationFn: (input: {
-      projectCode: string
+      projectCode?: string | null
       targetFolderPath: string
       organizeFolderPath?: string
       pdfKeys: Array<string>
+      folderPaths?: Array<string>
     }) =>
       promoteSession({
-        projectCode: input.projectCode,
+        projectCode: input.projectCode ?? null,
         sessionId: sessionId!,
         targetFolderPath: input.targetFolderPath,
         organizeFolderPath: input.organizeFolderPath,
         pdfKeys: input.pdfKeys,
+        folderPaths: input.folderPaths,
         cleanup: false,
       }),
     onSuccess: invalidateSession,
