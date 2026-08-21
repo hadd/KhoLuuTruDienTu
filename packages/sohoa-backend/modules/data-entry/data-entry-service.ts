@@ -572,9 +572,6 @@ async function directApproveDossier(
         );
         const syncedFondId = await syncDossierFondIdFromMetadata(dossierId, metadata);
         const effectiveFondId = syncedFondId || dossier.fondId;
-        if (hasHoSoFondField(metadata) && !effectiveFondId) {
-            throw httpError.badRequest("Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ.");
-        }
 
         try {
             await syncDocumentTypesFromOcrMetadata(dossierId, metadata);
@@ -589,9 +586,6 @@ async function directApproveDossier(
             } catch {
                 currentMeta = null;
             }
-        }
-        if (hasHoSoFondField(currentMeta) && !dossier.fondId) {
-            throw httpError.badRequest("Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ.");
         }
     }
 
@@ -714,9 +708,6 @@ async function approveMetadata(input: {
     );
     const syncedFondId = await syncDossierFondIdFromMetadata(input.dossierId, input.metadata);
     const effectiveFondId = syncedFondId || dossier.fondId;
-    if (hasHoSoFondField(input.metadata) && !effectiveFondId) {
-        throw httpError.badRequest("Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ.");
-    }
 
     // Đồng bộ catalog loại tài liệu từ metadata đã duyệt (group_code/group_name).
     try {
