@@ -24,10 +24,10 @@ import {
   borrowApprovalClearanceQueryOptions,
   useReplaceBorrowApprovalClearances,
 } from '@/features/borrow-approval-clearance/queries'
-import type { BorrowApprovalClearanceDraftRowT } from '@/features/borrow-approval-clearance/types'
+import { createClientId } from '@/lib/utils/id'
 
 function newDraftKey(): string {
-  return `draft-${crypto.randomUUID()}`
+  return createClientId('draft')
 }
 
 function rowsFromData(
