@@ -10,7 +10,7 @@ export type SecurityLevelSearchT = z.infer<typeof securityLevelSearchSchema>
 
 export const securityLevelFormSchema = z.object({
   name: z.string().trim().min(1).max(100),
-  levelOrder: z.coerce.number().int().min(1),
+  levelOrder: z.coerce.number({ error: 'Cấp độ phải là số tự nhiên' }).int().min(1),
   description: z.string().trim().optional().default(''),
 })
 
