@@ -13,7 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Switch } from '@/components/ui/switch'
 import { useEffectivePermissions } from '@/features/auth/hooks/useEffectivePermissions'
+import type { OcrRunMode } from '@/features/data-management/api/dossierClient'
 import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
 import { ALL_PROJECTS_CODE } from '@/features/data-management/lib/constants'
 import { dataManagementProjectsQueryOptions } from '@/features/data-management/queries'
@@ -53,6 +55,7 @@ export function PromoteModal({
   // projectCode có thể là null (không chọn) hoặc string (có chọn)
   const [projectCode, setProjectCode] = useState<string | null>(null)
   const [targetFolderPath, setTargetFolderPath] = useState<string | undefined>('raw')
+  const [runMode, setRunMode] = useState<OcrRunMode>('manual')
   const [errors, setErrors] = useState<
     Array<{ folderPath: string; pdfName: string; error: string }>
   >([])
@@ -85,6 +88,7 @@ export function PromoteModal({
     if (open) {
       setProjectCode(null) // Mặc định là null nếu không chọn
       setTargetFolderPath('raw')
+      setRunMode('manual')
       setErrors([])
     }
   }, [open])
@@ -106,13 +110,14 @@ export function PromoteModal({
 
     setErrors([])
     try {
-      // ✅ Gửi projectCode (chuỗi mã dự án HOẶC null)
+      // ✅ Gửi projectCode và runMode ('manual' | 'auto')
       const result = await mutations.promoteMutation.mutateAsync({
         projectCode: projectCode || null,
         targetFolderPath: targetFolderPath.trim(),
         organizeFolderPath: organizeFolderPath?.trim() || undefined,
         pdfKeys,
         folderPaths,
+        runMode,
       })
 
       if (result.errors.length > 0) {
@@ -203,6 +208,30 @@ export function PromoteModal({
             value={targetFolderPath}
             onValueChange={setTargetFolderPath}
           />
+
+          {/* Chế độ kiểm soát OCR (manual / auto) */}
+          <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-medium text-foreground">
+                {t('promote.runMode.label', { defaultValue: 'Chế độ xử lý OCR' })}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {runMode === 'manual'
+                  ? t('promote.runMode.manual', {
+                      defaultValue:
+                        'Đưa vào hàng chờ thủ công — chỉ OCR khi được kích hoạt tại màn hình Kiểm soát OCR.',
+                    })
+                  : t('promote.runMode.auto', {
+                      defaultValue: 'Chạy tự động — OCR ngay sau khi chuyển tiếp.',
+                    })}
+              </span>
+            </div>
+            <Switch
+              checked={runMode === 'manual'}
+              disabled={isHandling || isPromoting}
+              onCheckedChange={(checked) => setRunMode(checked ? 'manual' : 'auto')}
+            />
+          </div>
         </div>
 
         {isPromoting ? (

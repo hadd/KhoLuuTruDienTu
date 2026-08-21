@@ -1,3 +1,4 @@
+import type { OcrRunMode } from '@/features/data-management/api/dossierClient'
 import type {
   PromoteResult,
   ScanAgentHealth,
@@ -231,6 +232,7 @@ export async function promoteSession(input: {
   pdfKeys?: Array<string>
   folderPaths?: Array<string>
   cleanup?: boolean
+  runMode?: OcrRunMode
 }): Promise<PromoteResult> {
   const response = await apiClient.post<PromoteResult>(
     '/api/v1/scan-intake/promote',
