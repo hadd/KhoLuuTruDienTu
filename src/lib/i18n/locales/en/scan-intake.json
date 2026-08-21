@@ -131,7 +131,7 @@
     "buttonSelected": "Promote ({{count}} PDF)",
     "buttonFolder": "Promote folder ({{count}} PDF)",
     "buttonFolders": "Promote ({{count}} PDF, {{folderCount}} folders)",
-    "title": "Promote to MinIO",
+    "title": "Promote to OCR",
     "description": "Promote {{documents}} PDF(s) from {{folders}} folder(s) to the data lake.",
     "descriptionSelected": "Promote {{count}} selected PDF(s) to a raw/ folder on MinIO.",
     "descriptionFolder": "Promote the entire folder «{{folder}}» ({{count}} PDF(s)) to MinIO, preserving subfolder structure.",

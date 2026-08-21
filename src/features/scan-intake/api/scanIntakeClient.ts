@@ -224,11 +224,12 @@ export async function organizeRenamePdf(input: {
 }
 
 export async function promoteSession(input: {
-  projectCode: string
+  projectCode?: string | null  // ✅ Cho phép null hoặc undefined
   sessionId: string
   targetFolderPath: string
   organizeFolderPath?: string
-  pdfKeys: Array<string>
+  pdfKeys?: Array<string>
+  folderPaths?: Array<string>
   cleanup?: boolean
 }): Promise<PromoteResult> {
   const response = await apiClient.post<PromoteResult>(

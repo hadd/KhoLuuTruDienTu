@@ -37,6 +37,7 @@ import {
   useAssignAllArchiveMetadataView,
   useSaveArchiveMetadataViewMatrix,
 } from '@/features/archive-permission/queries'
+import { cn } from '@/lib/utils/cn'
 import { createRandomUuid } from '@/lib/utils/id'
 
 function principalKey(p: ArchiveAclPrincipalT) {
