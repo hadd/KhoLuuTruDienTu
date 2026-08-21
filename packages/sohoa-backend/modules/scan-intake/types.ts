@@ -63,7 +63,7 @@ export const organizeRenamePdfBodySchema = t.Object({
 });
 
 export const promoteBodySchema = t.Object({
-    projectCode: t.String({ minLength: 1 }),
+    projectCode: t.Optional(t.Nullable(t.String())),
     sessionId: t.String({ minLength: 1 }),
     /** Full MinIO folder path, e.g. raw/PROJECT_CODE/Ho_so_A */
     targetFolderPath: t.String({ minLength: 1 }),
