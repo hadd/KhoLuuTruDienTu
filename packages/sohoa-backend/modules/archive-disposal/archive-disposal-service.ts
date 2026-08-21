@@ -5,7 +5,6 @@ import {
     exists,
     ilike,
     inArray,
-    isNotNull,
     isNull,
     or,
     sql,
@@ -178,7 +177,6 @@ async function buildScopeWhere(
 ): Promise<SQL> {
     const conditions: SQL[] = [
         eq(dossiers.status, DossierStatus.ARCHIVED),
-        isNotNull(dossiers.fondId),
         exists(
             db.select({ one: sql`1` })
                 .from(archiveSubmissions)
@@ -321,6 +319,93 @@ async function loadArchivedDossierRows(
                 fieldValues: submission.fieldValues as Record<string, unknown>,
             }];
         });
+}
+
+/**
+ * Load a minimal snapshot of ALL archived dossiers within the user's permission scope
+ * (ignoring any user-applied filters) specifically for duplicate detection.
+ * This ensures that a dossier filtered out of the display list can still be counted
+ * as a duplicate peer for dossiers that ARE in the display list.
+ */
+async function loadAllScopedRowsForDuplicateDetection(
+    scope: ArchiveDataScope,
+    dossierCodeFieldKey: string,
+): Promise<{ records: DuplicateCandidateRecord[]; fileIdsByDossier: Map<string, string[]> }> {
+    // Load dossiers with scope-only constraints (no user filters)
+    const where = await buildScopeWhere(scope, {});
+    if (where === sql`false`) return { records: [], fileIdsByDossier: new Map() };
+
+    const dossierRows = await db
+        .select({
+            id: dossiers.id,
+            name: dossiers.name,
+            fondId: dossiers.fondId,
+        })
+        .from(dossiers)
+        .where(where);
+
+    if (dossierRows.length === 0) return { records: [], fileIdsByDossier: new Map() };
+
+    const allDossierIds = dossierRows.map((r) => r.id);
+
+    // Load field values for dossier code + metadata similarity checks
+    const submissionRows = await db
+        .selectDistinctOn([archiveSubmissions.dossierId], {
+            dossierId: archiveSubmissions.dossierId,
+            fieldValues: archiveSubmissions.fieldValues,
+        })
+        .from(archiveSubmissions)
+        .where(and(
+            inArray(archiveSubmissions.dossierId, allDossierIds),
+            eq(archiveSubmissions.status, ArchiveSubmissionStatus.APPROVED),
+        ))
+        .orderBy(archiveSubmissions.dossierId, desc(archiveSubmissions.reviewedAt));
+
+    const submissionByDossier = new Map(
+        submissionRows.map((r) => [r.dossierId, r.fieldValues as Record<string, unknown>]),
+    );
+
+    // Load file names for FILE_NAME_STRICT rule
+    const allFileRows = await db
+        .select({
+            id: dossierFiles.id,
+            dossierId: dossierFiles.dossierId,
+            fileName: dossierFiles.fileName,
+        })
+        .from(dossierFiles)
+        .where(inArray(dossierFiles.dossierId, allDossierIds));
+
+    const fileIdsByDossier = new Map<string, string[]>();
+    for (const f of allFileRows) {
+        const list = fileIdsByDossier.get(f.dossierId) ?? [];
+        list.push(f.id);
+        fileIdsByDossier.set(f.dossierId, list);
+    }
+
+    const records: DuplicateCandidateRecord[] = [];
+    for (const row of dossierRows) {
+        const fieldValues = submissionByDossier.get(row.id) ?? {};
+        const fullMetadataText = Object.values(fieldValues).filter((v) => typeof v === "string").join(" ");
+        records.push({
+            dossierId: row.id,
+            fondId: row.fondId,
+            dossierName: row.name,
+            dossierCode: extractDossierCodeFromFieldValues(fieldValues, dossierCodeFieldKey),
+            fullMetadataText,
+        });
+        for (const file of allFileRows.filter((f) => f.dossierId === row.id)) {
+            records.push({
+                dossierId: row.id,
+                fondId: row.fondId,
+                fileId: file.id,
+                dossierName: row.name,
+                fileName: file.fileName,
+                fullMetadataText: null,
+            });
+        }
+    }
+
+    return { records, fileIdsByDossier };
 }
 
 async function loadActiveDisposalEntries(dossierIds: string[]): Promise<{
@@ -505,45 +590,121 @@ export const ArchiveDisposalService = {
             r.ruleKey === "DOSSIER_CODE"
         )?.dossierCodeFieldKey ?? "dossier_code";
 
-        const duplicateRecords: DuplicateCandidateRecord[] = [];
-        for (const row of dossierRows) {
-            const fullMetadataText = row.fieldValues ? Object.values(row.fieldValues).filter(v => typeof v === "string").join(" ") : "";
-            
-            duplicateRecords.push({
-                dossierId: row.id,
-                fondId: row.fondId,
-                dossierName: row.name,
-                dossierCode: extractDossierCodeFromFieldValues(
-                    row.fieldValues,
-                    dossierCodeFieldKey,
-                ),
-                fullMetadataText,
-            });
-            for (const file of fileRows.filter((f) => f.dossierId === row.id)) {
+        // For duplicate detection, we must check against the FULL scope (all dossiers the user
+        // has access to), not just the filtered display rows. This ensures a dossier filtered
+        // out of the current view is still counted as a duplicate peer.
+        // We skip the full-scope load when the user is only looking at expiry data (no duplicates needed).
+        let duplicateMatches: Map<string, DuplicateMatch>;
+        const needsDuplicateCheck = category === "duplicate" || category === "all";
+        if (needsDuplicateCheck && enabledRules.size > 0) {
+            const { records: allRecords } = await loadAllScopedRowsForDuplicateDetection(
+                scope,
+                dossierCodeFieldKey,
+            );
+            duplicateMatches = detectDuplicateMatches(allRecords, enabledRules, dossierCodeFieldKey);
+        } else {
+            // For expiry-only views, detect duplicates only within the loaded rows (fast path)
+            const duplicateRecords: DuplicateCandidateRecord[] = [];
+            for (const row of dossierRows) {
+                const fullMetadataText = row.fieldValues
+                    ? Object.values(row.fieldValues).filter((v) => typeof v === "string").join(" ")
+                    : "";
                 duplicateRecords.push({
                     dossierId: row.id,
                     fondId: row.fondId,
-                    fileId: file.id,
                     dossierName: row.name,
-                    dossierCode: extractDossierCodeFromFieldValues(
-                        row.fieldValues,
-                        dossierCodeFieldKey,
-                    ),
-                    fileName: file.fileName,
-                    // Files don't have their own metadata - don't pass fullMetadataText
-                    // to avoid false positives from all files in same dossier matching each other
-                    fullMetadataText: null,
+                    dossierCode: extractDossierCodeFromFieldValues(row.fieldValues, dossierCodeFieldKey),
+                    fullMetadataText,
                 });
+                for (const file of fileRows.filter((f) => f.dossierId === row.id)) {
+                    duplicateRecords.push({
+                        dossierId: row.id,
+                        fondId: row.fondId,
+                        fileId: file.id,
+                        dossierName: row.name,
+                        fileName: file.fileName,
+                        fullMetadataText: null,
+                    });
+                }
             }
+            duplicateMatches = detectDuplicateMatches(duplicateRecords, enabledRules, dossierCodeFieldKey);
         }
-        const duplicateMatches = detectDuplicateMatches(
-            duplicateRecords,
-            enabledRules,
-            dossierCodeFieldKey,
-        );
 
         const candidates: CandidateItem[] = [];
         const groupMap = new Map<string, CandidateGroup>();
+
+        // Build a reverse lookup: dossierId → file-level DuplicateMatch (for criteria info)
+        const dossierFileDuplicateMap = new Map<string, DuplicateMatch>();
+        for (const file of fileRows) {
+            const fileMatch = duplicateMatches.get(`file:${file.id}`);
+            if (fileMatch) {
+                const existing = dossierFileDuplicateMap.get(file.dossierId);
+                if (!existing || fileMatch.duplicateGroupId < existing.duplicateGroupId) {
+                    dossierFileDuplicateMap.set(file.dossierId, fileMatch);
+                }
+            }
+        }
+
+        // ── Global dossier-level Union-Find ──────────────────────────────────
+        // Connect all dossiers that share ANY common duplicate group
+        // (file-level OR dossier-level) so they all get one canonical visual groupId.
+        // This fixes the case where A,B,C all share BIA_CD.pdf but were getting
+        // separate colors because their metadata-sim groups were different pairs.
+        const ufDosParent = new Map<string, string>();
+        const ufDosFind = (x: string): string => {
+            if (!ufDosParent.has(x)) ufDosParent.set(x, x);
+            const p = ufDosParent.get(x)!;
+            if (p === x) return x;
+            const root = ufDosFind(p);
+            ufDosParent.set(x, root);
+            return root;
+        };
+        const ufDosUnion = (x: string, y: string) => {
+            const rx = ufDosFind(x), ry = ufDosFind(y);
+            if (rx === ry) return;
+            if (rx < ry) ufDosParent.set(ry, rx);
+            else ufDosParent.set(rx, ry);
+        };
+
+        // 1. Union via shared file-level groups
+        const fileGroupDossierMap = new Map<string, string[]>();
+        for (const f of fileRows) {
+            const m = duplicateMatches.get(`file:${f.id}`);
+            if (m) {
+                const arr = fileGroupDossierMap.get(m.duplicateGroupId) ?? [];
+                arr.push(f.dossierId);
+                fileGroupDossierMap.set(m.duplicateGroupId, arr);
+            }
+        }
+        for (const ids of fileGroupDossierMap.values()) {
+            for (let i = 1; i < ids.length; i++) ufDosUnion(ids[0], ids[i]);
+        }
+
+        // 2. Union via shared dossier-level groups (name, code, metadata-sim)
+        const dossierGroupMap2 = new Map<string, string[]>();
+        for (const id of dossierIds) {
+            const m = duplicateMatches.get(`dossier:${id}`);
+            if (m) {
+                const arr = dossierGroupMap2.get(m.duplicateGroupId) ?? [];
+                arr.push(id);
+                dossierGroupMap2.set(m.duplicateGroupId, arr);
+            }
+        }
+        for (const ids of dossierGroupMap2.values()) {
+            for (let i = 1; i < ids.length; i++) ufDosUnion(ids[0], ids[i]);
+        }
+
+        // Precompute which dossiers have at least one file-level duplicate
+        const fileMatchedDossierIds = new Set(
+            fileRows.filter((f) => duplicateMatches.has(`file:${f.id}`)).map((f) => f.dossierId),
+        );
+
+        // Returns the canonical visual groupId for a dossier, or null if no duplicate found
+        function getDossierVisualGroupId(id: string): string | null {
+            if (!duplicateMatches.has(`dossier:${id}`) && !fileMatchedDossierIds.has(id)) return null;
+            return `vg:${ufDosFind(id)}`;
+        }
+        // ─────────────────────────────────────────────────────────────────────
 
         function ensureGroup(
             row: ArchivedDossierRow,
@@ -588,7 +749,16 @@ export const ArchiveDisposalService = {
             });
 
             const dossierDisposal = activeDisposal.dossierLevel.get(row.id);
-            const dossierDuplicate = duplicateMatches.get(`dossier:${row.id}`);
+            // A dossier is a duplicate candidate if it has a dossier-level match (name/code)
+            // OR if any of its files are file-level duplicates (e.g. BIA_CD.pdf in multiple dossiers)
+            const rawDossierDuplicate = duplicateMatches.get(`dossier:${row.id}`) ??
+                dossierFileDuplicateMap.get(row.id) ??
+                null;
+            // Override groupId with the canonical visual group so all connected dossiers share one color
+            const visualGroupId = getDossierVisualGroupId(row.id);
+            const dossierDuplicate = rawDossierDuplicate && visualGroupId
+                ? { ...rawDossierDuplicate, duplicateGroupId: visualGroupId }
+                : rawDossierDuplicate;
             const categories: Array<"expiring_soon" | "expired" | "duplicate"> = [];
             if (retentionStatus === "EXPIRING_SOON") categories.push("expiring_soon");
             if (retentionStatus === "EXPIRED") categories.push("expired");

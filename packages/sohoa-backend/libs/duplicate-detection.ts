@@ -61,7 +61,7 @@ export function detectDuplicateMatches(
         // Dossier-only criteria
         if (!record.fileId) {
             if (enabledRules.has("DOSSIER_NAME") && record.dossierName.trim()) {
-                const key = `${normalizeComparable(record.dossierName)}|fond:${record.fondId || ""}`;
+                const key = normalizeComparable(record.dossierName);
                 addToGroup(buildGroupId("name", key), entityKey, "DOSSIER_NAME");
             }
 
@@ -76,8 +76,8 @@ export function detectDuplicateMatches(
             if (enabledRules.has("FILE_NAME_STRICT") && record.fileName?.trim()) {
                 const fName = normalizeComparable(record.fileName);
                 if (fName) {
-                    // Match files with same name across DIFFERENT dossiers in same fond
-                    addToGroup(buildGroupId("file-strict", `${fName}|fond:${record.fondId || ""}`), entityKey, "FILE_NAME_STRICT");
+                    // Match files with same name across DIFFERENT dossiers
+                    addToGroup(buildGroupId("file-strict", fName), entityKey, "FILE_NAME_STRICT");
                 }
             }
         }
@@ -106,6 +106,9 @@ export function detectDuplicateMatches(
         }
 
         const processedPairs = new Set<string>();
+        // Collect all similar pairs first, then use union-find to merge
+        // connected components so A~B and B~C all end up in the same group.
+        const similarPairs: [string, string][] = [];
 
         for (const [entityKey, data] of tokenizedRecords.entries()) {
             const candidateCounts = new Map<string, number>();
@@ -131,12 +134,38 @@ export function detectDuplicateMatches(
 
                 const candidateData = tokenizedRecords.get(candidateKey)!;
                 const dice = (2 * intersectionSize) / (data.tokens.size + candidateData.tokens.size);
-                
+
                 if (dice >= 0.85) {
-                    addToGroup(buildGroupId("metadata-sim", pairKey), entityKey, "DOCUMENT_METADATA_SIMILARITY");
-                    addToGroup(buildGroupId("metadata-sim", pairKey), candidateKey, "DOCUMENT_METADATA_SIMILARITY");
+                    similarPairs.push([entityKey, candidateKey]);
                 }
             }
+        }
+
+        // Union-Find: merge all transitively similar entities into one canonical group
+        const ufParent = new Map<string, string>();
+        function ufFind(x: string): string {
+            if (!ufParent.has(x)) ufParent.set(x, x);
+            const p = ufParent.get(x)!;
+            if (p === x) return x;
+            const root = ufFind(p);
+            ufParent.set(x, root);
+            return root;
+        }
+        function ufUnion(x: string, y: string) {
+            const rx = ufFind(x), ry = ufFind(y);
+            if (rx === ry) return;
+            // Use lexicographically smaller key as canonical root so the
+            // group ID is deterministic and shared by all members
+            if (rx < ry) ufParent.set(ry, rx);
+            else ufParent.set(rx, ry);
+        }
+        for (const [a, b] of similarPairs) {
+            ufUnion(a, b);
+        }
+        for (const [a, b] of similarPairs) {
+            const canonicalKey = ufFind(a); // same as ufFind(b) after union
+            addToGroup(buildGroupId("metadata-sim", canonicalKey), a, "DOCUMENT_METADATA_SIMILARITY");
+            addToGroup(buildGroupId("metadata-sim", canonicalKey), b, "DOCUMENT_METADATA_SIMILARITY");
         }
     }
 
