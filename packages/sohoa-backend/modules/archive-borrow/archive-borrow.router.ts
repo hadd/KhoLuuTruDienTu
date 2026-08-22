@@ -9,6 +9,7 @@ import {
     hasArchiveBorrowReviewPermission,
 } from "./archive-borrow-permissions.ts";
 import { ArchiveBorrowService } from "./archive-borrow-service.ts";
+import { formatContentDisposition } from "../../libs/content-disposition.utils.ts";
 
 const tags = ["Archive Borrow"];
 
@@ -335,13 +336,11 @@ export function createArchiveBorrowRouter(prefix = "/archive-borrow-requests") {
                     params.id,
                     params.fileId,
                 );
-                const safeName = result.fileName
-                    .replace(/[\r\n"]+/g, "_")
-                    .trim() || `${result.fileId}.pdf`;
+                const fileName = result.fileName.trim() || `${result.fileId}.pdf`;
                 return new Response(Buffer.from(result.bytes), {
                     headers: {
                         "Content-Type": "application/pdf",
-                        "Content-Disposition": `inline; filename="${safeName}"`,
+                        "Content-Disposition": formatContentDisposition("inline", fileName),
                         "Cache-Control": "private, no-store",
                         "X-Content-Type-Options": "nosniff",
                     },

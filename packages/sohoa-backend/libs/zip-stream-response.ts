@@ -1,4 +1,5 @@
 import type { ZipPasswordSource } from "../modules/profile/resolve-export-zip-password.ts";
+import { formatContentDisposition } from "./content-disposition.utils.ts";
 
 export const ZIP_PASSWORD_SOURCE_HEADER = "X-Zip-Password-Source";
 
@@ -15,7 +16,7 @@ export function zipStreamResponse(
 ): Response {
   const headers: Record<string, string> = {
     "Content-Type": contentType,
-    "Content-Disposition": `attachment; filename="${filename}"`,
+    "Content-Disposition": formatContentDisposition("attachment", filename),
     // Hint proxies/browsers not to buffer the whole body before download starts.
     "X-Content-Type-Options": "nosniff",
   };
