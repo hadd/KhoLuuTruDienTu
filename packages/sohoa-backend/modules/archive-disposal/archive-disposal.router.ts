@@ -30,9 +30,7 @@ import {
 
     hasArchiveDisposalDestroyPermission,
 
-    hasArchiveDisposalSettingsReadPermission,
-
-    hasArchiveDisposalSettingsUpdatePermission,
+    hasArchiveDisposalSettingsManagePermission,
 
 } from "./archive-disposal-permissions.ts";
 
@@ -186,26 +184,10 @@ function checkCouncilChairDecide(profile: UserWithRoles) {
 
 
 
-function checkSettingsRead(profile: UserWithRoles) {
-
-    if (!hasArchiveDisposalSettingsReadPermission(profile)) {
-
-        throw httpError.forbidden("archive.disposal.settings.read required");
-
+function checkSettingsManage(profile: UserWithRoles) {
+    if (!hasArchiveDisposalSettingsManagePermission(profile)) {
+        throw httpError.forbidden("archive.disposal.settings.manage required");
     }
-
-}
-
-
-
-function checkSettingsUpdate(profile: UserWithRoles) {
-
-    if (!hasArchiveDisposalSettingsUpdatePermission(profile)) {
-
-        throw httpError.forbidden("archive.disposal.settings.update required");
-
-    }
-
 }
 
 
@@ -1434,8 +1416,7 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
             "/settings",
 
             async ({ profile }) => {
-
-                checkSettingsRead(profile);
+                checkSettingsManage(profile);
 
                 return await DisposalCouncilService.getSettings();
 
@@ -1454,8 +1435,7 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
             "/settings",
 
             async ({ profile, body }) => {
-
-                checkSettingsUpdate(profile);
+                checkSettingsManage(profile);
 
                 return await DisposalCouncilService.updateSettings(
 

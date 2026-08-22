@@ -642,7 +642,9 @@ export const ScanIntakeService = {
     },
 
     async promote(input: Static<typeof promoteBodySchema>) {
-        await ProjectService.assertProjectExists(input.projectCode);
+        if (input.projectCode) {
+            await ProjectService.assertProjectExists(input.projectCode);
+        }
 
         const scope = resolveDraftScope();
         const sessionPrefix = buildSessionPrefix(scope, input.sessionId);
@@ -740,11 +742,13 @@ export const ScanIntakeService = {
             const { pdfKey: sourceKey, pdfName, draftFolderPath, rawKey } = item;
 
             try {
-                await copyToRawPrefix(sourceKey, rawKey);
+                const runMode = input.runMode ?? "manual";
+                await copyToRawPrefix(sourceKey, rawKey, runMode);
                 // raw/ documents are never scoped to a project.
                 const registerResult = await DossierService.createDocumentFromStorage({
                     key: rawKey,
-                    projectCode: null,
+                    projectCode: input.projectCode ?? null,
+                    runMode,
                 });
                 await deleteStorageObject(sourceKey);
                 results.push({
@@ -776,7 +780,7 @@ export const ScanIntakeService = {
                         : targetFolder;
                     await DossierService.ensureFolderTreeFromStorage({
                         folderPath: targetFolderOnly,
-                        projectCode: null,
+                        projectCode: input.projectCode ?? null,
                     });
                     folderResults.push({ folderPath, created: true });
                 } catch (err) {

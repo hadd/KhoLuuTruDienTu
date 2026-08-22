@@ -130,6 +130,7 @@ export async function uploadBinaryToStorage(
 export async function copyToRawPrefix(
     sourceKey: string,
     destKey: string,
+    runMode: "auto" | "manual" = "manual",
 ): Promise<string> {
     const s3 = await getS3Client();
     if (!s3) {
@@ -144,12 +145,13 @@ export async function copyToRawPrefix(
         throw httpError.badRequest("Destination must be under raw/");
     }
 
-    const conditions = new CopyConditions();
-    await s3.getMinIOClient().copyObject(
-        bucket,
-        dest,
-        `/${bucket}/${src}`,
-        conditions,
-    );
+    const client = s3.getMinIOClient();
+    const stat = await client.statObject(bucket, src);
+    const stream = await client.getObject(bucket, src);
+    await client.putObject(bucket, dest, stream, stat.size, {
+        "Content-Type": stat.metaData?.["content-type"] ?? "application/pdf",
+        "x-amz-meta-run-mode": runMode,
+        "run-mode": runMode,
+    });
     return dest;
 }
