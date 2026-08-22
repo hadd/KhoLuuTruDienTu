@@ -109,6 +109,9 @@ export function DataNodeContextMenu({
 
   const isRoot = node.parentId === null
   const assignOptions = { role }
+  const assignProjectLabelKey = node.projectCode?.trim()
+    ? 'changeProject'
+    : 'assignProject'
 
   const baseItems: Array<{
     key:
@@ -132,7 +135,7 @@ export function DataNodeContextMenu({
       { key: 'rename', label: t('contextMenu.edit'), icon: Edit3 },
       {
         key: 'assignProject',
-        label: t('contextMenu.assignProject'),
+        label: t(`contextMenu.${assignProjectLabelKey}` as const),
         icon: FolderKanban,
       },
       {

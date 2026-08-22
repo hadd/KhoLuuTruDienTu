@@ -73,6 +73,7 @@
     "uploadDossier": "Tải lên hồ sơ",
     "uploadDocument": "Tải lên tài liệu",
     "assignProject": "Gán dự án",
+    "changeProject": "Đổi dự án",
     "submitArchive": "Nộp lưu kho"
   },
   "nodeType": {

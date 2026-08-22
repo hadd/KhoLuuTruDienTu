@@ -73,6 +73,7 @@
     "uploadDossier": "Upload dossier",
     "uploadDocument": "Upload document",
     "assignProject": "Assign project",
+    "changeProject": "Change project",
     "submitArchive": "Submit to archive"
   },
   "nodeType": {
