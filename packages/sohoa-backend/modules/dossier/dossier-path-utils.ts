@@ -5,9 +5,12 @@ const DOC_JSON_PREFIX = "doc_json";
 export const PROCESSED_STORAGE_PREFIX = "processed";
 /** TT05 metadata worker output root (parallel to processed/). */
 export const TT05_METADATA_STORAGE_PREFIX = "tt05_metadata";
+/** PVEP metadata worker output root (parallel to processed/). */
+export const PVEP_METADATA_STORAGE_PREFIX = "pvep_metadata";
 export const METADATA_OUTPUT_STORAGE_PREFIXES = [
     PROCESSED_STORAGE_PREFIX,
     TT05_METADATA_STORAGE_PREFIX,
+    PVEP_METADATA_STORAGE_PREFIX,
 ] as const;
 export type MetadataOutputStoragePrefix =
     (typeof METADATA_OUTPUT_STORAGE_PREFIXES)[number];
@@ -203,6 +206,14 @@ export function toProcessedMetadataKey(folderPath: string): string | null {
  */
 export function toTt05MetadataKey(folderPath: string): string | null {
     return toMetadataOutputKey(folderPath, TT05_METADATA_STORAGE_PREFIX);
+}
+
+/**
+ * Mirror a raw/ folder path to PVEP metadata key.
+ * raw/<root>/<ho_so_id> -> pvep_metadata/<root>/<ho_so_id>/<ho_so_id>.json
+ */
+export function toPvepMetadataKey(folderPath: string): string | null {
+    return toMetadataOutputKey(folderPath, PVEP_METADATA_STORAGE_PREFIX);
 }
 
 /**

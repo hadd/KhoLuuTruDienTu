@@ -113,6 +113,7 @@ export async function startKafkaConsumer(): Promise<void> {
     const topics = [
         env.KAFKA_METADATA_TOPIC,
         env.KAFKA_TT05_METADATA_TOPIC,
+        env.KAFKA_PVEP_METADATA_TOPIC,
         env.KAFKA_MERGE_FINISHED_WAIT_TOPIC,
     ];
 
@@ -140,7 +141,8 @@ export async function startKafkaConsumer(): Promise<void> {
 
             if (
                 topic === env.KAFKA_METADATA_TOPIC ||
-                topic === env.KAFKA_TT05_METADATA_TOPIC
+                topic === env.KAFKA_TT05_METADATA_TOPIC ||
+                topic === env.KAFKA_PVEP_METADATA_TOPIC
             ) {
                 await handleCompletedCallback(topic, payload);
                 return;

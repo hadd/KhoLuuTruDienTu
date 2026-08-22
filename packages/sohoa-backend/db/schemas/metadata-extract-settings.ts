@@ -8,6 +8,7 @@ import { userProfiles } from "./user_profile.ts";
 export const MetadataExtractMode = {
     OLD: "old",
     TT05: "tt05",
+    PVEP: "pvep",
     OFF: "off",
 } as const;
 
@@ -22,13 +23,15 @@ export const METADATA_EXTRACT_MODE_VALUES = Object.values(MetadataExtractMode) a
 export const metadataExtractModeSchema = t.Union([
     t.Literal(MetadataExtractMode.OLD),
     t.Literal(MetadataExtractMode.TT05),
+    t.Literal(MetadataExtractMode.PVEP),
     t.Literal(MetadataExtractMode.OFF),
 ]);
 
-/** Manual / re-extract API modes (includes both pipelines). */
+/** Manual / re-extract API modes (includes all pipelines). */
 export const MetadataExtractTriggerMode = {
     OLD: "old",
     TT05: "tt05",
+    PVEP: "pvep",
     BOTH: "both",
 } as const;
 
@@ -38,6 +41,7 @@ export type MetadataExtractTriggerMode =
 export const metadataExtractTriggerModeSchema = t.Union([
     t.Literal(MetadataExtractTriggerMode.OLD),
     t.Literal(MetadataExtractTriggerMode.TT05),
+    t.Literal(MetadataExtractTriggerMode.PVEP),
     t.Literal(MetadataExtractTriggerMode.BOTH),
 ]);
 

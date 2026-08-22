@@ -93,16 +93,14 @@ function resolveJsonPath(
     return derived;
 }
 
-// Luồng chọn model (TT05 hoặc OLD) tạm thời comment lại theo yêu cầu.
-// Giữ nguyên luồng xử lý Manual / Auto OCR khi upload.
 function resolvePublishTopics(
     mode: MetadataExtractTriggerModeType | MetadataExtractModeType,
 ): string[] {
-    /*
     if (mode === MetadataExtractTriggerMode.BOTH) {
         return [
             env.KAFKA_MERGE_COMPLETED_TOPIC,
             env.KAFKA_START_METADATA_TT05_TOPIC,
+            env.KAFKA_START_METADATA_PVEP_TOPIC,
         ];
     }
     if (mode === MetadataExtractMode.OLD) {
@@ -111,8 +109,10 @@ function resolvePublishTopics(
     if (mode === MetadataExtractMode.TT05) {
         return [env.KAFKA_START_METADATA_TT05_TOPIC];
     }
-    */
-    // Luồng chọn model TT05 / OLD bị ngắt/comment lại theo yêu cầu
+    if (mode === MetadataExtractMode.PVEP) {
+        return [env.KAFKA_START_METADATA_PVEP_TOPIC];
+    }
+    // off
     return [];
 }
 
