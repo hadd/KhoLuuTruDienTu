@@ -24,6 +24,8 @@ import {
   canManageArchiveWarehousePhysical,
   canReuploadArchiveWarehouse,
 } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
+import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
+import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
 import { formatArchiveFieldDisplay } from '@/features/archive-warehouse/lib/formatArchiveFieldDisplay'
 import {
   archiveWarehouseDossierDetailQueryOptions,
@@ -140,6 +142,16 @@ export function ArchiveWarehouseDossierDetailPage({
     ...rolePermissionsQueryOptions(roleId ?? ''),
     enabled: Boolean(roleId),
   })
+
+  const { canFetchDisposalSettings } = useDisposalCouncilAccess()
+  const { data: disposalSettings } = useQuery({
+    ...disposalSettingsQueryOptions(),
+    enabled: canFetchDisposalSettings,
+  })
+  const councilReviewEnabled = canFetchDisposalSettings
+    ? (disposalSettings?.councilReviewEnabled ?? true)
+    : false
+
   const permissions = useMemo(
     () =>
       resolvePermissionsForUser(profile, rolePermissions?.rules.permissions),
@@ -156,7 +168,7 @@ export function ArchiveWarehouseDossierDetailPage({
   const canReupload = isExploitation
     ? false
     : (data?.actions?.reupload ?? canReuploadArchiveWarehouse(permissions))
-  const canDelete = isExploitation
+  const canDelete = isExploitation || councilReviewEnabled
     ? false
     : (data?.actions?.delete ?? canDeleteArchiveWarehouse(permissions))
   const canMove = isExploitation

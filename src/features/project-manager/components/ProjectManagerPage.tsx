@@ -249,15 +249,16 @@ export function ProjectManagerPage() {
           placeholder={t('search.placeholder')}
           aria-label={t('search.placeholder')}
         />
-        <Button
-          type="button"
-          onClick={() => setCreateOpen(true)}
-          disabled={!canCreateProjects}
-          className="shrink-0 self-end sm:self-auto"
-        >
-          <Plus className="size-4" />
-          {t('actions.create')}
-        </Button>
+        {canCreateProjects ? (
+          <Button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="shrink-0 self-end sm:self-auto"
+          >
+            <Plus className="size-4" />
+            {t('actions.create')}
+          </Button>
+        ) : null}
       </div>
 
       <Card
