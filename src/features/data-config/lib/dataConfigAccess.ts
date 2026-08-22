@@ -38,6 +38,10 @@ export const DATA_CONFIG_HUB_SCREEN_REQUIREMENTS = [
     module: 'library',
     permissionKey: 'library.borrow.approval-config.manage',
   },
+  {
+    module: 'notifications',
+    permissionKey: 'notifications.config.manage',
+  },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
 export const DATA_CONFIG_RELATED_PATHS = [

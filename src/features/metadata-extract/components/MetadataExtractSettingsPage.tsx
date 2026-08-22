@@ -25,9 +25,7 @@ import {
   useUpdateMetadataExtractSettingsMutation,
 } from '@/features/metadata-extract/queries'
 
-// Luồng chọn model bóc tách metadata (TT05 / OLD) tạm thời được comment lại theo yêu cầu.
-// Vẫn giữ nguyên chế độ Manual / Auto khi upload hồ sơ/tài liệu.
-// const MODE_OPTIONS: MetadataExtractMode[] = ['old', 'tt05']
+const MODE_OPTIONS: MetadataExtractMode[] = ['old', 'tt05', 'pvep']
 
 export function MetadataExtractSettingsPage() {
   const { t } = useTranslation('metadata-extract-settings')
@@ -40,10 +38,8 @@ export function MetadataExtractSettingsPage() {
   })
 
   const currentMode = settings?.mode ?? 'old'
-  /*
   const selectOptions: MetadataExtractMode[] =
     currentMode === 'off' ? [...MODE_OPTIONS, 'off'] : MODE_OPTIONS
-  */
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto">
@@ -74,11 +70,6 @@ export function MetadataExtractSettingsPage() {
             </div>
           ) : (
             <>
-              {/* 
-                Luồng chọn model (TT05 hoặc OLD) tạm thời comment lại theo yêu cầu.
-                Chế độ Manual / Auto khi upload vẫn được giữ nguyên.
-              */}
-              {/* 
               <div className="flex flex-col gap-2">
                 <Label htmlFor="metadata-extract-mode">{t('mode.label')}</Label>
                 <Select
@@ -102,14 +93,10 @@ export function MetadataExtractSettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              */}
 
-              <div className="rounded-md border border-amber-200 bg-amber-50/60 p-4 text-sm text-amber-800">
-                <p className="font-medium">Luồng chọn model (TT05 / Old) đã được tạm ẩn/comment.</p>
-                <p className="mt-1 text-xs text-amber-700">
-                  Tùy chọn bóc tách thủ công (Manual) và tự động (Auto) khi tải lên hồ sơ/tài liệu vẫn được giữ nguyên.
-                </p>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                {t(`modeHelp.${currentMode}`)}
+              </p>
 
               {!canUpdate ? (
                 <p className="text-xs text-muted-foreground">{t('readOnlyHint')}</p>

@@ -92,7 +92,11 @@ export function isDataConfigNavItemVisible(
     return isMetadataSidebarChildGranted(id, permissions, catalog)
   }
   if (id === 'notification-configs') {
-    return isPermissionGranted(permissions, 'roles.manage', 'roles')
+    return isPermissionGranted(
+      permissions,
+      'notifications.config.manage',
+      'notifications',
+    )
   }
   if (id === 'watermark-configs') {
     return isPermissionGranted(permissions, 'watermark.config.read', 'watermark')
