@@ -329,7 +329,7 @@ export function createArchiveBorrowRouter(prefix = "/archive-borrow-requests") {
         )
         .get(
             "/:id/dip/files/:fileId/content",
-            async ({ params, profile }) => {
+            async ({ params, profile, headers: reqHeaders, request }) => {
                 const user = requireProfile(profile);
                 const result = await ArchiveBorrowService.getDipFileContent(
                     user,
@@ -337,9 +337,51 @@ export function createArchiveBorrowRouter(prefix = "/archive-borrow-requests") {
                     params.fileId,
                 );
                 const fileName = result.fileName.trim() || `${result.fileId}.pdf`;
+                const totalSize = result.bytes.length;
+                const rangeHeader =
+                    reqHeaders?.["range"] ||
+                    (typeof request?.headers?.get === "function"
+                        ? request.headers.get("range")
+                        : null);
+
+                if (rangeHeader && rangeHeader.startsWith("bytes=")) {
+                    const rangeMatch = /^bytes=(\d+)-(\d+)?$/.exec(rangeHeader);
+                    if (rangeMatch) {
+                        const start = parseInt(rangeMatch[1], 10);
+                        const end = rangeMatch[2]
+                            ? parseInt(rangeMatch[2], 10)
+                            : totalSize - 1;
+
+                        if (!isNaN(start) && start < totalSize) {
+                            const actualEnd = Math.min(end, totalSize - 1);
+                            const chunkSize = actualEnd - start + 1;
+                            const chunk = result.bytes.subarray(start, actualEnd + 1);
+
+                            return new Response(Buffer.from(chunk), {
+                                status: 206,
+                                headers: {
+                                    "Content-Type": "application/pdf",
+                                    "Content-Range": `bytes ${start}-${actualEnd}/${totalSize}`,
+                                    "Accept-Ranges": "bytes",
+                                    "Content-Length": String(chunkSize),
+                                    "Content-Disposition": formatContentDisposition(
+                                        "inline",
+                                        fileName,
+                                    ),
+                                    "Cache-Control": "private, no-store",
+                                    "X-Content-Type-Options": "nosniff",
+                                },
+                            });
+                        }
+                    }
+                }
+
                 return new Response(Buffer.from(result.bytes), {
+                    status: 200,
                     headers: {
                         "Content-Type": "application/pdf",
+                        "Accept-Ranges": "bytes",
+                        "Content-Length": String(totalSize),
                         "Content-Disposition": formatContentDisposition("inline", fileName),
                         "Cache-Control": "private, no-store",
                         "X-Content-Type-Options": "nosniff",
