@@ -1029,7 +1029,7 @@ export async function findDossiersInLeafFoldersWithFiles(folderId: string) {
 }
 
 function sanitizeExportBaseName(name: string): string {
-  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return name.replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim() || "export";
 }
 
 type DossierWithFiles = {
@@ -1227,12 +1227,16 @@ async function buildApprovedMetadataExportZip(
   assertExportFileLimit(totalPdfFiles);
 
   const dossierIds = allDossiers.map((d) => d.id);
-  // Watermark & encrypt theo cấp bảo mật — bỏ qua client applyWatermark
-  const applyWatermark = await resolveApplyWatermarkForDossiers(dossierIds);
-  const watermarkConfig = await resolveWatermarkApplyConfig(
-    input?.placementId,
-    applyWatermark,
-  );
+  // Hồ sơ ở trạng thái Đã duyệt: Không áp dụng watermark trừ khi người dùng chủ động bật (applyWatermark === true)
+  const applyWatermark = input?.applyWatermark === true
+    ? await resolveApplyWatermarkForDossiers(dossierIds)
+    : false;
+  const watermarkConfig = applyWatermark
+    ? await resolveWatermarkApplyConfig(
+        input?.placementId,
+        true,
+      )
+    : null;
 
   const zipResolved = input?.userId
     ? await resolveExportZipPassword({

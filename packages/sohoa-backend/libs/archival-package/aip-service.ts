@@ -278,11 +278,15 @@ export async function exportDipHosoBatch(
   }
 
   const resolvedDossierIds = await resolveIdsIntoDossierIds(uniqueInputIds);
-  const applyWatermark = await resolveApplyWatermarkForDossiers(resolvedDossierIds);
-  const watermarkConfig = await resolveWatermarkApplyConfig(
-    options?.placementId,
-    applyWatermark,
-  );
+  const applyWatermark = options?.applyWatermark === true
+    ? await resolveApplyWatermarkForDossiers(resolvedDossierIds)
+    : false;
+  const watermarkConfig = applyWatermark
+    ? await resolveWatermarkApplyConfig(
+        options?.placementId,
+        true,
+      )
+    : null;
 
   // Phase 1: load metadata only, count PDF sources, fail early before downloads.
   const contexts = await mapInBatches(
