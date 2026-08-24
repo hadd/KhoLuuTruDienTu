@@ -116,6 +116,7 @@ export type PhysicalItemPlacementRowT = {
   dossierName: string
   folderPath: string | null
   dossierStatus: string
+  deletedAt?: string | null
   /**
    * Số văn bản (documents) hiện có trong hồ sơ này — tương ứng
    * ArchiveWarehouseDossierItemT.documentCount bên archive-warehouse.

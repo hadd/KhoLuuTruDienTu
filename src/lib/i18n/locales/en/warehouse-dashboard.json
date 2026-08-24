@@ -73,11 +73,11 @@
         },
         "fonds": {
             "title": "Dossier Distribution by Fond",
-            "desc": "Distribution percentage of dossiers across each Fond unit in the system",
-            "empty": "No archive fonds defined in the system"
+            "desc": "Distribution percentage of archived dossiers (ARCHIVED) across each Fond unit",
+            "empty": "No archived dossiers found in any Fond"
         },
         "disposal": {
-            "title": "Expiring Retention Disposal Catalog",
+            "title": "List of Dossiers Subject to Disposal",
             "countBadge": "{{count}} dossiers due",
             "desc": "Dossiers whose retention period in the DB has expired",
             "table": {

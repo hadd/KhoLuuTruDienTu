@@ -73,13 +73,13 @@
         },
         "fonds": {
             "title": "Phân Bố Hồ Sơ Theo Phông Lưu Trữ",
-            "desc": "Cơ cấu tỷ lệ hồ sơ phân bổ theo từng đơn vị Phông từ hệ thống",
-            "empty": "Chưa có Phông lưu trữ nào được khai báo trong hệ thống"
+            "desc": "Cơ cấu tỷ lệ hồ sơ đã lưu kho (ARCHIVED) phân bổ theo từng đơn vị Phông",
+            "empty": "Chưa có Phông lưu trữ nào có hồ sơ đã lưu kho"
         },
         "disposal": {
-            "title": "Danh Mục Hồ Sơ Đến Hạn Tiêu Hủy",
-            "countBadge": "{{count}} hồ sơ đến hạn",
-            "desc": "Các hồ sơ đã hết thời hạn bảo quản lưu trữ theo quy định trong DB",
+            "title": "Danh sách Danh Mục Hồ Sơ Cần Tiêu Hủy",
+            "countBadge": "{{count}} hồ sơ",
+            "desc": "Các hồ sơ đã hết thời hạn bảo quản lưu trữ hoặc trùng lặp trong hệ thống",
             "table": {
                 "colFond": "Phông",
                 "colStatus": "Trạng thái",
