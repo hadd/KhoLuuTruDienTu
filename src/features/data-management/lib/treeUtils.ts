@@ -244,7 +244,23 @@ export async function reloadTreePathToNode(
 export function isBatchSignSelectableNode(node: DataTreeNodeT): boolean {
   if (
     node.dossierStatus !== 'APPROVED' &&
+    node.dossierStatus !== 'ARCHIVED' &&
     node.dossierStatus !== 'ARCHIVE_REJECTED'
+  ) {
+    return false
+  }
+  return (
+    node.type === 'record' ||
+    Boolean(node.dossierId) ||
+    node.entityType === 'DOCUMENT'
+  )
+}
+
+/** True when a tree node can be picked in batch metadata export mode (APPROVED or ARCHIVED). */
+export function isBatchExportSelectableNode(node: DataTreeNodeT): boolean {
+  if (
+    node.dossierStatus !== 'APPROVED' &&
+    node.dossierStatus !== 'ARCHIVED'
   ) {
     return false
   }

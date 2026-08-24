@@ -447,6 +447,22 @@ export async function exportDossierMetadataExcel(
   await downloadMetadataExport(path, fallbackName, dossierId)
 }
 
+export async function exportMultiDossiersMetadataExcel(
+  dossierIds: string[],
+  downloadName?: string,
+  config?: MetadataExportRequestT,
+): Promise<void> {
+  const fallbackName = downloadName?.trim()
+    ? `${downloadName.trim()}.zip`
+    : `multi-dossiers.zip`
+  const path = `/api/v1/dossiers/metadata/export`
+  const body = {
+    ...config,
+    dossierIds,
+  }
+  await downloadConfiguredMetadataExport(path, fallbackName, body)
+}
+
 export async function exportFolderMetadataExcel(
   folderId: string,
   downloadName?: string,

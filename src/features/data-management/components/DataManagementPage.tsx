@@ -66,6 +66,7 @@ import {
   findRecordParentForDocument,
   getPathToNode,
   isBatchSignSelectableNode,
+  isBatchExportSelectableNode,
   isDossierWorkflowNode,
   isNodeForDossier,
   reloadTreePathToNode,
@@ -170,6 +171,7 @@ export function DataManagementPage({
   const [exportingMode, setExportingMode] = useState<ExportMode | null>(null)
   const [canExportDip, setCanExportDip] = useState(false)
   const [batchSignMode, setBatchSignMode] = useState(false)
+  const [batchExportMode, setBatchExportMode] = useState(false)
   const [selectedRecordIds, setSelectedRecordIds] = useState<Array<string>>([])
   const [batchSignDrawerOpen, setBatchSignDrawerOpen] = useState(false)
   const [archiveSubmitOpen, setArchiveSubmitOpen] = useState(false)
@@ -270,10 +272,13 @@ export function DataManagementPage({
       .map((id) => findNodeById(tree, id))
       .filter(
         (node): node is DataTreeNodeT =>
-          Boolean(node) && isBatchSignSelectableNode(node),
+          Boolean(node) &&
+          (batchSignMode
+            ? isBatchSignSelectableNode(node)
+            : isBatchExportSelectableNode(node)),
       )
       .map((node) => node.dossierId ?? node.id)
-  }, [selectedRecordIds, tree])
+  }, [selectedRecordIds, tree, batchSignMode, batchExportMode])
 
   const handleOcrTerminalComplete = useCallback(
     (payload: OcrTerminalCompletePayloadT) => {
@@ -808,9 +813,11 @@ export function DataManagementPage({
         const targetNode = findNodeById(workingTree, id)
 
         if (
-          batchSignMode &&
+          (batchSignMode || batchExportMode) &&
           targetNode &&
-          isBatchSignSelectableNode(targetNode)
+          (batchSignMode
+            ? isBatchSignSelectableNode(targetNode)
+            : isBatchExportSelectableNode(targetNode))
         ) {
           setSelectedRecordIds((prev) =>
             prev.includes(id)
@@ -1169,10 +1176,14 @@ export function DataManagementPage({
                 tree={displayTree}
                 selectedId={focusDocumentId ?? nodeId}
                 selectedIds={selectedRecordIds}
-                multiSelect={batchSignMode}
+                multiSelect={batchSignMode || batchExportMode}
                 multiSelectTarget="record"
                 isMultiSelectNode={
-                  batchSignMode ? isBatchSignSelectableNode : undefined
+                  batchSignMode
+                    ? isBatchSignSelectableNode
+                    : batchExportMode
+                      ? isBatchExportSelectableNode
+                      : undefined
                 }
                 expandPathToNodeIds={treeExpandToNodeIds}
                 onExpandPathApplied={() => setTreeExpandToNodeIds([])}
@@ -1226,9 +1237,10 @@ export function DataManagementPage({
                   onClick={() => {
                     setBatchSignMode((prev) => {
                       const next = !prev
-                      if (!next) {
-                        setSelectedRecordIds([])
+                      if (next) {
+                        setBatchExportMode(false)
                       }
+                      setSelectedRecordIds([])
                       return next
                     })
                   }}
@@ -1271,6 +1283,77 @@ export function DataManagementPage({
                     {t('digitalSign.batchAction', {
                       count: selectedDossierIds.length,
                     })}
+                  </Button>
+                ) : null}
+              </>
+            ) : null}
+            {canExportDossiers ? (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={batchExportMode ? 'secondary' : 'outline'}
+                  className="shrink-0 gap-1.5"
+                  onClick={() => {
+                    setBatchExportMode((prev) => {
+                      const next = !prev
+                      if (next) {
+                        setBatchSignMode(false)
+                      }
+                      setSelectedRecordIds([])
+                      return next
+                    })
+                  }}
+                >
+                  <FolderUp className="size-3.5" aria-hidden />
+                  {batchExportMode
+                    ? t('recordDetail.exportExcelExitBatchMode', 'Thoát chọn xuất')
+                    : t('recordDetail.exportExcelBatchMode', 'Chọn hồ sơ xuất')}
+                </Button>
+                {batchExportMode ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="shrink-0 gap-1.5"
+                    disabled={selectedDossierIds.length === 0 || isExporting}
+                    onClick={() => {
+                      void (async () => {
+                        if (selectedDossierIds.length === 0) return
+                        setIsExporting(true)
+                        try {
+                          await runExport({
+                            kind: 'multi_dossiers',
+                            mode: 'metadata',
+                            folderId: null,
+                            dossierId: null,
+                            dossierIds: selectedDossierIds,
+                            downloadName: `multi-export-${selectedDossierIds.length}-hoso`,
+                          })
+                          toast.success(
+                            t('recordDetail.exportExcelSuccess', 'Đã tải xuống tệp Excel.'),
+                          )
+                        } catch (error) {
+                          toast.error(
+                            translateError(
+                              error instanceof Error
+                                ? error
+                                : new Error(t('recordDetail.exportExcelError')),
+                            ),
+                          )
+                        } finally {
+                          setIsExporting(false)
+                        }
+                      })()
+                    }}
+                  >
+                    <FolderUp className="size-3.5" aria-hidden />
+                    {t(
+                      'recordDetail.exportExcelBatchAction',
+                      `Xuất ${selectedDossierIds.length} hồ sơ đã chọn`,
+                      {
+                        count: selectedDossierIds.length,
+                      },
+                    )}
                   </Button>
                 ) : null}
               </>

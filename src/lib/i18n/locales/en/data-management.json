@@ -154,6 +154,11 @@
     "exportExcelSuccess": "Excel file downloaded.",
     "exportExcelError": "Failed to export Excel file.",
     "exportExcelNotApproved": "Export is only available after final approval.",
+    "exportExcelBatchMode": "Batch export mode",
+    "exportExcelExitBatchMode": "Exit batch export",
+    "exportExcelBatchAction": "Export {{count}} selected dossiers",
+    "exportExcelMissingMetadata": "Cannot export: Some dossiers are missing metadata: {{names}}",
+    "exportExcelPendingApproval": "Cannot export: Some dossiers must be approved or archived: {{names}}",
     "exportDialog": {
       "title": "Export dossier",
       "description": "Choose export format",

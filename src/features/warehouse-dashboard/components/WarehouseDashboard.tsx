@@ -45,7 +45,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { aggregateDossierStatusCategories } from '@/features/admin-dashboard/lib/dashboardStatusHelpers'
+import { aggregateDossierStatusCategories } from '@/features/warehouse-dashboard/lib/dashboardStatusHelpers'
 import type { PhysicalWarehouseItemT } from '@/features/physical-warehouse/types'
 import { formatNumber } from '@/lib/utils/format'
 import { warehouseDashboardQueries } from '../queries'
@@ -271,7 +271,7 @@ export function WarehouseDashboard() {
   const activeBorrows = borrowData?.approved ?? 0
   const returnedBorrows = borrowData?.returned ?? 0
   const rejectedBorrows = borrowData?.rejected ?? 0
-  const totalBorrows = borrowData?.total ?? 0 
+  const totalBorrows = borrowData?.total ?? 0
 
   const totalUnplacedOverall = unplacedData?.total ?? 0
 
@@ -288,6 +288,7 @@ export function WarehouseDashboard() {
       name: fond.fondName ?? fond.name ?? '-',
       value: fond.dossierCount ?? 0,
     }))
+    .filter((item: any) => item.value > 0)
     .sort((a: any, b: any) => {
       if (b.value !== a.value) return b.value - a.value
       return a.name.localeCompare(b.name, 'vi')
@@ -755,9 +756,9 @@ export function WarehouseDashboard() {
               </div>
             </CardHeader>
             <CardContent className="flex-1 pt-1">
-              <div className="overflow-x-auto">
+              <div className="max-h-[300px] overflow-y-auto overflow-x-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 bg-card z-10">
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="text-xs py-2 px-2 font-semibold">
                         {t('warehouse.unplaced.table.colName')}
@@ -793,12 +794,38 @@ export function WarehouseDashboard() {
                             {exp?.fondName ?? t('warehouse.disposal.table.fallbackFond')}
                           </TableCell>
                           <TableCell className="py-2.5 px-2 text-right">
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-400"
-                            >
-                              {t('warehouse.disposal.table.statusPending')}
-                            </Badge>
+                            {exp?.categories && Array.isArray(exp.categories) && exp.categories.length > 0 ? (
+                              exp.categories.map((cat: string) => (
+                                <Badge
+                                  key={cat}
+                                  variant="outline"
+                                  className={`text-[10px] ml-1 ${
+                                    cat === 'expired'
+                                      ? 'bg-rose-500/10 text-rose-700 border-rose-500/30 dark:text-rose-400'
+                                      : cat === 'expiring_soon'
+                                      ? 'bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-400'
+                                      : cat === 'duplicate'
+                                      ? 'bg-blue-500/10 text-blue-700 border-blue-500/30 dark:text-blue-400'
+                                      : 'bg-muted text-muted-foreground'
+                                  }`}
+                                >
+                                  {cat === 'expired'
+                                    ? 'Hết hạn'
+                                    : cat === 'expiring_soon'
+                                    ? 'Sắp hết hạn'
+                                    : cat === 'duplicate'
+                                    ? 'Trùng lặp'
+                                    : cat}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-400"
+                              >
+                                {t('warehouse.disposal.table.statusPending')}
+                              </Badge>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))

@@ -3,6 +3,7 @@ import {
   exportDossierDip,
   exportDossierMetadataExcel,
   exportFolderMetadataExcel,
+  exportMultiDossiersMetadataExcel,
   type MetadataExportRequestT,
 } from '@/features/data-management/api/dossierClient'
 import { canExportDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
@@ -17,7 +18,7 @@ import type {
   DataTreeNodeT,
 } from '@/features/data-management/types'
 
-export type ExportKind = 'folder' | 'dossier'
+export type ExportKind = 'folder' | 'dossier' | 'multi_dossiers'
 export type ExportMode = 'metadata' | 'dip'
 
 export interface ExportOptions {
@@ -113,6 +114,7 @@ export interface RunExportParams {
   mode: ExportMode
   folderId: string | null
   dossierId: string | null
+  dossierIds?: string[]
   downloadName: string
   metadataExportConfig?: MetadataExportRequestT
 }
@@ -122,10 +124,15 @@ export async function runExport({
   mode,
   folderId,
   dossierId,
+  dossierIds,
   downloadName,
   metadataExportConfig,
 }: RunExportParams): Promise<void> {
   if (mode === 'metadata') {
+    if (kind === 'multi_dossiers' && dossierIds && dossierIds.length > 0) {
+      await exportMultiDossiersMetadataExcel(dossierIds, downloadName, metadataExportConfig)
+      return
+    }
     if (kind === 'folder' && folderId) {
       await exportFolderMetadataExcel(folderId, downloadName, metadataExportConfig)
       return

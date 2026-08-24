@@ -330,7 +330,7 @@ export function ArchiveBorrowCreateDialog({
             {selected.length === 0 ? (
               <p className="text-muted-foreground">{t('page.noItemsSelected')}</p>
             ) : (
-              <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
+              <ul className="list-disc space-y-1 pl-4 text-muted-foreground break-all [overflow-wrap:anywhere]">
                 {selected.map((item) => (
                   <li key={item.key}>{item.label}</li>
                 ))}
@@ -341,6 +341,7 @@ export function ArchiveBorrowCreateDialog({
           <label className="block space-y-1 text-sm">
             <span>{t('page.reason')}</span>
             <Textarea
+              className="max-w-full break-all [overflow-wrap:anywhere]"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
