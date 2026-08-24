@@ -8,6 +8,7 @@ import { DashboardService as service } from "./dashboard-service.ts";
 import { ItemService } from "../physical-warehouse/physical-warehouse-service.ts";
 import { PlacementService } from "../physical-warehouse/physical-placement-service.ts";
 import { FondService } from "../fond/fond-service.ts";
+import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import {
     warehouseLocationResponseSchema,
     warehouseStatsResponseSchema,
@@ -91,11 +92,11 @@ export function createDashboardWarehouseRouter(basePath: string = "/dashboard") 
         "/warehouse/active-fonds",
         async ({ profile }) => {
             checkWarehousePermission(profile);
-            return await FondService.listActiveWithDossierCount();
+            return await FondService.listActiveWithDossierCount({ dossierStatus: DossierStatus.ARCHIVED });
         },
         {
             response: warehouseActiveFondsResponseSchema,
-            detail: { tags, summary: "Lấy danh sách phông lưu trữ hoạt động kèm số lượng hồ sơ" }
+            detail: { tags, summary: "Lấy danh sách phông lưu trữ hoạt động kèm số lượng hồ sơ đã lưu kho" }
         }
     );
 
@@ -115,7 +116,7 @@ export function createDashboardWarehouseRouter(basePath: string = "/dashboard") 
         "/warehouse/disposal-candidates",
         async ({ profile }) => {
             checkWarehousePermission(profile);
-            return await service.getWarehouseDisposalCandidates();
+            return await service.getWarehouseDisposalCandidates(profile);
         },
         {
             response: warehouseDisposalResponseSchema,

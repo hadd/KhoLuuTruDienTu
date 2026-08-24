@@ -3,10 +3,15 @@ import { httpError } from "@shared/common-lib";
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
+import { ArchiveDisposalService } from "../archive-disposal/archive-disposal-service.ts";
 
 // Import các schemas bị thiếu
 import { archiveBorrowRequests } from "../../db/schemas/archive-borrow.ts";
 import { fonds } from "../../db/schemas/fond.ts";
+import {
+    disposalProposalCatalogs,
+    disposalProposalItems,
+} from "../../db/schemas/archive-disposal.ts";
 
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
@@ -25,6 +30,7 @@ import {
     WorkQuality,
     type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
+import { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 
 const CHECKER_ROLES = QC_CHECKER_WORKFLOW.map((step) => step.role);
 
@@ -866,66 +872,59 @@ export const DashboardService = {
                     else if (status === 'RETURNED' || status === 'EXPIRED') borrowStats.returned += row.count;
                     else if (status === 'REJECTED') borrowStats.rejected = row.count;
                 }
-            } catch {}
+            } catch { }
         }
         borrowStats.total = borrowStats.pending + borrowStats.approved + borrowStats.returned + borrowStats.rejected;
         return borrowStats;
     },
 
-    async getWarehouseDisposalCandidates() {
+    async getWarehouseDisposalCandidates(profile: UserWithRoles) {
         try {
-            // Sử dụng Drizzle ORM thực hiện Left Join an toàn giữa dossiers và fonds
-            const items = await db
-                .select({
-                    dossierId: dossiers.id,
-                    id: dossiers.id,
-                    dossierName: dossiers.name,
-                    name: dossiers.name,
-                    fondName: fonds.fondName,
-                })
-                .from(dossiers)
-                .leftJoin(
-                    fonds,
-                    and(
-                        eq(dossiers.fondId, fonds.id),
-                        isNull(fonds.deletedAt)
-                    )
-                )
-                .where(
-                    and(
-                        eq(dossiers.status, DossierStatus.APPROVED), // Hoặc DossierStatus.ARCHIVED tùy theo trạng thái lưu kho của bạn
-                        isNull(dossiers.deletedAt),
-                        isNotNull(dossiers.expiresAt),
-                        lte(dossiers.expiresAt, sql`NOW()`)
-                    )
-                )
-                .orderBy(desc(dossiers.expiresAt))
-                .limit(5);
-
-            return { items, total: items.length };
-        } catch {
-            // Fallback an toàn nếu có sự cố liên kết bảng phông
-            try {
-                const items = await db
-                    .select({
-                        id: dossiers.id,
-                        dossierId: dossiers.id,
-                        name: dossiers.name,
-                        dossierName: dossiers.name,
-                    })
-                    .from(dossiers)
-                    .where(
-                        and(
-                            eq(dossiers.status, DossierStatus.APPROVED),
-                            isNull(dossiers.deletedAt)
-                        )
-                    )
-                    .limit(5);
-                return { items, total: items.length };
-            } catch {
+            if (!profile) {
                 return { items: [], total: 0 };
             }
-        }   
+            const res = await ArchiveDisposalService.listCandidates(profile, {
+                category: "all",
+                entityKind: "grouped",
+                limit: 100,
+            });
+
+            const groups = res.groups ?? [];
+            const items = groups.map((g) => {
+                const dossierItem = g.dossierItem as any;
+                const docCategories = g.documentItems.flatMap((doc: any) => doc.categories ?? []);
+                const allCategories = Array.from(
+                    new Set([
+                        ...(dossierItem?.categories ?? []),
+                        ...docCategories,
+                    ])
+                );
+                if (allCategories.length === 0) {
+                    if (g.expiresAt) allCategories.push("expired");
+                    else allCategories.push("duplicate");
+                }
+
+                return {
+                    id: g.dossierId,
+                    dossierId: g.dossierId,
+                    itemId: g.dossierId,
+                    dossierName: g.dossierName,
+                    name: g.dossierName,
+                    title: g.dossierName,
+                    code: dossierItem?.dossierCode ?? null,
+                    fondName: g.fondName,
+                    retentionPeriodName: g.retentionPeriodName,
+                    expiresAt: g.expiresAt,
+                    categories: allCategories,
+                    createdAt: g.archivedAt,
+                };
+            });
+
+            return { items, total: res.total ?? items.length };
+        } catch (err) {
+            console.error("Error fetching candidates for warehouse disposal dashboard:", err);
+            return { items: [], total: 0 };
+        }
     }
 };
 

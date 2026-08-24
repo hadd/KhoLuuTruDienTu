@@ -337,6 +337,7 @@ export const PlacementService = {
                 dossierName: dossiers.name,
                 folderPath: dossiers.folderPath,
                 dossierStatus: dossiers.status,
+                deletedAt: dossiers.deletedAt,
             })
             .from(dossierPhysicalPlacements)
             .innerJoin(
@@ -353,7 +354,6 @@ export const PlacementService = {
                         dossierPhysicalPlacements.status,
                         DossierPhysicalPlacementStatus.ACTIVE,
                     ),
-                    activeDossierWhere(),
                 ),
             )
             .orderBy(asc(dossiers.name));
@@ -369,6 +369,7 @@ export const PlacementService = {
                 dossierName: row.dossierName,
                 folderPath: row.folderPath,
                 dossierStatus: row.dossierStatus,
+                deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null,
                 documentCount:
                     documentCountByDossierId.get(row.placement.dossierId) ?? 0,
             })),
