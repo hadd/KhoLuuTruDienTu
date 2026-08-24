@@ -42,7 +42,7 @@
             "manageBorrow": "Quản lý mượn trả"
         },
         "capacity": {
-            "title": "Sức Chứa Tách Riêng Từng Kho",
+            "title": "Sức Chứa Tách Riêng Từng Kho (Theo Hộp/Cặp)",
             "countBadge": "{{count}} Kho thực tế",
             "desc": "Tổng quan dung lượng lưu giữ, sức chứa tối đa và tỷ lệ lấp đầy theo con số cụ thể từ DB",
             "emptyTitle": "Chưa có Địa điểm Kho nào trong hệ thống",
