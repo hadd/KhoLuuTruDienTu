@@ -62,10 +62,12 @@ export function AuditLogConfigPage() {
               <AuditLogModuleSelect
                 id="audit-log-config-module"
                 value={search.module ?? ''}
+                allowedModules={data?.groups.map((group) => group.module)}
                 onChange={(module) => updateSearch({ module: module || undefined })}
               />
             </div>
           </Card>
+
 
           {filteredGroups.length ? (
             <div className="grid gap-6 md:grid-cols-2">
