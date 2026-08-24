@@ -29,6 +29,7 @@ const MODULE_I18N_OVERRIDES: Record<string, string> = {
   watermark: 'modules.watermark',
   roles: 'modules.roles',
   'scan-intake': 'modules.scan-intake',
+  'ocr-control': 'modules.ocr-control',
   profile: 'modules.profile',
   users: 'modules.users',
   library: 'modules.library',
