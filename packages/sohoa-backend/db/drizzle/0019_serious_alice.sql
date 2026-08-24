@@ -1,2 +1,0 @@
-ALTER TABLE "sohoa_app"."watermark_placements" ADD COLUMN "is_active" boolean DEFAULT false NOT NULL;--> statement-breakpoint
-CREATE UNIQUE INDEX "watermark_placements_single_active_idx" ON "sohoa_app"."watermark_placements" USING btree ("is_active") WHERE "sohoa_app"."watermark_placements"."is_active" = true;

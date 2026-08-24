@@ -19,10 +19,7 @@
     "db:reset-gen-migrate-seed": "deno task db:reset && deno task db:generate && deno task db:migrate && deno task seed",
     "search:reindex": "deno run -A ./scripts/reindex-search.ts",
     "search:ping": "deno run -A ./scripts/ping-search.ts",
-    "search:verify-nested": "deno run -A ./scripts/verify-nested-search.ts",
-    "seed:tt05-metadata": "deno run -A ./scripts/seed/seed-tt05-processed-metadata.ts",
-    "seed:tt05-fake": "deno run -A ./scripts/seed/seed-tt05-fake-files.ts",
-    "seed:tt05-dossiers": "deno run -A ./scripts/seed/seed-tt05-fake-dossiers.ts",
+    "search:verify-nested": "deno run -A ./scripts/verify-nested-search.ts"
   },
   "imports": {
 }

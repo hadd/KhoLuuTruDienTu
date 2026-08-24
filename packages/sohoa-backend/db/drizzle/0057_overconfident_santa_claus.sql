@@ -1,1 +1,0 @@
-ALTER TABLE "sohoa_app"."duplicate_detection_rules" ADD COLUMN "dossier_summary_field_key" varchar(128);
