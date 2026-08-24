@@ -15,7 +15,13 @@ import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/plan-management/')({
   staticData: {
-    crumb: () => i18n.t('sectionTabs.plans', { ns: 'project-management' }),
+    crumb: () => ({
+      label: i18n.t('sectionTabs.plans', { ns: 'project-management' }),
+      parent: {
+        label: i18n.t('title', { ns: 'project-management' }),
+        to: '/app/project-management',
+      },
+    }),
   },
   beforeLoad: async ({ context }) => {
     await requirePermission(context, APP_SCREEN_ACCESS.planManagement)

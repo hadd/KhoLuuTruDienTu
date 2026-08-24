@@ -10,7 +10,13 @@ import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/ocr-control/')({
   staticData: {
-    crumb: () => i18n.t('sectionTabs.ocrControl', { ns: 'digitization' }),
+    crumb: () => ({
+      label: i18n.t('sectionTabs.ocrControl', { ns: 'digitization' }),
+      parent: {
+        label: i18n.t('title', { ns: 'digitization' }),
+        to: '/app/digitization',
+      },
+    }),
   },
   beforeLoad: async ({ context }) => {
     await requirePermission(context, APP_SCREEN_ACCESS.ocrControl)
