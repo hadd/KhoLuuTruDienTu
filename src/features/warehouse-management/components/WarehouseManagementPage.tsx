@@ -29,16 +29,13 @@ export function WarehouseManagementPage() {
   const { canSubmitArchive, canReviewArchive } = useArchiveSubmissionAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
 
-  const primaryRole = getPrimaryAppRole(getUserRoles())
   const canOpenDataWarehouse =
     canReadArchiveWarehouse ||
     canReadDisposal ||
     canSubmitArchive ||
     canReviewArchive ||
     canManageArchiveConfig ||
-    canManageArchivePermissions ||
-    primaryRole === 'admin' ||
-    primaryRole === 'manager'
+    canManageArchivePermissions
 
   const tiles = useMemo(() => {
     const items: Array<{
