@@ -96,7 +96,7 @@ function RequestRow({
   return (
     <tr className="border-b align-top">
       <td className="max-w-[16rem] px-3 py-2 text-sm">
-        <span className="line-clamp-2 break-words" title={request.reason}>
+        <span className="line-clamp-2 break-all [overflow-wrap:anywhere]" title={request.reason}>
           {request.reason}
         </span>
       </td>
@@ -105,8 +105,8 @@ function RequestRow({
           <span>{t(`status.${request.status}` as const)}</span>
           {request.status === 'REJECTED' && request.reviewNotes ? (
             <p
-              className="max-w-xs text-xs leading-snug text-destructive break-words"
-              title={request.reviewNotes}
+              className="max-w-xs text-xs leading-snug text-destructive line-clamp-2 break-all [overflow-wrap:anywhere]"
+              title={`${t('page.rejectNotes')}: ${request.reviewNotes}`}
             >
               {t('page.rejectNotes')}: {request.reviewNotes}
             </p>

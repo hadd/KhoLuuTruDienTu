@@ -232,7 +232,7 @@ export function ArchiveBorrowApprovalPage() {
                     </td>
                     <td className="max-w-[14rem] px-3 py-2 text-sm">
                       <span
-                        className="line-clamp-2 break-words"
+                        className="line-clamp-2 break-all [overflow-wrap:anywhere]"
                         title={request.reason}
                       >
                         {request.reason}
@@ -259,8 +259,8 @@ export function ArchiveBorrowApprovalPage() {
                         <span>{t(`status.${request.status}`)}</span>
                         {request.status === 'REJECTED' && request.reviewNotes ? (
                           <p
-                            className="max-w-xs text-xs leading-snug text-destructive break-words"
-                            title={request.reviewNotes}
+                            className="max-w-xs text-xs leading-snug text-destructive line-clamp-2 break-words"
+                            title={`${t('page.rejectNotes')}: ${request.reviewNotes}`}
                           >
                             {t('page.rejectNotes')}: {request.reviewNotes}
                           </p>
@@ -412,6 +412,7 @@ export function ArchiveBorrowApprovalPage() {
             </Label>
             <Textarea
               id="borrow-review-reject-notes"
+              className="max-w-full break-all [overflow-wrap:anywhere]"
               value={rejectNotes}
               onChange={(event) => setRejectNotes(event.target.value)}
               rows={4}

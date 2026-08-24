@@ -9,6 +9,35 @@ export const HO_SO_LUU_TRU_GROUP_CODE = 'HO_SO_LUU_TRU'
 export const HO_SO_FOND_FIELD = 'FOND'
 export const TEN_LOAI_TAI_LIEU_FIELD = 'TEN_LOAI_TAI_LIEU'
 
+/**
+ * HO_SO_LUU_TRU fields that should be treated as date type even when
+ * the backend/template marks them as 'string'. This ensures they render
+ * with a date picker instead of a plain text input.
+ */
+const HO_SO_DATE_FIELD_NAMES: ReadonlySet<string> = new Set([
+  'THOI_GIAN_BAT_DAU',
+  'THOI_GIAN_KET_THUC',
+])
+
+/**
+ * Returns the effective field type, overriding 'string' → 'date' for
+ * known date fields in HO_SO_LUU_TRU.
+ */
+export function resolveEffectiveFieldType(
+  groupCode: string,
+  fieldName: string,
+  declaredType: DataDocumentFieldT['type'],
+): DataDocumentFieldT['type'] {
+  if (
+    declaredType === 'string' &&
+    groupCode === HO_SO_LUU_TRU_GROUP_CODE &&
+    HO_SO_DATE_FIELD_NAMES.has(fieldName.trim().toUpperCase())
+  ) {
+    return 'date'
+  }
+  return declaredType
+}
+
 /** Legacy OCR document_types.id ↔ TT05 TEN_LOAI slug catalog codes. */
 export const METADATA_CATALOG_GROUP_ALIASES: Record<string, Array<string>> = {
   BAN_AN_QUYET_DINH: ['QUYET_DINH'],
@@ -347,3 +376,28 @@ export function hasHoSoFondField(
     })
   })
 }
+
+const HO_SO_RETENTION_FIELD = 'THOI_HAN_LUU_TRU'
+
+export function isHoSoRetentionMetadataField(
+  groupCode: string,
+  fieldName: string,
+): boolean {
+  return (
+    groupCode === HO_SO_LUU_TRU_GROUP_CODE &&
+    fieldName.trim().toUpperCase() === HO_SO_RETENTION_FIELD
+  )
+}
+
+const HO_SO_ACCESS_LEVEL_FIELD = 'MUC_DO_TIEP_CAN'
+
+export function isHoSoAccessLevelMetadataField(
+  groupCode: string,
+  fieldName: string,
+): boolean {
+  return (
+    groupCode === HO_SO_LUU_TRU_GROUP_CODE &&
+    fieldName.trim().toUpperCase() === HO_SO_ACCESS_LEVEL_FIELD
+  )
+}
+

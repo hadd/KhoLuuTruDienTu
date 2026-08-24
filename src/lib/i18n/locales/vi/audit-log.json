@@ -324,7 +324,7 @@
     "request_borrow": "Yêu cầu mượn tài liệu",
     "approve_borrow": "Duyệt phiếu mượn",
     "reject_borrow": "Từ chối phiếu mượn",
-    "regenerate_borrow_dip": "Tạo lại gói DIP",
+    "regenerate_borrow_dip": "Tạo lại hồ sơ",
     "activate_borrow": "Kích hoạt xem trực tuyến",
     "view_borrow_document": "Xem tài liệu mượn",
     "expire_borrow": "Hết hạn phiếu mượn"

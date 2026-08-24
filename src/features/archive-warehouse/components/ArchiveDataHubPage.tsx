@@ -147,7 +147,7 @@ export function ArchiveDataHubPage() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
         {tab === 'dossiers' && canReadArchiveWarehouse ? (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <ArchiveWarehouseFondsPage embedded />
+            <ArchiveWarehouseFondsPage embedded councilReviewEnabledProp={councilReviewEnabled} />
           </div>
         ) : null}
         {tab === 'expiryReview' && canReadDisposal && !councilReviewEnabled ? (
