@@ -237,6 +237,8 @@ function createEnvObject() {
             8_388_608,
         ),
         AUDIT_LOG_EXPORT_MAX_RECORDS: getPositiveIntEnv("AUDIT_LOG_EXPORT_MAX_RECORDS", 50_000),
+        AUDIT_LOG_COLD_SHADOW_ENABLED: getBooleanEnv("AUDIT_LOG_COLD_SHADOW_ENABLED", false),
+        AUDIT_LOG_COLD_SOURCE: Deno.env.get("AUDIT_LOG_COLD_SOURCE") ?? "postgres_projection",
         /** NiFi HandleHttpRequest endpoint dùng để giải phóng file đang chờ ở processor Wait (chế độ OCR manual). */
         NIFI_TRIGGER_URL: Deno.env.get("NIFI_TRIGGER_URL") ?? "",
     } as const;

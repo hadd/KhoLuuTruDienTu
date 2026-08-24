@@ -9,6 +9,8 @@ export type AuditRouteEnrichContext = {
 
 export type AuditRouteEnrichResult = {
     summary: string;
+    summaryKey?: string | null;
+    summaryParams?: Record<string, unknown> | null;
     entityType?: string | null;
     entityId?: string | null;
     entityLabel?: string | null;

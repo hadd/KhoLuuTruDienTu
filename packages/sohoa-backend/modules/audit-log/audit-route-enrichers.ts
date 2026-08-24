@@ -316,6 +316,8 @@ export async function enrichDataEntryApprove(
 
     return {
         summary: `Duyệt biên tập hồ sơ "${dossierName}"${approvedQcStep != null ? ` (bước QC ${approvedQcStep})` : ""}`,
+        summaryKey: "audit.data_entry.approve",
+        summaryParams: { dossierName, approvedQcStep },
         entityType: "dossier",
         entityId: dossierId,
         details: {
@@ -342,6 +344,8 @@ export async function enrichDataEntryReject(
 
     return {
         summary: `Từ chối biên tập hồ sơ "${dossierName}"`,
+        summaryKey: "audit.data_entry.reject",
+        summaryParams: { dossierName },
         entityType: "dossier",
         entityId: dossierId,
         details: {
@@ -368,6 +372,8 @@ export async function enrichDataEntrySubmitMetadata(
         summary: partial
             ? `Gửi biên tập một phần hồ sơ "${dossierName}"`
             : `Gửi biên tập hồ sơ "${dossierName}"`,
+        summaryKey: partial ? "audit.data_entry.submit_partial" : "audit.data_entry.submit",
+        summaryParams: { dossierName },
         entityType: "dossier",
         entityId: dossierId,
         details: {
@@ -388,6 +394,8 @@ export function enrichDataEntryBulkSubmit(
 
     return {
         summary: `Gửi/duyệt hàng loạt ${submittedCount} hồ sơ nháp${failedCount > 0 ? ` (${failedCount} lỗi)` : ""}`,
+        summaryKey: "audit.data_entry.bulk_submit",
+        summaryParams: { submittedCount, failedCount },
         entityType: "dossier_assignment",
         entityId: null,
         details: {
@@ -892,3 +900,47 @@ export function enrichArchiveBorrowViewDocument(
         details: { fileId },
     };
 }
+
+export function enrichProjectPlanCrud(
+    op: "create" | "update" | "delete",
+): (ctx: AuditRouteEnrichContext) => AuditRouteEnrichResult | null {
+    return (ctx: AuditRouteEnrichContext) => {
+        const body = asRecord(ctx.body);
+        const res = asRecord(ctx.response);
+        const id = String(res?.id ?? ctx.params.id ?? body?.id ?? "");
+        const name = String(body?.name ?? res?.name ?? body?.planName ?? res?.planName ?? id);
+        const actionLabel = op === "create" ? "Tạo kế hoạch dự án" : op === "update" ? "Cập nhật kế hoạch dự án" : "Xóa kế hoạch dự án";
+        return {
+            summary: `${actionLabel} "${name}"`,
+            entityType: "project_plan",
+            entityId: id || null,
+        };
+    };
+}
+
+export function enrichArchiveDisposalAction(
+    action: "create" | "update" | "submit" | "council_create" | "council_finalize" | "council_publish" | "destroy",
+): (ctx: AuditRouteEnrichContext) => AuditRouteEnrichResult | null {
+    return (ctx: AuditRouteEnrichContext) => {
+        const body = asRecord(ctx.body);
+        const res = asRecord(ctx.response);
+        const id = String(res?.id ?? ctx.params.id ?? body?.id ?? "");
+        const title = String(res?.title ?? body?.title ?? res?.name ?? body?.name ?? id);
+
+        const labels: Record<string, string> = {
+            create: "Tạo đề xuất hủy",
+            update: "Cập nhật đề xuất hủy",
+            submit: "Trình duyệt đề xuất hủy",
+            council_create: "Tạo Hội đồng xét hủy",
+            council_finalize: "Phê duyệt kết quả Hội đồng xét hủy",
+            council_publish: "Xuất bản Quyết định Hội đồng",
+            destroy: "Thực hiện hủy danh mục hồ sơ",
+        };
+        const label = labels[action] || action;
+        return {
+            summary: title ? `${label} "${title}"` : label,
+            entityType: "archive_disposal",
+            entityId: id || null,
+        };
+    };
+}
