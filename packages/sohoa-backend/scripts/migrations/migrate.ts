@@ -31,8 +31,8 @@ try {
       const path = join(tempDir, e.name);
       let content = Deno.readTextFileSync(path);
       content = content.replaceAll(/CREATE SCHEMA "([^"]+)";/g, 'CREATE SCHEMA IF NOT EXISTS "$1";');
-      content = content.replaceAll(/CREATE TABLE /gi, 'CREATE TABLE IF NOT EXISTS ');
-      content = content.replaceAll(/ADD COLUMN /gi, 'ADD COLUMN IF NOT EXISTS ');
+      content = content.replaceAll(/CREATE TABLE (?:IF NOT EXISTS )?/gi, 'CREATE TABLE IF NOT EXISTS ');
+      content = content.replaceAll(/ADD COLUMN (?:IF NOT EXISTS )?/gi, 'ADD COLUMN IF NOT EXISTS ');
       if (schema !== "sohoa_app") {
         content = content.replaceAll(/"sohoa_app"/g, `"${schema}"`);
       }
