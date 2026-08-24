@@ -138,7 +138,7 @@ export async function generateBorrowDipPackage(input: {
     }
 
     const dossierIds = [...new Set(files.map((f) => f.dossierId))];
-    const applyWatermark = await resolveApplyWatermarkForDossiers(dossierIds);
+    const applyWatermark = Boolean(input.placementId);
     const watermarkConfig = await resolveWatermarkApplyConfig(
         input.placementId,
         applyWatermark,

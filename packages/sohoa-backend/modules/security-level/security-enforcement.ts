@@ -99,6 +99,8 @@ export async function assertSecurityResourceAccess(input: {
   });
 }
 
+import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
+
 async function loadDossierSecurityLevels(dossierIds: string[]) {
   const uniqueIds = [
     ...new Set(dossierIds.map((id) => id.trim()).filter(Boolean)),
@@ -111,6 +113,7 @@ async function loadDossierSecurityLevels(dossierIds: string[]) {
     .select({
       id: dossiers.id,
       securityLevelId: dossiers.securityLevelId,
+      status: dossiers.status,
     })
     .from(dossiers)
     .where(and(inArray(dossiers.id, uniqueIds), isNull(dossiers.deletedAt)));
@@ -142,11 +145,15 @@ export async function resolveApplyWatermarkForDossiers(
  * Dùng để tránh load lại rows trong assertDownloadAllowedForExport.
  */
 async function resolveWatermarkFromCachedRows(
-  rows: Array<{ id: string; securityLevelId: string | null }>,
+  rows: Array<{ id: string; securityLevelId: string | null; status?: string | null }>,
   cache: SecurityRequestCache,
 ): Promise<boolean> {
   const lowestId = await cache.getLowestLevelId();
   for (const row of rows) {
+    // Hồ sơ ở trạng thái Đã duyệt (APPROVED): Không áp dụng watermark theo cấp bảo mật
+    if (row.status === DossierStatus.APPROVED) {
+      continue;
+    }
     const levelId = row.securityLevelId ?? lowestId;
     if (!levelId) continue;
     const requiresWatermark = await cache.getEffectiveBool(
