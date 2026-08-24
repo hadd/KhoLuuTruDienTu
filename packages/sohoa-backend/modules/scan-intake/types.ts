@@ -72,6 +72,8 @@ export const promoteBodySchema = t.Object({
     pdfKeys: t.Optional(t.Array(t.String({ minLength: 1 }))),
     folderPaths: t.Optional(t.Array(t.String({ minLength: 1 }))),
     cleanup: t.Optional(t.Boolean()),
+    /** Chế độ OCR: 'auto' xử lý ngay, 'manual' chờ kích hoạt thủ công. */
+    runMode: t.Optional(t.Union([t.Literal("auto"), t.Literal("manual")])),
 });
 
 export const deleteSessionBodySchema = t.Object({

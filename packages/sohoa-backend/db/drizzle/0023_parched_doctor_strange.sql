@@ -1,1 +1,0 @@
-ALTER TABLE "sohoa_app"."fonds" ADD COLUMN "zip_password_enabled" boolean DEFAULT false NOT NULL;

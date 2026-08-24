@@ -1,1 +1,0 @@
-ALTER TYPE "sohoa_app"."archive_acl_resource_kind" ADD VALUE 'fond_type' BEFORE 'dossier_type';

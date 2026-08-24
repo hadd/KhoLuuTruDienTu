@@ -1,2 +1,0 @@
-ALTER TABLE "sohoa_app"."document_types" ADD COLUMN "is_active" boolean DEFAULT true NOT NULL;--> statement-breakpoint
-CREATE INDEX "idx_document_types_is_active" ON "sohoa_app"."document_types" USING btree ("is_active") WHERE "sohoa_app"."document_types"."is_active" = true;

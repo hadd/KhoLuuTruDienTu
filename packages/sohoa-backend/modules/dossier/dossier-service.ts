@@ -1155,6 +1155,20 @@ async function loadDossiersForMetadataExport(dossierIds: string[]) {
     throw httpError.notFound(`Dossier not found: ${missing.join(", ")}`);
   }
 
+  const unexportable = rows.filter(
+    (dossier) =>
+      dossier.status !== DossierStatus.APPROVED &&
+      dossier.status !== DossierStatus.ARCHIVED,
+  );
+  if (unexportable.length > 0) {
+    const unexportableNames = unexportable
+      .map((dossier) => dossier.name)
+      .join(", ");
+    throw httpError.badRequest(
+      `Cannot export: all dossiers must be approved or archived. Pending dossiers: ${unexportableNames}`,
+    );
+  }
+
   const withoutMetadata = rows.filter((dossier) => !dossier.currentMetadataKey);
   if (withoutMetadata.length > 0) {
     const missingNames = withoutMetadata
@@ -2453,7 +2467,9 @@ export const DossierService = {
     const folderName = folderNameFromPath(folderPath);
     const fileName = storageBasename(filePath);
 
-    return await db.transaction(async (tx) => {
+    const runMode = input.runMode ?? "auto";
+
+    const result = await db.transaction(async (tx) => {
       const folderId = await ensureFolderTree(tx, folderPath, projectCode);
       const dossier = await findOrCreateDossier(
         tx,
@@ -2468,11 +2484,30 @@ export const DossierService = {
         fileName,
         filePath,
         fileSizeKb,
-        input.runMode ?? "auto",
+        runMode,
       );
 
       return { dossier, file, created };
     });
+
+    if (runMode === "auto" && env.NIFI_TRIGGER_URL) {
+      try {
+        await fetch(env.NIFI_TRIGGER_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            file_path: normalizeStorageKey(filePath),
+          }),
+        });
+      } catch (err) {
+        console.warn(
+          `[OCR Auto Trigger] Failed to trigger NiFi for ${filePath}:`,
+          err,
+        );
+      }
+    }
+
+    return result;
   },
 
   /**

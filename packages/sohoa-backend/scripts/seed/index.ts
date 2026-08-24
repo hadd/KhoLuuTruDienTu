@@ -7,7 +7,6 @@
 import { connectDb, closeDb } from "../../db/db-conn.ts";
 import { seedUsers } from "./seed-users.ts";
 import { seedRoles } from "./seed-roles.ts";
-import { seedDocumentTypes } from "./seed-document-types.ts";
 import { seedSecurityPermissionDefs, seedSecurityLevels } from "./seed-security-levels.ts";
 import { USERS } from "./data.ts";
 import { logger } from "./utils.ts";
@@ -24,7 +23,6 @@ export async function seed() {
         // Seed in order of dependencies
         await seedRoles(db);
         await seedUsers(db);
-        await seedDocumentTypes(db);
         await seedSecurityPermissionDefs(db);
         await seedSecurityLevels(db);
         
@@ -33,7 +31,6 @@ export async function seed() {
         // Print summary
         logger.info("\n📊 Seeding Summary:");
         logger.info(`- Users: ${USERS.length} (Admin)`);
-        logger.info("- Document types: OCR group_code catalog");
         
         logger.info("\n🔑 Login Credentials:");
         for (const user of USERS) {

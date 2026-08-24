@@ -1,1 +1,0 @@
-ALTER TABLE "sohoa_app"."audit_log_settings" ADD COLUMN "purge_cursor_until" timestamp with time zone;
