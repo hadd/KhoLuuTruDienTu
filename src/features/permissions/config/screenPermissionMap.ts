@@ -208,8 +208,8 @@ export const APP_SCREEN_ACCESS = {
     },
     notificationConfigs: {
       to: '/app/data-config/notification-configs',
-      module: 'roles',
-      permissionKey: 'roles.manage',
+      module: 'notifications',
+      permissionKey: 'notifications.config.manage',
     },
     watermarkConfigs: {
       to: '/app/data-config/watermark-configs',

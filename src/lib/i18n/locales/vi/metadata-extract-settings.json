@@ -5,11 +5,13 @@
     "label": "Chế độ hiện tại",
     "old": "Thi hành án",
     "tt05": "Thông tư 05",
+    "pvep": "PVEP",
     "off": "Tắt tự động"
   },
   "modeHelp": {
     "old": "Hồ sơ sẽ được bóc tách theo mẫu metadata Thi hành án.",
     "tt05": "Hồ sơ sẽ được bóc tách theo mẫu metadata Thông tư 05.",
+    "pvep": "Hồ sơ sẽ được bóc tách theo mẫu metadata PVEP.",
     "off": "Hệ thống không tự bóc tách. Cần kích hoạt thủ công khi cần."
   },
   "actions": {

@@ -5,11 +5,13 @@
     "label": "Current mode",
     "old": "Judgment enforcement",
     "tt05": "Circular 05",
+    "pvep": "PVEP",
     "off": "Manual only"
   },
   "modeHelp": {
     "old": "Dossiers will be extracted using the judgment-enforcement metadata template.",
     "tt05": "Dossiers will be extracted using the Circular 05 metadata template.",
+    "pvep": "Dossiers will be extracted using the PVEP metadata template.",
     "off": "The system will not extract automatically. Trigger manually when needed."
   },
   "actions": {

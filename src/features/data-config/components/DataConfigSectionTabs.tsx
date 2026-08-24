@@ -15,13 +15,11 @@ import {
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { getPrimaryAppRole } from '@/features/auth/constants'
 import {
   getCurrentUserRoleId,
   resolvePermissionsForUser,
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
-import { getUserRoles } from '@/features/auth/store'
 import { isMetadataSidebarChildGranted } from '@/features/navigation/config/sidebarMetadataPermissions'
 import { ScrollableSectionTabs } from '@/features/navigation/components/ScrollableSectionTabs'
 import { sectionBoxedTabsTriggerCompactClassName } from '@/features/navigation/components/SectionBackNav'
@@ -77,9 +75,6 @@ export function useDataConfigSectionTabs(): Array<DataConfigSectionTabItem> {
       ),
     [user, rolePermissions],
   )
-
-  // The notification-configs route is guarded by requireAppRole('admin').
-  const isAdmin = getPrimaryAppRole(getUserRoles()) === 'admin'
 
   return useMemo(() => {
     const items: Array<DataConfigSectionTabItem> = []
@@ -144,7 +139,13 @@ export function useDataConfigSectionTabs(): Array<DataConfigSectionTabItem> {
         icon: ScanSearch,
       })
     }
-    if (isAdmin) {
+    if (
+      isPermissionGranted(
+        permissions,
+        'notifications.config.manage',
+        'notifications',
+      )
+    ) {
       items.push({
         id: 'notification-configs',
         to: '/app/data-config/notification-configs',
@@ -186,7 +187,7 @@ export function useDataConfigSectionTabs(): Array<DataConfigSectionTabItem> {
     }
 
     return items
-  }, [permissions, catalog, isAdmin, t])
+  }, [permissions, catalog, t])
 }
 
 export function DataConfigSectionTabs({
