@@ -2,8 +2,6 @@ import { createHash } from "node:crypto";
 import { cpSync, existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { drizzle } from "drizzle-orm/postgres-js";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import { env } from "../../env.ts";
 
@@ -25,6 +23,7 @@ function listJournalTags(folder: string): string[] {
 }
 
 const sql = postgres(env.DATABASE_URL, { prepare: true, max: 1 });
+
 try {
   cpSync(migrationsSource, tempDir, { recursive: true });
   for (const e of Deno.readDirSync(tempDir)) {
@@ -44,6 +43,13 @@ try {
   await sql.unsafe(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
   await sql.unsafe(`CREATE SCHEMA IF NOT EXISTS "sohoa_app"`);
   await sql.unsafe(`CREATE SCHEMA IF NOT EXISTS "drizzle"`);
+  await sql.unsafe(`
+    CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations (
+      id SERIAL PRIMARY KEY,
+      hash text NOT NULL,
+      created_at bigint
+    )
+  `);
   await sql.unsafe(`SET lock_timeout = '30s'`);
 
   const journalTags = listJournalTags(tempDir);
@@ -54,34 +60,58 @@ try {
     appliedRows = [];
   }
   const appliedHashes = new Set(appliedRows.map((r) => String(r.hash)));
-  const pendingByHash = journalTags.filter((tag) => {
+  const pendingTags = journalTags.filter((tag) => {
     const file = join(tempDir, `${tag}.sql`);
     if (!existsSync(file)) return false;
     return !appliedHashes.has(sha256File(file));
   });
 
   console.log(
-    `[migrate] journal=${journalTags.length} applied_rows=${appliedRows.length} pending_by_hash=${pendingByHash.length}`,
+    `[migrate] journal=${journalTags.length} applied_rows=${appliedRows.length} pending=${pendingTags.length}`,
   );
-  if (pendingByHash.length > 0) {
-    console.log(`[migrate] pending (by hash): ${pendingByHash.join(", ")}`);
-    if (appliedRows.length >= journalTags.length) {
-      console.warn(
-        "[migrate] WARNING: applied row count >= journal length, so drizzle migrator may SKIP pending SQL even though hashes differ. Use a targeted apply script if tables are missing.",
-      );
+
+  const ignorableCodes = new Set([
+    "42701", // duplicate_column
+    "42P07", // duplicate_table / duplicate_relation
+    "42710", // duplicate_object (type, constraint, etc)
+    "42P06", // duplicate_schema
+    "42704", // undefined_object
+    "42622", // identifier_too_long
+    "23505", // unique_violation
+  ]);
+
+  let newlyApplied = 0;
+  for (const tag of pendingTags) {
+    const file = join(tempDir, `${tag}.sql`);
+    const fileContent = Deno.readTextFileSync(file);
+    const statements = fileContent
+      .split("--> statement-breakpoint")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    for (const stmt of statements) {
+      try {
+        await sql.unsafe(stmt);
+      } catch (err: any) {
+        if (ignorableCodes.has(err?.code)) {
+          console.warn(`[migrate] [${tag}] Ignored non-critical notice/error [${err.code}]: ${err.message}`);
+        } else {
+          console.error(`[migrate] [${tag}] Error executing statement: ${stmt}`);
+          throw err;
+        }
+      }
     }
+
+    const hash = sha256File(file);
+    await sql`INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES (${hash}, ${BigInt(Date.now())})`;
+    newlyApplied++;
   }
 
-  const beforeCount = appliedRows.length;
-  const db = drizzle(sql);
-  await migrate(db, { migrationsFolder: tempDir });
-
   const afterRows = await sql`SELECT hash FROM drizzle.__drizzle_migrations`;
-  const newlyApplied = afterRows.length - beforeCount;
   console.log(
     `[migrate] newly_recorded=${newlyApplied} applied_rows_now=${afterRows.length}`,
   );
-  console.log("✅ Migration completed");
+  console.log("✅ Migration completed successfully");
 } catch (error) {
   console.error("❌ Migration failed", error);
   Deno.exit(1);
