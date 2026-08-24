@@ -1,5 +1,5 @@
 {
-  "id": "54b53921-e8e1-41b2-9382-d0486377b411",
+  "id": "062a3c1b-f5c5-4536-a59e-b55b131e481c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -3645,6 +3645,441 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "sohoa_app.disposal_appraisal_documents": {
+      "name": "disposal_appraisal_documents",
+      "schema": "sohoa_app",
+      "columns": {
+        "catalog_id": {
+          "name": "catalog_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "document_type": {
+          "name": "document_type",
+          "type": "disposal_appraisal_document_type",
+          "typeSchema": "sohoa_app",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "draft_storage_key": {
+          "name": "draft_storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "draft_exported_at": {
+          "name": "draft_exported_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "draft_exported_by": {
+          "name": "draft_exported_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "signed_storage_key": {
+          "name": "signed_storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "signed_uploaded_at": {
+          "name": "signed_uploaded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "signed_uploaded_by": {
+          "name": "signed_uploaded_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "disposal_appraisal_documents_catalog_type_unique": {
+          "name": "disposal_appraisal_documents_catalog_type_unique",
+          "columns": [
+            {
+              "expression": "catalog_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "document_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_disposal_appraisal_documents_catalog_id": {
+          "name": "idx_disposal_appraisal_documents_catalog_id",
+          "columns": [
+            {
+              "expression": "catalog_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "disposal_appraisal_documents_catalog_id_disposal_proposal_catalogs_id_fk": {
+          "name": "disposal_appraisal_documents_catalog_id_disposal_proposal_catalogs_id_fk",
+          "tableFrom": "disposal_appraisal_documents",
+          "tableTo": "disposal_proposal_catalogs",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "catalog_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "restrict"
+        },
+        "disposal_appraisal_documents_draft_exported_by_user_profiles_id_fk": {
+          "name": "disposal_appraisal_documents_draft_exported_by_user_profiles_id_fk",
+          "tableFrom": "disposal_appraisal_documents",
+          "tableTo": "user_profiles",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "draft_exported_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "restrict"
+        },
+        "disposal_appraisal_documents_signed_uploaded_by_user_profiles_id_fk": {
+          "name": "disposal_appraisal_documents_signed_uploaded_by_user_profiles_id_fk",
+          "tableFrom": "disposal_appraisal_documents",
+          "tableTo": "user_profiles",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "signed_uploaded_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "sohoa_app.disposal_appraisal_export_runs": {
+      "name": "disposal_appraisal_export_runs",
+      "schema": "sohoa_app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "catalog_id": {
+          "name": "catalog_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "document_type": {
+          "name": "document_type",
+          "type": "disposal_appraisal_document_type",
+          "typeSchema": "sohoa_app",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "run_number": {
+          "name": "run_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storage_key": {
+          "name": "storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_disposal_appraisal_export_runs_catalog_id": {
+          "name": "idx_disposal_appraisal_export_runs_catalog_id",
+          "columns": [
+            {
+              "expression": "catalog_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "disposal_appraisal_export_runs_catalog_id_disposal_proposal_catalogs_id_fk": {
+          "name": "disposal_appraisal_export_runs_catalog_id_disposal_proposal_catalogs_id_fk",
+          "tableFrom": "disposal_appraisal_export_runs",
+          "tableTo": "disposal_proposal_catalogs",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "catalog_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "restrict"
+        },
+        "disposal_appraisal_export_runs_created_by_user_profiles_id_fk": {
+          "name": "disposal_appraisal_export_runs_created_by_user_profiles_id_fk",
+          "tableFrom": "disposal_appraisal_export_runs",
+          "tableTo": "user_profiles",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "sohoa_app.disposal_catalog_document_drafts": {
+      "name": "disposal_catalog_document_drafts",
+      "schema": "sohoa_app",
+      "columns": {
+        "catalog_id": {
+          "name": "catalog_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "document_type": {
+          "name": "document_type",
+          "type": "disposal_appraisal_document_type",
+          "typeSchema": "sohoa_app",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_json": {
+          "name": "content_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "docx_storage_key": {
+          "name": "docx_storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_hash": {
+          "name": "source_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "generated_at": {
+          "name": "generated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_disposal_catalog_document_drafts_catalog_id": {
+          "name": "idx_disposal_catalog_document_drafts_catalog_id",
+          "columns": [
+            {
+              "expression": "catalog_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "disposal_catalog_document_drafts_catalog_id_disposal_proposal_catalogs_id_fk": {
+          "name": "disposal_catalog_document_drafts_catalog_id_disposal_proposal_catalogs_id_fk",
+          "tableFrom": "disposal_catalog_document_drafts",
+          "tableTo": "disposal_proposal_catalogs",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "catalog_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "restrict"
+        },
+        "disposal_catalog_document_drafts_updated_by_user_profiles_id_fk": {
+          "name": "disposal_catalog_document_drafts_updated_by_user_profiles_id_fk",
+          "tableFrom": "disposal_catalog_document_drafts",
+          "tableTo": "user_profiles",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {
+        "disposal_catalog_document_drafts_catalog_id_document_type_pk": {
+          "name": "disposal_catalog_document_drafts_catalog_id_document_type_pk",
+          "columns": [
+            "catalog_id",
+            "document_type"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "sohoa_app.disposal_catalog_pl3_content": {
+      "name": "disposal_catalog_pl3_content",
+      "schema": "sohoa_app",
+      "columns": {
+        "catalog_id": {
+          "name": "catalog_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "disposal_catalog_pl3_content_catalog_id_disposal_proposal_catalogs_id_fk": {
+          "name": "disposal_catalog_pl3_content_catalog_id_disposal_proposal_catalogs_id_fk",
+          "tableFrom": "disposal_catalog_pl3_content",
+          "tableTo": "disposal_proposal_catalogs",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "catalog_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "restrict"
+        },
+        "disposal_catalog_pl3_content_updated_by_user_profiles_id_fk": {
+          "name": "disposal_catalog_pl3_content_updated_by_user_profiles_id_fk",
+          "tableFrom": "disposal_catalog_pl3_content",
+          "tableTo": "user_profiles",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "sohoa_app.disposal_proposal_catalogs": {
       "name": "disposal_proposal_catalogs",
       "schema": "sohoa_app",
@@ -3959,6 +4394,177 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "sohoa_app.disposal_review_council_item_evaluation_history": {
+      "name": "disposal_review_council_item_evaluation_history",
+      "schema": "sohoa_app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "council_id": {
+          "name": "council_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "old_decision": {
+          "name": "old_decision",
+          "type": "disposal_council_evaluation_decision",
+          "typeSchema": "sohoa_app",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "new_decision": {
+          "name": "new_decision",
+          "type": "disposal_council_evaluation_decision",
+          "typeSchema": "sohoa_app",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "old_note": {
+          "name": "old_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "new_note": {
+          "name": "new_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "change_reason": {
+          "name": "change_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "changed_by": {
+          "name": "changed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_disposal_council_eval_history_council_id": {
+          "name": "idx_disposal_council_eval_history_council_id",
+          "columns": [
+            {
+              "expression": "council_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_disposal_council_eval_history_item_id": {
+          "name": "idx_disposal_council_eval_history_item_id",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "disposal_review_council_item_evaluation_history_council_id_disposal_review_councils_id_fk": {
+          "name": "disposal_review_council_item_evaluation_history_council_id_disposal_review_councils_id_fk",
+          "tableFrom": "disposal_review_council_item_evaluation_history",
+          "tableTo": "disposal_review_councils",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "council_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "restrict"
+        },
+        "disposal_review_council_item_evaluation_history_item_id_disposal_proposal_items_id_fk": {
+          "name": "disposal_review_council_item_evaluation_history_item_id_disposal_proposal_items_id_fk",
+          "tableFrom": "disposal_review_council_item_evaluation_history",
+          "tableTo": "disposal_proposal_items",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "restrict"
+        },
+        "disposal_review_council_item_evaluation_history_user_id_user_profiles_id_fk": {
+          "name": "disposal_review_council_item_evaluation_history_user_id_user_profiles_id_fk",
+          "tableFrom": "disposal_review_council_item_evaluation_history",
+          "tableTo": "user_profiles",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "disposal_review_council_item_evaluation_history_changed_by_user_profiles_id_fk": {
+          "name": "disposal_review_council_item_evaluation_history_changed_by_user_profiles_id_fk",
+          "tableFrom": "disposal_review_council_item_evaluation_history",
+          "tableTo": "user_profiles",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "changed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "sohoa_app.disposal_review_council_item_evaluations": {
       "name": "disposal_review_council_item_evaluations",
       "schema": "sohoa_app",
@@ -4111,6 +4717,192 @@
           "schemaTo": "sohoa_app",
           "columnsFrom": [
             "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "sohoa_app.disposal_review_council_item_outcomes": {
+      "name": "disposal_review_council_item_outcomes",
+      "schema": "sohoa_app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "council_id": {
+          "name": "council_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "destroy_vote_count": {
+          "name": "destroy_vote_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "keep_vote_count": {
+          "name": "keep_vote_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "participating_member_count": {
+          "name": "participating_member_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "concluded_decision": {
+          "name": "concluded_decision",
+          "type": "disposal_council_evaluation_decision",
+          "typeSchema": "sohoa_app",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "has_dissent": {
+          "name": "has_dissent",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "needs_chair_decision": {
+          "name": "needs_chair_decision",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "chair_decision": {
+          "name": "chair_decision",
+          "type": "disposal_council_evaluation_decision",
+          "typeSchema": "sohoa_app",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chair_reason": {
+          "name": "chair_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chair_decided_by": {
+          "name": "chair_decided_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chair_decided_at": {
+          "name": "chair_decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "disposal_council_item_outcomes_council_item_unique": {
+          "name": "disposal_council_item_outcomes_council_item_unique",
+          "columns": [
+            {
+              "expression": "council_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_disposal_council_item_outcomes_council_id": {
+          "name": "idx_disposal_council_item_outcomes_council_id",
+          "columns": [
+            {
+              "expression": "council_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "disposal_review_council_item_outcomes_council_id_disposal_review_councils_id_fk": {
+          "name": "disposal_review_council_item_outcomes_council_id_disposal_review_councils_id_fk",
+          "tableFrom": "disposal_review_council_item_outcomes",
+          "tableTo": "disposal_review_councils",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "council_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "restrict"
+        },
+        "disposal_review_council_item_outcomes_item_id_disposal_proposal_items_id_fk": {
+          "name": "disposal_review_council_item_outcomes_item_id_disposal_proposal_items_id_fk",
+          "tableFrom": "disposal_review_council_item_outcomes",
+          "tableTo": "disposal_proposal_items",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "restrict"
+        },
+        "disposal_review_council_item_outcomes_chair_decided_by_user_profiles_id_fk": {
+          "name": "disposal_review_council_item_outcomes_chair_decided_by_user_profiles_id_fk",
+          "tableFrom": "disposal_review_council_item_outcomes",
+          "tableTo": "user_profiles",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "chair_decided_by"
           ],
           "columnsTo": [
             "id"
