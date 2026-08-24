@@ -28,6 +28,7 @@ export const Permission = {
   FOLDERS_BROWSE_ASSIGNED: "folders.browse_assigned",
 
   SCAN_INTAKE_USE: "scan-intake.use",
+  OCR_CONTROL_MANAGE: "ocr-control.manage",
 
   PROJECTS_READ: "projects.read",
   PROJECTS_CREATE: "projects.create",
@@ -387,6 +388,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     label: "Sử dụng Scan Intake",
     description:
       "Sử dụng màn quét tài liệu, quản lý phiên scan và đẩy tài liệu vào hệ thống",
+  },
+  {
+    key: Permission.OCR_CONTROL_MANAGE,
+    module: "ocr-control",
+    label: "Kiểm soát OCR",
+    description:
+      "Tùy chỉnh chế độ OCR (Tự động/Thủ công) khi tải/đẩy dữ liệu và sử dụng màn hình Kiểm soát OCR",
   },
   {
     key: Permission.DATA_ENTRY_MAKER,
