@@ -232,7 +232,7 @@ export function OcrControlPage() {
   const { t } = useTranslation('ocr-control')
   const language = useCurrentLanguage()
   const queryClient = useQueryClient()
-  const { canTriggerOcr } = useOcrControlAccess()
+  const { canViewOcrControl, canTriggerOcr } = useOcrControlAccess()
   const { canRead: canReadExtractSettings } = useMetadataExtractSettingsAccess()
   const { permissions, primaryAppRole } = useDataManagementHubAccess()
   const projectCode = useAdminProjectCode() ?? undefined
@@ -249,7 +249,7 @@ export function OcrControlPage() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [uploadOpen, setUploadOpen] = useState(false)
 
-  useOcrControlSocket(true)
+  useOcrControlSocket(canViewOcrControl)
 
   const isStatusFilter =
     filter === 'processing' || filter === 'completed' || filter === 'failed'
@@ -371,6 +371,21 @@ export function OcrControlPage() {
   const selectedCount = Array.from(selectedIds).filter((id) =>
     selectablePendingIds.has(id),
   ).length
+
+  if (!canViewOcrControl) {
+    return (
+      <DigitizationSubPageShell active="ocr">
+        <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
+          <p className="text-lg font-semibold text-foreground">
+            {t('accessDenied.title', 'Không có quyền truy cập')}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {t('accessDenied.description', 'Bạn không có quyền Kiểm soát OCR để xem màn hình này.')}
+          </p>
+        </div>
+      </DigitizationSubPageShell>
+    )
+  }
 
   return (
     <DigitizationSubPageShell active="ocr">

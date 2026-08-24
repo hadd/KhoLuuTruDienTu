@@ -36,6 +36,7 @@
     "watermark": "Cấu hình Watermark",
     "roles": "Quản lý phân quyền hệ thống",
     "scan-intake": "Quét tài liệu (Scan Intake)",
+    "ocr-control": "Kiểm soát OCR",
     "users": "Quản lý người dùng",
     "library": "Khai thác & Mượn trả"
   },

@@ -31,7 +31,8 @@ export const APP_SCREEN_ACCESS = {
   },
   ocrControl: {
     to: '/app/ocr-control',
-    requirements: DATA_ENTRY_SCREEN_REQUIREMENTS,
+    module: 'ocr-control',
+    permissionKey: 'ocr-control.manage',
   },
   scanIntake: {
     to: '/app/scan-intake',

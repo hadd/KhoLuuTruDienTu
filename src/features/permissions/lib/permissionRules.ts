@@ -34,6 +34,7 @@ const MAJOR_MODULE_ORDER = [
   'project-plans',
   'groups',
   'scan-intake',
+  'ocr-control',
   'data-entry',
   'dossiers',
   'folders',

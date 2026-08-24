@@ -13,7 +13,7 @@ export const Route = createFileRoute('/app/ocr-control/')({
     crumb: () => i18n.t('sectionTabs.ocrControl', { ns: 'digitization' }),
   },
   beforeLoad: async ({ context }) => {
-    await requirePermission(context, [...APP_SCREEN_ACCESS.ocrControl.requirements])
+    await requirePermission(context, APP_SCREEN_ACCESS.ocrControl)
   },
   head: () => ({
     meta: [
