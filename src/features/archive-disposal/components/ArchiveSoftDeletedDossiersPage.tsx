@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { addMonths, differenceInDays, format, isPast } from 'date-fns'
-import { Loader2, Trash2 } from 'lucide-react'
+import { Loader2, RefreshCcw, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -27,6 +27,7 @@ import {
 import {
   listSoftDeletedDossiers,
   permanentDeleteDossiers,
+  restoreWarehouseDossiers,
 } from '@/features/archive-warehouse/api/archiveWarehouseClient'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -86,6 +87,18 @@ export function ArchiveSoftDeletedDossiersPage() {
     },
   })
 
+  const restoreMutation = useMutation({
+    mutationFn: () => restoreWarehouseDossiers(Array.from(selectedIds)),
+    onSuccess: (result) => {
+      toast.success(`Đã khôi phục ${result.restoredIds.length} hồ sơ.`)
+      setSelectedIds(new Set())
+      void queryClient.invalidateQueries({ queryKey: SOFT_DELETED_DOSSIERS_QUERY_KEY })
+    },
+    onError: (err) => {
+      toast.error(translateError(err))
+    },
+  })
+
   if (isPending) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -103,19 +116,34 @@ export function ArchiveSoftDeletedDossiersPage() {
             Các hồ sơ đã xóa mềm. Chọn và nhấn Xóa vĩnh viễn để xóa hoàn toàn khỏi hệ thống.
           </p>
         </div>
-        <Button
-          variant="destructive"
-          size="sm"
-          disabled={selectedIds.size === 0 || permanentDeleteMutation.isPending}
-          onClick={() => setConfirmOpen(true)}
-        >
-          {permanentDeleteMutation.isPending ? (
-            <Loader2 className="mr-2 size-4 animate-spin" />
-          ) : (
-            <Trash2 className="mr-2 size-4" />
-          )}
-          Xóa vĩnh viễn ({selectedIds.size})
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={selectedIds.size === 0 || permanentDeleteMutation.isPending || restoreMutation.isPending}
+            onClick={() => restoreMutation.mutate()}
+          >
+            {restoreMutation.isPending ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <RefreshCcw className="mr-2 size-4" />
+            )}
+            Khôi phục ({selectedIds.size})
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={selectedIds.size === 0 || permanentDeleteMutation.isPending || restoreMutation.isPending}
+            onClick={() => setConfirmOpen(true)}
+          >
+            {permanentDeleteMutation.isPending ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Trash2 className="mr-2 size-4" />
+            )}
+            Xóa vĩnh viễn ({selectedIds.size})
+          </Button>
+        </div>
       </div>
 
       {dossiers.length === 0 ? (
