@@ -173,6 +173,30 @@ function translateDataConfigApiPart(message: string): string | null {
       translate: (match) =>
         tDataConfigApi('columnInvalidFieldKeys', { header: match[1].trim() }),
     },
+    {
+      regex: /^Cannot export: some dossiers are missing metadata:\s*(.+)$/i,
+      translate: (match) =>
+        i18n.t('recordDetail.exportExcelMissingMetadata', {
+          ns: 'data-management',
+          names: match[1].trim(),
+        }),
+    },
+    {
+      regex: /^Cannot export: all dossiers must be approved or archived\. Pending dossiers:\s*(.+)$/i,
+      translate: (match) =>
+        i18n.t('recordDetail.exportExcelPendingApproval', {
+          ns: 'data-management',
+          names: match[1].trim(),
+        }),
+    },
+    {
+      regex: /^Cannot export: all dossiers in this folder must be approved\. Pending dossiers:\s*(.+)$/i,
+      translate: (match) =>
+        i18n.t('recordDetail.exportExcelPendingApproval', {
+          ns: 'data-management',
+          names: match[1].trim(),
+        }),
+    },
   ]
 
   for (const { regex, translate } of dynamicPatterns) {

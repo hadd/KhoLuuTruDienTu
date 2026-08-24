@@ -146,6 +146,11 @@
     "exportExcelSuccess": "Đã tải xuống tệp Excel.",
     "exportExcelError": "Xuất Excel thất bại.",
     "exportExcelNotApproved": "Chỉ được xuất Excel khi hồ sơ đã duyệt xong.",
+    "exportExcelBatchMode": "Chọn hồ sơ xuất",
+    "exportExcelExitBatchMode": "Thoát chọn xuất",
+    "exportExcelBatchAction": "Xuất {{count}} hồ sơ đã chọn",
+    "exportExcelMissingMetadata": "Không thể xuất: Một số hồ sơ chưa có dữ liệu mô tả (metadata): {{names}}",
+    "exportExcelPendingApproval": "Không thể xuất: Một số hồ sơ chưa hoàn tất duyệt hoặc lưu kho: {{names}}",
     "exportDialog": {
       "title": "Xuất hồ sơ",
       "description": "Chọn định dạng xuất",

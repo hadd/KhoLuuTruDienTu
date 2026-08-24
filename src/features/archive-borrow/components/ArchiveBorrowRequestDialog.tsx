@@ -78,7 +78,7 @@ export function ArchiveBorrowRequestDialog({
         <div className="space-y-3">
           <div className="rounded-md border bg-muted/30 p-3 text-sm">
             <p className="mb-1 font-medium">{t('page.selectedItems')}</p>
-            <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
+            <ul className="list-disc space-y-1 pl-4 text-muted-foreground break-all [overflow-wrap:anywhere]">
               {itemLabels.length > 0
                 ? itemLabels.map((label) => <li key={label}>{label}</li>)
                 : items.map((item, index) => (
@@ -94,6 +94,7 @@ export function ArchiveBorrowRequestDialog({
           <label className="block space-y-1 text-sm">
             <span>{t('page.reason')}</span>
             <Textarea
+              className="max-w-full break-all [overflow-wrap:anywhere]"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
