@@ -44,7 +44,7 @@ export {
 // Groups
 // ========================================
 export { groups, groupsRelations } from "./groups.ts";
-export { groupMembers } from "./group_members.ts";
+export { groupMembers, groupMemberRoleEnum, type GroupMember, type NewGroupMember } from "./group_members.ts";
 export { groupMembersRelations } from "./schema-relations.ts";
 export { metadataTemplates } from "./metadata_template.ts";
 export { metadataExportPresets } from "./metadata_export_preset.ts";
@@ -344,6 +344,17 @@ export {
     MIN_DISPOSAL_COUNCIL_MEMBERS,
     MANDATORY_DISPOSAL_COUNCIL_REPRESENTATION_TYPES,
 } from "./archive-disposal-constants.ts";
+export {
+    disposalProposalCatalogStatusEnum,
+    disposalProposalItemSourceEnum,
+    duplicateDetectionRuleKeyEnum,
+    disposalCouncilMemberPositionRoleEnum,
+    disposalCouncilMemberRepresentationTypeEnum,
+    disposalCouncilMemberHistoryActionEnum,
+    disposalCouncilReviewResultEnum,
+    disposalCouncilEvaluationDecisionEnum,
+    disposalAppraisalDocumentTypeEnum,
+} from "./archive-disposal-enums.ts";
 
 // ========================================
 // Archive Borrow

@@ -13,9 +13,19 @@ CREATE TYPE "sohoa_app"."archive_storage_state" AS ENUM('STORING', 'IN_USE', 'TE
 CREATE TYPE "sohoa_app"."archive_submission_status" AS ENUM('PENDING', 'APPROVED', 'REJECTED');--> statement-breakpoint
 CREATE TYPE "sohoa_app"."assignment_status" AS ENUM('IN_PROGRESS', 'DRAFT', 'COMPLETED', 'REJECTED', 'TRANSFERRED');--> statement-breakpoint
 CREATE TYPE "sohoa_app"."auth_session_token_type" AS ENUM('access_token', 'refresh_token');--> statement-breakpoint
+CREATE TYPE "sohoa_app"."disposal_appraisal_document_type" AS ENUM('PL2', 'PL3', 'MINUTES_COUNCIL', 'MINUTES_DESTRUCTION');--> statement-breakpoint
+CREATE TYPE "sohoa_app"."disposal_council_evaluation_decision" AS ENUM('DESTROY', 'KEEP');--> statement-breakpoint
+CREATE TYPE "sohoa_app"."disposal_council_member_history_action" AS ENUM('CREATE', 'ADD', 'REMOVE', 'UPDATE');--> statement-breakpoint
+CREATE TYPE "sohoa_app"."disposal_council_member_position_role" AS ENUM('CHAIR', 'SECRETARY', 'MEMBER');--> statement-breakpoint
+CREATE TYPE "sohoa_app"."disposal_council_member_representation_type" AS ENUM('LEADERSHIP', 'ARCHIVE_DEPT', 'SPECIALIST_DEPT', 'OTHER');--> statement-breakpoint
+CREATE TYPE "sohoa_app"."disposal_council_review_result" AS ENUM('APPROVED', 'REJECTED');--> statement-breakpoint
+CREATE TYPE "sohoa_app"."disposal_proposal_catalog_status" AS ENUM('DRAFT', 'PENDING_SUBMIT', 'SUBMITTED', 'AWAITING_FEEDBACK', 'APPROVED', 'REJECTED', 'DESTROYED');--> statement-breakpoint
+CREATE TYPE "sohoa_app"."disposal_proposal_item_source" AS ENUM('EXPIRED', 'EXPIRING_SOON', 'DUPLICATE', 'WAREHOUSE');--> statement-breakpoint
 CREATE TYPE "sohoa_app"."dossier_physical_placement_status" AS ENUM('ACTIVE', 'MOVED', 'REMOVED');--> statement-breakpoint
 CREATE TYPE "sohoa_app"."dossier_status" AS ENUM('NEW', 'OCR_PROCESSING', 'OCR_FAILED', 'READY_FOR_ENTRY', 'ENTRY_PROCESSING', 'WAITING_CHECKER_1', 'CHECKER_1_PROCESSING', 'CHECKER_1_REJECTED', 'WAITING_CHECKER_2', 'CHECKER_2_PROCESSING', 'CHECKER_2_REJECTED', 'WAITING_CHECKER_3', 'CHECKER_3_PROCESSING', 'CHECKER_3_REJECTED', 'WAITING_CHECKER_4', 'CHECKER_4_PROCESSING', 'CHECKER_4_REJECTED', 'WAITING_CHECKER_5', 'CHECKER_5_PROCESSING', 'CHECKER_5_REJECTED', 'WAITING_ISSUE_RESOLUTION', 'ERROR', 'APPROVED', 'PENDING_ARCHIVE', 'ARCHIVE_REJECTED', 'ARCHIVED');--> statement-breakpoint
+CREATE TYPE "sohoa_app"."duplicate_detection_rule_key" AS ENUM('DOSSIER_NAME', 'DOSSIER_CODE', 'DOCUMENT_METADATA_SIMILARITY', 'FILE_NAME_STRICT');--> statement-breakpoint
 CREATE TYPE "sohoa_app"."entity_type" AS ENUM('DOSSIER', 'DOCUMENT');--> statement-breakpoint
+CREATE TYPE "sohoa_app"."group_member_role" AS ENUM('leader', 'editor', 'qc1', 'qc2', 'qc3', 'qc4', 'qc5');--> statement-breakpoint
 CREATE TYPE "sohoa_app"."issue_report_status" AS ENUM('PENDING', 'CONFIRMED', 'REJECTED', 'ESCALATED', 'CLOSED');--> statement-breakpoint
 CREATE TYPE "sohoa_app"."metadata_permission_config_status" AS ENUM('draft', 'ready', 'close');--> statement-breakpoint
 CREATE TYPE "sohoa_app"."retention_duration_unit" AS ENUM('YEAR', 'MONTH', 'DAY');--> statement-breakpoint

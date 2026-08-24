@@ -1,5 +1,5 @@
 {
-  "id": "062a3c1b-f5c5-4536-a59e-b55b131e481c",
+  "id": "c1a9fe68-ac1e-4ffd-a52d-b5759aed1b4a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -11447,6 +11447,84 @@
         "refresh_token"
       ]
     },
+    "sohoa_app.disposal_appraisal_document_type": {
+      "name": "disposal_appraisal_document_type",
+      "schema": "sohoa_app",
+      "values": [
+        "PL2",
+        "PL3",
+        "MINUTES_COUNCIL",
+        "MINUTES_DESTRUCTION"
+      ]
+    },
+    "sohoa_app.disposal_council_evaluation_decision": {
+      "name": "disposal_council_evaluation_decision",
+      "schema": "sohoa_app",
+      "values": [
+        "DESTROY",
+        "KEEP"
+      ]
+    },
+    "sohoa_app.disposal_council_member_history_action": {
+      "name": "disposal_council_member_history_action",
+      "schema": "sohoa_app",
+      "values": [
+        "CREATE",
+        "ADD",
+        "REMOVE",
+        "UPDATE"
+      ]
+    },
+    "sohoa_app.disposal_council_member_position_role": {
+      "name": "disposal_council_member_position_role",
+      "schema": "sohoa_app",
+      "values": [
+        "CHAIR",
+        "SECRETARY",
+        "MEMBER"
+      ]
+    },
+    "sohoa_app.disposal_council_member_representation_type": {
+      "name": "disposal_council_member_representation_type",
+      "schema": "sohoa_app",
+      "values": [
+        "LEADERSHIP",
+        "ARCHIVE_DEPT",
+        "SPECIALIST_DEPT",
+        "OTHER"
+      ]
+    },
+    "sohoa_app.disposal_council_review_result": {
+      "name": "disposal_council_review_result",
+      "schema": "sohoa_app",
+      "values": [
+        "APPROVED",
+        "REJECTED"
+      ]
+    },
+    "sohoa_app.disposal_proposal_catalog_status": {
+      "name": "disposal_proposal_catalog_status",
+      "schema": "sohoa_app",
+      "values": [
+        "DRAFT",
+        "PENDING_SUBMIT",
+        "SUBMITTED",
+        "AWAITING_FEEDBACK",
+        "APPROVED",
+        "REJECTED",
+        "DESTROYED"
+      ]
+    },
+    "sohoa_app.disposal_proposal_item_source": {
+      "name": "disposal_proposal_item_source",
+      "schema": "sohoa_app",
+      "values": [
+        "EXPIRED",
+        "EXPIRING_SOON",
+        "DUPLICATE",
+        "WAREHOUSE"
+      ]
+    },
     "sohoa_app.dossier_physical_placement_status": {
       "name": "dossier_physical_placement_status",
       "schema": "sohoa_app",
@@ -11488,12 +11566,35 @@
         "ARCHIVED"
       ]
     },
+    "sohoa_app.duplicate_detection_rule_key": {
+      "name": "duplicate_detection_rule_key",
+      "schema": "sohoa_app",
+      "values": [
+        "DOSSIER_NAME",
+        "DOSSIER_CODE",
+        "DOCUMENT_METADATA_SIMILARITY",
+        "FILE_NAME_STRICT"
+      ]
+    },
     "sohoa_app.entity_type": {
       "name": "entity_type",
       "schema": "sohoa_app",
       "values": [
         "DOSSIER",
         "DOCUMENT"
+      ]
+    },
+    "sohoa_app.group_member_role": {
+      "name": "group_member_role",
+      "schema": "sohoa_app",
+      "values": [
+        "leader",
+        "editor",
+        "qc1",
+        "qc2",
+        "qc3",
+        "qc4",
+        "qc5"
       ]
     },
     "sohoa_app.issue_report_status": {
