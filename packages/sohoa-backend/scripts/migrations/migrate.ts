@@ -34,7 +34,7 @@ try {
       content = content.replaceAll(/CREATE TABLE (?:IF NOT EXISTS )?/gi, 'CREATE TABLE IF NOT EXISTS ');
       content = content.replaceAll(/ADD COLUMN (?:IF NOT EXISTS )?/gi, 'ADD COLUMN IF NOT EXISTS ');
       if (schema !== "sohoa_app") {
-        content = content.replaceAll(/"sohoa_app"/g, `"${schema}"`);
+        content = content.replaceAll(/sohoa_app/g, schema);
       }
       Deno.writeTextFileSync(path, content);
     }
@@ -76,6 +76,8 @@ try {
     "42710", // duplicate_object (type, constraint, etc)
     "42P06", // duplicate_schema
     "42704", // undefined_object
+    "42P01", // undefined_table (legacy data cleanup)
+    "42703", // undefined_column (legacy data cleanup)
     "42622", // identifier_too_long
     "23505", // unique_violation
   ]);
