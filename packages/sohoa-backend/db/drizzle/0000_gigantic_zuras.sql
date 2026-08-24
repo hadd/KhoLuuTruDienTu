@@ -18,6 +18,7 @@ CREATE TYPE "sohoa_app"."dossier_status" AS ENUM('NEW', 'OCR_PROCESSING', 'OCR_F
 CREATE TYPE "sohoa_app"."entity_type" AS ENUM('DOSSIER', 'DOCUMENT');--> statement-breakpoint
 CREATE TYPE "sohoa_app"."issue_report_status" AS ENUM('PENDING', 'CONFIRMED', 'REJECTED', 'ESCALATED', 'CLOSED');--> statement-breakpoint
 CREATE TYPE "sohoa_app"."metadata_permission_config_status" AS ENUM('draft', 'ready', 'close');--> statement-breakpoint
+CREATE TYPE "sohoa_app"."retention_duration_unit" AS ENUM('YEAR', 'MONTH', 'DAY');--> statement-breakpoint
 CREATE TYPE "sohoa_app"."work_quality" AS ENUM('CORRECT', 'INCORRECT');--> statement-breakpoint
 CREATE TYPE "sohoa_app"."worker_role" AS ENUM('MAKER', 'CHECKER_1', 'CHECKER_2', 'CHECKER_3', 'CHECKER_4', 'CHECKER_5');--> statement-breakpoint
 CREATE TABLE "sohoa_app"."api_audit_logs" (

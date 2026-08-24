@@ -1,5 +1,5 @@
 {
-  "id": "17ccde91-5cb0-4dd0-99dc-c23b24225c3c",
+  "id": "54b53921-e8e1-41b2-9382-d0486377b411",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -10722,6 +10722,15 @@
         "draft",
         "ready",
         "close"
+      ]
+    },
+    "sohoa_app.retention_duration_unit": {
+      "name": "retention_duration_unit",
+      "schema": "sohoa_app",
+      "values": [
+        "YEAR",
+        "MONTH",
+        "DAY"
       ]
     },
     "sohoa_app.work_quality": {

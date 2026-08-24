@@ -138,6 +138,11 @@ export { paperSizes } from "./paper-size.ts";
 // ========================================
 export { fonds } from "./fond.ts";
 export { retentionPeriods } from "./retention-period.ts";
+export {
+    retentionDurationUnitEnum,
+    RetentionDurationUnit,
+    RETENTION_DURATION_UNIT_VALUES,
+} from "./retention-period-enums.ts";
 export { inventories } from "./inventory.ts";
 export { dossierTypes } from "./dossier-type.ts";
 export { documentTypes, documentTypesRelations } from "./document-type.ts";
