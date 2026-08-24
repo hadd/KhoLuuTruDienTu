@@ -32,15 +32,27 @@ try {
       const path = join(tempDir, e.name);
       let content = Deno.readTextFileSync(path);
       content = content.replaceAll(/CREATE SCHEMA "([^"]+)";/g, 'CREATE SCHEMA IF NOT EXISTS "$1";');
+      content = content.replaceAll(/CREATE TABLE /gi, 'CREATE TABLE IF NOT EXISTS ');
+      content = content.replaceAll(/ADD COLUMN /gi, 'ADD COLUMN IF NOT EXISTS ');
+      if (schema !== "sohoa_app") {
+        content = content.replaceAll(/"sohoa_app"/g, `"${schema}"`);
+      }
       Deno.writeTextFileSync(path, content);
     }
   }
 
   await sql.unsafe(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
+  await sql.unsafe(`CREATE SCHEMA IF NOT EXISTS "sohoa_app"`);
+  await sql.unsafe(`CREATE SCHEMA IF NOT EXISTS "drizzle"`);
   await sql.unsafe(`SET lock_timeout = '30s'`);
 
   const journalTags = listJournalTags(tempDir);
-  const appliedRows = await sql`SELECT hash FROM drizzle.__drizzle_migrations`;
+  let appliedRows: Array<{ hash: unknown }> = [];
+  try {
+    appliedRows = await sql`SELECT hash FROM drizzle.__drizzle_migrations`;
+  } catch {
+    appliedRows = [];
+  }
   const appliedHashes = new Set(appliedRows.map((r) => String(r.hash)));
   const pendingByHash = journalTags.filter((tag) => {
     const file = join(tempDir, `${tag}.sql`);
