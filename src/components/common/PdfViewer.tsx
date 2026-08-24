@@ -32,6 +32,7 @@ import {
   resetTextLayerCopyRestriction,
   restrictTextLayerToRects,
 } from '@/features/data-management/lib/pdfTextLayerRestriction'
+import { getAccessToken } from '@/features/auth/store'
 import { useInlinePdfUrl } from '@/lib/hooks/useInlinePdfUrl'
 import { cn } from '@/lib/utils/cn'
 
@@ -374,6 +375,7 @@ export function PdfViewer({
   const containerRef = useRef<HTMLDivElement>(null)
   const pageWrapperRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const [containerWidth, setContainerWidth] = useState(FALLBACK_WIDTH)
+  const pageWidth = Math.max(containerWidth - (fitEdge ? 0 : 16), 1)
   const [numPages, setNumPages] = useState<number | null>(null)
   const [documentError, setDocumentError] = useState<Error | null>(null)
   const [pageMetrics, setPageMetrics] = useState<Map<number, PageMetrics>>(
@@ -384,6 +386,7 @@ export function PdfViewer({
   const [pageRenderVersions, setPageRenderVersions] = useState<
     Map<number, number>
   >(() => new Map())
+  const [visiblePageNumber, setVisiblePageNumber] = useState<number>(1)
 
   const {
     displayUrl,
@@ -396,11 +399,32 @@ export function PdfViewer({
     ? { height: fixedHeight, maxHeight: fixedHeight, minHeight: fixedHeight }
     : undefined
 
+  const documentSource = useMemo(() => {
+    if (!effectiveFileUrl) return null
+    if (
+      effectiveFileUrl.startsWith('blob:') ||
+      effectiveFileUrl.startsWith('data:')
+    ) {
+      return effectiveFileUrl
+    }
+    const token = getAccessToken()
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+    return {
+      url: effectiveFileUrl,
+      withCredentials: true,
+      httpHeaders: headers,
+    }
+  }, [effectiveFileUrl])
+
   useEffect(() => {
     setNumPages(null)
     setDocumentError(null)
     setPageMetrics(new Map())
     setPageRenderVersions(new Map())
+    setVisiblePageNumber(1)
     pageWrapperRefs.current.clear()
     pageCanvasHostRefs.current.clear()
   }, [effectiveFileUrl])
@@ -413,6 +437,67 @@ export function PdfViewer({
   }, [urlError, documentError, onLoadFailed])
 
   useEffect(() => {
+    if (
+      scrollToPage &&
+      scrollToPage >= 1 &&
+      numPages &&
+      scrollToPage <= numPages
+    ) {
+      setVisiblePageNumber(scrollToPage)
+    }
+  }, [scrollToPage, numPages])
+
+  const estimatedPageHeight = useMemo(() => {
+    if (pageMetrics.size > 0) {
+      let totalH = 0
+      let count = 0
+      for (const m of pageMetrics.values()) {
+        if (m.renderHeight && m.renderHeight > 0) {
+          totalH += m.renderHeight
+          count++
+        }
+      }
+      if (count > 0) return totalH / count
+    }
+    return Math.max(pageWidth * 1.414, 300)
+  }, [pageMetrics, pageWidth])
+
+  const pagesToRender = useMemo(() => {
+    const activeSet = new Set<number>()
+    if (!numPages) return activeSet
+
+    const targetCenter = scrollToPage ?? highlight?.page ?? visiblePageNumber ?? 1
+    const buffer = 3
+    const start = Math.max(1, targetCenter - buffer)
+    const end = Math.min(numPages, targetCenter + buffer)
+
+    for (let p = start; p <= end; p++) {
+      activeSet.add(p)
+    }
+
+    if (scrollToPage && scrollToPage >= 1 && scrollToPage <= numPages) {
+      activeSet.add(scrollToPage)
+      for (
+        let p = Math.max(1, scrollToPage - 1);
+        p <= Math.min(numPages, scrollToPage + 1);
+        p++
+      ) {
+        activeSet.add(p)
+      }
+    }
+
+    if (highlight?.page && highlight.page >= 1 && highlight.page <= numPages) {
+      activeSet.add(highlight.page)
+    }
+
+    if (visiblePageNumber >= 1 && visiblePageNumber <= numPages) {
+      activeSet.add(visiblePageNumber)
+    }
+
+    return activeSet
+  }, [numPages, visiblePageNumber, scrollToPage, highlight?.page])
+
+  useEffect(() => {
     if (!scrollToPage || scrollToPage < 1) return
     const pageWrapper = pageWrapperRefs.current.get(scrollToPage)
     if (!pageWrapper) return
@@ -420,7 +505,7 @@ export function PdfViewer({
   }, [scrollToPage, numPages, pageMetrics.size])
 
   useEffect(() => {
-    if (!onVisiblePageChange || !containerRef.current || !numPages) return
+    if (!containerRef.current || !numPages) return
 
     const container = containerRef.current
     const ratios = new Map<number, number>()
@@ -444,7 +529,8 @@ export function PdfViewer({
         }
         if (bestPage !== lastReported && bestRatio > 0) {
           lastReported = bestPage
-          onVisiblePageChange(bestPage)
+          setVisiblePageNumber(bestPage)
+          onVisiblePageChange?.(bestPage)
         }
       },
       {
@@ -459,7 +545,7 @@ export function PdfViewer({
     }
 
     return () => observer.disconnect()
-  }, [onVisiblePageChange, numPages, pageRenderVersions])
+  }, [onVisiblePageChange, numPages, pageRenderVersions, pagesToRender.size])
 
   useEffect(() => {
     if (!textSelectMode || !onTextSelect) return
@@ -527,7 +613,6 @@ export function PdfViewer({
   }, [maskMode, pageMetrics, revealRegions, restrictTextCopyToRevealRegions])
 
   const isViewerMounted = Boolean(fileUrl && !isUrlLoading && !urlError)
-  const pageWidth = Math.max(containerWidth - (fitEdge ? 0 : 16), 1)
   const highlightPageMetrics = highlight?.page
     ? pageMetrics.get(highlight.page)
     : undefined
@@ -865,7 +950,7 @@ export function PdfViewer({
         )}
       >
         <Document
-          file={effectiveFileUrl}
+          file={documentSource}
           onLoadSuccess={onDocumentLoadSuccess}
           onLoadError={onDocumentLoadError}
           loading={loadingNode}
@@ -875,6 +960,39 @@ export function PdfViewer({
             Array.from({ length: numPages }, (_, index) => {
               const pageNumber = index + 1
               const metrics = pageMetrics.get(pageNumber)
+              const isPageActive = pagesToRender.has(pageNumber)
+              const pageHeight = metrics?.renderHeight ?? estimatedPageHeight
+
+              if (!isPageActive) {
+                return (
+                  <div
+                    key={pageNumber}
+                    data-page-number={pageNumber}
+                    ref={(element) => {
+                      if (element) {
+                        pageWrapperRefs.current.set(pageNumber, element)
+                      } else {
+                        pageWrapperRefs.current.delete(pageNumber)
+                      }
+                    }}
+                    className={cn(
+                      'flex justify-center',
+                      fitEdge ? 'p-0' : 'p-2',
+                    )}
+                  >
+                    <div
+                      className="flex items-center justify-center rounded border border-dashed border-border/40 bg-muted/15 text-xs font-medium text-muted-foreground/50 transition-all select-none"
+                      style={{
+                        width: pageWidth,
+                        height: pageHeight,
+                      }}
+                    >
+                      Trang {pageNumber} / {numPages}
+                    </div>
+                  </div>
+                )
+              }
+
               const showHighlight = highlight?.page === pageNumber && metrics
               const revealRects = revealRectsByPage.get(pageNumber) ?? []
               const pageUserHighlights =
