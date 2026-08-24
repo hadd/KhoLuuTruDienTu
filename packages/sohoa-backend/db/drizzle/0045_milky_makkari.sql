@@ -1,1 +1,0 @@
-ALTER TABLE "sohoa_app"."physical_warehouse_items" ADD COLUMN "is_bottom_level" boolean DEFAULT false NOT NULL;
