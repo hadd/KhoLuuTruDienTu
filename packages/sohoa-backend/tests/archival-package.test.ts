@@ -10,6 +10,7 @@ import {
 import { buildAipHosoPackage } from "../libs/archival-package/aip-hoso-builder.ts";
 import { buildDipHosoPackage, buildMultiDipHosoZip } from "../libs/archival-package/dip-hoso-builder.ts";
 import { buildManifestLines, uniqueZipEntryName } from "../libs/archival-package/zip-utils.ts";
+import { sanitizeMetadataHeaders } from "../libs/archival-storage.ts";
 import JSZip from "jszip";
 
 function sampleMetadata(): DossierMetadata {
@@ -160,4 +161,22 @@ Deno.test("buildMultiDipHosoZip nests each dossier under its hoSoId folder", asy
     assertEquals(names.includes("185_CD/documents/a.pdf"), true);
     assertEquals(names.includes("186_CD/hoso.xml"), true);
     assertEquals(names.includes("186_CD/documents/b.pdf"), true);
+});
+
+Deno.test("sanitizeMetadataHeaders encodes non-ASCII Vietnamese values to safe ASCII strings", () => {
+    const metadata = {
+        "package-type": "AIP_hoso",
+        "ho-so-id": "Hồ sơ 2024 - Cấp phép",
+        "dossier-id": "0e3fc759-fd09-401d-bdcd-91ebd2a783d4",
+    };
+    const sanitized = sanitizeMetadataHeaders(metadata);
+
+    assertEquals(sanitized["package-type"], "AIP_hoso");
+    assertEquals(sanitized["ho-so-id"], "H%E1%BB%93%20s%C6%A1%202024%20-%20C%E1%BA%A5p%20ph%C3%A9p");
+    assertEquals(sanitized["dossier-id"], "0e3fc759-fd09-401d-bdcd-91ebd2a783d4");
+    
+    // Verify all header values contain ONLY valid ASCII characters (0x20 - 0x7E)
+    for (const val of Object.values(sanitized)) {
+        assertEquals(/^[\x20-\x7E]*$/.test(val), true);
+    }
 });

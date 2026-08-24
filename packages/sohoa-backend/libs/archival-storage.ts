@@ -72,6 +72,16 @@ export async function statStorageObject(
     }
 }
 
+export function sanitizeMetadataHeaders(metadata?: Record<string, string>): Record<string, string> {
+    if (!metadata) return {};
+    const sanitized: Record<string, string> = {};
+    for (const [key, value] of Object.entries(metadata)) {
+        if (value === undefined || value === null) continue;
+        sanitized[key] = encodeURIComponent(String(value));
+    }
+    return sanitized;
+}
+
 export async function uploadBinaryToStorage(
     objectKey: string,
     data: Uint8Array,
@@ -96,7 +106,7 @@ export async function uploadBinaryToStorage(
         data.length,
         {
             "Content-Type": options.contentType ?? "application/octet-stream",
-            ...options.metadata,
+            ...sanitizeMetadataHeaders(options.metadata),
         },
     );
 
@@ -133,7 +143,7 @@ export async function uploadBinaryWithObjectLock(
             "Content-Type": options.contentType ?? "application/zip",
             "X-Amz-Object-Lock-Mode": mode,
             "X-Amz-Object-Lock-Retain-Until-Date": retainUntil.toISOString(),
-            ...options.metadata,
+            ...sanitizeMetadataHeaders(options.metadata),
         },
     );
 
