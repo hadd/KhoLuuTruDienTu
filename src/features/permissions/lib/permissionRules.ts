@@ -99,7 +99,12 @@ const SIDEBAR_VIEW_ONLY_MODULES = new Set([
 ])
 
 function isViewPermissionKey(key: string): boolean {
-  return key.endsWith('.read') || key.endsWith('.view')
+  return (
+    key.endsWith('.read') ||
+    key.endsWith('.read_all') ||
+    key.endsWith('.view') ||
+    key.endsWith('.use')
+  )
 }
 
 export function getModuleViewPermissionKey(
@@ -153,25 +158,15 @@ export function canAccessModuleForSidebar(
     )
   }
 
-  const viewKey = getModuleViewPermissionKey(catalog, module)
-  if (!viewKey) {
-    return false
+  const viewKeys = catalog
+    .filter((item) => item.module === module && isViewPermissionKey(item.key))
+    .map((item) => item.key)
+
+  if (viewKeys.length > 0) {
+    return viewKeys.some((key) => isPermissionGranted(permissions, key, module))
   }
 
-  if (!isPermissionGranted(permissions, viewKey, module)) {
-    return false
-  }
-
-  if (SIDEBAR_VIEW_ONLY_MODULES.has(module)) {
-    return true
-  }
-
-  const grantedCount = countGrantedModulePermissions(
-    permissions,
-    module,
-    catalog,
-  )
-  return grantedCount / moduleKeys.length >= SIDEBAR_PERMISSION_THRESHOLD
+  return moduleKeys.some((key) => isPermissionGranted(permissions, key, module))
 }
 
 export function isPermissionGranted(
