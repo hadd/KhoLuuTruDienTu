@@ -13,7 +13,13 @@ export const Route = createFileRoute(
   '/app/data-config/metadata-extract-settings',
 )({
   staticData: {
-    crumb: () => i18n.t('tiles.metadataExtractSettings', { ns: 'data-config' }),
+    crumb: () => ({
+      label: i18n.t('tiles.metadataExtractSettings', { ns: 'data-config' }),
+      parent: {
+        label: i18n.t('admin.dataConfig.title', { ns: 'common' }),
+        to: '/app/data-config',
+      },
+    }),
   },
   beforeLoad: async ({ context }) => {
     await requirePermission(

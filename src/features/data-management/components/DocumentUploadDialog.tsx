@@ -17,6 +17,7 @@ import {
   isDataManagementUploadError,
   validateDocumentUploadFiles,
 } from '@/features/data-management/api/dataManagementClient'
+import { useOcrControlAccess } from '@/features/ocr-control/hooks/useOcrControlAccess'
 import type {
   FileUploadResult,
   OcrRunMode,
@@ -81,6 +82,7 @@ export function DocumentUploadDialog({
 }) {
   const { t } = useTranslation('data-management')
   const { t: tCommon } = useTranslation('common')
+  const { canControlOcr } = useOcrControlAccess()
   const inputRef = useRef<HTMLInputElement>(null)
   const [state, setState] = useState<DialogState>({ phase: 'idle' })
   const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null)
@@ -88,7 +90,7 @@ export function DocumentUploadDialog({
     Array<{ relativePath: string; storageKey: string }>
   >([])
   const [overwriteOpen, setOverwriteOpen] = useState(false)
-  const [runMode, setRunMode] = useState<OcrRunMode>('manual')
+  const [runMode, setRunMode] = useState<OcrRunMode>(canControlOcr ? 'manual' : 'auto')
 
   const storagePathPrefix = targetRecord
     ? resolveRecordStoragePrefix(targetRecord)
@@ -119,7 +121,7 @@ export function DocumentUploadDialog({
     setState({ phase: 'idle' })
     resetPendingOverwrite()
     mutation.reset()
-    setRunMode('manual')
+    setRunMode(canControlOcr ? 'manual' : 'auto')
     onOpenChange(false)
   }
 
@@ -131,7 +133,7 @@ export function DocumentUploadDialog({
       setState({ phase: 'idle' })
       resetPendingOverwrite()
       mutation.reset()
-      setRunMode('manual')
+      setRunMode(canControlOcr ? 'manual' : 'auto')
     }
     onOpenChange(next)
   }
@@ -340,25 +342,27 @@ export function DocumentUploadDialog({
                   {t('upload.errors.missingFolderPath')}
                 </p>
               )}
-              <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-sm font-medium text-foreground">
-                    {t('upload.runMode.label')}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {runMode === 'manual'
-                      ? t('upload.runMode.manual')
-                      : t('upload.runMode.auto')}
-                  </span>
+              {canControlOcr ? (
+                <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium text-foreground">
+                      {t('upload.runMode.label')}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {runMode === 'manual'
+                        ? t('upload.runMode.manual')
+                        : t('upload.runMode.auto')}
+                    </span>
+                  </div>
+                  <Switch
+                    checked={runMode === 'manual'}
+                    disabled={isBusy}
+                    onCheckedChange={(checked) =>
+                      setRunMode(checked ? 'manual' : 'auto')
+                    }
+                  />
                 </div>
-                <Switch
-                  checked={runMode === 'manual'}
-                  disabled={isBusy}
-                  onCheckedChange={(checked) =>
-                    setRunMode(checked ? 'manual' : 'auto')
-                  }
-                />
-              </div>
+              ) : null}
               <input
                 ref={inputRef}
                 type="file"

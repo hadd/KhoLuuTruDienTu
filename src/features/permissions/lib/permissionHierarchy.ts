@@ -56,6 +56,11 @@ export const PERMISSION_HIERARCHY: MajorModuleGroup[] = [
         modules: ['scan-intake'],
       },
       {
+        id: 'ocr-control',
+        label: 'Kiểm soát OCR',
+        modules: ['ocr-control'],
+      },
+      {
         id: 'data-entry',
         label: 'Nhập liệu & Duyệt QC',
         modules: ['data-entry'],
