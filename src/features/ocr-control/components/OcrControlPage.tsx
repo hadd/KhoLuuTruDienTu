@@ -642,11 +642,7 @@ function UnifiedOcrTable({
             <TableHead className="hidden md:table-cell">
               {t('columns.folderPath')}
             </TableHead>
-            <TableHead className="hidden sm:table-cell">
-              {t('columns.project')}
-            </TableHead>
             <TableHead>{t('columns.status')}</TableHead>
-            <TableHead>{t('columns.progress')}</TableHead>
             <TableHead className="hidden lg:table-cell">
               {t('columns.time')}
             </TableHead>
@@ -679,10 +675,6 @@ function UnifiedOcrTable({
               row.kind === 'pending'
                 ? row.dossier.folderPath
                 : row.dossier.folderPath
-            const projectCode =
-              row.kind === 'pending'
-                ? row.dossier.projectCode
-                : row.dossier.projectCode
 
             return (
               <>
@@ -733,35 +725,12 @@ function UnifiedOcrTable({
                   <TableCell className="hidden max-w-[280px] truncate font-mono text-xs text-muted-foreground md:table-cell">
                     {folderPath}
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    {projectCode ? (
-                      <Badge variant="secondary">{projectCode}</Badge>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
                   <TableCell>
                     <OcrRowStatusBadge
                       status={
                         row.kind === 'pending' ? 'pending' : row.dossier.uiStatus
                       }
                     />
-                  </TableCell>
-                  <TableCell>
-                    {row.kind === 'pending' ? (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    ) : (
-                      <OcrProgressBar
-                        uiStatus={row.dossier.uiStatus}
-                        label={
-                          row.dossier.uiStatus === 'completed'
-                            ? '100%'
-                            : row.dossier.uiStatus === 'failed'
-                              ? t('status.failed')
-                              : t('status.processing')
-                        }
-                      />
-                    )}
                   </TableCell>
                   <TableCell className="hidden whitespace-nowrap text-sm text-muted-foreground lg:table-cell">
                     {row.kind === 'pending'
@@ -794,7 +763,7 @@ function UnifiedOcrTable({
                 {isExpanded ? (
                   <TableRow key={`${dossierId}-details`}>
                     <TableCell
-                      colSpan={canTriggerOcr ? 10 : 9}
+                      colSpan={canTriggerOcr ? 8 : 7}
                       className="bg-muted/20 px-4 py-3"
                     >
                       <OcrDossierFileList

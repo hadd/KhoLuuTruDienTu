@@ -91,7 +91,7 @@ export function canQcSubmitAtAssignedLevel({
 export function canExportDossierMetadata(
   dossierStatus: DataDossierStatus | undefined,
 ): boolean {
-  return dossierStatus === 'APPROVED'
+  return dossierStatus === 'APPROVED' || dossierStatus === 'ARCHIVED'
 }
 
 /** Approved dossiers are locked — metadata is view-only for every role. */

@@ -14,6 +14,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { GroupProjectSelect } from '@/features/group/components/GroupProjectSelect'
+import { useGroupAccess } from '@/features/group/hooks/useGroupAccess'
 import { buildQcAndAdminUsersList } from '@/features/group/lib/availableEditors'
 import {
   buildUpdateGroupPayload,
@@ -70,10 +71,18 @@ export function GroupCard({
   setMemberToRemove,
 }: GroupCardProps) {
   const { t } = useTranslation('group')
+  const {
+    canUpdateGroup,
+    canDeleteGroup,
+    canManageGroupMembers,
+    canStartGroupWorkflow,
+  } = useGroupAccess()
   const { useMetadataPermissionConfig, metadataPermissionConfigId } =
     useGroupConfig(group.id)
   const canManageMembers =
-    useMetadataPermissionConfig && Boolean(metadataPermissionConfigId)
+    useMetadataPermissionConfig &&
+    Boolean(metadataPermissionConfigId) &&
+    canManageGroupMembers
   const { mutateAsync: updateGroup, isPending: isUpdatingGroup } =
     useUpdateGroup()
   const [editName, setEditName] = useState(group.name)
@@ -475,66 +484,74 @@ export function GroupCard({
         <div className="flex flex-col items-end gap-2">
           <TooltipProvider>
             <div className="flex items-center gap-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-primary"
-                    onClick={() => {
-                      setSelectedGroup(group)
-                      setAddMemberOpen(true)
-                    }}
-                  >
-                    <UserPlus className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('card.actions.addMember')}</TooltipContent>
-              </Tooltip>
+              {canManageGroupMembers ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-primary"
+                      onClick={() => {
+                        setSelectedGroup(group)
+                        setAddMemberOpen(true)
+                      }}
+                    >
+                      <UserPlus className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('card.actions.addMember')}</TooltipContent>
+                </Tooltip>
+              ) : null}
 
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={`h-8 w-8 ${isEditing ? 'bg-accent text-foreground' : 'text-foreground'}`}
-                    onClick={handleToggleEdit}
-                    aria-label={t('card.actions.editGroup')}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('card.actions.editGroup')}</TooltipContent>
-              </Tooltip>
+              {canUpdateGroup ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={`h-8 w-8 ${isEditing ? 'bg-accent text-foreground' : 'text-foreground'}`}
+                      onClick={handleToggleEdit}
+                      aria-label={t('card.actions.editGroup')}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('card.actions.editGroup')}</TooltipContent>
+                </Tooltip>
+              ) : null}
 
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                    onClick={() => {
-                      setSelectedGroup(group)
-                      setDeleteOpen(true)
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('card.actions.deleteGroup')}</TooltipContent>
-              </Tooltip>
+              {canDeleteGroup ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        setSelectedGroup(group)
+                        setDeleteOpen(true)
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('card.actions.deleteGroup')}</TooltipContent>
+                </Tooltip>
+              ) : null}
             </div>
 
             <div className="flex flex-col items-end gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 text-blue-600 hover:bg-blue-600/10 hover:text-blue-700 px-2"
-                onClick={() => setAssignFolderOpen(true)}
-              >
-                <FilePlus className="h-4 w-4 mr-2" />
-                {t('assignTasks')}
-              </Button>
+              {canStartGroupWorkflow ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-blue-600 hover:bg-blue-600/10 hover:text-blue-700 px-2"
+                  onClick={() => setAssignFolderOpen(true)}
+                >
+                  <FilePlus className="h-4 w-4 mr-2" />
+                  {t('assignTasks')}
+                </Button>
+              ) : null}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button

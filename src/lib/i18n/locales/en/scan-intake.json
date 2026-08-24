@@ -114,6 +114,11 @@
     "projectRequired": "Select a project before promoting",
     "targetFolderLabel": "Target folder on MinIO",
     "targetFolderRequired": "Select a target folder on MinIO",
+    "runMode": {
+      "label": "OCR processing mode",
+      "auto": "Run automatically — OCR immediately after promoting.",
+      "manual": "Add to manual queue — OCR only when triggered from OCR Control screen."
+    },
     "loadingFolders": "Loading folder tree…",
     "loadFoldersFailed": "Could not load the project folder tree.",
     "retryLoadFolders": "Retry",

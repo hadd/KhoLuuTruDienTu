@@ -12,10 +12,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { getPrimaryAppRoleFromProfile } from '@/features/auth/lib/permission-access'
+import {
+  getCurrentUserRoleId,
+  getPrimaryAppRoleFromProfile,
+  resolvePermissionsForUser,
+} from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { getAccessToken } from '@/features/auth/store'
 import { useDataManagementRole } from '@/features/data-management/hooks/useDataManagementRole'
+import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
+import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 import { useNotificationAlert } from '@/features/notifications/hooks/useNotificationAlert'
 import { useNotificationSocket } from '@/features/notifications/hooks/useNotificationSocket'
 import { buildNotificationNavigation } from '@/features/notifications/lib/notificationNavigation'
@@ -160,7 +166,26 @@ export function NotificationBell() {
   const canViewIssueReports =
     primaryAppRole === 'manager' || primaryAppRole === 'admin'
 
-  const canOpenNotificationConfig = primaryAppRole === 'admin'
+  const roleId = getCurrentUserRoleId(user)
+  const { data: rolePermissions } = useQuery({
+    ...rolePermissionsQueryOptions(roleId ?? ''),
+    enabled: Boolean(roleId) && isAuthenticated,
+  })
+
+  const permissions = useMemo(
+    () =>
+      resolvePermissionsForUser(
+        user,
+        rolePermissions?.rules.permissions ?? null,
+      ),
+    [user, rolePermissions],
+  )
+
+  const canOpenNotificationConfig = isPermissionGranted(
+    permissions,
+    'notifications.config.manage',
+    'notifications',
+  )
 
   const { data: unreadCount = 0 } = useQuery({
     ...notificationUnreadCountQueryOptions(),

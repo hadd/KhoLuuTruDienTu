@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
-import { requireAppRole } from '@/features/auth/routeGuards'
+import { requirePermission } from '@/features/auth/routeGuards'
 import { NotificationConfigPage } from '@/features/notification-config/components/NotificationConfigPage'
 import { notificationConfigsQueryOptions, emailSenderQueryOptions } from '@/features/notification-config/queries'
 import { notificationConfigSearchSchema } from '@/features/notification-config/schemas'
@@ -10,7 +10,10 @@ import i18n from '@/lib/i18n/config'
 
 export const Route = createFileRoute('/app/data-config/notification-configs')({
   beforeLoad: async ({ context }) => {
-    await requireAppRole(context, 'admin')
+    await requirePermission(context, {
+      module: 'notifications',
+      permissionKey: 'notifications.config.manage',
+    })
   },
   validateSearch: (raw) => notificationConfigSearchSchema.parse(raw),
   loader: async ({ context }) => {

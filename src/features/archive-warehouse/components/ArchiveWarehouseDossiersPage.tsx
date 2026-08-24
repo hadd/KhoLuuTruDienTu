@@ -19,6 +19,7 @@ import {
 } from '@/features/archive-disposal/lib/warehousePickerSelection'
 import { useDisposalCouncilAccess } from '@/features/archive-disposal-council/hooks/useDisposalCouncilAccess'
 import { disposalSettingsQueryOptions } from '@/features/archive-disposal-council/queries'
+import { canDeleteArchiveWarehouse } from '@/features/archive-warehouse/lib/archiveWarehouseAccess'
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
 import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 import { Badge } from '@/components/ui/badge'
@@ -172,8 +173,7 @@ export function ArchiveWarehouseDossiersPage({
   const [pendingOpen, setPendingOpen] = useState<PendingDossierOpenT | null>(
     null,
   )
-  const [deletingDossierId, setDeletingDossierId] = useState<string | null>(null)
-  const [deletingDossierName, setDeletingDossierName] = useState<string>('')
+  const [deletingDossierIds, setDeletingDossierIds] = useState<string[]>([])
 
   const { data: profile } = useQuery(profileQueryOptions)
   const roleId = getCurrentUserRoleId(profile)
@@ -195,6 +195,8 @@ export function ArchiveWarehouseDossiersPage({
   const councilReviewEnabled = canFetchDisposalSettings
     ? (disposalSettings?.councilReviewEnabled ?? true)
     : false
+
+  const canDelete = !isExploitation && !councilReviewEnabled
 
   const pickerTransferMutation = useMutation({
     mutationFn: transferToDisposalProposal,
@@ -220,15 +222,22 @@ export function ArchiveWarehouseDossiersPage({
   })
 
   const softDeleteDossierMutation = useMutation({
-    mutationFn: (id: string) => softDeleteWarehouseDossier(id),
+    mutationFn: async (ids: string[]) => {
+      for (const id of ids) {
+        await softDeleteWarehouseDossier(id)
+      }
+    },
     onSuccess: () => {
-      toast.success('Đã xóa hồ sơ.')
-      setDeletingDossierId(null)
+      toast.success(deletingDossierIds.length > 1 ? 'Đã xóa các hồ sơ đã chọn.' : 'Đã xóa hồ sơ.')
+      setDeletingDossierIds([])
+      setSelectedIds(new Set())
       void queryClient.invalidateQueries({ queryKey: SOFT_DELETED_DOSSIERS_QUERY_KEY })
+      void queryClient.invalidateQueries({ queryKey: ['archiveWarehouseDossiers'] })
+      void queryClient.invalidateQueries({ queryKey: ['archiveWarehouseUnassignedDossiers'] })
     },
     onError: (error) => {
       toast.error(translateError(error))
-      setDeletingDossierId(null)
+      setDeletingDossierIds([])
     },
   })
 
@@ -259,11 +268,12 @@ export function ArchiveWarehouseDossiersPage({
     disposalCatalogId,
     isEsSearchActive,
   })
+
   const showRowSelection =
     shouldShowWarehouseRowSelection({
       showDownload,
       showPickerSelection,
-    }) || showBorrowSelection
+    }) || showBorrowSelection || canDelete
 
   const listParams = {
     fondId,
@@ -731,7 +741,7 @@ export function ArchiveWarehouseDossiersPage({
                       count: selectedCount,
                     })}
                   </Button>
-                ) : !isEsSearchActive && items.length > 0 && showDownload ? (
+                ) : !isEsSearchActive && items.length > 0 && (showDownload || canDelete) ? (
                   <>
                     {hasSelection ? (
                       <span className="whitespace-nowrap text-xs text-muted-foreground">
@@ -740,15 +750,30 @@ export function ArchiveWarehouseDossiersPage({
                         })}
                       </span>
                     ) : null}
-                    <Button
-                      type="button"
-                      variant="default"
-                      disabled={!hasSelection}
-                      onClick={() => setExportDialogOpen(true)}
-                    >
-                      <Download className="mr-2 size-4" aria-hidden />
-                      {t('export.downloadButton')}
-                    </Button>
+                    {canDelete ? (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        disabled={!hasSelection || softDeleteDossierMutation.isPending}
+                        onClick={() => {
+                          setDeletingDossierIds(selectedDossierIds)
+                        }}
+                      >
+                        <Trash2 className="mr-2 size-4" aria-hidden />
+                        {t('action.delete', 'Xóa')}
+                      </Button>
+                    ) : null}
+                    {showDownload ? (
+                      <Button
+                        type="button"
+                        variant="default"
+                        disabled={!hasSelection}
+                        onClick={() => setExportDialogOpen(true)}
+                      >
+                        <Download className="mr-2 size-4" aria-hidden />
+                        {t('export.downloadButton')}
+                      </Button>
+                    ) : null}
                   </>
                 ) : undefined
               }
@@ -860,7 +885,7 @@ export function ArchiveWarehouseDossiersPage({
                       onSortChange={handleBrowseSortChange}
                     />
                     <TableHead>{t('table.archiveStorageState')}</TableHead>
-                    {!isExploitation && !councilReviewEnabled ? (
+                    {canDelete ? (
                       <TableHead className="w-16" />
                     ) : null}
                   </TableRow>
@@ -932,7 +957,7 @@ export function ArchiveWarehouseDossiersPage({
                           )}
                         </Badge>
                       </TableCell>
-                      {!isExploitation && !councilReviewEnabled ? (
+                      {canDelete ? (
                         <TableCell
                           className="w-16 text-right"
                           onClick={(e) => e.stopPropagation()}
@@ -943,8 +968,7 @@ export function ArchiveWarehouseDossiersPage({
                             className="size-7 text-destructive hover:bg-destructive/10"
                             title="Xóa hồ sơ"
                             onClick={() => {
-                              setDeletingDossierId(item.id)
-                              setDeletingDossierName(item.name)
+                              setDeletingDossierIds([item.id])
                             }}
                           >
                             <Trash2 className="size-3.5" />
@@ -1034,21 +1058,21 @@ export function ArchiveWarehouseDossiersPage({
         />
 
         <AlertDialog
-          open={deletingDossierId !== null}
-          onOpenChange={(open) => { if (!open) setDeletingDossierId(null) }}
+          open={deletingDossierIds.length > 0}
+          onOpenChange={(open) => { if (!open) setDeletingDossierIds([]) }}
         >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Xóa hồ sơ</AlertDialogTitle>
               <AlertDialogDescription>
-                Bạn có chắc muốn xóa hồ sơ <strong>{deletingDossierName}</strong>? Hồ sơ sẽ được
+                Bạn có chắc muốn xóa <strong>{deletingDossierIds.length > 1 ? `${deletingDossierIds.length} hồ sơ đã chọn` : 'hồ sơ này'}</strong>? Hồ sơ sẽ được
                 chuyển vào danh sách hồ sơ đã xóa và có thể xóa vĩnh viễn sau.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={softDeleteDossierMutation.isPending}>Hủy</AlertDialogCancel>
               <AlertDialogAction
-                onClick={() => { if (deletingDossierId) softDeleteDossierMutation.mutate(deletingDossierId) }}
+                onClick={() => { if (deletingDossierIds.length > 0) softDeleteDossierMutation.mutate(deletingDossierIds) }}
                 disabled={softDeleteDossierMutation.isPending}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >

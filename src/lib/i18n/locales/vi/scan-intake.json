@@ -114,6 +114,11 @@
     "projectRequired": "Chọn dự án trước khi chuyển tiếp",
     "targetFolderLabel": "Thư mục đích trên MinIO",
     "targetFolderRequired": "Chọn thư mục đích trên MinIO",
+    "runMode": {
+      "label": "Chế độ xử lý OCR",
+      "auto": "Chạy tự động — OCR ngay sau khi chuyển tiếp.",
+      "manual": "Đưa vào hàng chờ thủ công — chỉ OCR khi được kích hoạt tại màn hình Kiểm soát OCR."
+    },
     "loadingFolders": "Đang tải cây thư mục…",
     "loadFoldersFailed": "Không tải được cây thư mục dự án.",
     "retryLoadFolders": "Thử lại",

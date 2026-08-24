@@ -1,5 +1,6 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
+import type { OcrRunMode } from '@/features/data-management/api/dossierClient'
 import { checkScanAgentHealth } from '@/features/scan-intake/api/scanAgentClient'
 import {
   assemblePdf,
@@ -235,6 +236,7 @@ export function useScanIntakeMutations(sessionId: string | undefined) {
       organizeFolderPath?: string
       pdfKeys: Array<string>
       folderPaths?: Array<string>
+      runMode?: OcrRunMode
     }) =>
       promoteSession({
         projectCode: input.projectCode ?? null,
@@ -243,6 +245,7 @@ export function useScanIntakeMutations(sessionId: string | undefined) {
         organizeFolderPath: input.organizeFolderPath,
         pdfKeys: input.pdfKeys,
         folderPaths: input.folderPaths,
+        runMode: input.runMode ?? 'manual',
         cleanup: false,
       }),
     onSuccess: invalidateSession,

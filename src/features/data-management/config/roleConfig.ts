@@ -65,7 +65,7 @@ export const roleConfig: Record<DataManagementRole, RolePermissions> = {
     canAssign: false,
     canAssignEditor: true,
     canAssignGroup: false,
-    canAssignProject: true,
+    canAssignProject: false,
     canReadProjects: true,
     canRevokeAssignments: false,
     canDelete: false,
