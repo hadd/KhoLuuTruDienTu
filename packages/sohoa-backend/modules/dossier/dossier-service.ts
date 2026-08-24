@@ -1155,6 +1155,20 @@ async function loadDossiersForMetadataExport(dossierIds: string[]) {
     throw httpError.notFound(`Dossier not found: ${missing.join(", ")}`);
   }
 
+  const unexportable = rows.filter(
+    (dossier) =>
+      dossier.status !== DossierStatus.APPROVED &&
+      dossier.status !== DossierStatus.ARCHIVED,
+  );
+  if (unexportable.length > 0) {
+    const unexportableNames = unexportable
+      .map((dossier) => dossier.name)
+      .join(", ");
+    throw httpError.badRequest(
+      `Cannot export: all dossiers must be approved or archived. Pending dossiers: ${unexportableNames}`,
+    );
+  }
+
   const withoutMetadata = rows.filter((dossier) => !dossier.currentMetadataKey);
   if (withoutMetadata.length > 0) {
     const missingNames = withoutMetadata
