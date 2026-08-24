@@ -2,7 +2,9 @@ import type { KeyboardEvent, RefObject } from 'react'
 import type { TFunction } from 'i18next'
 
 import { LinkDocumentBreadcrumb } from '@/features/data-management/components/LinkDocumentBreadcrumb'
+import { MetadataAccessLevelFieldRow } from '@/features/data-management/components/MetadataAccessLevelFieldRow'
 import { MetadataFondFieldRow } from '@/features/data-management/components/MetadataFondFieldRow'
+import { MetadataRetentionFieldRow } from '@/features/data-management/components/MetadataRetentionFieldRow'
 import { MetadataFieldInput } from '@/features/data-management/components/MetadataFieldInput'
 import { MetadataFieldRow } from '@/features/data-management/components/MetadataFieldRow'
 import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
@@ -11,7 +13,7 @@ import {
   getMetadataGroupDisplayName,
   resolveMetadataGroupSourceDocumentPath,
 } from '@/features/data-management/lib/metadataHelpers'
-import { isHoSoFondMetadataField } from '@/features/data-management/lib/metadataNormalize'
+import { isHoSoAccessLevelMetadataField, isHoSoFondMetadataField, isHoSoRetentionMetadataField, resolveEffectiveFieldType } from '@/features/data-management/lib/metadataNormalize'
 import type {
   DataDocumentFieldT,
   DataMetadataGroupT,
@@ -212,8 +214,16 @@ export function RecordMetadataGroupCard({
           group.fields.map((field, fieldIndex) => {
             const fieldKey = `${groupIndex}-${field.name}-${fieldIndex}`
             const fieldValue = coerceMetadataText(field.value)
+            const effectiveType = resolveEffectiveFieldType(
+              group.group_code,
+              field.name,
+              field.type,
+            )
+            const effectiveField = effectiveType !== field.type
+              ? { ...field, type: effectiveType }
+              : field
             const isStringLike =
-              field.type === 'string' || field.type === 'object'
+              effectiveType === 'string' || effectiveType === 'object'
             const isFondField = isHoSoFondMetadataField(
               group.group_code,
               field.name,
@@ -241,10 +251,64 @@ export function RecordMetadataGroupCard({
               )
             }
 
+            const isRetentionField = isHoSoRetentionMetadataField(
+              group.group_code,
+              field.name,
+            )
+
+            if (isRetentionField) {
+              return (
+                <MetadataRetentionFieldRow
+                  key={`${group.group_code}-${field.name}-${fieldIndex}`}
+                  field={field}
+                  value={fieldValue}
+                  disabled={!canEditFields || isSaving}
+                  onValueChange={(value) =>
+                    onFieldChange(groupIndex, fieldIndex, value)
+                  }
+                  onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
+                  isHighlighted={highlightedFieldKey === fieldKey}
+                  index={fieldIndex}
+                  rejectMark={buildFieldRejectMark(group.group_code, field)}
+                  isQcRejectedHighlight={isEditorRejectHighlighted(
+                    group.group_code,
+                    field.name,
+                  )}
+                />
+              )
+            }
+
+            const isAccessLevelField = isHoSoAccessLevelMetadataField(
+              group.group_code,
+              field.name,
+            )
+
+            if (isAccessLevelField) {
+              return (
+                <MetadataAccessLevelFieldRow
+                  key={`${group.group_code}-${field.name}-${fieldIndex}`}
+                  field={field}
+                  value={fieldValue}
+                  disabled={!canEditFields || isSaving}
+                  onValueChange={(value) =>
+                    onFieldChange(groupIndex, fieldIndex, value)
+                  }
+                  onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
+                  isHighlighted={highlightedFieldKey === fieldKey}
+                  index={fieldIndex}
+                  rejectMark={buildFieldRejectMark(group.group_code, field)}
+                  isQcRejectedHighlight={isEditorRejectHighlighted(
+                    group.group_code,
+                    field.name,
+                  )}
+                />
+              )
+            }
+
             return !canEditFields || isStringLike ? (
               <MetadataFieldRow
                 key={`${group.group_code}-${field.name}-${fieldIndex}`}
-                field={field}
+                field={effectiveField}
                 value={coerceMetadataText(field.value)}
                 disabled={!canEditFields || isSaving}
                 editDisplay={false}
@@ -280,7 +344,7 @@ export function RecordMetadataGroupCard({
             ) : (
               <MetadataFieldInput
                 key={`${group.group_code}-${field.name}-${fieldIndex}`}
-                field={field}
+                field={effectiveField}
                 value={coerceMetadataText(field.value)}
                 onChange={(value) =>
                   onFieldChange(groupIndex, fieldIndex, value)
