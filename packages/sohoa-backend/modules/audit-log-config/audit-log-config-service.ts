@@ -1,8 +1,11 @@
 import { db } from "../../db/db-conn.ts";
 import { auditLogConfigs, auditLogSettings } from "../../db/schemas/index.ts";
 import { env } from "../../env.ts";
+import { type UserWithRoles } from "../../libs/plugins/auth-profile.ts";
+import { authHelper } from "../auth/auth-helper.ts";
 import {
     AUDIT_LOG_CONFIG_CATALOG,
+    AUDIT_LOG_MODULE_PERMISSIONS,
     catalogKey,
 } from "./audit-log-config-catalog.ts";
 import {
@@ -22,6 +25,22 @@ export type AuditLogConfigGroup = {
         enabled: boolean;
     }>;
 };
+
+function isModuleAllowedForProfile(moduleKey: string, profile?: UserWithRoles): boolean {
+    if (!profile) return true;
+    if (authHelper.isAdmin(profile)) return true;
+
+    const requiredPermissions = AUDIT_LOG_MODULE_PERMISSIONS[moduleKey];
+    // Special case: null means NO permission required (e.g. auth module)
+    if (requiredPermissions === null) {
+        return true;
+    }
+    if (!requiredPermissions || requiredPermissions.length === 0) {
+        return true;
+    }
+
+    return authHelper.hasPermissionAny(profile, requiredPermissions);
+}
 
 async function ensureSettingsRow() {
     const existing = await db.query.auditLogSettings.findFirst();
@@ -84,11 +103,11 @@ async function ensureConfigRows() {
 export async function loadAuditLogConfigCache(): Promise<void> {
     const rows = await ensureConfigRows();
     const toggles = applyDbToggles(seedDefaultToggleMap(), rows);
-    setAuditLogConfigCache(toggles);
+    await setAuditLogConfigCache(toggles);
 }
 
 export const AuditLogConfigService = {
-    async getGroupedConfig() {
+    async getGroupedConfig(profile?: UserWithRoles) {
         await loadAuditLogConfigCache();
         const rows = await db.select().from(auditLogConfigs);
         const settings = await ensureSettingsRow();
@@ -96,6 +115,9 @@ export const AuditLogConfigService = {
 
         const groups = new Map<string, AuditLogConfigGroup>();
         for (const entry of AUDIT_LOG_CONFIG_CATALOG) {
+            if (!isModuleAllowedForProfile(entry.module, profile)) {
+                continue;
+            }
             let group = groups.get(entry.module);
             if (!group) {
                 group = {
@@ -124,8 +146,12 @@ export const AuditLogConfigService = {
 
     async updateToggles(
         items: Array<{ module: string; actionKey: string; enabled: boolean }>,
+        profile?: UserWithRoles,
     ) {
         for (const item of items) {
+            if (!isModuleAllowedForProfile(item.module, profile)) {
+                continue;
+            }
             const catalogEntry = AUDIT_LOG_CONFIG_CATALOG.find(
                 (entry) => entry.module === item.module && entry.actionKey === item.actionKey,
             );
@@ -142,12 +168,13 @@ export const AuditLogConfigService = {
                 set: { enabled: item.enabled },
             });
         }
-        invalidateAuditLogConfigCache();
+        await invalidateAuditLogConfigCache();
         await loadAuditLogConfigCache();
-        return await this.getGroupedConfig();
+        return await this.getGroupedConfig(profile);
     },
 
     async getSettings() {
         return await ensureSettingsRow();
     },
 };
+

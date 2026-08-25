@@ -8,6 +8,7 @@ import {
     enrichArchiveBorrowReject,
     enrichArchiveBorrowViewDocument,
     enrichArchiveDeleteFile,
+    enrichArchiveDisposalAction,
     enrichArchiveMoveFile,
     enrichArchiveUpdateFileDocumentType,
     enrichDataEntryApprove,
@@ -36,6 +37,7 @@ import {
     enrichPhysicalWarehouseItemCrud,
     enrichPhysicalWarehouseReparent,
     enrichProjectCrud,
+    enrichProjectPlanCrud,
     enrichRetentionPeriodCrud,
     enrichRolePermissionsUpdate,
     enrichRolePermissionsView,
@@ -45,6 +47,7 @@ import {
     enrichSecurityLevelVerify,
     enrichUserStatusUpdate,
 } from "./audit-route-enrichers.ts";
+
 
 export const AUDIT_ROUTE_REGISTRY: AuditRouteDefinition[] = [
     {
@@ -628,4 +631,82 @@ export const AUDIT_ROUTE_REGISTRY: AuditRouteDefinition[] = [
         eventType: "view_borrow_document",
         enrich: enrichArchiveBorrowViewDocument,
     },
+    {
+        method: "POST",
+        pattern: "/project-plans",
+        module: "project-plans",
+        eventType: "create",
+        enrich: enrichProjectPlanCrud("create"),
+    },
+    {
+        method: "PATCH",
+        pattern: "/project-plans/:id",
+        module: "project-plans",
+        eventType: "update",
+        enrich: enrichProjectPlanCrud("update"),
+    },
+    {
+        method: "PUT",
+        pattern: "/project-plans/:id",
+        module: "project-plans",
+        eventType: "update",
+        enrich: enrichProjectPlanCrud("update"),
+    },
+    {
+        method: "DELETE",
+        pattern: "/project-plans/:id",
+        module: "project-plans",
+        eventType: "delete",
+        enrich: enrichProjectPlanCrud("delete"),
+    },
+    {
+        method: "POST",
+        pattern: "/archive-disposal/proposals",
+        module: "archive-disposal",
+        eventType: "create",
+        enrich: enrichArchiveDisposalAction("create"),
+    },
+    {
+        method: "PUT",
+        pattern: "/archive-disposal/proposals/:id",
+        module: "archive-disposal",
+        eventType: "update",
+        enrich: enrichArchiveDisposalAction("update"),
+    },
+    {
+        method: "POST",
+        pattern: "/archive-disposal/proposals/:id/submit",
+        module: "archive-disposal",
+        eventType: "submit",
+        enrich: enrichArchiveDisposalAction("submit"),
+    },
+    {
+        method: "POST",
+        pattern: "/archive-disposal/councils",
+        module: "archive-disposal",
+        eventType: "council_create",
+        enrich: enrichArchiveDisposalAction("council_create"),
+    },
+    {
+        method: "POST",
+        pattern: "/archive-disposal/councils/:id/finalize",
+        module: "archive-disposal",
+        eventType: "council_finalize",
+        enrich: enrichArchiveDisposalAction("council_finalize"),
+    },
+    {
+        method: "POST",
+        pattern: "/archive-disposal/councils/:id/publish",
+        module: "archive-disposal",
+        eventType: "council_publish",
+        enrich: enrichArchiveDisposalAction("council_publish"),
+    },
+    {
+        method: "POST",
+        pattern: "/archive-disposal/destroy",
+        module: "archive-disposal",
+        eventType: "destroy",
+        enrich: enrichArchiveDisposalAction("destroy"),
+    },
 ];
+

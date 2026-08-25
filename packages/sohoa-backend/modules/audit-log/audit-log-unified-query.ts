@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
-import { httpError } from "@shared/common-lib";
+import { httpError, logApi } from "@shared/common-lib";
 import { db } from "../../db/db-conn.ts";
 import {
     apiAuditLogs,
@@ -15,8 +15,14 @@ import {
     serializeAuditLogsToJson,
     type AuditLogExportRecord,
 } from "./audit-log-export.ts";
-import { downloadAndParseShard, findRecordInShard } from "./audit-log-archive-io.ts";
+import { downloadAndParseShard, findRecordInShard, type ShardRecord } from "./audit-log-archive-io.ts";
 import { resolveEventTypeFilter } from "./audit-log-filter-catalog.ts";
+import {
+    countCold,
+    fetchColdById,
+    fetchColdForExport,
+    fetchColdPage,
+} from "./audit-log-cold-query.ts";
 
 export type AuditLogListQuery = {
     page?: number;
@@ -32,6 +38,8 @@ export type AuditLogListQuery = {
 export type UnifiedAuditLogItem = AuditLogExportRecord & {
     source: "live" | "archived";
     viewCount?: number;
+    summaryKey?: string | null;
+    summaryParams?: unknown;
 };
 
 function parseDate(value: string | undefined): Date | null {
@@ -184,7 +192,7 @@ async function hydrateLive(ids: string[]) {
 }
 
 async function hydrateProjections(
-    projections: Array<typeof auditLogArchiveProjections.$inferSelect>,
+    projections: Array<typeof auditLogArchiveProjections.$inferSelect | ShardRecord>,
 ): Promise<UnifiedAuditLogItem[]> {
     if (projections.length === 0) return [];
 
@@ -202,12 +210,12 @@ async function hydrateProjections(
 
     return projections.map((row) => ({
         id: row.id,
-        requestId: null,
+        requestId: ("requestId" in row && row.requestId) ? row.requestId : null,
         userId: row.userId,
         userRole: row.userRole,
         method: row.method,
         path: row.path,
-        query: null,
+        query: ("query" in row && row.query) ? (row.query as Record<string, string>) : null,
         action: row.action,
         module: row.module,
         eventType: row.eventType,
@@ -215,16 +223,18 @@ async function hydrateProjections(
         entityId: row.entityId,
         entityLabel: row.entityLabel,
         summary: row.summary,
-        sourceLogId: null,
+        summaryKey: ("summaryKey" in row && row.summaryKey) ? (row.summaryKey as string) : null,
+        summaryParams: ("summaryParams" in row && row.summaryParams) ? row.summaryParams : null,
+        sourceLogId: ("sourceLogId" in row && row.sourceLogId) ? row.sourceLogId : null,
         statusCode: row.statusCode,
-        responseTime: null,
-        ip: null,
-        userAgent: null,
-        requestBody: null,
-        responseBody: null,
-        error: null,
-        createdAt: row.createdAt,
-        viewCount: row.viewCount,
+        responseTime: ("responseTime" in row && row.responseTime) ? row.responseTime : null,
+        ip: ("ip" in row && row.ip) ? row.ip : null,
+        userAgent: ("userAgent" in row && row.userAgent) ? row.userAgent : null,
+        requestBody: ("requestBody" in row && row.requestBody) ? row.requestBody : null,
+        responseBody: ("responseBody" in row && row.responseBody) ? row.responseBody : null,
+        error: ("error" in row && row.error) ? row.error : null,
+        createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(String(row.createdAt)),
+        viewCount: row.viewCount ?? 1,
         user: row.userId ? userMap.get(row.userId) ?? null : null,
         entity: row.entityType && row.entityId
             ? {
@@ -238,24 +248,90 @@ async function hydrateProjections(
     }));
 }
 
+/**
+ * Thực hiện shadow validation (A2) — chạy song song DuckDB cold path và so sánh kết quả với Postgres projection.
+ * Không làm block hoặc gián đoạn response chính.
+ */
+function triggerShadowValidation(
+    query: AuditLogListQuery,
+    projectionCount: number,
+    projectionRows: Array<typeof auditLogArchiveProjections.$inferSelect>,
+) {
+    void (async () => {
+        try {
+            const startTime = performance.now();
+            const [duckCount, duckRows] = await Promise.all([
+                countCold(query),
+                fetchColdPage(query, projectionRows.length, 0),
+            ]);
+            const durationMs = Math.round(performance.now() - startTime);
+
+            const countMatch = duckCount === projectionCount;
+            const projIds = new Set(projectionRows.map((r) => r.id));
+            const duckIds = new Set(duckRows.map((r) => r.id));
+            
+            let idMismatchCount = 0;
+            for (const id of projIds) {
+                if (!duckIds.has(id)) idMismatchCount++;
+            }
+
+            if (!countMatch || idMismatchCount > 0) {
+                logApi.warn(
+                    {
+                        query,
+                        projectionCount,
+                        duckCount,
+                        idMismatchCount,
+                        durationMs,
+                    },
+                    "[AUDIT_SHADOW] Cold Query Shadow Mismatch Detected",
+                );
+            } else {
+                logApi.info(
+                    { query, projectionCount, duckCount, durationMs },
+                    "[AUDIT_SHADOW] Cold Query Shadow Validation Matched Perfectly",
+                );
+            }
+        } catch (err) {
+            logApi.error({ err, query }, "[AUDIT_SHADOW] Shadow validation execution failed");
+        }
+    })();
+}
+
 export async function listUnified(query: AuditLogListQuery) {
     const page = query.page ?? 1;
     const limit = Math.min(query.limit ?? 20, 200);
     const offset = (page - 1) * limit;
     const fetchLimit = offset + limit;
 
-    const [liveRows, projectionRows, liveTotal, archivedTotal] = await Promise.all([
+    const useDuckDbCold = env.AUDIT_LOG_COLD_SOURCE === "duckdb";
+
+    const fetchArchivedCount = useDuckDbCold ? countCold(query) : countProjection(query);
+    const fetchArchivedRows = useDuckDbCold 
+        ? fetchColdPage(query, fetchLimit, 0) 
+        : fetchProjectionPage(query, fetchLimit, 0);
+
+    const [liveRows, archivedRowsResult, liveTotal, archivedTotal] = await Promise.all([
         fetchLivePage(query, fetchLimit, 0),
-        fetchProjectionPage(query, fetchLimit, 0),
+        fetchArchivedRows,
         countLive(query),
-        countProjection(query),
+        fetchArchivedCount,
     ]);
+
+    // Giai đoạn A2: Trigger Shadow validation nếu feature flag bật
+    if (!useDuckDbCold && env.AUDIT_LOG_COLD_SHADOW_ENABLED) {
+        triggerShadowValidation(
+            query,
+            archivedTotal,
+            archivedRowsResult as Array<typeof auditLogArchiveProjections.$inferSelect>,
+        );
+    }
 
     const mergedMeta = [
         ...liveRows.map((row) => ({ id: row.id, createdAt: row.createdAt, source: "live" as const })),
-        ...projectionRows.map((row) => ({
+        ...archivedRowsResult.map((row) => ({
             id: row.id,
-            createdAt: row.createdAt,
+            createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(String(row.createdAt)),
             source: "archived" as const,
         })),
     ].sort(compareCreatedDesc).slice(offset, offset + limit);
@@ -264,11 +340,12 @@ export async function listUnified(query: AuditLogListQuery) {
     const archivedIds = new Set(
         mergedMeta.filter((row) => row.source === "archived").map((row) => row.id),
     );
-    const archivedProjections = projectionRows.filter((row) => archivedIds.has(row.id));
+
+    const archivedSelectedRows = (archivedRowsResult as Array<any>).filter((row) => archivedIds.has(row.id));
 
     const [liveHydrated, archivedHydrated] = await Promise.all([
         hydrateLive(liveIds),
-        hydrateProjections(archivedProjections),
+        hydrateProjections(archivedSelectedRows),
     ]);
 
     const liveMap = new Map(liveHydrated.map((row) => [row.id, { ...row, source: "live" as const }]));
@@ -300,6 +377,24 @@ export async function getUnifiedById(id: string): Promise<UnifiedAuditLogItem> {
         return { ...enriched, source: "live" };
     }
 
+    // Nguồn archived: Thử qua DuckDB cold query bằng GIN index trên shard.record_ids trước
+    const coldRecord = await fetchColdById(id);
+    if (coldRecord) {
+        const [hydrated] = await hydrateProjections([coldRecord]);
+        return {
+            ...hydrated,
+            ...coldRecord,
+            requestBody: coldRecord.requestBody ?? null,
+            responseBody: coldRecord.responseBody ?? null,
+            ip: coldRecord.ip ?? null,
+            userAgent: coldRecord.userAgent ?? null,
+            query: coldRecord.query ?? null,
+            responseTime: coldRecord.responseTime ?? null,
+            source: "archived",
+        };
+    }
+
+    // Fallback legacy projection (nếu vẫn còn projection table trước A4)
     const projection = await db.select().from(auditLogArchiveProjections)
         .where(eq(auditLogArchiveProjections.id, id))
         .limit(1)
@@ -321,29 +416,7 @@ export async function getUnifiedById(id: string): Promise<UnifiedAuditLogItem> {
         throw httpError.notFound("Audit log not found in archive shard");
     }
 
-    const [hydrated] = await hydrateProjections([{
-        ...projection,
-        ...{
-            id: record.id,
-            createdAt: record.createdAt instanceof Date
-                ? record.createdAt
-                : new Date(String(record.createdAt)),
-            userId: record.userId,
-            userRole: record.userRole,
-            method: record.method,
-            path: record.path,
-            action: record.action,
-            module: record.module,
-            eventType: record.eventType,
-            entityType: record.entityType,
-            entityId: record.entityId,
-            entityLabel: record.entityLabel,
-            summary: record.summary,
-            statusCode: record.statusCode,
-            viewCount: record.viewCount ?? projection.viewCount,
-            shardId: projection.shardId,
-        },
-    }]);
+    const [hydrated] = await hydrateProjections([projection]);
 
     return {
         ...hydrated,
@@ -360,10 +433,14 @@ export async function getUnifiedById(id: string): Promise<UnifiedAuditLogItem> {
 
 async function collectExportRecords(query: AuditLogListQuery): Promise<UnifiedAuditLogItem[]> {
     const max = env.AUDIT_LOG_EXPORT_MAX_RECORDS;
+    const useDuckDbCold = env.AUDIT_LOG_COLD_SOURCE === "duckdb";
+
+    const fetchArchivedCount = useDuckDbCold ? countCold(query) : countProjection(query);
     const [liveTotal, archivedTotal] = await Promise.all([
         countLive(query),
-        countProjection(query),
+        fetchArchivedCount,
     ]);
+
     if (liveTotal + archivedTotal > max) {
         throw httpError.badRequest(
             `Export exceeds limit of ${max} records (matched ${liveTotal + archivedTotal})`,
@@ -377,48 +454,56 @@ async function collectExportRecords(query: AuditLogListQuery): Promise<UnifiedAu
     }
     const liveRows = await liveQuery.limit(max);
 
-    const projWhere = buildProjectionConditions(query);
-    let projQuery = db.select().from(auditLogArchiveProjections)
-        .orderBy(desc(auditLogArchiveProjections.createdAt));
-    if (projWhere) {
-        projQuery = projQuery.where(projWhere) as typeof projQuery;
-    }
-    const projections = await projQuery.limit(max);
-
     const liveHydrated = await hydrateLive(liveRows.map((row) => row.id));
     const liveItems: UnifiedAuditLogItem[] = liveHydrated.map((row) => ({
         ...row,
         source: "live" as const,
     }));
 
-    const shardIds = [...new Set(projections.map((row) => row.shardId))];
-    const shardMap = new Map<string, typeof auditLogArchiveShards.$inferSelect>();
-    if (shardIds.length > 0) {
-        const shards = await db.select().from(auditLogArchiveShards)
-            .where(inArray(auditLogArchiveShards.id, shardIds));
-        for (const shard of shards) {
-            shardMap.set(shard.id, shard);
-        }
-    }
+    let archivedItems: UnifiedAuditLogItem[] = [];
 
-    const fullById = new Map<string, AuditLogExportRecord>();
-    for (const shardId of shardIds) {
-        const shard = shardMap.get(shardId);
-        if (!shard || shard.status !== "ready") continue;
-        const records = await downloadAndParseShard(shard.objectKey);
-        for (const record of records) {
-            fullById.set(record.id, record);
+    if (useDuckDbCold) {
+        // Cold path DuckDB cho Export
+        const coldRecords = await fetchColdForExport(query, max);
+        archivedItems = await hydrateProjections(coldRecords);
+    } else {
+        // Legacy Postgres Projection path cho Export
+        const projWhere = buildProjectionConditions(query);
+        let projQuery = db.select().from(auditLogArchiveProjections)
+            .orderBy(desc(auditLogArchiveProjections.createdAt));
+        if (projWhere) {
+            projQuery = projQuery.where(projWhere) as typeof projQuery;
         }
-    }
+        const projections = await projQuery.limit(max);
 
-    const archivedItems: UnifiedAuditLogItem[] = [];
-    for (const projection of projections) {
-        const full = fullById.get(projection.id);
-        if (full) {
-            archivedItems.push({ ...full, source: "archived", viewCount: projection.viewCount });
-        } else {
-            const [fallback] = await hydrateProjections([projection]);
-            archivedItems.push(fallback);
+        const shardIds = [...new Set(projections.map((row) => row.shardId))];
+        const shardMap = new Map<string, typeof auditLogArchiveShards.$inferSelect>();
+        if (shardIds.length > 0) {
+            const shards = await db.select().from(auditLogArchiveShards)
+                .where(inArray(auditLogArchiveShards.id, shardIds));
+            for (const shard of shards) {
+                shardMap.set(shard.id, shard);
+            }
+        }
+
+        const fullById = new Map<string, AuditLogExportRecord>();
+        for (const shardId of shardIds) {
+            const shard = shardMap.get(shardId);
+            if (!shard || shard.status !== "ready") continue;
+            const records = await downloadAndParseShard(shard.objectKey);
+            for (const record of records) {
+                fullById.set(record.id, record);
+            }
+        }
+
+        for (const projection of projections) {
+            const full = fullById.get(projection.id);
+            if (full) {
+                archivedItems.push({ ...full, source: "archived", viewCount: projection.viewCount });
+            } else {
+                const [fallback] = await hydrateProjections([projection]);
+                archivedItems.push(fallback);
+            }
         }
     }
 

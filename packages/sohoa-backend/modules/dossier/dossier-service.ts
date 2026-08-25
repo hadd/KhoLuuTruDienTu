@@ -153,6 +153,7 @@ import { assertNoMixedStorageFolderLayoutOnAdd } from "./storage-folder-layout.t
 import { buildAccessPasswordPatch } from "../security-level/access-password-patch.ts";
 import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts";
 import { resolveApplyWatermarkForDossiers } from "../security-level/security-enforcement.ts";
+import { enqueueDossierIndex } from "../search/search-index-queue.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -2168,6 +2169,58 @@ export const DossierService = {
       orderBy: [desc(dossiers.deletedAt)],
     });
   },
+
+  /** Restore multiple soft-deleted dossiers in one batch. */
+  async restoreBatch(ids: string[]) {
+    if (ids.length === 0) return { restoredIds: [] };
+
+    const rows = await db.query.dossiers.findMany({
+      where: and(inArray(dossiers.id, ids), isNotNull(dossiers.deletedAt)),
+      columns: { id: true, folderId: true },
+    });
+
+    if (rows.length === 0) {
+      throw httpError.notFound("No soft-deleted dossiers found for the given IDs");
+    }
+
+    const restoredIds = rows.map((r) => r.id);
+    const folderIds = Array.from(new Set(rows.map((r) => r.folderId)));
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(dossiers)
+        .set({ deletedAt: null, status: DossierStatus.ARCHIVED, updatedAt: new Date() })
+        .where(inArray(dossiers.id, restoredIds));
+
+      for (const folderId of folderIds) {
+        let currentId: string | null = folderId;
+        while (currentId) {
+          const folder = await tx.query.folders.findFirst({
+            where: eq(folders.id, currentId),
+            columns: { id: true, parentId: true, deletedAt: true },
+          });
+
+          if (!folder) break;
+
+          if (folder.deletedAt !== null) {
+            await tx
+              .update(folders)
+              .set({ deletedAt: null, updatedAt: new Date() })
+              .where(eq(folders.id, folder.id));
+          }
+
+          currentId = folder.parentId;
+        }
+      }
+    });
+
+    for (const id of restoredIds) {
+      enqueueDossierIndex(id);
+    }
+
+    return { restoredIds };
+  },
+
 
   /** Permanently delete multiple soft-deleted dossiers in one batch. */
   async permanentDeleteBatch(ids: string[]) {
