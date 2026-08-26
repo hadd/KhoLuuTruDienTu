@@ -25,6 +25,7 @@ import type {
   UploadPointResponse,
   UploadProgress,
 } from '@/features/data-management/api/dossierClient'
+import { useOcrControlAccess } from '@/features/ocr-control/hooks/useOcrControlAccess'
 import { ProjectSelect } from '@/features/data-management/components/ProjectSelect'
 import { UploadConflictDialog } from '@/features/data-management/components/UploadConflictDialog'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
@@ -99,6 +100,7 @@ export function FolderUploadDialog({
 }) {
   const { t } = useTranslation('data-management')
   const { t: tCommon } = useTranslation('common')
+  const { canControlOcr } = useOcrControlAccess()
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
   const [state, setState] = useState<DialogState>({ phase: 'idle' })
@@ -111,7 +113,7 @@ export function FolderUploadDialog({
   const [localProjectCode, setLocalProjectCode] = useState<string | undefined>()
   const localProjectCodeRef = useRef<string | undefined>(undefined)
   localProjectCodeRef.current = localProjectCode
-  const [runMode, setRunMode] = useState<OcrRunMode>('manual')
+  const [runMode, setRunMode] = useState<OcrRunMode>(canControlOcr ? 'manual' : 'auto')
 
   const isProjectScoped = isProjectScopedDataRole(role)
   const selectedUploadProjectCode = resolveUploadProjectCode(localProjectCode)
@@ -166,7 +168,7 @@ export function FolderUploadDialog({
     setState({ phase: 'idle' })
     resetPendingConflict()
     mutation.reset()
-    setRunMode('manual')
+    setRunMode(canControlOcr ? 'manual' : 'auto')
     onOpenChange(false)
   }
 
@@ -178,7 +180,7 @@ export function FolderUploadDialog({
       setState({ phase: 'idle' })
       resetPendingConflict()
       mutation.reset()
-      setRunMode('manual')
+      setRunMode(canControlOcr ? 'manual' : 'auto')
     }
     onOpenChange(next)
   }
@@ -476,25 +478,27 @@ export function FolderUploadDialog({
                   />
                 </div>
               )}
-              <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-sm font-medium text-foreground">
-                    {t('upload.runMode.label')}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {runMode === 'manual'
-                      ? t('upload.runMode.manual')
-                      : t('upload.runMode.auto')}
-                  </span>
+              {canControlOcr ? (
+                <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium text-foreground">
+                      {t('upload.runMode.label')}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {runMode === 'manual'
+                        ? t('upload.runMode.manual')
+                        : t('upload.runMode.auto')}
+                    </span>
+                  </div>
+                  <Switch
+                    checked={runMode === 'manual'}
+                    disabled={isBusy}
+                    onCheckedChange={(checked) =>
+                      setRunMode(checked ? 'manual' : 'auto')
+                    }
+                  />
                 </div>
-                <Switch
-                  checked={runMode === 'manual'}
-                  disabled={isBusy}
-                  onCheckedChange={(checked) =>
-                    setRunMode(checked ? 'manual' : 'auto')
-                  }
-                />
-              </div>
+              ) : null}
               <input
                 ref={(el) => {
                   inputRef.current = el

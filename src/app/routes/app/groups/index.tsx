@@ -29,7 +29,13 @@ const groupsSearchSchema = z.object({
 
 export const Route = createFileRoute('/app/groups/')({
   staticData: {
-    crumb: () => i18n.t('sectionTabs.groups', { ns: 'project-management' }),
+    crumb: () => ({
+      label: i18n.t('sectionTabs.groups', { ns: 'project-management' }),
+      parent: {
+        label: i18n.t('title', { ns: 'project-management' }),
+        to: '/app/project-management',
+      },
+    }),
   },
   beforeLoad: async ({ context }) => {
     await requirePermission(context, {

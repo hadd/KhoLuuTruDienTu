@@ -30,6 +30,14 @@ export const DASHBOARD_SCREEN_REQUIREMENTS = [
     module: 'dashboard',
     permissionKey: DASHBOARD_PERMISSION_KEYS.warehouse,
   },
+  {
+    module: 'data-entry',
+    permissionKey: 'data-entry.maker',
+  },
+  {
+    module: 'data-entry',
+    permissionKey: 'data-entry.checker',
+  },
 ] as const satisfies ReadonlyArray<ScreenPermissionRequirement>
 
 
@@ -50,26 +58,20 @@ export function canAccessAnyDashboard(permissions: Array<string>): boolean {
 export function resolveDashboardVariant(
   permissions: Array<string>,
 ): DashboardVariantT | null {
-  if (hasFullAccess(permissions)) {
-    return 'admin'
-  }
-
-  if (isPermissionGranted(permissions, 'dashboard.*', 'dashboard')) {
+  if (
+    hasFullAccess(permissions) ||
+    permissions.includes(DASHBOARD_PERMISSION_KEYS.admin)
+  ) {
     return 'admin'
   }
 
   if (
     isPermissionGranted(
       permissions,
-      DASHBOARD_PERMISSION_KEYS.admin,
+      DASHBOARD_PERMISSION_KEYS.qc,
       'dashboard',
-    )
-  ) {
-    return 'admin'
-  }
-
-  if (
-    isPermissionGranted(permissions, DASHBOARD_PERMISSION_KEYS.qc, 'dashboard')
+    ) ||
+    isPermissionGranted(permissions, 'data-entry.checker', 'data-entry')
   ) {
     return 'qc'
   }
@@ -79,7 +81,8 @@ export function resolveDashboardVariant(
       permissions,
       DASHBOARD_PERMISSION_KEYS.editor,
       'dashboard',
-    )
+    ) ||
+    isPermissionGranted(permissions, 'data-entry.maker', 'data-entry')
   ) {
     return 'editor'
   }
@@ -92,6 +95,16 @@ export function resolveDashboardVariant(
     )
   ) {
     return 'warehouse'
+  }
+
+  if (
+    isPermissionGranted(
+      permissions,
+      DASHBOARD_PERMISSION_KEYS.admin,
+      'dashboard',
+    )
+  ) {
+    return 'admin'
   }
 
   return null

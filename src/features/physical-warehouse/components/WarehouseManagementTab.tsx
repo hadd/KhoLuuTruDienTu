@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
@@ -1208,7 +1209,14 @@ export function WarehouseManagementTab({
                         )}
                       >
                         <TableCell className="font-medium">
-                          {row.dossierName}
+                          <div className="flex items-center gap-2">
+                            <span>{row.dossierName}</span>
+                            {row.deletedAt ? (
+                              <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive text-xs shrink-0">
+                                Đã xóa
+                              </Badge>
+                            ) : null}
+                          </div>
                         </TableCell>
                         <TableCell className="max-w-[320px] truncate text-muted-foreground">
                           {row.folderPath ?? '—'}

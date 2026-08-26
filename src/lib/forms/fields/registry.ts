@@ -7,6 +7,7 @@ import { renderNumberField } from './NumberField'
 import { renderSelectField } from './SelectField'
 import { renderTextareaField } from './TextareaField'
 import { renderTextField } from './TextField'
+import { renderNaturalNumberField } from './NaturalNumberField'
 
 /**
  * Field registry maps field types to their renderers
@@ -20,6 +21,7 @@ const fieldRegistry: Record<FieldType, FieldRenderer> = {
   email: renderEmailField,
   text: renderTextField,
   multiselect: renderMultiSelectField,
+  'natural-number': renderNaturalNumberField,
 }
 
 /**

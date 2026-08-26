@@ -84,7 +84,7 @@ function SecurityLevelForm({ securityLevel, onClose }: SecurityLevelFormProps) {
         label={t('form.fields.levelOrder.label')}
         placeholder={t('form.fields.levelOrder.placeholder')}
         description={t('form.fields.levelOrder.description')}
-        as="number"
+        as="natural-number"
       />
 
       <FormField

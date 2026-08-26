@@ -9,8 +9,6 @@ import { useArchiveSubmissionAccess } from '@/features/archive-submission/hooks/
 import { useArchiveWarehouseAccess } from '@/features/archive-warehouse/hooks/useArchiveWarehouseAccess'
 import { resolveArchiveDataHubTabs } from '@/features/archive-warehouse/lib/archiveDataHubTabs'
 import type { ArchiveDataHubTabT } from '@/features/archive-warehouse/schemas'
-import { getPrimaryAppRole } from '@/features/auth/constants'
-import { getUserRoles } from '@/features/auth/store'
 
 export function useArchiveDataHubAvailableTabs(): Array<ArchiveDataHubTabT> {
   const { canReadArchiveWarehouse, canManageArchivePermissions } =
@@ -24,11 +22,7 @@ export function useArchiveDataHubAvailableTabs(): Array<ArchiveDataHubTabT> {
     enabled: canFetchDisposalSettings,
   })
 
-  const primaryRole = getPrimaryAppRole(getUserRoles())
-  const canOpenPermissionTab =
-    canManageArchivePermissions ||
-    primaryRole === 'admin' ||
-    primaryRole === 'manager'
+  const canOpenPermissionTab = canManageArchivePermissions
 
   const councilReviewEnabled = canFetchDisposalSettings
     ? (disposalSettings?.councilReviewEnabled ?? true)

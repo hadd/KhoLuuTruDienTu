@@ -19,7 +19,13 @@ import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/dossiers/')({
   staticData: {
-    crumb: () => i18n.t('sectionTabs.draftDossiers', { ns: 'digitization' }),
+    crumb: () => ({
+      label: i18n.t('sectionTabs.draftDossiers', { ns: 'digitization' }),
+      parent: {
+        label: i18n.t('title', { ns: 'digitization' }),
+        to: '/app/digitization',
+      },
+    }),
   },
   beforeLoad: async ({ context }) => {
     requireAuth()

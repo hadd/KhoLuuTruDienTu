@@ -14,14 +14,20 @@ type AuditLogModuleSelectProps = {
   value: string
   onChange: (value: string) => void
   id?: string
+  allowedModules?: string[]
 }
 
 export function AuditLogModuleSelect({
   value,
   onChange,
   id,
+  allowedModules,
 }: AuditLogModuleSelectProps) {
   const { t } = useTranslation('audit-log')
+
+  const options = allowedModules
+    ? AUDIT_LOG_MODULE_OPTIONS.filter((item) => allowedModules.includes(item))
+    : AUDIT_LOG_MODULE_OPTIONS
 
   return (
     <div className="space-y-2">
@@ -35,7 +41,7 @@ export function AuditLogModuleSelect({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">{t('filter.all')}</SelectItem>
-          {AUDIT_LOG_MODULE_OPTIONS.map((item) => (
+          {options.map((item) => (
             <SelectItem key={item} value={item}>
               {t(`modules.${item}`)}
             </SelectItem>
@@ -45,3 +51,4 @@ export function AuditLogModuleSelect({
     </div>
   )
 }
+

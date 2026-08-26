@@ -12,7 +12,13 @@ import { translateError } from '@/lib/utils/translate-error'
 
 export const Route = createFileRoute('/app/data-config/audit-log-config')({
   staticData: {
-    crumb: () => i18n.t('tiles.auditLogConfig', { ns: 'data-config' }),
+    crumb: () => ({
+      label: i18n.t('tiles.auditLogConfig', { ns: 'data-config' }),
+      parent: {
+        label: i18n.t('admin.dataConfig.title', { ns: 'common' }),
+        to: '/app/data-config',
+      },
+    }),
   },
   beforeLoad: async ({ context }) => {
     await requirePermission(context, APP_SCREEN_ACCESS.auditLogConfig)

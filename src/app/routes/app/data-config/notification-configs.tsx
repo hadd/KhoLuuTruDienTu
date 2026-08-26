@@ -25,7 +25,13 @@ export const Route = createFileRoute('/app/data-config/notification-configs')({
     return {}
   },
   staticData: {
-    crumb: () => i18n.t('tiles.notificationConfigs', { ns: 'data-config' }),
+    crumb: () => ({
+      label: i18n.t('tiles.notificationConfigs', { ns: 'data-config' }),
+      parent: {
+        label: i18n.t('admin.dataConfig.title', { ns: 'common' }),
+        to: '/app/data-config',
+      },
+    }),
   },
   head: () => ({
     meta: [

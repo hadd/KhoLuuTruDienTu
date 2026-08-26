@@ -553,3 +553,10 @@ export async function permanentDeleteDossiers(ids: string[]): Promise<{
   const response = await apiClient.post('/api/v1/dossiers/permanent-batch-delete', { ids })
   return response.data
 }
+
+export async function restoreWarehouseDossiers(ids: string[]): Promise<{
+  restoredIds: string[]
+}> {
+  const response = await apiClient.post('/api/v1/dossiers/restore-batch', { ids })
+  return response.data
+}

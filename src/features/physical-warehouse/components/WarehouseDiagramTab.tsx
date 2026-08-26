@@ -4,6 +4,7 @@ import { X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
@@ -1271,7 +1272,14 @@ function WarehouseMapCanvas({
                 (boxPlacementsQuery.data ?? []).map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="text-base font-medium">
-                      {row.dossierName}
+                      <div className="flex items-center gap-2">
+                        <span>{row.dossierName}</span>
+                        {row.deletedAt ? (
+                          <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive text-xs shrink-0">
+                            Đã xóa
+                          </Badge>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell className="text-center text-lg tabular-nums text-muted-foreground">
                       {row.documentCount ?? 0}

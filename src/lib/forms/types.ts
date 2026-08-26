@@ -10,6 +10,7 @@ export type FieldType =
   | 'select'
   | 'email'
   | 'multiselect'
+  | 'natural-number'
 export type ValidateOn = 'blur' | 'change' | 'submit'
 
 // Variants for different field types

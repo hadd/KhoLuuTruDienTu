@@ -59,20 +59,14 @@ export type DashboardSearchT = z.infer<typeof dashboardSearchSchema>
 
 // Helper kiểm tra quyền kho và xác định priority cho Overview
 function checkDashboardPermissions(permissions: string[]) {
-  // Kiểm tra quyền bình thường qua isPermissionGranted
-  const hasAdmin = isPermissionGranted(permissions, 'dashboard.admin', 'dashboard')
-  const hasQc = isPermissionGranted(permissions, 'dashboard.qc', 'dashboard')
-  const hasEditor = isPermissionGranted(permissions, 'dashboard.editor', 'dashboard')
+  const variant = resolveDashboardVariant(permissions)
   const hasWarehouse = isPermissionGranted(permissions, 'dashboard.warehouse', 'dashboard')
 
-  // Priority cho tab Tổng Quan: Admin > QC > Editor
-  const overviewVariant: 'admin' | 'qc' | 'editor' = hasAdmin
-    ? 'admin'
-    : hasQc
-      ? 'qc'
-      : 'editor'
+  const hasOverviewAccess =
+    variant === 'admin' || variant === 'qc' || variant === 'editor'
 
-  const hasOverviewAccess = hasAdmin || hasQc || hasEditor
+  const overviewVariant: 'admin' | 'qc' | 'editor' =
+    hasOverviewAccess && variant ? variant : 'editor'
 
   return {
     overviewVariant,
