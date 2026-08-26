@@ -60,7 +60,11 @@ export function resolveDashboardVariant(
 ): DashboardVariantT | null {
   if (
     hasFullAccess(permissions) ||
-    permissions.includes(DASHBOARD_PERMISSION_KEYS.admin)
+    isPermissionGranted(
+      permissions,
+      DASHBOARD_PERMISSION_KEYS.admin,
+      'dashboard',
+    )
   ) {
     return 'admin'
   }
@@ -70,8 +74,7 @@ export function resolveDashboardVariant(
       permissions,
       DASHBOARD_PERMISSION_KEYS.qc,
       'dashboard',
-    ) ||
-    isPermissionGranted(permissions, 'data-entry.checker', 'data-entry')
+    )
   ) {
     return 'qc'
   }
@@ -81,8 +84,7 @@ export function resolveDashboardVariant(
       permissions,
       DASHBOARD_PERMISSION_KEYS.editor,
       'dashboard',
-    ) ||
-    isPermissionGranted(permissions, 'data-entry.maker', 'data-entry')
+    )
   ) {
     return 'editor'
   }
@@ -97,15 +99,14 @@ export function resolveDashboardVariant(
     return 'warehouse'
   }
 
-  if (
-    isPermissionGranted(
-      permissions,
-      DASHBOARD_PERMISSION_KEYS.admin,
-      'dashboard',
-    )
-  ) {
-    return 'admin'
+  if (isPermissionGranted(permissions, 'data-entry.checker', 'data-entry')) {
+    return 'qc'
+  }
+
+  if (isPermissionGranted(permissions, 'data-entry.maker', 'data-entry')) {
+    return 'editor'
   }
 
   return null
 }
+
