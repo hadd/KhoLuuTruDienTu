@@ -197,15 +197,6 @@ export function DocumentMetadataForm({
       const updatedFields = buildUpdatedFields()
       const metadata = buildUpdatedMetadata()
 
-      if ((isQcRole || isQcComplete) && hasHoSoFondField(metadata)) {
-        const fondValue = findHoSoFondFieldValue(metadata)?.trim()
-        if (!fondValue) {
-          setIsHandlingSave(false)
-          toast.error('Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ')
-          return
-        }
-      }
-
       if (shouldPersistMetadata) {
         await saveMutation.mutateAsync({ dossierId, metadata })
       } else {
