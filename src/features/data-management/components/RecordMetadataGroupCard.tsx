@@ -11,6 +11,7 @@ import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import {
   findAllDocumentsForMetadataGroup,
   getMetadataGroupDisplayName,
+  isHiddenMetadataFieldForTT05,
   resolveMetadataGroupSourceDocumentPath,
 } from '@/features/data-management/lib/metadataHelpers'
 import { isHoSoAccessLevelMetadataField, isHoSoFondMetadataField, isHoSoRetentionMetadataField, resolveEffectiveFieldType } from '@/features/data-management/lib/metadataNormalize'
@@ -212,6 +213,9 @@ export function RecordMetadataGroupCard({
       <div className="grid gap-2">
         {group.fields.length > 0 ? (
           group.fields.map((field, fieldIndex) => {
+            if (isHiddenMetadataFieldForTT05(group.group_code, field.name)) {
+              return null
+            }
             const fieldKey = `${groupIndex}-${field.name}-${fieldIndex}`
             const fieldValue = coerceMetadataText(field.value)
             const effectiveType = resolveEffectiveFieldType(
