@@ -103,6 +103,7 @@ import {
   applyWatermarkConfigToPdfFiles,
   resolveWatermarkApplyConfig,
 } from "../../libs/watermark/maybe-watermark-pdf-files.ts";
+import { convertBatchToPdfA } from "../../libs/pdf-a/pdf-a-converter.ts";
 import { resolveExportZipPassword } from "../profile/resolve-export-zip-password.ts";
 import { assertExportFileLimit } from "../../libs/export-file-limit.ts";
 import {
@@ -1257,6 +1258,9 @@ async function buildApprovedMetadataExportZip(
         pdfBundle.pdfFiles,
         watermarkConfig,
       );
+      pdfBundle.pdfFiles = await convertBatchToPdfA(pdfBundle.pdfFiles, {
+        title: pdfBundle.dossierFolderName,
+      });
       return { metadata, pdfBundle };
     },
   );

@@ -23,6 +23,7 @@ import {
   mapInBatches,
 } from "../export-concurrency.ts";
 import type { PackageBuildInput } from "./package-types.ts";
+import { convertBatchToPdfA } from "../pdf-a/pdf-a-converter.ts";
 import {
   downloadJsonFromStorage,
   resolveMetadataJsonKey,
@@ -331,6 +332,7 @@ export async function exportDipHosoBatch(
         pdfFiles,
         watermarkConfig,
       );
+      pdfFiles = await convertBatchToPdfA(pdfFiles, { title: ctx.hoSoId });
       return {
         metadata: ctx.metadata,
         pdfFiles,
