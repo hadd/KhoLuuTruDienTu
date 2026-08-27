@@ -28,6 +28,7 @@ import {
   createDraftCustomField,
   handleMetadataFieldNavigationKeyDown,
   isDraftCustomField,
+  isInternalMetadataField,
   isPdfDocumentRef,
   mergeFormValuesIntoFields,
   normalizeSavedCustomFields,
@@ -336,8 +337,9 @@ export function DocumentMetadataForm({
         <div className="grid gap-3">
           {fields.map((field, index) => {
             if (
-              documentGroupCode &&
-              isHiddenMetadataFieldForTT05(documentGroupCode, field.name)
+              isInternalMetadataField(field) ||
+              (documentGroupCode &&
+                isHiddenMetadataFieldForTT05(documentGroupCode, field.name))
             ) {
               return null
             }
@@ -392,7 +394,6 @@ export function DocumentMetadataForm({
                 fieldRef={(element) => {
                   fieldRefs.current[index] = element
                 }}
-                rejectMark={buildFieldRejectMark(field)}
               />
             )
           })}
