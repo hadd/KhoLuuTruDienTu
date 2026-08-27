@@ -11,6 +11,7 @@ import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import {
   findAllDocumentsForMetadataGroup,
   getMetadataGroupDisplayName,
+  isHiddenMetadataFieldForTT05,
   isInternalMetadataField,
   resolveMetadataGroupSourceDocumentPath,
 } from '@/features/data-management/lib/metadataHelpers'
@@ -213,7 +214,10 @@ export function RecordMetadataGroupCard({
       <div className="grid gap-2">
         {group.fields.length > 0 ? (
           group.fields.map((field, fieldIndex) => {
-            if (isInternalMetadataField(field)) {
+            if (
+              isInternalMetadataField(field) ||
+              isHiddenMetadataFieldForTT05(group.group_code, field.name)
+            ) {
               return null
             }
             const fieldKey = `${groupIndex}-${field.name}-${fieldIndex}`

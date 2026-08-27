@@ -166,6 +166,10 @@ export function ExportChoiceDialog({
               </span>
             </div>
           </Button>
+
+          <div className="rounded-md border border-primary/20 bg-primary/5 p-2.5 text-center text-xs text-primary font-medium">
+            🔒 Tất cả tệp PDF xuất ra đều được tự động chuẩn hóa sang định dạng <strong>PDF/A (ISO 19005)</strong> phục vụ bảo tồn lưu trữ dài hạn.
+          </div>
         </div>
 
         <DialogFooter>

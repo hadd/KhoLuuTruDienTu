@@ -33,6 +33,7 @@ import {
   mergeFormValuesIntoFields,
   normalizeSavedCustomFields,
   resolveGroupCodeForDocument,
+  isHiddenMetadataFieldForTT05,
 } from '@/features/data-management/lib/metadataHelpers'
 import {
   findHoSoFondFieldValue,
@@ -335,7 +336,13 @@ export function DocumentMetadataForm({
       <div className="flex-1 overflow-y-auto">
         <div className="grid gap-3">
           {fields.map((field, index) => {
-            if (isInternalMetadataField(field)) return null
+            if (
+              isInternalMetadataField(field) ||
+              (documentGroupCode &&
+                isHiddenMetadataFieldForTT05(documentGroupCode, field.name))
+            ) {
+              return null
+            }
             return canManage && isDraftCustomField(field) ? (
               <MetadataFieldEditorRow
                 key={field.name}
