@@ -2,6 +2,7 @@ export interface MetadataExportColumnConfig {
     header: string;
     fieldKeys: string[];
     separator: string;
+    headerColor?: string;
 }
 
 export const METADATA_EXPORT_STT_HEADER = "STT";

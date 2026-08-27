@@ -3294,9 +3294,13 @@ export const DossierService = {
         const rawPartial = await downloadJsonFromStorage(
           storedKey.endsWith(".json") ? storedKey : `${storedKey}.json`,
         );
+        const parsedPartial = parseDossierMetadata(rawPartial);
+        const merged = parsedPartial
+          ? mergePartialMetadata(parsedBase, [parsedPartial])
+          : rawPartial;
         finalMetadataKey = await uploadJsonToStorage(
           buildEditorMergedMetadataKey(ocrMetadataKey, editorAttemptNumber),
-          rawPartial,
+          merged,
         );
       }
 
@@ -3692,7 +3696,26 @@ export const DossierService = {
     const metadataKey = buildSummaryMetadataUpdateKey(dossier.ocrMetadataKey);
     const previousMetadataKey =
       dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
-    const storedKey = await uploadJsonToStorage(metadataKey, metadata);
+
+    let finalMetadata: unknown = metadata;
+    if (previousMetadataKey && isDossierMetadata(metadata)) {
+      try {
+        const rawOld = await downloadJsonFromStorage(
+          resolveMetadataJsonKey(previousMetadataKey),
+        );
+        const oldParsed = parseDossierMetadata(rawOld);
+        if (oldParsed) {
+          finalMetadata = mergePartialMetadata(oldParsed, [metadata]);
+        }
+      } catch (err) {
+        console.error(
+          "[DossierService] Failed to merge old metadata in updateDossierMetadata:",
+          err,
+        );
+      }
+    }
+
+    const storedKey = await uploadJsonToStorage(metadataKey, finalMetadata);
 
     const [updatedDossier] = await db
       .update(dossiers)
