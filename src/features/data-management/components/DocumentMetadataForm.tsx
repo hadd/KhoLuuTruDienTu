@@ -28,6 +28,7 @@ import {
   createDraftCustomField,
   handleMetadataFieldNavigationKeyDown,
   isDraftCustomField,
+  isInternalMetadataField,
   isPdfDocumentRef,
   mergeFormValuesIntoFields,
   normalizeSavedCustomFields,
@@ -197,15 +198,6 @@ export function DocumentMetadataForm({
       const updatedFields = buildUpdatedFields()
       const metadata = buildUpdatedMetadata()
 
-      if ((isQcRole || isQcComplete) && hasHoSoFondField(metadata)) {
-        const fondValue = findHoSoFondFieldValue(metadata)?.trim()
-        if (!fondValue) {
-          setIsHandlingSave(false)
-          toast.error('Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ')
-          return
-        }
-      }
-
       if (shouldPersistMetadata) {
         await saveMutation.mutateAsync({ dossierId, metadata })
       } else {
@@ -342,8 +334,9 @@ export function DocumentMetadataForm({
 
       <div className="flex-1 overflow-y-auto">
         <div className="grid gap-3">
-          {fields.map((field, index) =>
-            canManage && isDraftCustomField(field) ? (
+          {fields.map((field, index) => {
+            if (isInternalMetadataField(field)) return null
+            return canManage && isDraftCustomField(field) ? (
               <MetadataFieldEditorRow
                 key={field.name}
                 field={field}
@@ -394,10 +387,9 @@ export function DocumentMetadataForm({
                 fieldRef={(element) => {
                   fieldRefs.current[index] = element
                 }}
-                rejectMark={buildFieldRejectMark(field)}
               />
-            ),
-          )}
+            )
+          })}
         </div>
       </div>
 

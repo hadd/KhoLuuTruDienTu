@@ -20,6 +20,41 @@ const HO_SO_DATE_FIELD_NAMES: ReadonlySet<string> = new Set([
 ])
 
 /**
+ * Hardcoded metadata fields that should be hidden when reading JSON in Data Management.
+ */
+export const HIDDEN_METADATA_FIELD_NAMES: ReadonlySet<string> = new Set([
+  'FOND',
+  'PHONG_LUU_TRU',
+  'TEN_PHONG',
+  'MA_HO_SO',
+  'MA_CO_QUAN_LUU_TRU_LICH_SU',
+  'MA_PHONG',
+  'MUC_LUC_SO',
+  'MUC_LUC_SO_HOAC_NAM_HINH_THANH_HO_SO',
+  'TONG_SO_VAN_BAN_TRONG_HO_SO',
+  'CHU_GIAI',
+  'KY_HIEU_THONG_TIN',
+  'TU_KHOA',
+  'TINH_TRANG_VAT_LY',
+  'SO_LUONG_TRANG_CUA_VAN_BAN',
+  'SO_LUONG_TO',
+  'GHI_CHU',
+  'BUT_TICH',
+])
+
+export function isHiddenMetadataFieldName(fieldName: string): boolean {
+  if (!fieldName) return false
+  return HIDDEN_METADATA_FIELD_NAMES.has(fieldName.trim().toUpperCase())
+}
+
+export function filterHiddenMetadataFields<T extends { name: string }>(
+  fields: Array<T>,
+): Array<T> {
+  return fields.filter((field) => !isHiddenMetadataFieldName(field.name))
+}
+
+
+/**
  * Returns the effective field type, overriding 'string' → 'date' for
  * known date fields in HO_SO_LUU_TRU.
  */
@@ -248,98 +283,35 @@ function resolveLegacyFondValue(
   )
 }
 
-/** Drop PHONG_LUU_TRU group/field and normalize fond into HO_SO_LUU_TRU.FOND. */
+/** Drop PHONG_LUU_TRU group/field and legacy fond fields. */
 export function migrateTt05MetadataLayout(
   metadata: DataDossierMetadataT,
 ): DataDossierMetadataT {
   const migrated = structuredClone(metadata) as DataDossierMetadataT
 
-  const phongGroup = migrated.metadata_groups.find(
-    (group) => group.group_code === 'PHONG_LUU_TRU',
-  )
-  const hoSoGroup = migrated.metadata_groups.find(
-    (group) => group.group_code === HO_SO_LUU_TRU_GROUP_CODE,
-  )
-
-  const hasFondField = hoSoGroup?.fields.some(
-    (field) => field.name.trim().toUpperCase() === HO_SO_FOND_FIELD,
-  )
-  const hasLegacyFondField = hoSoGroup?.fields.some((field) =>
-    isLegacyFondFieldName(field.name),
-  )
-
-  if (!phongGroup && hasFondField && !hasLegacyFondField) {
-    return migrated
-  }
-
-  const fondValue = resolveLegacyFondValue(phongGroup, hoSoGroup?.fields ?? [])
-
   migrated.metadata_groups = migrated.metadata_groups.filter(
     (group) => group.group_code !== 'PHONG_LUU_TRU',
   )
 
-  const migratedHoSoGroup = migrated.metadata_groups.find(
+  const hoSoGroup = migrated.metadata_groups.find(
     (group) => group.group_code === HO_SO_LUU_TRU_GROUP_CODE,
   )
-  if (!migratedHoSoGroup) {
-    return migrated
+  if (hoSoGroup) {
+    hoSoGroup.fields = hoSoGroup.fields.filter(
+      (field) =>
+        field.name.trim().toUpperCase() !== HO_SO_FOND_FIELD &&
+        !isLegacyFondFieldName(field.name),
+    )
   }
-
-  const fields = migratedHoSoGroup.fields.filter(
-    (field) =>
-      field.name.trim().toUpperCase() !== HO_SO_FOND_FIELD &&
-      !isLegacyFondFieldName(field.name),
-  )
-  const fondField: DataDocumentFieldT = {
-    name: HO_SO_FOND_FIELD,
-    display: 'Phông lưu trữ',
-    type: 'string',
-    value: fondValue,
-    page: null,
-    bboxes: [],
-  }
-
-  fields.unshift(fondField)
-  migratedHoSoGroup.fields = fields
 
   return migrated
 }
 
 export function ensureHoSoFondField(
   metadata: DataDossierMetadataT,
-  fondId?: string | null,
+  _fondId?: string | null,
 ): DataDossierMetadataT {
-  const migrated = migrateTt05MetadataLayout(metadata)
-  const hoSoGroup = migrated.metadata_groups.find(
-    (group) => group.group_code === HO_SO_LUU_TRU_GROUP_CODE,
-  )
-  if (!hoSoGroup) {
-    return migrated
-  }
-
-  const fields = [...hoSoGroup.fields]
-  const fondIndex = fields.findIndex(
-    (field) => field.name.trim().toUpperCase() === HO_SO_FOND_FIELD,
-  )
-  const resolvedFondId = fondId?.trim() || null
-
-  if (fondIndex >= 0) {
-    if (!fields[fondIndex]!.value?.trim() && resolvedFondId) {
-      fields[fondIndex] = { ...fields[fondIndex]!, value: resolvedFondId }
-    }
-  } else {
-    fields.unshift({
-      name: HO_SO_FOND_FIELD,
-      display: 'Phông lưu trữ',
-      type: 'string',
-      value: resolvedFondId ?? '',
-      page: null,
-      bboxes: [],
-    })
-  }
-
-  hoSoGroup.fields = fields
-  return migrated
+  return migrateTt05MetadataLayout(metadata)
 }
 
 export function isHoSoFondMetadataField(
@@ -362,19 +334,9 @@ export function findHoSoFondFieldValue(
 }
 
 export function hasHoSoFondField(
-  metadata: DataDossierMetadataT | null | undefined,
+  _metadata: DataDossierMetadataT | null | undefined,
 ): boolean {
-  if (!metadata) return false
-  return metadata.metadata_groups.some((group) => {
-    const gCode = group.group_code.trim().toUpperCase()
-    if (gCode === HO_SO_LUU_TRU_GROUP_CODE || gCode === 'PHONG_LUU_TRU') {
-      return true
-    }
-    return (group.fields ?? []).some((field) => {
-      const fName = field.name.trim().toUpperCase()
-      return fName === HO_SO_FOND_FIELD || isLegacyFondFieldName(fName)
-    })
-  })
+  return false
 }
 
 const HO_SO_RETENTION_FIELD = 'THOI_HAN_LUU_TRU'
