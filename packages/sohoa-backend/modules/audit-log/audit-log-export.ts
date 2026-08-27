@@ -15,8 +15,32 @@ function formatUserLabel(
     record: AuditLogExportRecord,
 ): string {
     const user = record.user;
-    if (!user) return record.userId ?? "";
-    return user.fullName?.trim() || user.email || user.id;
+    if (user) {
+        return user.fullName?.trim() || user.email || user.id;
+    }
+    if (!record.userId) {
+        const eventType = (record.eventType ?? "").toLowerCase();
+        const summary = (record.summary ?? "").toLowerCase();
+        if (
+            eventType === "expire_borrow" ||
+            eventType === "auto_reject_borrow" ||
+            eventType.startsWith("auto_") ||
+            eventType.startsWith("cron_") ||
+            eventType.startsWith("purge_") ||
+            eventType.startsWith("system_") ||
+            summary.includes("hết hạn phiếu mượn") ||
+            summary.includes("tự động từ chối") ||
+            summary.includes("tự động dọn dẹp") ||
+            summary.includes("tự động đồng bộ") ||
+            summary.includes("tự động ocr") ||
+            summary.includes("hệ thống tự động") ||
+            summary.includes("auto-rejected") ||
+            summary.includes("auto-expired")
+        ) {
+            return "Hệ thống";
+        }
+    }
+    return record.userId ?? "Không xác định";
 }
 
 function formatEntityLabel(record: AuditLogExportRecord): string {
@@ -28,6 +52,17 @@ function formatEntityLabel(record: AuditLogExportRecord): string {
 export function serializeAuditLogsToJson(records: AuditLogExportRecord[]): Uint8Array {
     const payload = JSON.stringify(records, null, 2);
     return new TextEncoder().encode(payload);
+}
+
+function formatIsoDate(value: Date | string | null | undefined): string {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (value instanceof Date) return value.toISOString();
+    try {
+        return new Date(value).toISOString();
+    } catch {
+        return String(value);
+    }
 }
 
 export async function buildAuditLogsExcel(records: AuditLogExportRecord[]): Promise<Uint8Array> {
@@ -51,7 +86,7 @@ export async function buildAuditLogsExcel(records: AuditLogExportRecord[]): Prom
 
     for (const record of records) {
         sheet.addRow({
-            createdAt: record.createdAt?.toISOString() ?? "",
+            createdAt: formatIsoDate(record.createdAt),
             userLabel: formatUserLabel(record),
             module: record.module ?? "",
             eventType: record.eventType ?? "",
