@@ -129,6 +129,35 @@ export const adminDossierChartSchema = t.Object({
     points: t.Array(adminDossierChartPointSchema),
 });
 
+export const employeeKpiSchema = t.Object({
+    userId: t.String(),
+    fullName: t.String(),
+    role: t.String(),
+    groupName: t.Union([t.String(), t.Null()]),
+    assignedDossiersCount: t.Number(),
+    completedDossiersCount: t.Number(),
+    rejectedDossiersCount: t.Number(),
+    assignedPagesCount: t.Number(),
+    completedPagesCount: t.Number(),
+    dossierCompletionRate: t.Number(),
+    pageCompletionRate: t.Number(),
+    makerAssignedDossiersCount: t.Optional(t.Number()),
+    makerCompletedDossiersCount: t.Optional(t.Number()),
+    makerAssignedPagesCount: t.Optional(t.Number()),
+    makerCompletedPagesCount: t.Optional(t.Number()),
+    makerDossierCompletionRate: t.Optional(t.Number()),
+    makerPageCompletionRate: t.Optional(t.Number()),
+    qcAssignedDossiersCount: t.Optional(t.Number()),
+    qcCompletedDossiersCount: t.Optional(t.Number()),
+    qcAssignedPagesCount: t.Optional(t.Number()),
+    qcCompletedPagesCount: t.Optional(t.Number()),
+    qcDossierCompletionRate: t.Optional(t.Number()),
+    qcPageCompletionRate: t.Optional(t.Number()),
+    accuracyRate: t.Number(),
+    avgProcessingTimeMinutes: t.Number(),
+    kpiStatus: t.String(),
+});
+
 export const adminDashboardResponseSchema = t.Object({
     overview: adminOverviewSchema,
     systemDossiers: adminSystemDossiersSchema,
@@ -136,6 +165,7 @@ export const adminDashboardResponseSchema = t.Object({
     dossierChart: adminDossierChartSchema,
     performance: adminPerformanceSchema,
     groups: t.Array(adminGroupSummarySchema),
+    employeeKpis: t.Optional(t.Array(employeeKpiSchema)),
 });
 
 export const warehouseLocationResponseSchema = t.Array(
