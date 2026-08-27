@@ -334,6 +334,17 @@ export function OcrControlPage() {
     })
   }
 
+  function toggleSelectAllPage(ids: Array<string>, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      for (const id of ids) {
+        if (checked) next.add(id)
+        else next.delete(id)
+      }
+      return next
+    })
+  }
+
   function toggleExpanded(dossierId: string) {
     setExpandedIds((prev) => {
       const next = new Set(prev)
@@ -454,6 +465,31 @@ export function OcrControlPage() {
                 </Link>
               </Button>
             ) : null}
+            {canTriggerOcr && selectablePendingIds.size > 0 ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const allPendingArray = Array.from(selectablePendingIds)
+                  const isAllSelected =
+                    allPendingArray.length > 0 &&
+                    allPendingArray.every((id) => selectedIds.has(id))
+
+                  if (isAllSelected) {
+                    setSelectedIds(new Set())
+                  } else {
+                    setSelectedIds(new Set(allPendingArray))
+                  }
+                }}
+              >
+                {Array.from(selectablePendingIds).every((id) => selectedIds.has(id))
+                  ? t('actions.deselectAll')
+                  : t('actions.selectAllPending', {
+                      count: selectablePendingIds.size,
+                    })}
+              </Button>
+            ) : null}
             {canTriggerOcr && selectedCount > 0 ? (
               <Button
                 type="button"
@@ -509,6 +545,7 @@ export function OcrControlPage() {
               language={language}
               onToggleExpanded={toggleExpanded}
               onToggleSelected={toggleSelected}
+              onToggleSelectAllPage={toggleSelectAllPage}
               onTrigger={(id) => void handleTrigger([id])}
             />
           ) : null}
@@ -630,6 +667,7 @@ function UnifiedOcrTable({
   language,
   onToggleExpanded,
   onToggleSelected,
+  onToggleSelectAllPage,
   onTrigger,
 }: {
   rows: Array<OcrControlRowT>
@@ -642,16 +680,53 @@ function UnifiedOcrTable({
   language: string
   onToggleExpanded: (id: string) => void
   onToggleSelected: (id: string, checked: boolean) => void
+  onToggleSelectAllPage: (ids: Array<string>, checked: boolean) => void
   onTrigger: (id: string) => void
 }) {
   const { t } = useTranslation('ocr-control')
+
+  const pageSelectablePendingIds = useMemo(
+    () =>
+      rows
+        .filter(
+          (row) =>
+            row.kind === 'pending' && selectablePendingIds.has(row.dossier.dossierId),
+        )
+        .map((row) => row.dossier.dossierId),
+    [rows, selectablePendingIds],
+  )
+
+  const isAllPageSelected =
+    pageSelectablePendingIds.length > 0 &&
+    pageSelectablePendingIds.every((id) => selectedIds.has(id))
+
+  const isSomePageSelected =
+    pageSelectablePendingIds.some((id) => selectedIds.has(id)) &&
+    !isAllPageSelected
 
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <Table>
         <TableHeader className="sticky top-0 z-10 bg-card">
           <TableRow>
-            {canTriggerOcr ? <TableHead className="w-10" /> : null}
+            {canTriggerOcr ? (
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={
+                    isAllPageSelected
+                      ? true
+                      : isSomePageSelected
+                        ? 'indeterminate'
+                        : false
+                  }
+                  onCheckedChange={(checked) =>
+                    onToggleSelectAllPage(pageSelectablePendingIds, checked === true)
+                  }
+                  disabled={pageSelectablePendingIds.length === 0}
+                  aria-label={t('actions.selectAll')}
+                />
+              </TableHead>
+            ) : null}
             <TableHead className="w-8" />
             <TableHead>{t('columns.dossierName')}</TableHead>
             <TableHead className="hidden md:table-cell">

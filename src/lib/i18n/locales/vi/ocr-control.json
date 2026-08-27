@@ -80,7 +80,13 @@
 
     "runSelected": "Chạy OCR ({{count}})",
 
-    "extractSettings": "Chế độ bóc tách"
+    "extractSettings": "Chế độ bóc tách",
+
+    "selectAll": "Chọn tất cả",
+
+    "selectAllPending": "Chọn tất cả hồ sơ chờ ({{count}})",
+
+    "deselectAll": "Bỏ chọn"
 
   },
 

@@ -1,6 +1,7 @@
-import { Folder } from 'lucide-react'
+import { Eye, Folder } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { Button } from '@/components/ui/button'
 import { DossierStatusBadge } from '@/features/data-management/components/DossierStatusBadge'
 import {
   getDocumentDisplayName,
@@ -16,9 +17,13 @@ import { formatFileSize } from '@/lib/utils/format'
 export function FolderContentList({
   children,
   onSelect,
+  onViewInfo,
+  onContextMenuNode,
 }: {
   children: Array<DataTreeNodeT>
   onSelect: (id: string) => void
+  onViewInfo?: (node: DataTreeNodeT) => void
+  onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
 }) {
   const { t } = useTranslation('data-management')
   const lang = useCurrentLanguage()
@@ -72,6 +77,12 @@ export function FolderContentList({
                     'hover:bg-accent hover:text-accent-foreground',
                   )}
                   onClick={() => onSelect(child.id)}
+                  onContextMenu={(e) => {
+                    if (onContextMenuNode) {
+                      e.preventDefault()
+                      onContextMenuNode(child, e.clientX, e.clientY)
+                    }
+                  }}
                 >
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
@@ -105,7 +116,25 @@ export function FolderContentList({
                     {formatFileSize(child.sizeBytes)}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
-                    {formatDate(child.uploadedAt, 'PP', lang)}
+                    <div className="flex items-center justify-between gap-2">
+                      <span>{formatDate(child.uploadedAt, 'PP', lang)}</span>
+                      {onViewInfo ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-muted-foreground hover:bg-accent-foreground/10 hover:text-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onViewInfo(child)
+                          }}
+                          title={t('contextMenu.viewInfo')}
+                        >
+                          <Eye className="size-4" aria-hidden />
+                          <span className="sr-only">{t('contextMenu.viewInfo')}</span>
+                        </Button>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               )

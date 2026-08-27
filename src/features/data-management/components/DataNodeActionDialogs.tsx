@@ -421,8 +421,9 @@ export function DataNodeActionDialogs({
 
   useEffect(() => {
     if (mode !== 'delete') return
-    setDeleteMode('soft')
-  }, [mode, node?.id])
+    const isFile = node?.type === 'document'
+    setDeleteMode(isFile ? 'permanent' : 'soft')
+  }, [mode, node?.id, node?.type])
 
   const handleSelectLevelUser = (level: number, userId: string) => {
     setAssignments((prev) => ({
@@ -435,9 +436,11 @@ export function DataNodeActionDialogs({
 
   const deleteDescriptionKey =
     resolveDeleteTarget(node, tree)?.descriptionKey ??
-    (node.type === 'folder' && !isDossierWorkflowNode(node)
-      ? 'descriptionFolder'
-      : 'descriptionDossier')
+    (node.type === 'document'
+      ? 'descriptionFile'
+      : node.type === 'folder' && !isDossierWorkflowNode(node)
+        ? 'descriptionFolder'
+        : 'descriptionDossier')
 
   const isPending =
     isHandlingSubmit ||
@@ -529,7 +532,13 @@ export function DataNodeActionDialogs({
         }
 
         if (!deleteTarget) {
-          if (
+          if (targetNode.type === 'document') {
+            deleteTarget = {
+              target: 'file',
+              id: targetNode.id,
+              descriptionKey: 'descriptionFile',
+            }
+          } else if (
             targetNode.type === 'folder' &&
             !isDossierWorkflowNode(targetNode)
           ) {
@@ -562,7 +571,7 @@ export function DataNodeActionDialogs({
         await deleteMutation.mutateAsync({
           target: deleteTarget.target,
           id: deleteTarget.id,
-          permanent: deleteMode === 'permanent',
+          permanent: deleteTarget.target === 'file' ? true : deleteMode === 'permanent',
         })
         await onDeleteSuccess?.({
           deletedNodeId: targetNode.id,
@@ -711,7 +720,7 @@ export function DataNodeActionDialogs({
           </DialogDescription>
         </DialogHeader>
 
-        {mode === 'delete' ? (
+        {mode === 'delete' && node.type !== 'document' ? (
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium leading-none">
               {t('actionDialog.delete.modeLabel')}
