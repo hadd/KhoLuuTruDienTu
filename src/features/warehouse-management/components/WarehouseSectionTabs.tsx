@@ -37,16 +37,13 @@ export function useWarehouseSectionTabs(): Array<WarehouseSectionTabItem> {
   const { canSubmitArchive, canReviewArchive } = useArchiveSubmissionAccess()
   const { canManageArchiveConfig } = useArchiveConfigAccess()
 
-  const primaryRole = getPrimaryAppRole(getUserRoles())
   const canOpenDataWarehouse =
     canReadArchiveWarehouse ||
     canReadDisposal ||
     canSubmitArchive ||
     canReviewArchive ||
     canManageArchiveConfig ||
-    canManageArchivePermissions ||
-    primaryRole === 'admin' ||
-    primaryRole === 'manager'
+    canManageArchivePermissions
 
   return useMemo(() => {
     const items: Array<WarehouseSectionTabItem> = []

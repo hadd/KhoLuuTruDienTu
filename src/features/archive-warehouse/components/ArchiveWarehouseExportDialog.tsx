@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { FileArchive, FileSpreadsheet, Loader2 } from 'lucide-react'
+import { AlertCircle, FileArchive, FileSpreadsheet, Info, Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -83,6 +84,12 @@ export function ArchiveWarehouseExportDialog({
     useState<PendingPasswordChallengeT | null>(null)
   const [passwordError, setPasswordError] = useState<string>()
   const [isVerifyingPassword, setIsVerifyingPassword] = useState(false)
+  const [exportProgress, setExportProgress] = useState<{
+    completed: number
+    total: number
+    currentDossierId?: string
+  } | null>(null)
+  const [failedDossierIds, setFailedDossierIds] = useState<Array<string>>([])
   const unlockedDuringExportRef = useRef(new Set<string>())
   /** Passwords collected before download (dossierId → plaintext). */
   const passwordByDossierRef = useRef<Map<string, string>>(new Map())
@@ -105,6 +112,8 @@ export function ArchiveWarehouseExportDialog({
     setPendingPassword(null)
     setPasswordError(undefined)
     setIsVerifyingPassword(false)
+    setExportProgress(null)
+    setFailedDossierIds([])
     unlockedDuringExportRef.current.clear()
     passwordByDossierRef.current = new Map()
     zipPassQueueRef.current = []
@@ -140,6 +149,8 @@ export function ArchiveWarehouseExportDialog({
     setPasswordError(undefined)
     setIsExporting(false)
     setExportingMode(null)
+    setExportProgress(null)
+    setFailedDossierIds([])
   }
 
   function challengeKey(challenge: PendingPasswordChallengeT): string {
@@ -165,36 +176,54 @@ export function ArchiveWarehouseExportDialog({
     setPasswordError(undefined)
   }
 
-  async function downloadAll(request: ExportRequestT) {
+  async function downloadAll(
+    request: ExportRequestT,
+    targetDossierIds = dossierIds,
+  ) {
     setIsExporting(true)
     setExportingMode(request.mode)
     setPendingPassword(null)
+    setFailedDossierIds([])
+    setExportProgress({ completed: 0, total: targetDossierIds.length })
 
     const passwords = Object.fromEntries(passwordByDossierRef.current)
 
     try {
-      if (request.mode === 'metadata') {
-        await exportDossiersMetadataByIds(dossierIds, downloadName, {
-          presetId: request.presetId,
-          dossierAccessPasswords: passwords,
-        })
-      } else {
-        await exportDossiersDipByIds(dossierIds, downloadName, {
-          dossierAccessPasswords: passwords,
-        })
-      }
+      const result =
+        request.mode === 'metadata'
+          ? await exportDossiersMetadataByIds(targetDossierIds, downloadName, {
+              presetId: request.presetId,
+              dossierAccessPasswords: passwords,
+              onProgress: (p) => setExportProgress(p),
+              onItemError: (id) =>
+                setFailedDossierIds((prev) => [...prev, id]),
+            })
+          : await exportDossiersDipByIds(targetDossierIds, downloadName, {
+              dossierAccessPasswords: passwords,
+              onProgress: (p) => setExportProgress(p),
+              onItemError: (id) =>
+                setFailedDossierIds((prev) => [...prev, id]),
+            })
+
       clearExportTokens(unlockedDuringExportRef.current)
       unlockedDuringExportRef.current.clear()
       passwordByDossierRef.current = new Map()
       zipPassQueueRef.current = []
-      setExportRequest(null)
-      toast.success(
-        dossierIds.length > 1
-          ? t('export.successMulti', { count: dossierIds.length })
-          : t('export.success'),
-      )
-      onExported?.()
-      onOpenChange(false)
+
+      if (result.failedDossierIds.length === 0) {
+        setExportRequest(null)
+        toast.success(
+          targetDossierIds.length > 1
+            ? t('export.successMulti', { count: targetDossierIds.length })
+            : t('export.success'),
+        )
+        onExported?.()
+        onOpenChange(false)
+      } else {
+        toast.error(
+          `Đã tải ${result.successCount}/${targetDossierIds.length} file. Có ${result.failedDossierIds.length} file chưa tải thành công (có thể do trình duyệt chặn).`,
+        )
+      }
     } catch (error) {
       stopExportFlow()
       const message = translateError(
@@ -558,6 +587,61 @@ export function ArchiveWarehouseExportDialog({
                 </span>
               </div>
             </Button>
+
+            {exportFlowActive && exportProgress && (
+              <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <div className="flex items-center justify-between text-xs font-medium text-primary">
+                  <span>Đang tải file ZIP ({exportProgress.completed}/{exportProgress.total})</span>
+                  <span>{Math.round((exportProgress.completed / Math.max(exportProgress.total, 1)) * 100)}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-primary transition-all duration-300 ease-in-out"
+                    style={{
+                      width: `${Math.round((exportProgress.completed / Math.max(exportProgress.total, 1)) * 100)}%`,
+                    }}
+                  />
+                </div>
+                {exportProgress.currentDossierId && (
+                  <p className="truncate text-xs text-muted-foreground">
+                    Đang xuất: {dossierLabel(exportProgress.currentDossierId)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {dossierIds.length > 1 && exportFlowActive && (
+              <Alert className="border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100">
+                <Info className="size-4 text-blue-600 dark:text-blue-400" />
+                <AlertTitle className="text-sm font-semibold">Lưu ý trình duyệt:</AlertTitle>
+                <AlertDescription className="text-xs">
+                  Nếu trình duyệt (Chrome/Edge) hiển thị thông báo <b>"Cho phép tải nhiều file từ trang này?"</b>, vui lòng chọn <b>Cho phép (Allow)</b> để tải đầy đủ tất cả các file ZIP.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {failedDossierIds.length > 0 && !isExporting && (
+              <Alert variant="destructive" className="mt-2">
+                <AlertCircle className="size-4" />
+                <AlertTitle>Có {failedDossierIds.length} file ZIP chưa tải thành công</AlertTitle>
+                <AlertDescription className="mt-2 flex flex-col gap-2">
+                  <p className="text-xs">Có thể do trình duyệt chặn tải tự động liên tiếp. Bạn có thể bấm thử tải lại bên dưới.</p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      if (exportRequest) {
+                        void downloadAll(exportRequest, failedDossierIds)
+                      }
+                    }}
+                  >
+                    Thử tải lại {failedDossierIds.length} file bị lỗi
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
 
           <DialogFooter>
