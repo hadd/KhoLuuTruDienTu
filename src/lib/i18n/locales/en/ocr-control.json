@@ -80,7 +80,13 @@
 
     "runSelected": "Run OCR ({{count}})",
 
-    "extractSettings": "Extract mode"
+    "extractSettings": "Extract mode",
+
+    "selectAll": "Select all",
+
+    "selectAllPending": "Select all pending ({{count}})",
+
+    "deselectAll": "Deselect all"
 
   },
 

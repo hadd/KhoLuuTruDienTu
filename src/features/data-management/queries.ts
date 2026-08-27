@@ -11,6 +11,7 @@ import {
   rejectCheckerDossier,
 } from '@/features/data-management/api/dataEntryClient'
 import type {
+  AssignPdfDocumentParams,
   DataDeleteRequestT,
   LoadNodeChildrenResultT,
 } from '@/features/data-management/api/dataManagementClient'
@@ -18,6 +19,7 @@ import {
   addDataFolder,
   assignDataRecord,
   assignDossierEditor,
+  assignPdfDocument,
   deleteDataNode,
   fetchDossierMetadataHistory,
   fetchDossierWorkflowAssignments,
@@ -321,6 +323,39 @@ export function useUploadDataDocumentsMutation(
         skipPathCheck,
         projectCode: requestProjectCode ?? projectCodeRef.current,
         storagePathPrefix,
+        runMode,
+      }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({
+        queryKey: dataManagementTreeQueryKey(role, projectCodeRef.current),
+      })
+    },
+  })
+}
+
+export function useAssignPdfDocumentMutation(
+  role: DataManagementRole,
+  projectCode?: string,
+  onProgress?: (p: UploadProgress) => void,
+) {
+  const qc = useQueryClient()
+  const onProgressRef = useRef(onProgress)
+  onProgressRef.current = onProgress
+  const projectCodeRef = useRef(projectCode)
+  projectCodeRef.current = projectCode
+
+  return useMutation<
+    UploadFolderResult,
+    Error,
+    { oldNode: DataTreeNodeT; file: File; runMode?: OcrRunMode }
+  >({
+    mutationFn: ({ oldNode, file, runMode }) =>
+      assignPdfDocument({
+        oldNode,
+        file,
+        role,
+        projectCode: projectCodeRef.current,
+        onProgress: (p) => onProgressRef.current?.(p),
         runMode,
       }),
     onSuccess: async () => {

@@ -57,41 +57,49 @@ export function DataNodeDetailModal({
 
   const showWorkflow = Boolean(dossierId)
 
+  const formattedDate = formatDate(
+    node.uploadedAt,
+    lang === 'vi' ? "d 'thg' M 'năm' yyyy HH:mm" : 'PPp',
+    lang,
+  )
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
-        <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
-          <div className="flex items-center gap-2 pr-6">
-            <DialogTitle className="truncate">{node.name}</DialogTitle>
+      <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 rounded-2xl sm:max-w-lg">
+        <DialogHeader className="shrink-0 border-b border-border/60 px-6 py-4">
+          <div className="flex items-center gap-2.5 pr-6">
+            <DialogTitle className="text-xl font-bold tracking-tight truncate">
+              {node.name}
+            </DialogTitle>
             {node.dossierStatus ? (
               <DossierStatusBadge status={node.dossierStatus} />
             ) : null}
           </div>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+          <dl className="grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
             <div>
-              <dt className="text-muted-foreground">{t('detail.type')}</dt>
-              <dd className="font-medium text-foreground">
+              <dt className="text-sm text-muted-foreground">{t('detail.type')}</dt>
+              <dd className="mt-1 font-semibold text-foreground">
                 {t(`nodeType.${node.type}` as const)}
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">{t('detail.size')}</dt>
-              <dd className="font-medium text-foreground">
+              <dt className="text-sm text-muted-foreground">{t('detail.size')}</dt>
+              <dd className="mt-1 font-semibold text-foreground">
                 {formatFileSize(node.sizeBytes)}
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">{t('detail.uploadedAt')}</dt>
-              <dd className="font-medium text-foreground">
-                {formatDate(node.uploadedAt, 'PPp', lang)}
+              <dt className="text-sm text-muted-foreground">{t('detail.uploadedAt')}</dt>
+              <dd className="mt-1 font-semibold text-foreground">
+                {formattedDate}
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">{t('detail.uploadedBy')}</dt>
-              <dd className="font-medium text-foreground">{node.uploadedBy}</dd>
+              <dt className="text-sm text-muted-foreground">{t('detail.uploadedBy')}</dt>
+              <dd className="mt-1 font-semibold text-foreground">{node.uploadedBy}</dd>
             </div>
           </dl>
 

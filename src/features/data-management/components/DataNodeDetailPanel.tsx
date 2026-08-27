@@ -26,9 +26,13 @@ import { translateError } from '@/lib/utils/translate-error'
 function FolderDetailCard({
   node,
   onSelectNode,
+  onViewInfo,
+  onContextMenuNode,
 }: {
   node: DataTreeNodeT
   onSelectNode: (id: string) => void
+  onViewInfo?: (node: DataTreeNodeT) => void
+  onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
 }) {
   const { t } = useTranslation('data-management')
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -130,7 +134,7 @@ function FolderDetailCard({
         </CardHeader>
 
         <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-          <FolderContentList children={node.children} onSelect={onSelectNode} />
+          <FolderContentList children={node.children} onSelect={onSelectNode} onViewInfo={onViewInfo} onContextMenuNode={onContextMenuNode} />
         </CardContent>
       </Card>
 
@@ -166,6 +170,10 @@ export function DataNodeDetailPanel({
 
   onSelectNode,
 
+  onViewInfo,
+
+  onContextMenuNode,
+
   onWorkflowComplete,
 
   onDigitalSignCompleted,
@@ -188,6 +196,10 @@ export function DataNodeDetailPanel({
 
   onSelectNode: (id: string) => void
 
+  onViewInfo?: (node: DataTreeNodeT) => void
+
+  onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
+
   onWorkflowComplete?: (
     dossierId: string,
     mode?: 'draft' | 'final' | 'error_report',
@@ -209,7 +221,7 @@ export function DataNodeDetailPanel({
   }
 
   if (node.type === 'folder') {
-    return <FolderDetailCard node={node} onSelectNode={onSelectNode} />
+    return <FolderDetailCard node={node} onSelectNode={onSelectNode} onViewInfo={onViewInfo} onContextMenuNode={onContextMenuNode} />
   }
 
   if (node.parentId === null) {
@@ -227,7 +239,7 @@ export function DataNodeDetailPanel({
         </CardHeader>
 
         <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-          <FolderContentList children={node.children} onSelect={onSelectNode} />
+          <FolderContentList children={node.children} onSelect={onSelectNode} onViewInfo={onViewInfo} onContextMenuNode={onContextMenuNode} />
         </CardContent>
       </Card>
     )

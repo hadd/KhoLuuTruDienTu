@@ -19,6 +19,7 @@ import {
   removeNodeFromTree,
 } from '@/features/data-management/api/dataManagementClient'
 import type { UploadFolderResult } from '@/features/data-management/api/dossierClient'
+import { AssignPdfDocumentDialog } from '@/features/data-management/components/AssignPdfDocumentDialog'
 import { DataFolderTree } from '@/features/data-management/components/DataFolderTree'
 import type {
   DataNodeActionDialogMode,
@@ -148,6 +149,9 @@ export function DataManagementPage({
     useState<DataTreeNodeT | null>(null)
   const [documentUploadOpen, setDocumentUploadOpen] = useState(false)
   const [uploadTargetRecord, setUploadTargetRecord] =
+    useState<DataTreeNodeT | null>(null)
+  const [assignPdfOpen, setAssignPdfOpen] = useState(false)
+  const [assignPdfTargetNode, setAssignPdfTargetNode] =
     useState<DataTreeNodeT | null>(null)
   const [actionState, setActionState] = useState<{
     node: DataTreeNodeT
@@ -1387,6 +1391,11 @@ export function DataManagementPage({
               onSelectNode={(id) => {
                 void handleSelectNode(id)
               }}
+              onViewInfo={(node) => {
+                setViewInfoNode(node)
+                setViewInfoOpen(true)
+              }}
+              onContextMenuNode={(node, x, y) => setContextMenu({ node, x, y })}
               onWorkflowComplete={handleMetadataReload}
               onDigitalSignCompleted={handleDigitalSignCompleted}
             />
@@ -1416,6 +1425,21 @@ export function DataManagementPage({
         targetRecord={uploadTargetRecord}
         onUploadSuccess={handleDocumentUploadSuccess}
       />
+      <AssignPdfDocumentDialog
+        open={assignPdfOpen}
+        onOpenChange={(open) => {
+          setAssignPdfOpen(open)
+          if (!open) setAssignPdfTargetNode(null)
+        }}
+        role={role}
+        projectCode={projectCode}
+        targetNode={assignPdfTargetNode}
+        onAssignSuccess={async () => {
+          if (nodeId) {
+            await loadNodeTree(nodeId, true)
+          }
+        }}
+      />
       <DataNodeActionDialogs
         node={actionState?.node ?? null}
         mode={actionState?.mode ?? null}
@@ -1433,6 +1457,7 @@ export function DataManagementPage({
       />
       <DataNodeContextMenu
         node={contextMenu?.node ?? null}
+        parentNode={contextMenu?.node?.parentId ? findNodeById(tree, contextMenu.node.parentId) : null}
         open={!!contextMenu}
         position={contextMenu ? { x: contextMenu.x, y: contextMenu.y } : null}
         onAction={(node, mode) => setActionState({ node, mode })}
@@ -1448,6 +1473,10 @@ export function DataManagementPage({
         onUploadDocument={(node) => {
           setUploadTargetRecord(node)
           setDocumentUploadOpen(true)
+        }}
+        onAssignPdfDocument={(node) => {
+          setAssignPdfTargetNode(node)
+          setAssignPdfOpen(true)
         }}
         onSubmitArchive={(node) => {
           void handleSubmitArchive(node)

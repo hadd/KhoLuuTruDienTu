@@ -2,6 +2,7 @@ import {
   Edit3,
   Eye,
   FileDown,
+  FileText,
   FolderKanban,
   Package,
   PenLine,
@@ -29,6 +30,7 @@ import {
   canShowRevokeAssignmentsAction,
   canShowSubmitArchiveAction,
   isDossierWorkflowNode,
+  isPdfDocumentNode,
 } from '@/features/data-management/lib/treeUtils'
 import { useRoleAccess } from '@/features/permissions/hooks/useRoleAccess'
 import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
@@ -36,6 +38,7 @@ import { cn } from '@/lib/utils/cn'
 
 export function DataNodeContextMenu({
   node,
+  parentNode,
   open,
   position,
   onAction,
@@ -43,6 +46,7 @@ export function DataNodeContextMenu({
   onExportExcel,
   onUploadDossier,
   onUploadDocument,
+  onAssignPdfDocument,
   onSubmitArchive,
   onClose,
   role,
@@ -50,6 +54,7 @@ export function DataNodeContextMenu({
   canSubmitArchive = false,
 }: {
   node: DataTreeNodeT | null
+  parentNode?: DataTreeNodeT | null
   open: boolean
   position: { x: number; y: number } | null
   onAction: (node: DataTreeNodeT, mode: DataNodeActionDialogMode) => void
@@ -57,6 +62,7 @@ export function DataNodeContextMenu({
   onExportExcel?: (node: DataTreeNodeT) => void
   onUploadDossier?: (node: DataTreeNodeT) => void
   onUploadDocument?: (node: DataTreeNodeT) => void
+  onAssignPdfDocument?: (node: DataTreeNodeT) => void
   onSubmitArchive?: (node: DataTreeNodeT) => void
   onClose: () => void
   role: DataManagementRole
@@ -120,6 +126,7 @@ export function DataNodeContextMenu({
     | 'exportExcel'
     | 'uploadDossier'
     | 'uploadDocument'
+    | 'assignDocument'
     | 'submitArchive'
     label: string
     icon: React.ComponentType<{ className?: string }>
@@ -147,6 +154,11 @@ export function DataNodeContextMenu({
         key: 'uploadDocument',
         label: t('contextMenu.uploadDocument'),
         icon: Upload,
+      },
+      {
+        key: 'assignDocument',
+        label: t('contextMenu.assignDocument', 'Gán tài liệu (PDF)'),
+        icon: FileText,
       },
       {
         key: 'uploadDossier',
@@ -234,6 +246,13 @@ export function DataNodeContextMenu({
     }
 
     if (node.type === 'document') {
+      if (item.key === 'assignDocument') {
+        return (
+          permissions.canUpload &&
+          isPdfDocumentNode(node) &&
+          parentNode?.dossierStatus === 'READY_FOR_ENTRY'
+        )
+      }
       return item.key === 'delete'
     }
 
@@ -291,6 +310,8 @@ export function DataNodeContextMenu({
                   onUploadDossier?.(node)
                 } else if (item.key === 'uploadDocument') {
                   onUploadDocument?.(node)
+                } else if (item.key === 'assignDocument') {
+                  onAssignPdfDocument?.(node)
                 } else if (item.key === 'submitArchive') {
                   onSubmitArchive?.(node)
                 } else {
