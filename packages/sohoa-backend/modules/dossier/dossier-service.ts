@@ -48,6 +48,7 @@ import {
   deleteOrphanFoldersAfterDossier,
   hardDeleteFoldersByIds,
   purgeDossierFromMinIO,
+  purgeSingleFileFromMinIO,
   softDeleteFoldersByIds,
   softDeleteOrphanFoldersAfterDossier,
   sortFoldersDeepestFirst,
@@ -2350,6 +2351,33 @@ export const DossierService = {
       id: softResult.id,
       mode: "soft" as const,
       deletedFolderIds: softResult.deletedFolderIds,
+    };
+  },
+
+  async deleteFile(fileId: string, _options?: { permanent?: boolean }) {
+    const existing = await db.query.dossierFiles.findFirst({
+      where: eq(dossierFiles.id, fileId),
+    });
+
+    if (!existing) {
+      throw httpError.notFound("File not found");
+    }
+
+    const deletedObjectCount = await purgeSingleFileFromMinIO(existing);
+
+    await db.transaction(async (tx) => {
+      await tx.delete(dossierFiles).where(eq(dossierFiles.id, fileId));
+      await tx
+        .update(dossiers)
+        .set({ updatedAt: new Date() })
+        .where(eq(dossiers.id, existing.dossierId));
+    });
+
+    return {
+      id: fileId,
+      dossierId: existing.dossierId,
+      status: "deleted" as const,
+      deletedObjectCount,
     };
   },
 

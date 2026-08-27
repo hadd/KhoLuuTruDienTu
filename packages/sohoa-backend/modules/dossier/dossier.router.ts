@@ -555,6 +555,32 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     },
   );
 
+  app.delete(
+    "/files/:id",
+    async ({ params, query, profile }) => {
+      authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+      const record = await service.deleteFile(params.id, {
+        permanent: isPermanentDeleteFlag(query.permanent),
+      });
+      return { record, status: "deleted" };
+    },
+    {
+      params: t.Object({ id: IdParam("Dossier File ID") }),
+      query: t.Object({
+        permanent: t.Optional(
+          t.Union([t.Boolean(), t.Literal("true"), t.Literal("false")], {
+            description: "Permanently delete file from MinIO and DB.",
+          }),
+        ),
+      }),
+      detail: {
+        tags,
+        summary: "Xóa file tài liệu (dossier_files)",
+        description: "Xóa file tài liệu đơn lẻ khỏi MinIO storage và CSDL.",
+      },
+    },
+  );
+
   app.get(
     "/soft-deleted",
     async ({ query, profile }) => {
