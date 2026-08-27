@@ -1,0 +1,1280 @@
+{
+  "ho_so_id": "1.DL PDF/LAN 1/CSDL_SOHOA_PVEP/ALG/VV/358/0964",
+  "trang_thai_ho_so": "Đã số hóa PVEP",
+  "metadata_groups": [
+    {
+      "group_code": "HO_SO_LUU_TRU",
+      "group_name": "Metadata cấp Hồ sơ lưu trữ",
+      "source_document": {
+        "file_name": null,
+        "file_path": null
+      },
+      "fields": [
+        {
+          "name": "MA_HO_SO",
+          "display": "Mã hồ sơ",
+          "type": "string",
+          "value": "0964",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "MA_CO_QUAN_LUU_TRU_LICH_SU",
+          "display": "Mã cơ quan lưu trữ lịch sử",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "MA_PHONG",
+          "display": "Mã phông/công trình/sưu tập lưu trữ",
+          "type": "string",
+          "value": "ALG",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "MUC_LUC_SO",
+          "display": "Mục lục số hoặc năm hình thành hồ sơ",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "SO_VA_KY_HIEU_HO_SO",
+          "display": "Số và ký hiệu hồ sơ",
+          "type": "string",
+          "value": "0964",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "TIEU_DE_HO_SO",
+          "display": "Tiêu đề hồ sơ",
+          "type": "string",
+          "value": "CHIN CÔNG NĂM CỦA TCI ĐẦU HIỆN NHINH vê tim himm thom do hha dâu halu lo 433014166 Algeria, năm 2002",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "THOI_HAN_BAO_QUAN",
+          "display": "Thời hạn bảo quản",
+          "type": "string",
+          "value": "Vĩnh viễn",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "CHE_DO_SU_DUNG",
+          "display": "Chế độ sử dụng",
+          "type": "string",
+          "value": "Hạn chế",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "NGON_NGU",
+          "display": "Ngôn ngữ",
+          "type": "string",
+          "value": "Tiếng Việt",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "THOI_GIAN_BAT_DAU",
+          "display": "Thời gian bắt đầu",
+          "type": "date",
+          "value": "2002-01-01",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "THOI_GIAN_KET_THUC",
+          "display": "Thời gian kết thúc",
+          "type": "date",
+          "value": "2002-12-31",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "SO_LUONG_TO",
+          "display": "Số lượng tờ",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "TONG_SO_VAN_BAN_TRONG_HO_SO",
+          "display": "Tổng số văn bản trong hồ sơ",
+          "type": "string",
+          "value": "5",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "CHU_GIAI",
+          "display": "Chú giải",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "KY_HIEU_THONG_TIN",
+          "display": "Ký hiệu thông tin",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "TU_KHOA",
+          "display": "Từ khóa",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "SO_LUONG_TRANG",
+          "display": "Số lượng trang",
+          "type": "object",
+          "value": null,
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "TINH_TRANG_VAT_LY",
+          "display": "Tình trạng vật lý",
+          "type": "string",
+          "value": "Bình thường",
+          "page": null,
+          "bboxes": []
+        }
+      ]
+    },
+    {
+      "group_code": "TAI_LIEU_LUU_TRU",
+      "group_name": "Metadata cấp Tài liệu lưu trữ",
+      "documents": [
+        {
+          "source_document": {
+            "file_name": "PVEP.2002.0964.001.pdf",
+            "file_path": "raw/1.DL PDF/LAN 1/CSDL_SOHOA_PVEP/ALG/VV/358/0964/PVEP.2002.0964.001.pdf"
+          },
+          "fields": [
+            {
+              "name": "MA_DINH_DANH_VAN_BAN",
+              "display": "Mã định danh văn bản",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MA_HO_SO",
+              "display": "Mã hồ sơ",
+              "type": "string",
+              "value": "0964",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MA_CO_QUAN_LUU_TRU_LICH_SU",
+              "display": "Mã cơ quan lưu trữ lịch sử",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MA_PHONG",
+              "display": "Mã phông/công trình/sưu tập lưu trữ",
+              "type": "string",
+              "value": "ALG",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MUC_LUC_SO",
+              "display": "Mục lục số hoặc năm hình thành hồ sơ",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_VA_KY_HIEU_HO_SO",
+              "display": "Số và ký hiệu hồ sơ",
+              "type": "string",
+              "value": "0964",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_THU_TU_VAN_BAN",
+              "display": "Số thứ tự văn bản trong hồ sơ",
+              "type": "string",
+              "value": "1",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TEN_LOAI_VAN_BAN",
+              "display": "Tên loại văn bản",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_CUA_VAN_BAN",
+              "display": "Số văn bản",
+              "type": "string",
+              "value": "1330",
+              "page": 1,
+              "bboxes": [
+                [
+                  293.0,
+                  391.0,
+                  681.0,
+                  442.0
+                ]
+              ]
+            },
+            {
+              "name": "KY_HIEU_CUA_VAN_BAN",
+              "display": "Ký hiệu của văn bản",
+              "type": "string",
+              "value": "",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "NGAY_THANG_NAM_BAN_HANH",
+              "display": "Ngày, tháng, năm văn bản",
+              "type": "date",
+              "value": "2002-01-14",
+              "page": 1,
+              "bboxes": [
+                [
+                  1340.0,
+                  387.0,
+                  2149.0,
+                  442.0
+                ]
+              ]
+            },
+            {
+              "name": "TEN_CO_QUAN_BAN_HANH",
+              "display": "Tên cơ quan, tổ chức ban hành văn bản",
+              "type": "string",
+              "value": "CÔNG TY ĐẦU TƯ-PHÁT TRIỂN DẦU KHÍ",
+              "page": 1,
+              "bboxes": [
+                [
+                  304.0,
+                  256.0,
+                  1190.0,
+                  303.0
+                ]
+              ]
+            },
+            {
+              "name": "TRICH_YEU_NOI_DUNG",
+              "display": "Trích yếu nội dung",
+              "type": "string",
+              "value": "Đấu thầu thăm dò khai thác ở An-giê-ri",
+              "page": 1,
+              "bboxes": [
+                [
+                  300.0,
+                  453.0,
+                  1387.0,
+                  508.0
+                ]
+              ]
+            },
+            {
+              "name": "NGON_NGU",
+              "display": "Ngôn ngữ",
+              "type": "string",
+              "value": "Tiếng Việt",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_LUONG_TRANG_CUA_VAN_BAN",
+              "display": "Số lượng trang của văn bản",
+              "type": "string",
+              "value": "2",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "GHI_CHU",
+              "display": "Ghi chú",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "KY_HIEU_THONG_TIN",
+              "display": "Ký hiệu thông tin",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TU_KHOA",
+              "display": "Từ khóa",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "CHE_DO_SU_DUNG",
+              "display": "Chế độ sử dụng",
+              "type": "string",
+              "value": "Hạn chế",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MUC_DO_TIN_CAY",
+              "display": "Mức độ tin cậy",
+              "type": "string",
+              "value": "Bản chính",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "BUT_TICH",
+              "display": "Bút tích",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TINH_TRANG_VAT_LY",
+              "display": "Tình trạng vật lý",
+              "type": "string",
+              "value": "Bình thường",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TRANG_SO",
+              "display": "Trang số",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            }
+          ]
+        },
+        {
+          "source_document": {
+            "file_name": "PVEP.2002.0964.002.pdf",
+            "file_path": "raw/1.DL PDF/LAN 1/CSDL_SOHOA_PVEP/ALG/VV/358/0964/PVEP.2002.0964.002.pdf"
+          },
+          "fields": [
+            {
+              "name": "MA_DINH_DANH_VAN_BAN",
+              "display": "Mã định danh văn bản",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MA_HO_SO",
+              "display": "Mã hồ sơ",
+              "type": "string",
+              "value": "0964",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MA_CO_QUAN_LUU_TRU_LICH_SU",
+              "display": "Mã cơ quan lưu trữ lịch sử",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MA_PHONG",
+              "display": "Mã phông/công trình/sưu tập lưu trữ",
+              "type": "string",
+              "value": "ALG",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MUC_LUC_SO",
+              "display": "Mục lục số hoặc năm hình thành hồ sơ",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_VA_KY_HIEU_HO_SO",
+              "display": "Số và ký hiệu hồ sơ",
+              "type": "string",
+              "value": "0964",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_THU_TU_VAN_BAN",
+              "display": "Số thứ tự văn bản trong hồ sơ",
+              "type": "string",
+              "value": "2",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TEN_LOAI_VAN_BAN",
+              "display": "Tên loại văn bản",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_CUA_VAN_BAN",
+              "display": "Số văn bản",
+              "type": "string",
+              "value": "3023",
+              "page": 1,
+              "bboxes": [
+                [
+                  397.0,
+                  396.0,
+                  1131.0,
+                  447.0
+                ]
+              ]
+            },
+            {
+              "name": "KY_HIEU_CUA_VAN_BAN",
+              "display": "Ký hiệu của văn bản",
+              "type": "string",
+              "value": "/CV- ĐTPT-TDKT-TCKT",
+              "page": 1,
+              "bboxes": [
+                [
+                  397.0,
+                  396.0,
+                  1131.0,
+                  447.0
+                ]
+              ]
+            },
+            {
+              "name": "NGAY_THANG_NAM_BAN_HANH",
+              "display": "Ngày, tháng, năm văn bản",
+              "type": "date",
+              "value": "2002-01-05",
+              "page": 1,
+              "bboxes": [
+                [
+                  1557.0,
+                  513.0,
+                  2259.0,
+                  575.0
+                ]
+              ]
+            },
+            {
+              "name": "TEN_CO_QUAN_BAN_HANH",
+              "display": "Tên cơ quan, tổ chức ban hành văn bản",
+              "type": "string",
+              "value": "TỔNG CÔNG TY DÂU KHÍ VIỆT NAM",
+              "page": 1,
+              "bboxes": [
+                [
+                  966.0,
+                  618.0,
+                  1877.0,
+                  762.0
+                ]
+              ]
+            },
+            {
+              "name": "TRICH_YEU_NOI_DUNG",
+              "display": "Trích yếu nội dung",
+              "type": "string",
+              "value": "Trình duyệt BCNCKT đầu tư TKTDKT vào lô 433a/416b Algeria",
+              "page": 1,
+              "bboxes": [
+                [
+                  389.0,
+                  454.0,
+                  1120.0,
+                  568.0
+                ]
+              ]
+            },
+            {
+              "name": "NGON_NGU",
+              "display": "Ngôn ngữ",
+              "type": "string",
+              "value": "Tiếng Việt",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_LUONG_TRANG_CUA_VAN_BAN",
+              "display": "Số lượng trang của văn bản",
+              "type": "string",
+              "value": "5",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "GHI_CHU",
+              "display": "Ghi chú",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "KY_HIEU_THONG_TIN",
+              "display": "Ký hiệu thông tin",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TU_KHOA",
+              "display": "Từ khóa",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "CHE_DO_SU_DUNG",
+              "display": "Chế độ sử dụng",
+              "type": "string",
+              "value": "Hạn chế",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MUC_DO_TIN_CAY",
+              "display": "Mức độ tin cậy",
+              "type": "string",
+              "value": "Bản chính",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "BUT_TICH",
+              "display": "Bút tích",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TINH_TRANG_VAT_LY",
+              "display": "Tình trạng vật lý",
+              "type": "string",
+              "value": "Bình thường",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TRANG_SO",
+              "display": "Trang số",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            }
+          ]
+        },
+        {
+          "source_document": {
+            "file_name": "PVEP.2002.0964.003.pdf",
+            "file_path": "raw/1.DL PDF/LAN 1/CSDL_SOHOA_PVEP/ALG/VV/358/0964/PVEP.2002.0964.003.pdf"
+          },
+          "fields": [
+            {
+              "name": "MA_DINH_DANH_VAN_BAN",
+              "display": "Mã định danh văn bản",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MA_HO_SO",
+              "display": "Mã hồ sơ",
+              "type": "string",
+              "value": "0964",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MA_CO_QUAN_LUU_TRU_LICH_SU",
+              "display": "Mã cơ quan lưu trữ lịch sử",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MA_PHONG",
+              "display": "Mã phông/công trình/sưu tập lưu trữ",
+              "type": "string",
+              "value": "ALG",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MUC_LUC_SO",
+              "display": "Mục lục số hoặc năm hình thành hồ sơ",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_VA_KY_HIEU_HO_SO",
+              "display": "Số và ký hiệu hồ sơ",
+              "type": "string",
+              "value": "0964",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_THU_TU_VAN_BAN",
+              "display": "Số thứ tự văn bản trong hồ sơ",
+              "type": "string",
+              "value": "3",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TEN_LOAI_VAN_BAN",
+              "display": "Tên loại văn bản",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_CUA_VAN_BAN",
+              "display": "Số văn bản",
+              "type": "string",
+              "value": "3138",
+              "page": 1,
+              "bboxes": [
+                [
+                  270.0,
+                  527.0,
+                  505.0,
+                  623.0
+                ]
+              ]
+            },
+            {
+              "name": "KY_HIEU_CUA_VAN_BAN",
+              "display": "Ký hiệu của văn bản",
+              "type": "string",
+              "value": "/CV-BL",
+              "page": 1,
+              "bboxes": [
+                [
+                  547.0,
+                  555.0,
+                  727.0,
+                  610.0
+                ]
+              ]
+            },
+            {
+              "name": "NGAY_THANG_NAM_BAN_HANH",
+              "display": "Ngày, tháng, năm văn bản",
+              "type": "date",
+              "value": "2002-07-09",
+              "page": 1,
+              "bboxes": [
+                [
+                  1381.0,
+                  551.0,
+                  2174.0,
+                  614.0
+                ]
+              ]
+            },
+            {
+              "name": "TEN_CO_QUAN_BAN_HANH",
+              "display": "Tên cơ quan, tổ chức ban hành văn bản",
+              "type": "string",
+              "value": "TỔNG CÔNG TY DẦU KHÍ VIỆT NAM",
+              "page": 1,
+              "bboxes": [
+                [
+                  305.0,
+                  268.0,
+                  2119.0,
+                  2172.0
+                ]
+              ]
+            },
+            {
+              "name": "TRICH_YEU_NOI_DUNG",
+              "display": "Trích yếu nội dung",
+              "type": "string",
+              "value": "Ký kết Hợp đồng tìm kiếm, thẩm lượng và khai thác dầu khí lô 433a & 416b - Algeria",
+              "page": 1,
+              "bboxes": [
+                [
+                  279.0,
+                  694.0,
+                  1293.0,
+                  827.0
+                ]
+              ]
+            },
+            {
+              "name": "NGON_NGU",
+              "display": "Ngôn ngữ",
+              "type": "string",
+              "value": "Tiếng Việt",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_LUONG_TRANG_CUA_VAN_BAN",
+              "display": "Số lượng trang của văn bản",
+              "type": "string",
+              "value": "1",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "GHI_CHU",
+              "display": "Ghi chú",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "KY_HIEU_THONG_TIN",
+              "display": "Ký hiệu thông tin",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TU_KHOA",
+              "display": "Từ khóa",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "CHE_DO_SU_DUNG",
+              "display": "Chế độ sử dụng",
+              "type": "string",
+              "value": "Hạn chế",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MUC_DO_TIN_CAY",
+              "display": "Mức độ tin cậy",
+              "type": "string",
+              "value": "Bản chính",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "BUT_TICH",
+              "display": "Bút tích",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TINH_TRANG_VAT_LY",
+              "display": "Tình trạng vật lý",
+              "type": "string",
+              "value": "Bình thường",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TRANG_SO",
+              "display": "Trang số",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            }
+          ]
+        },
+        {
+          "source_document": {
+            "file_name": "PVEP.2002.0964.004.pdf",
+            "file_path": "raw/1.DL PDF/LAN 1/CSDL_SOHOA_PVEP/ALG/VV/358/0964/PVEP.2002.0964.004.pdf"
+          },
+          "fields": [
+            {
+              "name": "MA_DINH_DANH_VAN_BAN",
+              "display": "Mã định danh văn bản",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MA_HO_SO",
+              "display": "Mã hồ sơ",
+              "type": "string",
+              "value": "0964",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MA_CO_QUAN_LUU_TRU_LICH_SU",
+              "display": "Mã cơ quan lưu trữ lịch sử",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MA_PHONG",
+              "display": "Mã phông/công trình/sưu tập lưu trữ",
+              "type": "string",
+              "value": "ALG",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MUC_LUC_SO",
+              "display": "Mục lục số hoặc năm hình thành hồ sơ",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_VA_KY_HIEU_HO_SO",
+              "display": "Số và ký hiệu hồ sơ",
+              "type": "string",
+              "value": "0964",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_THU_TU_VAN_BAN",
+              "display": "Số thứ tự văn bản trong hồ sơ",
+              "type": "string",
+              "value": "4",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TEN_LOAI_VAN_BAN",
+              "display": "Tên loại văn bản",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_CUA_VAN_BAN",
+              "display": "Số văn bản",
+              "type": "string",
+              "value": "35N0",
+              "page": 1,
+              "bboxes": [
+                [
+                  374.0,
+                  389.0,
+                  932.0,
+                  456.0
+                ]
+              ]
+            },
+            {
+              "name": "KY_HIEU_CUA_VAN_BAN",
+              "display": "Ký hiệu của văn bản",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "NGAY_THANG_NAM_BAN_HANH",
+              "display": "Ngày, tháng, năm văn bản",
+              "type": "date",
+              "value": "2002-07-30",
+              "page": 1,
+              "bboxes": [
+                [
+                  1434.0,
+                  378.0,
+                  2240.0,
+                  456.0
+                ]
+              ]
+            },
+            {
+              "name": "TEN_CO_QUAN_BAN_HANH",
+              "display": "Tên cơ quan, tổ chức ban hành văn bản",
+              "type": "string",
+              "value": "TỔ CHỨC DÂU KHÍ CÔNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM",
+              "page": 1,
+              "bboxes": [
+                [
+                  381.0,
+                  173.0,
+                  2336.0,
+                  246.0
+                ]
+              ]
+            },
+            {
+              "name": "TRICH_YEU_NOI_DUNG",
+              "display": "Trích yếu nội dung",
+              "type": "string",
+              "value": "Vốn đầu tư cho dự án tìm kiếm thăm dò dầu khí ở Algeria",
+              "page": 1,
+              "bboxes": [
+                [
+                  377.0,
+                  463.0,
+                  1163.0,
+                  577.0
+                ]
+              ]
+            },
+            {
+              "name": "NGON_NGU",
+              "display": "Ngôn ngữ",
+              "type": "string",
+              "value": "Tiếng Việt",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_LUONG_TRANG_CUA_VAN_BAN",
+              "display": "Số lượng trang của văn bản",
+              "type": "string",
+              "value": "1",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "GHI_CHU",
+              "display": "Ghi chú",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "KY_HIEU_THONG_TIN",
+              "display": "Ký hiệu thông tin",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TU_KHOA",
+              "display": "Từ khóa",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "CHE_DO_SU_DUNG",
+              "display": "Chế độ sử dụng",
+              "type": "string",
+              "value": "Hạn chế",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MUC_DO_TIN_CAY",
+              "display": "Mức độ tin cậy",
+              "type": "string",
+              "value": "Bản chính",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "BUT_TICH",
+              "display": "Bút tích",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TINH_TRANG_VAT_LY",
+              "display": "Tình trạng vật lý",
+              "type": "string",
+              "value": "Bình thường",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TRANG_SO",
+              "display": "Trang số",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            }
+          ]
+        },
+        {
+          "source_document": {
+            "file_name": "PVEP.2002.0964.BIA.pdf",
+            "file_path": "raw/1.DL PDF/LAN 1/CSDL_SOHOA_PVEP/ALG/VV/358/0964/PVEP.2002.0964.BIA.pdf"
+          },
+          "fields": [
+            {
+              "name": "MA_DINH_DANH_VAN_BAN",
+              "display": "Mã định danh văn bản",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MA_HO_SO",
+              "display": "Mã hồ sơ",
+              "type": "string",
+              "value": "0964",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MA_CO_QUAN_LUU_TRU_LICH_SU",
+              "display": "Mã cơ quan lưu trữ lịch sử",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MA_PHONG",
+              "display": "Mã phông/công trình/sưu tập lưu trữ",
+              "type": "string",
+              "value": "ALG",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MUC_LUC_SO",
+              "display": "Mục lục số hoặc năm hình thành hồ sơ",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_VA_KY_HIEU_HO_SO",
+              "display": "Số và ký hiệu hồ sơ",
+              "type": "string",
+              "value": "0964",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_THU_TU_VAN_BAN",
+              "display": "Số thứ tự văn bản trong hồ sơ",
+              "type": "string",
+              "value": "BIA",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TEN_LOAI_VAN_BAN",
+              "display": "Tên loại văn bản",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_CUA_VAN_BAN",
+              "display": "Số văn bản",
+              "type": "string",
+              "value": "433014166",
+              "page": 1,
+              "bboxes": [
+                [
+                  794.0,
+                  2122.0,
+                  2408.0,
+                  2230.0
+                ]
+              ]
+            },
+            {
+              "name": "KY_HIEU_CUA_VAN_BAN",
+              "display": "Ký hiệu của văn bản",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "NGAY_THANG_NAM_BAN_HANH",
+              "display": "Ngày, tháng, năm văn bản",
+              "type": "date",
+              "value": "2002-09-09",
+              "page": 1,
+              "bboxes": [
+                [
+                  882.0,
+                  2492.0,
+                  1814.0,
+                  2697.0
+                ]
+              ]
+            },
+            {
+              "name": "TEN_CO_QUAN_BAN_HANH",
+              "display": "Tên cơ quan, tổ chức ban hành văn bản",
+              "type": "string",
+              "value": "PHÔNG TỔ CÔNG TY THĂM DÒ KHAI THÁC DẦU KHÍ (PVEP)",
+              "page": 1,
+              "bboxes": [
+                [
+                  623.0,
+                  551.0,
+                  2599.0,
+                  635.0
+                ]
+              ]
+            },
+            {
+              "name": "TRICH_YEU_NOI_DUNG",
+              "display": "Trích yếu nội dung",
+              "type": "string",
+              "value": "vê tim himm thom do hha dâu halu lo",
+              "page": 1,
+              "bboxes": [
+                [
+                  794.0,
+                  2010.0,
+                  2408.0,
+                  2230.0
+                ]
+              ]
+            },
+            {
+              "name": "NGON_NGU",
+              "display": "Ngôn ngữ",
+              "type": "string",
+              "value": "Tiếng Việt",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_LUONG_TRANG_CUA_VAN_BAN",
+              "display": "Số lượng trang của văn bản",
+              "type": "string",
+              "value": "1",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "GHI_CHU",
+              "display": "Ghi chú",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "KY_HIEU_THONG_TIN",
+              "display": "Ký hiệu thông tin",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TU_KHOA",
+              "display": "Từ khóa",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "CHE_DO_SU_DUNG",
+              "display": "Chế độ sử dụng",
+              "type": "string",
+              "value": "Hạn chế",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "MUC_DO_TIN_CAY",
+              "display": "Mức độ tin cậy",
+              "type": "string",
+              "value": "Bản chính",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "BUT_TICH",
+              "display": "Bút tích",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TINH_TRANG_VAT_LY",
+              "display": "Tình trạng vật lý",
+              "type": "string",
+              "value": "Bình thường",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TRANG_SO",
+              "display": "Trang số",
+              "type": "object",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
