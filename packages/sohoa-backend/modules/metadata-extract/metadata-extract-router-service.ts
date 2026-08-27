@@ -93,9 +93,12 @@ function resolveJsonPath(
     return derived;
 }
 
+// Luồng chọn model bóc tách metadata (OLD / TT05 / PVEP) tạm thời được comment lại theo yêu cầu.
+// Vẫn giữ nguyên luồng xử lý Manual / Auto OCR khi upload.
 function resolvePublishTopics(
     mode: MetadataExtractTriggerModeType | MetadataExtractModeType,
 ): string[] {
+    /*
     if (mode === MetadataExtractTriggerMode.BOTH) {
         return [
             env.KAFKA_MERGE_COMPLETED_TOPIC,
@@ -112,7 +115,8 @@ function resolvePublishTopics(
     if (mode === MetadataExtractMode.PVEP) {
         return [env.KAFKA_START_METADATA_PVEP_TOPIC];
     }
-    // off
+    */
+    // Luồng chọn model (OLD / TT05 / PVEP) bị ngắt/comment lại theo yêu cầu
     return [];
 }
 
