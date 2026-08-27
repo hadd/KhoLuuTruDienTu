@@ -6,7 +6,7 @@ import { env } from "../../env.ts";
 import { queryDuckDb } from "./audit-log-cold-duckdb.ts";
 import { resolveEventTypeFilter } from "./audit-log-filter-catalog.ts";
 import type { AuditLogListQuery } from "./audit-log-unified-query.ts";
-import type { ShardRecord } from "./audit-log-archive-io.ts";
+import { findRecordInShard, type ShardRecord } from "./audit-log-archive-io.ts";
 
 function parseDate(value: string | undefined): Date | null {
     if (!value?.trim()) return null;
@@ -179,7 +179,7 @@ export async function fetchColdForExport(
 }
 
 /**
- * Lookup 1 bản ghi cold theo id từ DuckDB thông qua `audit_log_archive_shards.record_ids`.
+ * Lookup 1 bản ghi cold theo id từ MinIO thông qua `audit_log_archive_shards.record_ids`.
  */
 export async function fetchColdById(id: string): Promise<ShardRecord | null> {
     const [shard] = await db.select({ objectKey: auditLogArchiveShards.objectKey })
@@ -194,10 +194,5 @@ export async function fetchColdById(id: string): Promise<ShardRecord | null> {
 
     if (!shard) return null;
 
-    const bucket = env.S3?.bucket || "aip-secure-bucket";
-    const source = `read_json_auto(['s3://${bucket}/${shard.objectKey}'])`;
-    const sqlStr = `SELECT * FROM ${source} WHERE id = '${id.replace(/'/g, "''")}' LIMIT 1`;
-
-    const [record] = await queryDuckDb<ShardRecord>(sqlStr);
-    return record ?? null;
+    return await findRecordInShard(shard.objectKey, id);
 }
