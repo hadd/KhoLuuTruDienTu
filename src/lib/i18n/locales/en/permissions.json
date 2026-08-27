@@ -54,7 +54,16 @@
     "selectRoleHint": "Select a role to view permissions",
     "selectModuleHint": "Select a module to view permission keys",
     "fullAccessBadge": "Full access (*)",
-    "selectAllPermissions": "All permissions"
+    "selectAllPermissions": "All permissions",
+    "grantedCount": "{{granted}} / {{total}} permissions assigned",
+    "subPermissionCount": "{{granted}} / {{total}} sub-permissions assigned",
+    "quickSelectAll": "Quick select all",
+    "deselectAll": "Deselect all",
+    "quickSelectAllTitle": "Quick select all sub-permissions and parent permission",
+    "collapseSubPermissions": "Collapse sub-permissions",
+    "expandSubPermissions": "Expand sub-permissions",
+    "toggleHideParentAndChildren": "Hide/Show this permission and sub-permissions",
+    "subPermissionsHeader": "Sub-permissions list:"
   },
   "editing": {
     "placeholder": {

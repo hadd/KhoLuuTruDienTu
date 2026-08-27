@@ -123,6 +123,8 @@
     "pagination": "Showing {{from}} - {{to}} of {{total}} staff members"
   },
   "errors": {
-    "loadFailed": "Unable to load dashboard data"
+    "loadFailed": "Unable to load dashboard data",
+    "noPermissionTitle": "No permission to view Admin Dashboard data",
+    "noPermissionDescription": "Your account does not have permission to access detail sections in the Admin Dashboard. Please contact system administrator."
   }
 }

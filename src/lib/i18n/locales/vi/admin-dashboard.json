@@ -123,6 +123,8 @@
     "pagination": "Hiển thị {{from}} - {{to}} trên tổng số {{total}} nhân sự"
   },
   "errors": {
-    "loadFailed": "Không thể tải dữ liệu bảng điều khiển"
+    "loadFailed": "Không thể tải dữ liệu bảng điều khiển",
+    "noPermissionTitle": "Chưa có quyền xem dữ liệu Dashboard Quản trị",
+    "noPermissionDescription": "Tài khoản của bạn chưa được phân quyền truy cập các mục chi tiết trong Dashboard Quản trị. Vui lòng liên hệ Quản trị viên hệ thống để được cấp quyền."
   }
 }
