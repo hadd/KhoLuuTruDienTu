@@ -3,6 +3,7 @@
   "description": "Review user actions and system events.",
   "empty": "No activity logs found.",
   "unknown": "Unknown",
+  "system": "System",
   "search": {
     "placeholder": "Search summary, path, or action..."
   },
