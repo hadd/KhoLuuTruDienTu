@@ -100,6 +100,28 @@
   "table": {
     "empty": "No data available"
   },
+  "employeeKpi": {
+    "title": "Employee Processing KPI",
+    "description": "Progress of assigned dossiers and pages along with accuracy rate per employee",
+    "searchPlaceholder": "Search staff name...",
+    "periodLabel": "Period",
+    "period": {
+      "today": "Today",
+      "7d": "Last 7 days",
+      "30d": "Last 30 days",
+      "month": "This month",
+      "custom": "Custom"
+    },
+    "columns": {
+      "employee": "Employee",
+      "dossierProgress": "Dossiers (Done / Assigned)",
+      "pageProgress": "Pages (Done / Assigned)",
+      "accuracyRate": "Accuracy Rate"
+    },
+    "dossierCountFormat": "{{completed}} / {{assigned}} dossiers",
+    "pageCountFormat": "{{completed}} / {{assigned}} pages",
+    "pagination": "Showing {{from}} - {{to}} of {{total}} staff members"
+  },
   "errors": {
     "loadFailed": "Unable to load dashboard data"
   }

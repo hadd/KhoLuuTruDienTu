@@ -86,6 +86,37 @@ export type AdminDashboardDossierChartT = {
   points: Array<AdminDashboardDossierChartPointT>
 }
 
+export type AdminDashboardEmployeeKpiT = {
+  userId: string
+  fullName: string
+  role: string
+  groupName?: string | null
+  assignedDossiersCount: number
+  completedDossiersCount: number
+  rejectedDossiersCount?: number
+  assignedPagesCount: number
+  completedPagesCount: number
+  dossierCompletionRate: number
+  pageCompletionRate: number
+  // Biên tập (Maker)
+  makerAssignedDossiersCount?: number
+  makerCompletedDossiersCount?: number
+  makerAssignedPagesCount?: number
+  makerCompletedPagesCount?: number
+  makerDossierCompletionRate?: number
+  makerPageCompletionRate?: number
+  // Duyệt (QC)
+  qcAssignedDossiersCount?: number
+  qcCompletedDossiersCount?: number
+  qcAssignedPagesCount?: number
+  qcCompletedPagesCount?: number
+  qcDossierCompletionRate?: number
+  qcPageCompletionRate?: number
+  accuracyRate: number
+  avgProcessingTimeMinutes?: number
+  kpiStatus?: 'EXCELLENT' | 'GOOD' | 'WARNING' | 'CRITICAL'
+}
+
 export type AdminDashboardT = {
   totalDossiers: number
   byStatus: AdminDashboardDossierStatusCountsT
@@ -102,4 +133,5 @@ export type AdminDashboardT = {
   dossierChart: AdminDashboardDossierChartT
   ocrActivityTrend: Array<AdminDashboardOcrTrendPointT>
   recentActivities: Array<AdminDashboardActivityT>
+  employeeKpis: Array<AdminDashboardEmployeeKpiT>
 }
