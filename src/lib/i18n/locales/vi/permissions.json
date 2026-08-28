@@ -56,7 +56,16 @@
     "selectRoleHint": "Chọn một vai trò để xem quyền",
     "selectModuleHint": "Chọn một nhóm chức năng để xem quyền chi tiết",
     "fullAccessBadge": "Toàn quyền (*)",
-    "selectAllPermissions": "Tất cả các quyền"
+    "selectAllPermissions": "Tất cả các quyền",
+    "grantedCount": "{{granted}} / {{total}} quyền được gán",
+    "subPermissionCount": "{{granted}} / {{total}} quyền con được gán",
+    "quickSelectAll": "Gắn nhanh tất cả",
+    "deselectAll": "Bỏ chọn tất cả",
+    "quickSelectAllTitle": "Gắn nhanh tất cả các quyền con và quyền tổng",
+    "collapseSubPermissions": "Thu gọn các quyền con",
+    "expandSubPermissions": "Mở rộng các quyền con",
+    "toggleHideParentAndChildren": "Ẩn/Hiện quyền này và các quyền con",
+    "subPermissionsHeader": "Danh sách quyền con:"
   },
   "editing": {
     "placeholder": {

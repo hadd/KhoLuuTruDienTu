@@ -1,4 +1,4 @@
-import { ChevronRight, Trash2, Eye, EyeOff } from 'lucide-react'
+import { ChevronRight, ChevronDown, Trash2, Eye, EyeOff } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -312,10 +312,12 @@ export function RolePermissionEditor({
                       </label>
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-medium text-muted-foreground">
-                          {majorItems.filter((i) =>
-                            isPermissionGranted(permissions, i.key, i.module),
-                          ).length}{' '}
-                          / {majorItems.length} quyền được gán
+                          {t('matrix.grantedCount', {
+                            granted: majorItems.filter((i) =>
+                              isPermissionGranted(permissions, i.key, i.module),
+                            ).length,
+                            total: majorItems.length,
+                          })}
                         </span>
                         {showHideControls && (
                           <Button
@@ -451,6 +453,7 @@ export function RolePermissionEditor({
                                           pendingKey={pendingKey}
                                           canManageRoles={canManageRoles}
                                           onToggle={handlePermissionToggle}
+                                          onToggleItems={handleToggleItems}
                                           showHideControls={showHideControls}
                                           hiddenPermissions={rolePermissions?.hiddenPermissions ?? []}
                                           onToggleHide={handleToggleHidePermissions}
@@ -509,6 +512,7 @@ export function RolePermissionEditor({
                                           pendingKey={pendingKey}
                                           canManageRoles={canManageRoles}
                                           onToggle={handlePermissionToggle}
+                                          onToggleItems={handleToggleItems}
                                           showHideControls={showHideControls}
                                           hiddenPermissions={rolePermissions?.hiddenPermissions ?? []}
                                           onToggleHide={handleToggleHidePermissions}
@@ -529,12 +533,273 @@ export function RolePermissionEditor({
   )
 }
 
+function SinglePermissionItem({
+  item,
+  permissions,
+  pendingKey,
+  canManageRoles,
+  onToggle,
+  showHideControls = false,
+  hiddenPermissions = [],
+  onToggleHide,
+}: {
+  item: PermissionCatalogItemT
+  permissions: string[]
+  pendingKey: string | null
+  canManageRoles: boolean
+  onToggle: (item: PermissionCatalogItemT, currentlyGranted: boolean) => void
+  showHideControls?: boolean
+  hiddenPermissions?: string[]
+  onToggleHide?: (keys: string[]) => void
+}) {
+  const { t } = useTranslation('permissions')
+  const granted = isPermissionGranted(permissions, item.key, item.module)
+  const isPending = pendingKey === `permission:${item.key}`
+  const disabled = !canManageRoles || isPending
+  const isHidden = hiddenPermissions.includes(item.key)
+
+  return (
+    <div
+      className={cn(
+        'flex items-start gap-2 rounded-md hover:bg-muted/40 transition-colors',
+        isHidden && 'opacity-50',
+      )}
+    >
+      <label
+        className={cn(
+          'flex flex-1 items-start gap-3 p-2',
+          disabled ? 'cursor-default' : 'cursor-pointer',
+        )}
+      >
+        <Checkbox
+          checked={granted}
+          disabled={disabled}
+          onCheckedChange={() => onToggle(item, granted)}
+          className="mt-0.5 shrink-0"
+        />
+        <span className="min-w-0 flex-1">
+          <span className="text-sm font-medium leading-tight text-foreground block">
+            {item.label}
+          </span>
+          {item.description ? (
+            <span className="mt-0.5 block text-xs leading-normal text-muted-foreground">
+              {item.description}
+            </span>
+          ) : null}
+        </span>
+      </label>
+      {showHideControls && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={cn(
+            'size-7 mt-1.5 shrink-0 hover:bg-transparent',
+            isHidden ? 'text-muted-foreground' : 'text-primary',
+          )}
+          onClick={(e) => {
+            e.preventDefault()
+            onToggleHide?.([item.key])
+          }}
+          title={t('matrix.toggleHideParentAndChildren')}
+        >
+          {isHidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+        </Button>
+      )}
+    </div>
+  )
+}
+
+function CollapsiblePermissionGroup({
+  parentItem,
+  childItems,
+  permissions,
+  pendingKey,
+  canManageRoles,
+  onToggle,
+  onToggleItems,
+  showHideControls = false,
+  hiddenPermissions = [],
+  onToggleHide,
+}: {
+  parentItem: PermissionCatalogItemT
+  childItems: PermissionCatalogItemT[]
+  permissions: string[]
+  pendingKey: string | null
+  canManageRoles: boolean
+  onToggle: (item: PermissionCatalogItemT, currentlyGranted: boolean) => void
+  onToggleItems?: (
+    items: PermissionCatalogItemT[],
+    currentlyGranted: boolean,
+    pendingId: string,
+  ) => void
+  showHideControls?: boolean
+  hiddenPermissions?: string[]
+  onToggleHide?: (keys: string[]) => void
+}) {
+  const { t } = useTranslation('permissions')
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  const parentGranted = isPermissionGranted(
+    permissions,
+    parentItem.key,
+    parentItem.module,
+  )
+  const grantedChildCount = childItems.filter((child) =>
+    isPermissionGranted(permissions, child.key, child.module),
+  ).length
+  const allChildrenGranted =
+    childItems.length > 0 && grantedChildCount === childItems.length
+  const isPending =
+    pendingKey === `permission:${parentItem.key}` ||
+    pendingKey === `group-all:${parentItem.key}`
+  const disabled = !canManageRoles || isPending
+  const isHidden = hiddenPermissions.includes(parentItem.key)
+
+  const allGroupItems = [parentItem, ...childItems]
+  const isAllGranted = parentGranted && allChildrenGranted
+
+  const handleToggleAllSub = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!onToggleItems || disabled) return
+    onToggleItems(allGroupItems, isAllGranted, `group-all:${parentItem.key}`)
+  }
+
+  return (
+    <div
+      className={cn(
+        'rounded-lg border border-border/80 bg-muted/20 p-3 transition-colors',
+        isHidden && 'opacity-50',
+      )}
+    >
+      {/* Header Row */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {/* Mũi tên thu / mở */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0 p-0 text-muted-foreground hover:text-foreground"
+            onClick={() => setIsExpanded((prev) => !prev)}
+            title={isExpanded ? t('matrix.collapseSubPermissions') : t('matrix.expandSubPermissions')}
+          >
+            <ChevronRight
+              className={cn(
+                'size-4 transition-transform duration-200',
+                isExpanded && 'rotate-90',
+              )}
+            />
+          </Button>
+
+          {/* Quyền tổng / Parent Checkbox */}
+          <label
+            className={cn(
+              'flex flex-1 items-start gap-2.5 rounded px-1.5 py-1',
+              disabled ? 'cursor-default' : 'cursor-pointer',
+            )}
+          >
+            <Checkbox
+              checked={parentGranted}
+              disabled={disabled}
+              onCheckedChange={() => onToggle(parentItem, parentGranted)}
+              className="mt-0.5 shrink-0"
+            />
+            <span className="min-w-0 flex-1">
+              <span className="text-sm font-semibold leading-tight text-foreground block">
+                {parentItem.label}
+              </span>
+              {parentItem.description ? (
+                <span className="mt-0.5 block text-xs leading-normal text-muted-foreground">
+                  {parentItem.description}
+                </span>
+              ) : null}
+            </span>
+          </label>
+        </div>
+
+        {/* Counter & Quick action buttons */}
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-xs font-medium text-muted-foreground bg-background px-2 py-0.5 rounded border border-border">
+            {t('matrix.subPermissionCount', {
+              granted: grantedChildCount,
+              total: childItems.length,
+            })}
+          </span>
+
+          {onToggleItems && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs font-medium px-2.5"
+              disabled={disabled}
+              onClick={handleToggleAllSub}
+              title={t('matrix.quickSelectAllTitle')}
+            >
+              {isAllGranted ? t('matrix.deselectAll') : t('matrix.quickSelectAll')}
+            </Button>
+          )}
+
+          {showHideControls && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'size-7 hover:bg-transparent',
+                isHidden ? 'text-muted-foreground' : 'text-primary',
+              )}
+              onClick={(e) => {
+                e.preventDefault()
+                onToggleHide?.([
+                  parentItem.key,
+                  ...childItems.map((c) => c.key),
+                ])
+              }}
+              title={t('matrix.toggleHideParentAndChildren')}
+            >
+              {isHidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Expanded Child Permissions List */}
+      {isExpanded && (
+        <div className="mt-3 ml-7 border-l-2 border-primary/30 pl-4 py-2">
+          <div className="text-xs font-medium text-muted-foreground mb-2">
+            {t('matrix.subPermissionsHeader')}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2.5">
+            {childItems.map((child) => (
+              <SinglePermissionItem
+                key={child.key}
+                item={child}
+                permissions={permissions}
+                pendingKey={pendingKey}
+                canManageRoles={canManageRoles}
+                onToggle={onToggle}
+                showHideControls={showHideControls}
+                hiddenPermissions={hiddenPermissions}
+                onToggleHide={onToggleHide}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PermissionGrid({
   items,
   permissions,
   pendingKey,
   canManageRoles,
   onToggle,
+  onToggleItems,
   showHideControls = false,
   hiddenPermissions = [],
   onToggleHide,
@@ -544,68 +809,110 @@ function PermissionGrid({
   pendingKey: string | null
   canManageRoles: boolean
   onToggle: (item: PermissionCatalogItemT, currentlyGranted: boolean) => void
+  onToggleItems?: (
+    items: PermissionCatalogItemT[],
+    currentlyGranted: boolean,
+    pendingId: string,
+  ) => void
   showHideControls?: boolean
   hiddenPermissions?: string[]
   onToggleHide?: (keys: string[]) => void
 }) {
-  // Split into 2-column pairs
-  const rows: Array<Array<PermissionCatalogItemT>> = []
-  for (let index = 0; index < items.length; index += 2) {
-    rows.push(items.slice(index, index + 2))
-  }
+  // Tự động gom nhóm các item có quan hệ cha-con (như 'dashboard.admin' và 'dashboard.admin.*')
+  const parentChildMap = useMemo(() => {
+    const map = new Map<string, PermissionCatalogItemT[]>()
+    for (const parentCandidate of items) {
+      const children = items.filter(
+        (child) =>
+          child.key !== parentCandidate.key &&
+          child.key.startsWith(`${parentCandidate.key}.`),
+      )
+      if (children.length > 0) {
+        map.set(parentCandidate.key, children)
+      }
+    }
+    return map
+  }, [items])
+
+  const childKeySet = useMemo(() => {
+    const set = new Set<string>()
+    for (const children of parentChildMap.values()) {
+      for (const child of children) {
+        set.add(child.key)
+      }
+    }
+    return set
+  }, [parentChildMap])
+
+  const standaloneItems = useMemo(
+    () =>
+      items.filter(
+        (item) => !parentChildMap.has(item.key) && !childKeySet.has(item.key),
+      ),
+    [items, parentChildMap, childKeySet],
+  )
+
+  const parentItems = useMemo(
+    () => items.filter((item) => parentChildMap.has(item.key)),
+    [items, parentChildMap],
+  )
+
+  // Split standalone items into 2-column rows
+  const standaloneRows: Array<Array<PermissionCatalogItemT>> = useMemo(() => {
+    const rows: Array<Array<PermissionCatalogItemT>> = []
+    for (let index = 0; index < standaloneItems.length; index += 2) {
+      rows.push(standaloneItems.slice(index, index + 2))
+    }
+    return rows
+  }, [standaloneItems])
 
   return (
-    <div className="flex flex-col gap-3">
-      {rows.map((row, rowIndex) => (
-        <div key={`row-${rowIndex}`} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
-          {row.map((item) => {
-            const granted = isPermissionGranted(permissions, item.key, item.module)
-            const isPending = pendingKey === `permission:${item.key}`
-            const disabled = !canManageRoles || isPending
-            const isHidden = hiddenPermissions.includes(item.key)
-
-            return (
-              <div key={item.key} className={cn("flex items-start gap-2 rounded-md hover:bg-muted/40 transition-colors", isHidden && "opacity-50")}>
-                <label
-                  className={cn(
-                    'flex flex-1 items-start gap-3 p-2',
-                    disabled ? 'cursor-default' : 'cursor-pointer',
-                  )}
-                >
-                  <Checkbox
-                    checked={granted}
-                    disabled={disabled}
-                    onCheckedChange={() => onToggle(item, granted)}
-                    className="mt-0.5 shrink-0"
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="text-sm font-medium leading-tight text-foreground block">
-                      {item.label}
-                    </span>
-                    {item.description ? (
-                      <span className="mt-0.5 block text-xs leading-normal text-muted-foreground">
-                        {item.description}
-                      </span>
-                    ) : null}
-                  </span>
-                </label>
-                {showHideControls && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className={cn('size-7 mt-1.5 shrink-0 hover:bg-transparent', isHidden ? 'text-muted-foreground' : 'text-primary')}
-                    onClick={(e) => { e.preventDefault(); onToggleHide?.([item.key]); }}
-                    title="Ẩn/Hiện quyền này"
-                  >
-                    {isHidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </Button>
-                )}
-              </div>
-            )
-          })}
+    <div className="flex flex-col gap-4">
+      {/* Các quyền độc lập (Standalone) */}
+      {standaloneRows.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {standaloneRows.map((row, rowIndex) => (
+            <div
+              key={`row-${rowIndex}`}
+              className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3"
+            >
+              {row.map((item) => (
+                <SinglePermissionItem
+                  key={item.key}
+                  item={item}
+                  permissions={permissions}
+                  pendingKey={pendingKey}
+                  canManageRoles={canManageRoles}
+                  onToggle={onToggle}
+                  showHideControls={showHideControls}
+                  hiddenPermissions={hiddenPermissions}
+                  onToggleHide={onToggleHide}
+                />
+              ))}
+            </div>
+          ))}
         </div>
-      ))}
+      )}
+
+      {/* Các nhóm quyền thu mở có sub-permissions (như Dashboard quản trị) */}
+      {parentItems.map((parentItem) => {
+        const childItems = parentChildMap.get(parentItem.key) ?? []
+        return (
+          <CollapsiblePermissionGroup
+            key={parentItem.key}
+            parentItem={parentItem}
+            childItems={childItems}
+            permissions={permissions}
+            pendingKey={pendingKey}
+            canManageRoles={canManageRoles}
+            onToggle={onToggle}
+            onToggleItems={onToggleItems}
+            showHideControls={showHideControls}
+            hiddenPermissions={hiddenPermissions}
+            onToggleHide={onToggleHide}
+          />
+        )
+      })}
     </div>
   )
 }

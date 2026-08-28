@@ -207,6 +207,7 @@ function DashboardRoute() {
         <AdminDashboardContent
           roleChart={roleChart ?? 'pie'}
           dossierTrendGranularity={dossierTrendGranularity ?? 'month'}
+          permissions={permissions}
         />
       ) : overviewVariant === 'qc' ? (
         <QcDashboardContent />
@@ -235,9 +236,11 @@ function EditorDashboardContent({
 function AdminDashboardContent({
   roleChart,
   dossierTrendGranularity,
+  permissions,
 }: {
   roleChart: AdminRoleChartTypeT
   dossierTrendGranularity: AdminDashboardDossierTrendGranularityT
+  permissions: Array<string>
 }) {
   const { data, isLoading } = useQuery(
     adminDashboardQueryOptions(dossierTrendGranularity),
@@ -252,6 +255,7 @@ function AdminDashboardContent({
       data={data}
       roleChart={roleChart}
       dossierTrendGranularity={dossierTrendGranularity}
+      permissions={permissions}
     />
   )
 }

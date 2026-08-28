@@ -9,12 +9,16 @@ export interface ArchiveWarehouseMetadataExportConfigT {
   dossierAccessPassword?: string
   /** Per-dossier passwords for multi export (overrides single dossierAccessPassword). */
   dossierAccessPasswords?: Record<string, string>
+  onProgress?: (progress: { completed: number; total: number; dossierId: string }) => void
+  onItemError?: (dossierId: string, error: Error) => void
 }
 
 export interface ArchiveWarehouseDipExportConfigT {
   applyWatermark?: boolean
   dossierAccessPassword?: string
   dossierAccessPasswords?: Record<string, string>
+  onProgress?: (progress: { completed: number; total: number; dossierId: string }) => void
+  onItemError?: (dossierId: string, error: Error) => void
 }
 
 export type ExportCheckResultT = {
@@ -62,7 +66,7 @@ function saveExportBlob(
 }
 
 const EXPORT_TIMEOUT_MS = 600_000
-const MULTI_DOWNLOAD_GAP_MS = 400
+const MULTI_DOWNLOAD_GAP_MS = 1200
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -130,18 +134,25 @@ export async function checkDossierExportRequirements(
   return response.data
 }
 
+export type BatchExportResultT = {
+  successCount: number
+  failedDossierIds: Array<string>
+}
+
 /**
- * Export one ZIP per dossier (sequential) so each archive can carry its own password.
+ * Export one ZIP per dossier (sequential queue with progress & gap) so each archive can carry its own password.
  */
 export async function exportDossiersMetadataByIds(
   dossierIds: Array<string>,
   downloadName?: string,
   config?: ArchiveWarehouseMetadataExportConfigT,
-): Promise<void> {
-  if (dossierIds.length === 0) return
+): Promise<BatchExportResultT> {
+  const failedDossierIds: Array<string> = []
+  if (dossierIds.length === 0) return { successCount: 0, failedDossierIds }
 
   for (let i = 0; i < dossierIds.length; i += 1) {
     const id = dossierIds[i]!
+    config?.onProgress?.({ completed: i, total: dossierIds.length, dossierId: id })
     const fallbackName =
       dossierIds.length === 1 && downloadName?.trim()
         ? `${downloadName.trim()}.zip`
@@ -153,20 +164,35 @@ export async function exportDossiersMetadataByIds(
     const password = resolvePasswordForDossier(id, config)
     if (password) body.dossierAccessPassword = password
 
-    await postExportZip('/api/v1/dossiers/metadata/export', body, fallbackName)
+    try {
+      await postExportZip('/api/v1/dossiers/metadata/export', body, fallbackName)
+      config?.onProgress?.({ completed: i + 1, total: dossierIds.length, dossierId: id })
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      config?.onItemError?.(id, err)
+      failedDossierIds.push(id)
+      if (dossierIds.length === 1) {
+        throw err
+      }
+    }
+
     if (i < dossierIds.length - 1) await sleep(MULTI_DOWNLOAD_GAP_MS)
   }
+
+  return { successCount: dossierIds.length - failedDossierIds.length, failedDossierIds }
 }
 
 export async function exportDossiersDipByIds(
   dossierIds: Array<string>,
   downloadName?: string,
   config?: ArchiveWarehouseDipExportConfigT,
-): Promise<void> {
-  if (dossierIds.length === 0) return
+): Promise<BatchExportResultT> {
+  const failedDossierIds: Array<string> = []
+  if (dossierIds.length === 0) return { successCount: 0, failedDossierIds }
 
   for (let i = 0; i < dossierIds.length; i += 1) {
     const id = dossierIds[i]!
+    config?.onProgress?.({ completed: i, total: dossierIds.length, dossierId: id })
     const fallbackName =
       dossierIds.length === 1 && downloadName?.trim()
         ? `${downloadName.trim()}-dip.zip`
@@ -177,9 +203,22 @@ export async function exportDossiersDipByIds(
     const password = resolvePasswordForDossier(id, config)
     if (password) body.dossierAccessPassword = password
 
-    await postExportZip('/api/v1/dossiers/dip/export', body, fallbackName)
+    try {
+      await postExportZip('/api/v1/dossiers/dip/export', body, fallbackName)
+      config?.onProgress?.({ completed: i + 1, total: dossierIds.length, dossierId: id })
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      config?.onItemError?.(id, err)
+      failedDossierIds.push(id)
+      if (dossierIds.length === 1) {
+        throw err
+      }
+    }
+
     if (i < dossierIds.length - 1) await sleep(MULTI_DOWNLOAD_GAP_MS)
   }
+
+  return { successCount: dossierIds.length - failedDossierIds.length, failedDossierIds }
 }
 
 export async function exportFoldersMetadataByIds(

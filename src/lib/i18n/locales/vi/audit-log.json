@@ -3,6 +3,7 @@
   "description": "Theo dõi hành vi người dùng và sự kiện trên hệ thống.",
   "empty": "Chưa có lịch sử thao tác.",
   "unknown": "Không xác định",
+  "system": "Hệ thống",
   "search": {
     "placeholder": "Tìm theo mô tả, đường dẫn hoặc thao tác..."
   },
