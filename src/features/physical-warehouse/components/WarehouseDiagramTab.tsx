@@ -1,6 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { X } from 'lucide-react'
+import { ArrowLeft, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
@@ -253,7 +253,7 @@ function buildShelves(
   return [
     {
       node: top,
-      boxes: 0,  
+      boxes: 0,
       cap,
       y: 0,
       leafNodes,
@@ -439,8 +439,8 @@ function elevationModel(row: MapRow) {
   const colNodes: Array<PhysicalWarehouseTreeNodeT> = row.single
     ? [row.node]
     : row.cells
-        .map((c) => c.node)
-        .filter((n): n is PhysicalWarehouseTreeNodeT => n != null)
+      .map((c) => c.node)
+      .filter((n): n is PhysicalWarehouseTreeNodeT => n != null)
 
   let cx = E_LEFT + E_UP_W
   const cols: Array<ElevCol> = colNodes.map((node) => {
@@ -575,6 +575,7 @@ function WarehouseMapCanvas({
   fill = false,
   highlightPhysicalItemId,
   focusDossierId,
+  onNavigateBack,
 }: {
   warehouse: PhysicalWarehouseTreeNodeT
   locationName?: string
@@ -582,6 +583,7 @@ function WarehouseMapCanvas({
   fill?: boolean
   highlightPhysicalItemId?: string
   focusDossierId?: string
+  onNavigateBack?: () => void
 }) {
   const { t } = useTranslation('physical-warehouse')
   const navigate = useNavigate()
@@ -619,6 +621,36 @@ function WarehouseMapCanvas({
 
   const scopeZone = layout.zoneRects.find((z) => z.node.id === scope.zoneId)
   const scopeRow = layout.rows.find((r) => r.node.id === scope.rowId)
+
+  const handleBackStep = () => {
+    if (boxDialog) {
+      setBoxDialog(null)
+    } else if (scope.rowId) {
+      setScope({ zoneId: scope.zoneId, rowId: null })
+    } else if (scope.zoneId) {
+      setScope({ zoneId: null, rowId: null })
+    } else {
+      onNavigateBack?.()
+    }
+  }
+
+  const boxExtraBreadcrumb = useMemo(() => {
+    if (!boxDialog) return []
+    const full = boxDialog.breadcrumb
+    const rowName = scopeRow?.node.name
+    const whName = warehouse.name
+    let startIndex = -1
+    if (rowName) {
+      startIndex = full.indexOf(rowName)
+    }
+    if (startIndex === -1 && whName) {
+      startIndex = full.indexOf(whName)
+    }
+    if (startIndex !== -1) {
+      return full.slice(startIndex + 1)
+    }
+    return [boxDialog.name]
+  }, [boxDialog, scopeRow?.node.name, warehouse.name])
 
   useEffect(() => {
     if (!highlightPhysicalItemId) return
@@ -720,648 +752,712 @@ function WarehouseMapCanvas({
       className={cn('flex w-full gap-2', fill ? 'min-h-[380px] flex-1' : undefined)}
       style={fill ? undefined : { height }}
     >
-    <div
-      ref={wrapRef}
-      className={cn(
-        'relative h-full overflow-hidden rounded-md border bg-[#f4f4f4] transition-[width] duration-300',
-        boxDialog ? 'w-[65%]' : 'w-full',
-      )}
-    >
-      {size.w > 0 && (
-        <Stage
-          ref={stageRef}
-          width={size.w}
-          height={size.h}
-          x={view.x}
-          y={view.y}
-          scaleX={view.k}
-          scaleY={view.k}
-          draggable
-          onWheel={(e: any) => {
-            const p = stageRef.current.getPointerPosition()
-            zoomAt(p.x, p.y, e.evt.deltaY < 0 ? 1.1 : 1 / 1.1)
-          }}
-        >
-          <Layer>
-            {scopeRow ? (
-              /* ========== MẶT CẮT DÃY ========== */
-              <Group>
-                {(() => {
-                  const b = elevationModel(scopeRow)
-                  return (
-                    <>
-                      <Rect
-                        x={0}
-                        y={0}
-                        width={b.W}
-                        height={b.H}
-                        fill="#fafafa"
-                        stroke="#222"
-                        strokeWidth={2}
-                        listening={false}
-                      />
-                      <Line
-                        points={[10, b.floorY + 4, b.W - 10, b.floorY + 4]}
-                        stroke="#444"
-                        strokeWidth={2}
-                        listening={false}
-                      />
-                      {(() => {
-                        const uprights = new Map<number, number>()
-                        for (const col of b.cols) {
-                          const levels = col.tiers.length
-                          if (levels === 0) continue
-                          const colTop = b.floorY - levels * E_LEVEL_H
-                          for (const ux of [col.x - E_UP_W, col.x + col.w]) {
-                            const prev = uprights.get(ux)
-                            uprights.set(
-                              ux,
-                              prev == null ? colTop : Math.min(prev, colTop),
-                            )
-                          }
-                        }
-                        return (
-                          <>
-                            {b.cols.map((col) =>
-                              col.tiers.map((_, idx) => (
-                                <Rect
-                                  key={`beam-${col.node.id}-${idx}`}
-                                  x={col.x}
-                                  y={b.floorY - idx * E_LEVEL_H - E_BEAM_H}
-                                  width={col.w}
-                                  height={E_BEAM_H}
-                                  fill="#e8871e"
-                                  stroke="#b96a12"
-                                  listening={false}
-                                />
-                              )),
-                            )}
-                            {[...uprights.entries()].map(([ux, top]) => (
-                              <Group key={`up-${ux}`} listening={false}>
-                                <Rect
-                                  x={ux}
-                                  y={top - 4}
-                                  width={E_UP_W}
-                                  height={b.floorY - top + 6}
-                                  fill="#2b5ea7"
-                                />
-                                <Rect
-                                  x={ux - 3}
-                                  y={b.floorY + 2}
-                                  width={E_UP_W + 6}
-                                  height={4}
-                                  fill="#1d477e"
-                                />
-                              </Group>
-                            ))}
-                          </>
-                        )
-                      })()}
-                      {b.cols.map((col) =>
-  col.tiers.map((tier, li) => {
-    const palletY = b.floorY - li * E_LEVEL_H - E_BEAM_H - E_PALLET_H
-    const isUnit = isStorageUnitNode(tier.node)
-    const slotCap = Math.max(
-      tier.slotCap,
-      isUnit ? 1 : tier.leaves.length,
-    )
-    const filled = isUnit ? 1 : Math.min(slotCap, tier.leaves.length)
-    const empties = isUnit ? 0 : Math.max(0, slotCap - filled)
-
-    // ✅ Hộp tự giãn/co để lấp đầy chiều rộng cột, thay vì BOX_W cố định
-    const innerW = col.w - 2 * PAD_X - Math.max(0, slotCap - 1) * SLOT_GAP
-    const boxW = Math.max(8, innerW / slotCap) // tối thiểu 8px để tránh méo
-    const slotX = (i: number) => col.x + PAD_X + i * (boxW + SLOT_GAP)
-
-    return (
-      <Group key={tier.node.id}>
-        {Array.from({ length: filled }, (_, bi) => {
-          const leaf = isUnit ? tier.node : tier.leaves[bi]
-          const sx = slotX(bi)
-          const sw = boxW
-          const used = leaf.usedCapacity ?? 0
-          const total = leaf.capacity ?? 0
-          const displayName =
-            leaf.name?.trim() || (isUnit ? tier.node.name : '')
-          const boxLabel = elevationBoxLabel(displayName, sw)
-          const label = isUnit
-            ? `${col.node.name} • ${tier.node.name}`
-            : `${col.node.name} • ${tier.node.name} • ${leaf.name}`
-          const isHighlighted = leaf.id === highlightPhysicalItemId
-          const isBoxSelected = boxDialog?.id === leaf.id
-          const isDimmed = Boolean(boxDialog) && !isBoxSelected
-          const emphasize = isHighlighted || isBoxSelected
-          return (
-            <Group key={leaf.id} opacity={isDimmed ? 0.25 : 1}>
-              <Rect
-                x={sx}
-                y={palletY}
-                width={sw}
-                height={E_PALLET_H}
-                fill="#b08050"
-                listening={false}
-              />
-              <Rect
-                x={sx}
-                y={palletY - E_BOX_H}
-                width={sw}
-                height={E_BOX_H}
-                fill={heatColor(used, total)}
-                stroke="#c9a06a"
-                strokeWidth={0.6}
-                onMouseEnter={(e: any) => {
-                  setCursor(e, 'pointer')
-                  hoverAt(
-                    total > 0
-                      ? `${label} • ${t('manage.usedCapacity', { used, total })}`
-                      : label,
-                    e,
-                  )
-                }}
-                onMouseLeave={(e: any) => {
-                  setCursor(e, '')
-                  setHover(null)
-                }}
-                onClick={(e: any) => {
-                  e.cancelBubble = true
-                  setHover(null)
-                  const breadcrumb = [
-                    locationName,
-                    warehouse.name,
-                    scopeRow?.node.name,
-                    col.node.name,
-                    !isUnit ? tier.node.name : null,
-                    leaf.name,
-                  ].filter(
-                    (part): part is string =>
-                      Boolean(part && part.trim().length > 0),
-                  )
-                  setBoxDialog({
-                    id: leaf.id,
-                    name: leaf.name,
-                    breadcrumb,
-                    used,
-                    total,
-                    rect: {
-                      x: sx,
-                      y: palletY - E_BOX_H,
-                      w: sw,
-                      h: E_BOX_H + E_PALLET_H,
-                    },
-                  })
-                }}
-              />
-              {emphasize ? (
-                <Rect
-                  x={sx}
-                  y={palletY - E_BOX_H}
-                  width={sw}
-                  height={E_BOX_H}
-                  stroke="#7c3aed"
-                  strokeWidth={2}
-                  listening={false}
-                />
-              ) : null}
-              {boxLabel.text ? (
-                <Text
-                  x={sx}
-                  y={palletY - E_BOX_H + 6}
-                  width={sw}
-                  align="center"
-                  text={boxLabel.text}
-                  fontSize={emphasize ? boxLabel.fontSize + 1 : boxLabel.fontSize}
-                  fontStyle={emphasize ? 'bold' : 'normal'}
-                  fill={emphasize ? '#7c3aed' : '#1e293b'}
-                  listening={false}
-                />
-              ) : null}
-            </Group>
-          )
-        })}
-        {Array.from({ length: empties }, (_, ei) => (
-          <Group key={'ge' + ei} opacity={boxDialog ? 0.25 : 1}>
-          <Rect
-            key={'e' + ei}
-            x={slotX(filled + ei)}
-            y={palletY - E_BOX_H}
-            width={boxW}
-            height={E_BOX_H}
-            fill="rgba(255,255,255,0.5)"
-            stroke="#bbb"
-            strokeWidth={1}
-            dash={[4, 3]}
-            onMouseEnter={(e: any) => {
-              setCursor(e, 'pointer')
-              hoverAt(
-                `${col.node.name} • ${tier.node.name} • ${t('diagram.emptySlot')}`,
-                e,
-              )
+      <div
+        ref={wrapRef}
+        className={cn(
+          'relative h-full overflow-hidden rounded-md border bg-[#f4f4f4] transition-[width] duration-300',
+          boxDialog ? 'w-[65%]' : 'w-full',
+        )}
+      >
+        {size.w > 0 && (
+          <Stage
+            ref={stageRef}
+            width={size.w}
+            height={size.h}
+            x={view.x}
+            y={view.y}
+            scaleX={view.k}
+            scaleY={view.k}
+            draggable
+            onWheel={(e: any) => {
+              const p = stageRef.current.getPointerPosition()
+              zoomAt(p.x, p.y, e.evt.deltaY < 0 ? 1.1 : 1 / 1.1)
             }}
-            onMouseLeave={(e: any) => {
-              setCursor(e, '')
-              setHover(null)
-            }}
-          />
-          </Group>
-        ))}
-      </Group>
-    )
-  }),
-)}
-                      {b.cols.map((col) => (
-                        <Text
-                          key={col.node.id}
-                          x={col.x}
-                          y={b.floorY + 12}
-                          width={col.w}
-                          align="center"
-                          text={col.node.name}
-                          fontSize={11}
-                          fontStyle="bold"
+          >
+            <Layer>
+              {scopeRow ? (
+                /* ========== MẶT CẮT DÃY ========== */
+                <Group>
+                  {(() => {
+                    const b = elevationModel(scopeRow)
+                    return (
+                      <>
+                        <Rect
+                          x={0}
+                          y={0}
+                          width={b.W}
+                          height={b.H}
+                          fill="#fafafa"
+                          stroke="#222"
+                          strokeWidth={2}
                           listening={false}
                         />
-                      ))}
-                      {b.levelNames.map((levelName, idx) =>
-                        levelName == null ? null : (
-                        <Text
-                          key={idx}
-                          x={E_LEFT + b.gridW + 12}
-                          y={
-                            b.floorY -
-                            idx * E_LEVEL_H -
-                            E_BEAM_H -
-                            E_PALLET_H -
-                            E_BOX_H +
-                            8
-                          }
-                          text={levelName}
-                          fontSize={12}
+                        <Line
+                          points={[10, b.floorY + 4, b.W - 10, b.floorY + 4]}
+                          stroke="#444"
+                          strokeWidth={2}
                           listening={false}
                         />
-                      ),
-                      )}
-                    </>
-                  )
-                })()}
-              </Group>
-            ) : (
-              /* ========== BẢN ĐỒ KHO (TOP-DOWN + HEATMAP) ========== */
-              <Group>
-                <Rect
-                  x={0}
-                  y={0}
-                  width={layout.W}
-                  height={layout.H}
-                  fill={FLOOR}
-                  stroke="#222"
-                  strokeWidth={2}
-                  listening={false}
-                />
-                <Rect
-                  x={6}
-                  y={6}
-                  width={Math.min(
-                    warehouse.name.length * 10 + 16,
-                    layout.W - 12,
-                  )}
-                  height={22}
-                  fill={FLOOR}
-                  listening={false}
-                />
-                <Text
-                  x={10}
-                  y={9}
-                  text={warehouse.name}
-                  fontSize={15}
-                  fontStyle="bold"
-                  fill="#333"
-                  listening={false}
-                />
-                {layout.zoneRects.map((z) => (
-                  <Group key={z.node.id}>
-                    <Rect
-                      x={z.x}
-                      y={z.y}
-                      width={z.w}
-                      height={z.h}
-                      fill={FLOOR}
-                      stroke="#888"
-                      dash={[6, 4]}
-                      onMouseEnter={(e: any) => setCursor(e, 'pointer')}
-                      onMouseLeave={(e: any) => setCursor(e, '')}
-                      onClick={() => setScope({ zoneId: z.node.id, rowId: null })}
-                    />
-                    <Rect
-                      x={z.x + 6}
-                      y={z.y + 4}
-                      width={Math.min(
-                        Math.max(80, z.node.name.length * 9 + 12),
-                        z.w - 12,
-                      )}
-                      height={20}
-                      fill={FLOOR}
-                      onClick={() => setScope({ zoneId: z.node.id, rowId: null })}
-                      onMouseEnter={(e: any) => setCursor(e, 'pointer')}
-                      onMouseLeave={(e: any) => setCursor(e, '')}
-                    />
-                    <Text
-                      x={z.x + 6}
-                      y={z.y + 7}
-                      text={z.node.name}
-                      fontSize={13}
-                      fontStyle="bold"
-                      fill="#444"
-                      listening={false}
-                    />
-                  </Group>
-                ))}
-                {layout.rows.map((r) => {
-                  const cellW = ROW_W - 2 * GAP
-                  const beams = [
-                    layout.rackY0,
-                    ...r.cells.map((c) => c.y + c.h),
-                  ]
-                  return (
-                    <Group key={r.node.id}>
-                      {r.cells.map((c, ci) => {
-                        if (c.node == null) {
+                        {(() => {
+                          const uprights = new Map<number, number>()
+                          for (const col of b.cols) {
+                            const levels = col.tiers.length
+                            if (levels === 0) continue
+                            const colTop = b.floorY - levels * E_LEVEL_H
+                            for (const ux of [col.x - E_UP_W, col.x + col.w]) {
+                              const prev = uprights.get(ux)
+                              uprights.set(
+                                ux,
+                                prev == null ? colTop : Math.min(prev, colTop),
+                              )
+                            }
+                          }
                           return (
-                            <Rect
-                              key={'e' + ci}
-                              x={c.x + GAP}
-                              y={c.y + 1}
-                              width={cellW}
-                              height={c.h - 2}
-                              stroke="#c9a06a"
-                              dash={[4, 3]}
-                              listening={false}
-                            />
-                          )
-                        }
-                        const u = giaBoxUsage(c.node)
-                        return (
-                          <Group key={c.node.id}>
-                            <Rect
-                              x={c.x + GAP}
-                              y={c.y + 1}
-                              width={cellW}
-                              height={c.h - 2}
-                              fill={heatColor(u.used, u.total)}
-                              stroke="#c9a06a"
-                              strokeWidth={0.8}
-                              cornerRadius={1}
-                              onMouseEnter={(e: any) => {
-                                setCursor(e, 'pointer')
-                                hoverAt(
-                                  u.total > 0
-                                    ? `${r.node.name} • ${c.node!.name} • ${u.used}/${u.total}`
-                                    : `${r.node.name} • ${c.node!.name}`,
-                                  e,
-                                )
-                              }}
-                              onMouseLeave={(e: any) => {
-                                setCursor(e, '')
-                                setHover(null)
-                              }}
-                              onClick={() =>
-                                setScope({ zoneId: r.zoneId, rowId: r.node.id })
-                              }
-                            />
-                            <Group listening={false}>
-                              {c.shelves.map((sh, si) => (
-                                <Group key={si}>
-                                  {Array.from({ length: sh.boxes }, (_, bi) => (
-                                    <Rect
-                                      key={'b' + bi}
-                                      x={c.x + GAP + 3}
-                                      y={
-                                        sh.y +
-                                        PAD_T +
-                                        bi * (BOX_TOP_H + GAP_T)
-                                      }
-                                      width={cellW - 6}
-                                      height={BOX_TOP_H}
-                                      fill={BOX_SYMBOL_FILL}
-                                      stroke="#b98d55"
-                                      strokeWidth={0.6}
-                                      cornerRadius={0.5}
-                                    />
-                                  ))}
+                            <>
+                              {b.cols.map((col) =>
+                                col.tiers.map((_, idx) => (
+                                  <Rect
+                                    key={`beam-${col.node.id}-${idx}`}
+                                    x={col.x}
+                                    y={b.floorY - idx * E_LEVEL_H - E_BEAM_H}
+                                    width={col.w}
+                                    height={E_BEAM_H}
+                                    fill="#e8871e"
+                                    stroke="#b96a12"
+                                    listening={false}
+                                  />
+                                )),
+                              )}
+                              {[...uprights.entries()].map(([ux, top]) => (
+                                <Group key={`up-${ux}`} listening={false}>
+                                  <Rect
+                                    x={ux}
+                                    y={top - 4}
+                                    width={E_UP_W}
+                                    height={b.floorY - top + 6}
+                                    fill="#2b5ea7"
+                                  />
+                                  <Rect
+                                    x={ux - 3}
+                                    y={b.floorY + 2}
+                                    width={E_UP_W + 6}
+                                    height={4}
+                                    fill="#1d477e"
+                                  />
                                 </Group>
                               ))}
-                            </Group>
-                          </Group>
-                        )
-                      })}
-                      <Group listening={false}>
-                        <Line
-                          points={[r.x + 1, layout.rackY0, r.x + 1, layout.rackY0 + r.colH]}
-                          stroke="#2b5ea7"
-                          strokeWidth={2}
-                        />
-                        <Line
-                          points={[
-                            r.x + ROW_W - 1,
-                            layout.rackY0,
-                            r.x + ROW_W - 1,
-                            layout.rackY0 + r.colH,
-                          ]}
-                          stroke="#2b5ea7"
-                          strokeWidth={2}
-                        />
-                        {beams.map((by, i) => (
-                          <Line
-                            key={i}
-                            points={[r.x, by, r.x + ROW_W, by]}
-                            stroke="#e8871e"
-                            strokeWidth={1.5}
+                            </>
+                          )
+                        })()}
+                        {b.cols.map((col) =>
+                          col.tiers.map((tier, li) => {
+                            const palletY = b.floorY - li * E_LEVEL_H - E_BEAM_H - E_PALLET_H
+                            const isUnit = isStorageUnitNode(tier.node)
+                            const slotCap = Math.max(
+                              tier.slotCap,
+                              isUnit ? 1 : tier.leaves.length,
+                            )
+                            const filled = isUnit ? 1 : Math.min(slotCap, tier.leaves.length)
+                            const empties = isUnit ? 0 : Math.max(0, slotCap - filled)
+
+                            // ✅ Hộp tự giãn/co để lấp đầy chiều rộng cột, thay vì BOX_W cố định
+                            const innerW = col.w - 2 * PAD_X - Math.max(0, slotCap - 1) * SLOT_GAP
+                            const boxW = Math.max(8, innerW / slotCap) // tối thiểu 8px để tránh méo
+                            const slotX = (i: number) => col.x + PAD_X + i * (boxW + SLOT_GAP)
+
+                            return (
+                              <Group key={tier.node.id}>
+                                {Array.from({ length: filled }, (_, bi) => {
+                                  const leaf = isUnit ? tier.node : tier.leaves[bi]
+                                  const sx = slotX(bi)
+                                  const sw = boxW
+                                  const used = leaf.usedCapacity ?? 0
+                                  const total = leaf.capacity ?? 0
+                                  const displayName =
+                                    leaf.name?.trim() || (isUnit ? tier.node.name : '')
+                                  const boxLabel = elevationBoxLabel(displayName, sw)
+                                  const label = isUnit
+                                    ? `${col.node.name} • ${tier.node.name}`
+                                    : `${col.node.name} • ${tier.node.name} • ${leaf.name}`
+                                  const isHighlighted = leaf.id === highlightPhysicalItemId
+                                  const isBoxSelected = boxDialog?.id === leaf.id
+                                  const isDimmed = Boolean(boxDialog) && !isBoxSelected
+                                  const emphasize = isHighlighted || isBoxSelected
+                                  return (
+                                    <Group key={leaf.id} opacity={isDimmed ? 0.25 : 1}>
+                                      <Rect
+                                        x={sx}
+                                        y={palletY}
+                                        width={sw}
+                                        height={E_PALLET_H}
+                                        fill="#b08050"
+                                        listening={false}
+                                      />
+                                      <Rect
+                                        x={sx}
+                                        y={palletY - E_BOX_H}
+                                        width={sw}
+                                        height={E_BOX_H}
+                                        fill={heatColor(used, total)}
+                                        stroke="#c9a06a"
+                                        strokeWidth={0.6}
+                                        onMouseEnter={(e: any) => {
+                                          setCursor(e, 'pointer')
+                                          hoverAt(
+                                            total > 0
+                                              ? `${label} • ${t('manage.usedCapacity', { used, total })}`
+                                              : label,
+                                            e,
+                                          )
+                                        }}
+                                        onMouseLeave={(e: any) => {
+                                          setCursor(e, '')
+                                          setHover(null)
+                                        }}
+                                        onClick={(e: any) => {
+                                          e.cancelBubble = true
+                                          setHover(null)
+                                          const breadcrumb = [
+                                            locationName,
+                                            warehouse.name,
+                                            scopeRow?.node.name,
+                                            col.node.name,
+                                            !isUnit ? tier.node.name : null,
+                                            leaf.name,
+                                          ].filter(
+                                            (part): part is string =>
+                                              Boolean(part && part.trim().length > 0),
+                                          )
+                                          setBoxDialog({
+                                            id: leaf.id,
+                                            name: leaf.name,
+                                            breadcrumb,
+                                            used,
+                                            total,
+                                            rect: {
+                                              x: sx,
+                                              y: palletY - E_BOX_H,
+                                              w: sw,
+                                              h: E_BOX_H + E_PALLET_H,
+                                            },
+                                          })
+                                        }}
+                                      />
+                                      {emphasize ? (
+                                        <Rect
+                                          x={sx}
+                                          y={palletY - E_BOX_H}
+                                          width={sw}
+                                          height={E_BOX_H}
+                                          stroke="#7c3aed"
+                                          strokeWidth={2}
+                                          listening={false}
+                                        />
+                                      ) : null}
+                                      {boxLabel.text ? (
+                                        <Text
+                                          x={sx}
+                                          y={palletY - E_BOX_H + 6}
+                                          width={sw}
+                                          align="center"
+                                          text={boxLabel.text}
+                                          fontSize={emphasize ? boxLabel.fontSize + 1 : boxLabel.fontSize}
+                                          fontStyle={emphasize ? 'bold' : 'normal'}
+                                          fill={emphasize ? '#7c3aed' : '#1e293b'}
+                                          listening={false}
+                                        />
+                                      ) : null}
+                                    </Group>
+                                  )
+                                })}
+                                {Array.from({ length: empties }, (_, ei) => (
+                                  <Group key={'ge' + ei} opacity={boxDialog ? 0.25 : 1}>
+                                    <Rect
+                                      key={'e' + ei}
+                                      x={slotX(filled + ei)}
+                                      y={palletY - E_BOX_H}
+                                      width={boxW}
+                                      height={E_BOX_H}
+                                      fill="rgba(255,255,255,0.5)"
+                                      stroke="#bbb"
+                                      strokeWidth={1}
+                                      dash={[4, 3]}
+                                      onMouseEnter={(e: any) => {
+                                        setCursor(e, 'pointer')
+                                        hoverAt(
+                                          `${col.node.name} • ${tier.node.name} • ${t('diagram.emptySlot')}`,
+                                          e,
+                                        )
+                                      }}
+                                      onMouseLeave={(e: any) => {
+                                        setCursor(e, '')
+                                        setHover(null)
+                                      }}
+                                    />
+                                  </Group>
+                                ))}
+                              </Group>
+                            )
+                          }),
+                        )}
+                        {b.cols.map((col) => (
+                          <Text
+                            key={col.node.id}
+                            x={col.x}
+                            y={b.floorY + 12}
+                            width={col.w}
+                            align="center"
+                            text={col.node.name}
+                            fontSize={11}
+                            fontStyle="bold"
+                            listening={false}
                           />
                         ))}
-                        {beams.map((by, i) => (
-                          <Group key={'p' + i}>
-                            <Rect x={r.x - 1.5} y={by - 2} width={4} height={4} fill="#1d477e" />
-                            <Rect
-                              x={r.x + ROW_W - 2.5}
-                              y={by - 2}
-                              width={4}
-                              height={4}
-                              fill="#1d477e"
+                        {b.levelNames.map((levelName, idx) =>
+                          levelName == null ? null : (
+                            <Text
+                              key={idx}
+                              x={E_LEFT + b.gridW + 12}
+                              y={
+                                b.floorY -
+                                idx * E_LEVEL_H -
+                                E_BEAM_H -
+                                E_PALLET_H -
+                                E_BOX_H +
+                                8
+                              }
+                              text={levelName}
+                              fontSize={12}
+                              listening={false}
                             />
-                          </Group>
-                        ))}
-                      </Group>
-                      {r.node.name ? (
-                        <Text
-                          x={r.x - 24}
-                          y={layout.rackY0 + r.colH + 8}
-                          width={ROW_W + 48}
-                          align="center"
-                          text={r.node.name}
-                          fontSize={12}
-                          fontStyle="bold"
-                          onClick={() =>
-                            setScope({ zoneId: r.zoneId, rowId: r.node.id })
-                          }
-                          onMouseEnter={(e: any) => setCursor(e, 'pointer')}
-                          onMouseLeave={(e: any) => setCursor(e, '')}
-                        />
-                      ) : null}
-                    </Group>
-                  )
-                })}
-              </Group>
-            )}
-          </Layer>
-        </Stage>
-      )}
-      {/* Breadcrumb */}
-      <div className="absolute left-2 top-2 rounded border border-border bg-background px-2.5 py-1.5 text-[13px] shadow-sm">
-        <button
-          type="button"
-          className="font-bold hover:underline"
-          onClick={() => setScope({ zoneId: null, rowId: null })}
-        >
-          {warehouse.name}
-        </button>
-        {scopeZone ? (
-          <>
-            {' / '}
-            <button
-              type="button"
-              className="font-bold hover:underline"
-              onClick={() => setScope({ zoneId: scope.zoneId, rowId: null })}
-            >
-              {scopeZone.node.name}
-            </button>
-          </>
-        ) : null}
-        {scopeRow && scopeRow.node.name ? (
-          <>
-            {' / '}
-            <b>{scopeRow.node.name}</b>
-          </>
-        ) : null}
-      </div>
-      <div className="absolute right-2 top-2 flex gap-1">
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          className="size-8 bg-background"
-          onClick={() => zoomAt(size.w / 2, size.h / 2, 1.2)}
-        >
-          +
-        </Button>
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          className="size-8 bg-background"
-          onClick={() => zoomAt(size.w / 2, size.h / 2, 1 / 1.2)}
-        >
-          −
-        </Button>
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          className="size-8 bg-background"
-          title="PNG"
-          onClick={() => {
-            const a = document.createElement('a')
-            a.href = stageRef.current.toDataURL({ pixelRatio: 2 })
-            a.download = `${warehouse.name}.png`
-            a.click()
-          }}
-        >
-          ⤓
-        </Button>
-      </div>
-      {hover ? (
-        <div
-          className="pointer-events-none absolute z-10 rounded border border-border bg-background px-2 py-1 text-xs shadow"
-          style={{ left: hover.x, top: hover.y }}
-        >
-          {hover.text}
-        </div>
-      ) : null}
-    </div>
-    {boxDialog ? (
-      <div className="flex h-full w-[35%] shrink-0 flex-col overflow-hidden rounded-md border bg-background">
-        <div className="border-b px-4 py-3">
-        <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-sm font-medium text-muted-foreground">
-            {boxDialog.breadcrumb.join(' → ')}
-          </p>
-          <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="size-7 shrink-0"
-              aria-label={t('actions.close', { defaultValue: 'Đóng' })}
-              onClick={() => setBoxDialog(null)}>
-              <X className="size-5" />
-            </Button>
-          </div>
-          <div className="mt-1 flex items-start justify-between gap-2">
-            <div className="flex min-w-0 flex-1 items-baseline justify-between gap-2">
-              <h3 className="truncate text-2xl font-bold leading-tight">
-                {boxDialog.name}
-              </h3>
-              {boxDialog.total > 0 ? (
-                <span
-                  className="shrink-0 rounded px-2 py-0.5 text-base font-semibold text-slate-800"
-                  style={{
-                    backgroundColor: heatColor(boxDialog.used, boxDialog.total),
-                  }}
-                >
-                  {boxDialog.used}/{boxDialog.total}
-                </span>
-              ) : null}
-            </div>
-
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-base font-semibold">
-                  {t('manage.dossierName')}
-                </TableHead>
-                <TableHead className="w-[200px] text-center text-lg font-semibold">
-                  {t('manage.documentCount', { defaultValue: 'Số văn bản' })}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {boxPlacementsQuery.isPending ? (
-                <TableRow>
-                  <TableCell colSpan={2} className="text-base text-muted-foreground">
-                    …
-                  </TableCell>
-                </TableRow>
-              ) : (boxPlacementsQuery.data ?? []).length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={2} className="text-base text-muted-foreground">
-                    {t('manage.dossiersEmpty')}
-                  </TableCell>
-                </TableRow>
+                          ),
+                        )}
+                      </>
+                    )
+                  })()}
+                </Group>
               ) : (
-                (boxPlacementsQuery.data ?? []).map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className={cn(
-                      row.dossierId === focusDossierId &&
-                        'bg-primary/10 ring-2 ring-primary ring-inset',
-                      row.deletedAt
-                        ? 'opacity-60 cursor-not-allowed'
-                        : 'cursor-pointer hover:bg-muted/50',
+                /* ========== BẢN ĐỒ KHO (TOP-DOWN + HEATMAP) ========== */
+                <Group>
+                  <Rect
+                    x={0}
+                    y={0}
+                    width={layout.W}
+                    height={layout.H}
+                    fill={FLOOR}
+                    stroke="#222"
+                    strokeWidth={2}
+                    listening={false}
+                  />
+                  <Rect
+                    x={6}
+                    y={6}
+                    width={Math.min(
+                      warehouse.name.length * 10 + 16,
+                      layout.W - 12,
                     )}
-                    onClick={
-                      row.deletedAt
-                        ? undefined
-                        : () =>
+                    height={22}
+                    fill={FLOOR}
+                    listening={false}
+                  />
+                  <Text
+                    x={10}
+                    y={9}
+                    text={warehouse.name}
+                    fontSize={15}
+                    fontStyle="bold"
+                    fill="#333"
+                    listening={false}
+                  />
+                  {layout.zoneRects.map((z) => (
+                    <Group key={z.node.id}>
+                      <Rect
+                        x={z.x}
+                        y={z.y}
+                        width={z.w}
+                        height={z.h}
+                        fill={FLOOR}
+                        stroke="#888"
+                        dash={[6, 4]}
+                        onMouseEnter={(e: any) => setCursor(e, 'pointer')}
+                        onMouseLeave={(e: any) => setCursor(e, '')}
+                        onClick={() => setScope({ zoneId: z.node.id, rowId: null })}
+                      />
+                      <Rect
+                        x={z.x + 6}
+                        y={z.y + 4}
+                        width={Math.min(
+                          Math.max(80, z.node.name.length * 9 + 12),
+                          z.w - 12,
+                        )}
+                        height={20}
+                        fill={FLOOR}
+                        onClick={() => setScope({ zoneId: z.node.id, rowId: null })}
+                        onMouseEnter={(e: any) => setCursor(e, 'pointer')}
+                        onMouseLeave={(e: any) => setCursor(e, '')}
+                      />
+                      <Text
+                        x={z.x + 6}
+                        y={z.y + 7}
+                        text={z.node.name}
+                        fontSize={13}
+                        fontStyle="bold"
+                        fill="#444"
+                        listening={false}
+                      />
+                    </Group>
+                  ))}
+                  {layout.rows.map((r) => {
+                    const cellW = ROW_W - 2 * GAP
+                    const beams = [
+                      layout.rackY0,
+                      ...r.cells.map((c) => c.y + c.h),
+                    ]
+                    return (
+                      <Group key={r.node.id}>
+                        {r.cells.map((c, ci) => {
+                          if (c.node == null) {
+                            return (
+                              <Rect
+                                key={'e' + ci}
+                                x={c.x + GAP}
+                                y={c.y + 1}
+                                width={cellW}
+                                height={c.h - 2}
+                                stroke="#c9a06a"
+                                dash={[4, 3]}
+                                listening={false}
+                              />
+                            )
+                          }
+                          const u = giaBoxUsage(c.node)
+                          return (
+                            <Group key={c.node.id}>
+                              <Rect
+                                x={c.x + GAP}
+                                y={c.y + 1}
+                                width={cellW}
+                                height={c.h - 2}
+                                fill={heatColor(u.used, u.total)}
+                                stroke="#c9a06a"
+                                strokeWidth={0.8}
+                                cornerRadius={1}
+                                onMouseEnter={(e: any) => {
+                                  setCursor(e, 'pointer')
+                                  hoverAt(
+                                    u.total > 0
+                                      ? `${r.node.name} • ${c.node!.name} • ${u.used}/${u.total}`
+                                      : `${r.node.name} • ${c.node!.name}`,
+                                    e,
+                                  )
+                                }}
+                                onMouseLeave={(e: any) => {
+                                  setCursor(e, '')
+                                  setHover(null)
+                                }}
+                                onClick={() =>
+                                  setScope({ zoneId: r.zoneId, rowId: r.node.id })
+                                }
+                              />
+                              <Group listening={false}>
+                                {c.shelves.map((sh, si) => (
+                                  <Group key={si}>
+                                    {Array.from({ length: sh.boxes }, (_, bi) => (
+                                      <Rect
+                                        key={'b' + bi}
+                                        x={c.x + GAP + 3}
+                                        y={
+                                          sh.y +
+                                          PAD_T +
+                                          bi * (BOX_TOP_H + GAP_T)
+                                        }
+                                        width={cellW - 6}
+                                        height={BOX_TOP_H}
+                                        fill={BOX_SYMBOL_FILL}
+                                        stroke="#b98d55"
+                                        strokeWidth={0.6}
+                                        cornerRadius={0.5}
+                                      />
+                                    ))}
+                                  </Group>
+                                ))}
+                              </Group>
+                            </Group>
+                          )
+                        })}
+                        <Group listening={false}>
+                          <Line
+                            points={[r.x + 1, layout.rackY0, r.x + 1, layout.rackY0 + r.colH]}
+                            stroke="#2b5ea7"
+                            strokeWidth={2}
+                          />
+                          <Line
+                            points={[
+                              r.x + ROW_W - 1,
+                              layout.rackY0,
+                              r.x + ROW_W - 1,
+                              layout.rackY0 + r.colH,
+                            ]}
+                            stroke="#2b5ea7"
+                            strokeWidth={2}
+                          />
+                          {beams.map((by, i) => (
+                            <Line
+                              key={i}
+                              points={[r.x, by, r.x + ROW_W, by]}
+                              stroke="#e8871e"
+                              strokeWidth={1.5}
+                            />
+                          ))}
+                          {beams.map((by, i) => (
+                            <Group key={'p' + i}>
+                              <Rect x={r.x - 1.5} y={by - 2} width={4} height={4} fill="#1d477e" />
+                              <Rect
+                                x={r.x + ROW_W - 2.5}
+                                y={by - 2}
+                                width={4}
+                                height={4}
+                                fill="#1d477e"
+                              />
+                            </Group>
+                          ))}
+                        </Group>
+                        {r.node.name ? (
+                          <Text
+                            x={r.x - 24}
+                            y={layout.rackY0 + r.colH + 8}
+                            width={ROW_W + 48}
+                            align="center"
+                            text={r.node.name}
+                            fontSize={12}
+                            fontStyle="bold"
+                            onClick={() =>
+                              setScope({ zoneId: r.zoneId, rowId: r.node.id })
+                            }
+                            onMouseEnter={(e: any) => setCursor(e, 'pointer')}
+                            onMouseLeave={(e: any) => setCursor(e, '')}
+                          />
+                        ) : null}
+                      </Group>
+                    )
+                  })}
+                </Group>
+              )}
+            </Layer>
+          </Stage>
+        )}
+        {/* Unified Breadcrumb */}
+        <div className="absolute left-2 top-2 z-10 flex max-w-[calc(100%-120px)] flex-wrap items-center gap-1.5 rounded-md border border-border bg-background/95 px-3 py-1.5 text-sm shadow-sm backdrop-blur-sm">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="-ml-1 size-6 shrink-0 text-muted-foreground hover:text-foreground"
+            aria-label={t('actions.backToWarehouses')}
+            onClick={handleBackStep}
+          >
+            <ArrowLeft className="size-3.5" />
+          </Button>
+          {locationName ? (
+            <>
+              <button
+                type="button"
+                className="font-semibold text-muted-foreground hover:text-foreground hover:underline"
+                onClick={onNavigateBack}
+              >
+                {locationName}
+              </button>
+              <span className="text-muted-foreground">/</span>
+            </>
+          ) : null}
+          <button
+            type="button"
+            className={cn(
+              'font-bold hover:underline',
+              scopeZone || scopeRow || boxDialog
+                ? 'text-muted-foreground hover:text-foreground'
+                : 'text-foreground',
+            )}
+            onClick={() => {
+              setBoxDialog(null)
+              setScope({ zoneId: null, rowId: null })
+            }}
+          >
+            {warehouse.name}
+          </button>
+          {scopeZone ? (
+            <>
+              <span className="text-muted-foreground">/</span>
+              <button
+                type="button"
+                className={cn(
+                  'font-bold hover:underline',
+                  scopeRow || boxDialog
+                    ? 'text-muted-foreground hover:text-foreground'
+                    : 'text-foreground',
+                )}
+                onClick={() => {
+                  setBoxDialog(null)
+                  setScope({ zoneId: scope.zoneId, rowId: null })
+                }}
+              >
+                {scopeZone.node.name}
+              </button>
+            </>
+          ) : null}
+          {scopeRow && scopeRow.node.name ? (
+            <>
+              <span className="text-muted-foreground">/</span>
+              <button
+                type="button"
+                className={cn(
+                  'font-bold hover:underline',
+                  boxDialog
+                    ? 'text-muted-foreground hover:text-foreground'
+                    : 'text-foreground',
+                )}
+                onClick={() => setBoxDialog(null)}
+              >
+                {scopeRow.node.name}
+              </button>
+            </>
+          ) : null}
+          {boxExtraBreadcrumb.map((item, idx) => {
+            const isLast = idx === boxExtraBreadcrumb.length - 1
+            return (
+              <span key={`${item}-${idx}`} className="inline-flex items-center gap-1.5">
+                <span className="text-muted-foreground">/</span>
+                {isLast ? (
+                  <b className="text-foreground">{item}</b>
+                ) : (
+                  <span className="font-semibold text-muted-foreground">
+                    {item}
+                  </span>
+                )}
+              </span>
+            )
+          })}
+        </div>
+        <div className="absolute right-2 top-2 flex gap-1">
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="size-8 bg-background"
+            onClick={() => zoomAt(size.w / 2, size.h / 2, 1.2)}
+          >
+            +
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="size-8 bg-background"
+            onClick={() => zoomAt(size.w / 2, size.h / 2, 1 / 1.2)}
+          >
+            −
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="size-8 bg-background"
+            title="PNG"
+            onClick={() => {
+              const a = document.createElement('a')
+              a.href = stageRef.current.toDataURL({ pixelRatio: 2 })
+              a.download = `${warehouse.name}.png`
+              a.click()
+            }}
+          >
+            ⤓
+          </Button>
+        </div>
+        {hover ? (
+          <div
+            className="pointer-events-none absolute z-10 rounded border border-border bg-background px-2 py-1 text-xs shadow"
+            style={{ left: hover.x, top: hover.y }}
+          >
+            {hover.text}
+          </div>
+        ) : null}
+      </div>
+      {boxDialog ? (
+        <div className="flex h-full w-[35%] shrink-0 flex-col overflow-hidden rounded-md border bg-background">
+          <div className="border-b px-4 py-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="truncate text-sm font-medium text-muted-foreground">
+                {boxDialog.breadcrumb.join(' → ')}
+              </p>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="size-7 shrink-0"
+                aria-label={t('actions.close', { defaultValue: 'Đóng' })}
+                onClick={() => setBoxDialog(null)}>
+                <X className="size-5" />
+              </Button>
+            </div>
+            <div className="mt-1 flex items-start justify-between gap-2">
+              <div className="flex min-w-0 flex-1 items-baseline justify-between gap-2">
+                <h3 className="truncate text-2xl font-bold leading-tight">
+                  {boxDialog.name}
+                </h3>
+                {boxDialog.total > 0 ? (
+                  <span
+                    className="shrink-0 rounded px-2 py-0.5 text-base font-semibold text-slate-800"
+                    style={{
+                      backgroundColor: heatColor(boxDialog.used, boxDialog.total),
+                    }}
+                  >
+                    {boxDialog.used}/{boxDialog.total}
+                  </span>
+                ) : null}
+              </div>
+
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-base font-semibold">
+                    {t('manage.dossierName')}
+                  </TableHead>
+                  <TableHead className="w-[200px] text-center text-lg font-semibold">
+                    {t('manage.documentCount', { defaultValue: 'Số văn bản' })}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {boxPlacementsQuery.isPending ? (
+                  <TableRow>
+                    <TableCell colSpan={2} className="text-base text-muted-foreground">
+                      …
+                    </TableCell>
+                  </TableRow>
+                ) : (boxPlacementsQuery.data ?? []).length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={2} className="text-base text-muted-foreground">
+                      {t('manage.dossiersEmpty')}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  (boxPlacementsQuery.data ?? []).map((row) => (
+                    <TableRow
+                      key={row.id}
+                      className={cn(
+                        row.dossierId === focusDossierId &&
+                        'bg-primary/10 ring-2 ring-primary ring-inset',
+                        row.deletedAt
+                          ? 'opacity-60 cursor-not-allowed'
+                          : 'cursor-pointer hover:bg-muted/50',
+                      )}
+                      onClick={
+                        row.deletedAt
+                          ? undefined
+                          : () =>
                             void navigate({
                               to: '/app/archive-dossiers/$fondId/$dossierId',
                               params: {
@@ -1369,22 +1465,22 @@ function WarehouseMapCanvas({
                                 dossierId: row.dossierId,
                               },
                             })
-                    }
-                  >
-                    <TableCell className="text-base font-medium">
-                      <span>{row.dossierName}</span>
-                    </TableCell>
-                    <TableCell className="text-center text-lg tabular-nums text-muted-foreground">
-                      {row.documentCount ?? 0}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                      }
+                    >
+                      <TableCell className="text-base font-medium">
+                        <span>{row.dossierName}</span>
+                      </TableCell>
+                      <TableCell className="text-center text-lg tabular-nums text-muted-foreground">
+                        {row.documentCount ?? 0}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
-      </div>
-    ) : null}
+      ) : null}
     </div>
   )
 }
@@ -1397,6 +1493,7 @@ interface WarehouseDiagramTabProps {
   compact?: boolean
   highlightPhysicalItemId?: string
   focusDossierId?: string
+  onNavigateBack?: () => void
 }
 
 function OverviewSidebar({ stats }: { stats: PhysicalWarehouseStatsT }) {
@@ -1453,6 +1550,7 @@ export function WarehouseDiagramTab({
   compact = false,
   highlightPhysicalItemId,
   focusDossierId,
+  onNavigateBack,
 }: WarehouseDiagramTabProps) {
   const { t } = useTranslation('physical-warehouse')
   const { data: tree, isPending } = useQuery(
@@ -1492,14 +1590,15 @@ export function WarehouseDiagramTab({
       >
         <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
           {filteredWarehouses.map((warehouse) => (
-              <WarehouseMapCanvas
-                key={warehouse.id}
-                warehouse={warehouse}
-                locationName={tree.name}
-                height="100%"
-                highlightPhysicalItemId={highlightPhysicalItemId}
-                focusDossierId={focusDossierId}
-              />
+            <WarehouseMapCanvas
+              key={warehouse.id}
+              warehouse={warehouse}
+              locationName={tree.name}
+              height="100%"
+              highlightPhysicalItemId={highlightPhysicalItemId}
+              focusDossierId={focusDossierId}
+              onNavigateBack={onNavigateBack}
+            />
           ))}
         </div>
         {stats && !compact ? <OverviewSidebar stats={stats} /> : null}
