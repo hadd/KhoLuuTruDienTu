@@ -109,18 +109,19 @@ export function DisposalCandidatesTable({
         if (isDuplicateGroup && indexInBlock === block.groups.length - 1) return []
         if (
           group.dossierItem &&
-          canSelectItemFond(
-            group.dossierItem.fondId,
-            selectionAnchorFondId ?? null,
-            lockedFondId,
-          )
+          (!councilReviewEnabled ||
+            canSelectItemFond(
+              group.dossierItem.fondId,
+              selectionAnchorFondId ?? null,
+              lockedFondId,
+            ))
         ) {
           return [itemKey(group.dossierItem)]
         }
         return []
       })
     })
-  }, [visualBlocks, selectionAnchorFondId, lockedFondId, itemKey])
+  }, [visualBlocks, selectionAnchorFondId, lockedFondId, itemKey, councilReviewEnabled])
 
   const selectedDossierCount = dossierSelectableKeys.filter((key) =>
     selectedKeys.has(key),
