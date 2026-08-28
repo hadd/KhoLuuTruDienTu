@@ -25,12 +25,11 @@ export function resolveArchiveDisposalView(input: {
     return undefined
   }
 
-  if (
-    input.disposalView === 'proposal' &&
-    input.councilReviewEnabled &&
-    isDisposalView(input.disposalView)
-  ) {
-    return 'proposal'
+  if (isDisposalView(input.disposalView)) {
+    if (input.disposalView === 'proposal' && !input.councilReviewEnabled) {
+      return 'list'
+    }
+    return input.disposalView
   }
 
   return 'list'

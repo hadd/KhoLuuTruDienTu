@@ -150,12 +150,12 @@ export function ArchiveDataHubPage() {
             <ArchiveWarehouseFondsPage embedded councilReviewEnabledProp={councilReviewEnabled} />
           </div>
         ) : null}
-        {tab === 'expiryReview' && canReadDisposal && !councilReviewEnabled ? (
+        {tab === 'expiryReview' && canReadDisposal && disposalView === 'softDeleted' ? (
           <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
             <ArchiveSoftDeletedDossiersPage />
           </div>
         ) : null}
-        {tab === 'expiryReview' && canReadDisposal && councilReviewEnabled && disposalView === 'list' ? (
+        {tab === 'expiryReview' && canReadDisposal && disposalView === 'list' ? (
           <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
             <ArchiveExpiryDuplicatePage />
           </div>

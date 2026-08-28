@@ -23,8 +23,10 @@
     "subTabsAriaLabel": "Chức năng hủy hồ sơ",
     "subTabList": "Danh sách hồ sơ hết hạn/trùng lặp",
     "subTabProposal": "Danh mục đề xuất hủy",
+    "subTabSoftDeleted": "Danh sách hồ sơ tài liệu đang xóa mềm",
     "subTabListDescription": "Rà soát hồ sơ hết hạn và trùng lặp",
     "subTabProposalDescription": "Lập danh mục đề xuất hủy và Hội đồng xét hủy",
+    "subTabSoftDeletedDescription": "Danh sách hồ sơ, tài liệu đang bị xóa mềm",
     "candidateWarehouseLockHint": "Hồ sơ hoặc tài liệu thuộc danh sách hết hạn/trùng lặp. Chỉ được xóa hoặc hủy theo quy trình Hội đồng xét hủy — không thể xóa, upload lại hay di chuyển trực tiếp trong kho."
   },
   "browse": {

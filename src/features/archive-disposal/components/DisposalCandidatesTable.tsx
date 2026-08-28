@@ -54,7 +54,9 @@ type DisposalCandidatesTableProps = {
   renderCategoryBadges: (item: DisposalCandidateItemT) => ReactNode
   dateLocale: 'en' | 'vi'
   lockedFondId?: string | null
+  lockedFondId?: string | null
   selectionAnchorFondId?: string | null
+  councilReviewEnabled?: boolean
 }
 
 export function DisposalCandidatesTable({
@@ -67,6 +69,7 @@ export function DisposalCandidatesTable({
   dateLocale,
   lockedFondId,
   selectionAnchorFondId,
+  councilReviewEnabled = true,
 }: DisposalCandidatesTableProps) {
   const { t } = useTranslation('archive-disposal')
   const [expandedDossierIds, setExpandedDossierIds] = useState<Set<string>>(
@@ -200,18 +203,20 @@ export function DisposalCandidatesTable({
                     <TableRow className={bgClass}>
                       <TableCell>
                   {dossierItem ? (() => {
-                    const canSelect = canSelectItemFond(
+                    const canSelect = !councilReviewEnabled || canSelectItemFond(
                       dossierItem.fondId,
                       selectionAnchorFondId ?? null,
                       lockedFondId,
                     )
                     const noFond = !dossierItem.fondId?.trim()
                     const wrongFond = !noFond && !canSelect
-                    const disabledReason = noFond
-                      ? 'Hồ sơ chưa được gán phông — không thể thêm vào đề xuất hủy'
-                      : wrongFond
-                        ? 'Chỉ được chọn hồ sơ cùng phông trong một đề xuất hủy'
-                        : null
+                    const disabledReason = !councilReviewEnabled 
+                      ? null 
+                      : noFond
+                        ? 'Hồ sơ chưa được gán phông — không thể thêm vào đề xuất hủy'
+                        : wrongFond
+                          ? 'Chỉ được chọn hồ sơ cùng phông trong một đề xuất hủy'
+                          : null
                     const checkbox = (
                       <Checkbox
                         checked={selectedKeys.has(itemKey(dossierItem))}
@@ -296,6 +301,7 @@ export function DisposalCandidatesTable({
                         <Checkbox
                           checked={selectedKeys.has(itemKey(item))}
                           disabled={
+                            councilReviewEnabled &&
                             !canSelectItemFond(
                               item.fondId,
                               selectionAnchorFondId ?? null,

@@ -65,6 +65,7 @@ import type {
   DisposalCatalogDetailT,
   DisposalProposalCatalogStatusT,
 } from '@/features/archive-disposal/types'
+import { ArchiveDisposalWarehousePickerDialog } from '@/features/archive-disposal/components/ArchiveDisposalWarehousePickerDialog'
 import { profileQueryOptions } from '@/features/auth/queries'
 import { DEFAULT_LIST_PAGE_LIMIT, LIST_PAGE_SIZE_OPTIONS } from '@/lib/schemas/list-page-search'
 import { translateError } from '@/lib/utils/translate-error'
@@ -140,6 +141,7 @@ export function ArchiveDisposalProposalPage() {
   const [finalizeDialog, setFinalizeDialog] = useState<'APPROVED' | 'REJECTED' | null>(
     null,
   )
+  const [warehousePickerOpen, setWarehousePickerOpen] = useState(false)
 
   const { data: catalogList, isPending: isListPending } = useQuery(
     disposalCatalogsQueryOptions({ page, limit }),
@@ -697,17 +699,7 @@ export function ArchiveDisposalProposalPage() {
               variant="outline"
               onClick={() => {
                 if (!selectedCatalogId) return
-                void navigate({
-                  search: (prev) => ({
-                    ...prev,
-                    tab: 'dossiers',
-                    browseView: 'fonds',
-                    pickerMode: true,
-                    disposalCatalogId: selectedCatalogId,
-                    searchFondId: catalogDetail?.catalogFondId ?? undefined,
-                    page: 1,
-                  }),
-                })
+                setWarehousePickerOpen(true)
               }}
             >
               {t('proposal.addFromWarehouse')}
@@ -1294,6 +1286,14 @@ export function ArchiveDisposalProposalPage() {
         target={documentPreview}
         onClose={() => setDocumentPreview(null)}
       />
+
+      {selectedCatalogId ? (
+        <ArchiveDisposalWarehousePickerDialog
+          open={warehousePickerOpen}
+          onOpenChange={setWarehousePickerOpen}
+          catalogId={selectedCatalogId}
+        />
+      ) : null}
     </div>
   )
 }

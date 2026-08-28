@@ -100,7 +100,7 @@ export function ArchiveExpiryDuplicatePage() {
   const { data: disposalSettings, isPending: isSettingsPending } = useQuery(
     disposalSettingsQueryOptions(),
   )
-  const councilReviewEnabled = disposalSettings?.councilReviewEnabled ?? true
+  const councilReviewEnabled = (disposalSettings as any)?.councilReviewEnabled ?? true
   const showTransferAction = councilReviewEnabled && canCreateDisposal
   const showDestroyAction = !councilReviewEnabled && canDestroyDisposal
 
@@ -149,8 +149,8 @@ export function ArchiveExpiryDuplicatePage() {
     : null
 
   const listParams = useMemo(
-    () => buildDisposalCandidateListParams(search),
-    [search],
+    () => buildDisposalCandidateListParams(search, councilReviewEnabled),
+    [search, councilReviewEnabled],
   )
 
   useEffect(() => {
@@ -232,6 +232,12 @@ export function ArchiveExpiryDuplicatePage() {
       setSelectedKeys(new Set())
       return
     }
+    
+    if (!councilReviewEnabled) {
+      setSelectedKeys(new Set(keys))
+      return
+    }
+
     const anchor = selectionAnchorFondId ?? lockedFondId
     if (anchor) {
       setSelectedKeys(
@@ -258,8 +264,9 @@ export function ArchiveExpiryDuplicatePage() {
   ) {
     if (checked) {
       const item = findCandidateItem(groups, key)
+      if (!item) return
       if (
-        !item ||
+        councilReviewEnabled &&
         !canSelectItemFond(
           item.fondId,
           selectionAnchorFondId,
@@ -267,7 +274,7 @@ export function ArchiveExpiryDuplicatePage() {
         )
       ) {
         toast.error(
-          !item?.fondId?.trim()
+          !item.fondId?.trim()
             ? t('disposal.missingFond')
             : t('disposal.sameFondRequired'),
         )
@@ -454,6 +461,7 @@ export function ArchiveExpiryDuplicatePage() {
               dateLocale={dateLocale}
               lockedFondId={lockedFondId}
               selectionAnchorFondId={selectionAnchorFondId}
+              councilReviewEnabled={councilReviewEnabled}
             />
           </div>
         )}

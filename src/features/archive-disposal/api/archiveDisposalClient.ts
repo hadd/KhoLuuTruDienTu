@@ -37,6 +37,9 @@ export async function getDisposalCandidates(
   }
   if (params?.dateFrom) searchParams.set('dateFrom', params.dateFrom)
   if (params?.dateTo) searchParams.set('dateTo', params.dateTo)
+  if (params?.excludeUnassignedFond) {
+    searchParams.set('excludeUnassignedFond', 'true')
+  }
 
   const response = await apiClient.get<DisposalCandidatesResponseT>(
     `/api/v1/archive-disposal/candidates?${searchParams.toString()}`,

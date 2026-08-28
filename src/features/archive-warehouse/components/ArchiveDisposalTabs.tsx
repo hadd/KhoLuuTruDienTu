@@ -12,6 +12,7 @@ type ArchiveDisposalTabsProps = {
   disposalView: ArchiveDisposalViewT
   showProposal: boolean
   showList?: boolean
+  showSoftDeleted?: boolean
   onDisposalViewChange: (view: ArchiveDisposalViewT) => void
   className?: string
 }
@@ -20,6 +21,7 @@ export function ArchiveDisposalTabs({
   disposalView,
   showProposal,
   showList = true,
+  showSoftDeleted = true,
   onDisposalViewChange,
   className,
 }: ArchiveDisposalTabsProps) {
@@ -28,6 +30,7 @@ export function ArchiveDisposalTabs({
   const visibleTabs = ARCHIVE_DISPOSAL_TAB_CONFIG.filter(
     (tab) =>
       (tab.value === 'list' && showList) ||
+      (tab.value === 'softDeleted' && showSoftDeleted) ||
       (tab.value === 'proposal' && showProposal),
   )
 

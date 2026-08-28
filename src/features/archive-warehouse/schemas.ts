@@ -61,7 +61,7 @@ export type ArchiveWarehouseBrowseViewT =
   (typeof ARCHIVE_WAREHOUSE_BROWSE_VIEWS)[number]
 
 /** Sub-views under the consolidated "Hủy hồ sơ" module (`tab=expiryReview`). */
-export const ARCHIVE_DISPOSAL_VIEWS = ['list', 'proposal'] as const
+export const ARCHIVE_DISPOSAL_VIEWS = ['list', 'softDeleted', 'proposal'] as const
 
 export type ArchiveDisposalViewT = (typeof ARCHIVE_DISPOSAL_VIEWS)[number]
 

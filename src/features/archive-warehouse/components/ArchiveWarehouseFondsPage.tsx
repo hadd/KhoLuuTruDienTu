@@ -717,7 +717,7 @@ export function ArchiveWarehouseFondsPage({
             }
             trailing={
               <>
-                {canDelete ? (
+                {canDelete && !manageByFond ? (
                   <Button
                     type="button"
                     variant="destructive"
@@ -730,7 +730,7 @@ export function ArchiveWarehouseFondsPage({
                     {t('action.delete', 'Xóa')}
                   </Button>
                 ) : null}
-                {showPickerSelection ? (
+                {showPickerSelection && !manageByFond ? (
                   <Button
                     type="button"
                     disabled={

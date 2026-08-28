@@ -6,6 +6,7 @@ import type {
 
 export function buildDisposalCandidateListParams(
   search: ArchiveDataHubSearchT,
+  councilReviewEnabled?: boolean,
 ): GetDisposalCandidatesParamsT {
   const category =
     (search.disposalCategory as DisposalCandidateCategoryT | undefined) ?? 'all'
@@ -13,6 +14,7 @@ export function buildDisposalCandidateListParams(
   return {
     category,
     entityKind: 'grouped',
+    excludeUnassignedFond: councilReviewEnabled,
     fondId: search.searchFondId || undefined,
     dossierTypeId: search.dossierTypeId || undefined,
     documentTypeId: search.documentTypeId || undefined,

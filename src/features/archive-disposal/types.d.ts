@@ -59,6 +59,7 @@ export type DisposalCandidatesResponseT = {
 export type GetDisposalCandidatesParamsT = {
   category?: DisposalCandidateCategoryT
   entityKind?: DisposalCandidateEntityKindT
+  excludeUnassignedFond?: boolean
   fondId?: string
   dossierTypeId?: string
   documentTypeId?: string
