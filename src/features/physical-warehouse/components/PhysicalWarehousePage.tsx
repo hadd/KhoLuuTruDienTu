@@ -339,6 +339,7 @@ export function PhysicalWarehousePage() {
                 stats={stats}
                 compact
                 highlightPhysicalItemId={highlightPhysicalItemId}
+                focusDossierId={focusDossierId}
               />
             </TabsContent>
 

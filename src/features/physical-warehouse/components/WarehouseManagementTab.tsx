@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowRightLeft,
@@ -467,6 +467,7 @@ export function WarehouseManagementTab({
   onSelectParent,
 }: WarehouseManagementTabProps) {
   const { t } = useTranslation('physical-warehouse')
+  const navigate = useNavigate()
   const { canManageWarehouses, canManageWarehouseContents } =
     usePhysicalWarehouseAccess()
   const queryClient = useQueryClient()
@@ -1208,26 +1209,25 @@ export function WarehouseManagementTab({
                         className={cn(
                           row.dossierId === focusDossierId &&
                             'bg-primary/10 ring-2 ring-primary ring-inset',
-                          row.deletedAt && 'opacity-60',
+                          row.deletedAt
+                            ? 'opacity-60 cursor-not-allowed'
+                            : 'cursor-pointer hover:bg-muted/50',
                         )}
+                        onClick={
+                          row.deletedAt
+                            ? undefined
+                            : () =>
+                                void navigate({
+                                  to: '/app/archive-dossiers/$fondId/$dossierId',
+                                  params: {
+                                    fondId: row.fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID,
+                                    dossierId: row.dossierId,
+                                  },
+                                })
+                        }
                       >
                         <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {row.deletedAt ? (
-                              <span>{row.dossierName}</span>
-                            ) : (
-                              <Link
-                                to="/app/archive-dossiers/$fondId/$dossierId"
-                                params={{
-                                  fondId: row.fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID,
-                                  dossierId: row.dossierId,
-                                }}
-                                className="font-medium text-primary hover:underline cursor-pointer"
-                              >
-                                {row.dossierName}
-                              </Link>
-                            )}
-                          </div>
+                          <span>{row.dossierName}</span>
                         </TableCell>
                         <TableCell className="max-w-[320px] truncate text-muted-foreground">
                           {row.folderPath ?? '—'}
@@ -1236,7 +1236,7 @@ export function WarehouseManagementTab({
                           {row.documentCount ?? 0}
                         </TableCell>
                         {canManageWarehouseContents ? (
-                          <TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                             <div className="flex gap-1">
                               <Button
                                 type="button"

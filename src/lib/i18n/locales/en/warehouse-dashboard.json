@@ -77,16 +77,16 @@
             "empty": "No archived dossiers found in any Fond"
         },
         "disposal": {
-            "title": "List of Dossiers Subject to Disposal",
-            "countBadge": "{{count}} dossiers due",
-            "desc": "Dossiers whose retention period in the DB has expired",
-            "table": {
-                "colFond": "Fond",
-                "colStatus": "Status",
-                "statusPending": "Awaiting Cataloging",
-                "fallbackFond": "General Fond",
-                "empty": "No expired retention dossiers require disposal"
-            }
+            "title": "Expired & Disposal Dossier Statistics",
+            "desc": "Statistics on expired, expiring soon, and duplicate retention dossiers",
+            "totalLabel": "Total disposal candidate dossiers",
+            "expired": "Expired",
+            "expiredDesc": "Past retention period",
+            "expiringSoon": "Expiring soon",
+            "expiringSoonDesc": "Due for disposal review",
+            "duplicate": "Duplicate",
+            "duplicateDesc": "Duplicate in archive",
+            "goToDisposal": "Go to Disposal"
         }
     }
 }

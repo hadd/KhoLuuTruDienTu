@@ -1,5 +1,4 @@
-// WarehouseDiagramTab.tsx
-import { Link } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -502,6 +501,72 @@ function findRowScopeForPhysicalItem(
   return null
 }
 
+function findBoxDialogData(
+  layout: ReturnType<typeof buildWarehouseLayout>,
+  itemId: string,
+  locationName?: string,
+  warehouseName?: string,
+): {
+  id: string
+  name: string
+  breadcrumb: Array<string>
+  used: number
+  total: number
+  rect: { x: number; y: number; w: number; h: number }
+} | null {
+  for (const row of layout.rows) {
+    const elev = elevationModel(row)
+    for (const col of elev.cols) {
+      const PAD_X = 4
+      const E_LEVEL_H = 34
+      const E_BOX_H = 22
+      const E_PALLET_H = 3
+      const SLOT_GAP = 2
+      const isUnit = isStorageUnitNode(col.node)
+
+      for (let idx = 0; idx < col.tiers.length; idx++) {
+        const tier = col.tiers[idx]!
+        const levelY = elev.floorY - idx * E_LEVEL_H
+        const palletY = levelY - 5
+        const slotCap = isUnit ? 1 : tier.slotCap
+        const filled = isUnit ? 1 : Math.min(slotCap, tier.leaves.length)
+        const innerW = col.w - 2 * PAD_X - Math.max(0, slotCap - 1) * SLOT_GAP
+        const boxW = Math.max(8, innerW / slotCap)
+        const slotX = (i: number) => col.x + PAD_X + i * (boxW + SLOT_GAP)
+
+        for (let bi = 0; bi < filled; bi++) {
+          const leaf = isUnit ? tier.node : tier.leaves[bi]
+          if (leaf.id === itemId) {
+            const breadcrumb = [
+              locationName,
+              warehouseName,
+              row.node.name,
+              col.node.name,
+              !isUnit ? tier.node.name : null,
+              leaf.name,
+            ].filter((p): p is string => Boolean(p && p.trim().length > 0))
+
+            return {
+              id: leaf.id,
+              name: leaf.name,
+              breadcrumb,
+              used: leaf.usedCapacity ?? 0,
+              total: leaf.capacity ?? 0,
+              rect: {
+                x: slotX(bi),
+                y: palletY - E_BOX_H,
+                w: boxW,
+                h: E_BOX_H + E_PALLET_H,
+              },
+            }
+          }
+        }
+      }
+    }
+  }
+  return null
+}
+
 /* ================= CANVAS 1 KHO ================= */
 function WarehouseMapCanvas({
   warehouse,
@@ -509,14 +574,17 @@ function WarehouseMapCanvas({
   height,
   fill = false,
   highlightPhysicalItemId,
+  focusDossierId,
 }: {
   warehouse: PhysicalWarehouseTreeNodeT
   locationName?: string
   height: number | string
   fill?: boolean
   highlightPhysicalItemId?: string
+  focusDossierId?: string
 }) {
   const { t } = useTranslation('physical-warehouse')
+  const navigate = useNavigate()
   const layout = useMemo(() => buildWarehouseLayout(warehouse), [warehouse])
   const wrapRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<any>(null)
@@ -558,7 +626,16 @@ function WarehouseMapCanvas({
     if (found) {
       setScope({ zoneId: found.zoneId, rowId: found.rowId })
     }
-  }, [highlightPhysicalItemId, layout])
+    const boxData = findBoxDialogData(
+      layout,
+      highlightPhysicalItemId,
+      locationName,
+      warehouse.name,
+    )
+    if (boxData) {
+      setBoxDialog(boxData)
+    }
+  }, [highlightPhysicalItemId, layout, locationName, warehouse.name])
 
   useEffect(() => {
     const el = wrapRef.current
@@ -1272,24 +1349,30 @@ function WarehouseMapCanvas({
                 </TableRow>
               ) : (
                 (boxPlacementsQuery.data ?? []).map((row) => (
-                  <TableRow key={row.id} className={cn(row.deletedAt && 'opacity-60')}>
+                  <TableRow
+                    key={row.id}
+                    className={cn(
+                      row.dossierId === focusDossierId &&
+                        'bg-primary/10 ring-2 ring-primary ring-inset',
+                      row.deletedAt
+                        ? 'opacity-60 cursor-not-allowed'
+                        : 'cursor-pointer hover:bg-muted/50',
+                    )}
+                    onClick={
+                      row.deletedAt
+                        ? undefined
+                        : () =>
+                            void navigate({
+                              to: '/app/archive-dossiers/$fondId/$dossierId',
+                              params: {
+                                fondId: row.fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID,
+                                dossierId: row.dossierId,
+                              },
+                            })
+                    }
+                  >
                     <TableCell className="text-base font-medium">
-                      <div className="flex items-center gap-2">
-                        {row.deletedAt ? (
-                          <span>{row.dossierName}</span>
-                        ) : (
-                          <Link
-                            to="/app/archive-dossiers/$fondId/$dossierId"
-                            params={{
-                              fondId: row.fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID,
-                              dossierId: row.dossierId,
-                            }}
-                            className="font-medium text-primary hover:underline cursor-pointer"
-                          >
-                            {row.dossierName}
-                          </Link>
-                        )}
-                      </div>
+                      <span>{row.dossierName}</span>
                     </TableCell>
                     <TableCell className="text-center text-lg tabular-nums text-muted-foreground">
                       {row.documentCount ?? 0}
@@ -1313,6 +1396,7 @@ interface WarehouseDiagramTabProps {
   stats?: PhysicalWarehouseStatsT | null
   compact?: boolean
   highlightPhysicalItemId?: string
+  focusDossierId?: string
 }
 
 function OverviewSidebar({ stats }: { stats: PhysicalWarehouseStatsT }) {
@@ -1368,6 +1452,7 @@ export function WarehouseDiagramTab({
   stats,
   compact = false,
   highlightPhysicalItemId,
+  focusDossierId,
 }: WarehouseDiagramTabProps) {
   const { t } = useTranslation('physical-warehouse')
   const { data: tree, isPending } = useQuery(
@@ -1413,6 +1498,7 @@ export function WarehouseDiagramTab({
                 locationName={tree.name}
                 height="100%"
                 highlightPhysicalItemId={highlightPhysicalItemId}
+                focusDossierId={focusDossierId}
               />
           ))}
         </div>
