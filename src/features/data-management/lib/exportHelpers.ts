@@ -4,6 +4,7 @@ import {
   exportDossierMetadataExcel,
   exportFolderMetadataExcel,
   exportMultiDossiersMetadataExcel,
+  exportMultiDossiersDip,
   type MetadataExportRequestT,
 } from '@/features/data-management/api/dossierClient'
 import { canExportDossierMetadata } from '@/features/data-management/lib/dossierStatusHelpers'
@@ -145,6 +146,10 @@ export async function runExport({
   }
 
   if (mode === 'dip') {
+    if (kind === 'multi_dossiers' && dossierIds && dossierIds.length > 0) {
+      await exportMultiDossiersDip(dossierIds, downloadName)
+      return
+    }
     if (!dossierId) {
       throw new Error('DIP export requires dossierId')
     }
