@@ -6,6 +6,7 @@ import {
     ilike,
     inArray,
     isNull,
+    isNotNull,
     or,
     sql,
     type SQL,
@@ -82,6 +83,7 @@ export type DisposalCandidateEntityKind = "dossier" | "document" | "grouped";
 export type ListDisposalCandidatesQuery = {
     category?: DisposalCandidateCategory;
     entityKind?: DisposalCandidateEntityKind;
+    excludeUnassignedFond?: boolean;
     fondId?: string;
     dossierTypeId?: string;
     documentTypeId?: string;
@@ -205,6 +207,9 @@ async function buildScopeWhere(
         }
     }
 
+    if (filters.excludeUnassignedFond) {
+        conditions.push(isNotNull(dossiers.fondId));
+    }
     if (filters.fondId?.trim()) {
         conditions.push(eq(dossiers.fondId, filters.fondId.trim()));
     }

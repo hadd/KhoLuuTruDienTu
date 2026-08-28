@@ -353,6 +353,8 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
 
                     includeInCatalog: urlQuery.includeInCatalog,
 
+                    excludeUnassignedFond: urlQuery.excludeUnassignedFond,
+
                 });
 
             },
@@ -392,6 +394,8 @@ export function createArchiveDisposalRouter(basePath: string = "/archive-disposa
                     limit: t.Optional(t.Numeric()),
 
                     includeInCatalog: t.Optional(t.Boolean()),
+
+                    excludeUnassignedFond: t.Optional(t.Boolean()),
 
                 }),
 
