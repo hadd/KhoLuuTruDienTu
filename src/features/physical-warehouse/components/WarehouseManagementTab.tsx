@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowRightLeft,
@@ -12,6 +13,7 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -1206,16 +1208,25 @@ export function WarehouseManagementTab({
                         className={cn(
                           row.dossierId === focusDossierId &&
                             'bg-primary/10 ring-2 ring-primary ring-inset',
+                          row.deletedAt && 'opacity-60',
                         )}
                       >
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
-                            <span>{row.dossierName}</span>
                             {row.deletedAt ? (
-                              <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive text-xs shrink-0">
-                                Đã xóa
-                              </Badge>
-                            ) : null}
+                              <span>{row.dossierName}</span>
+                            ) : (
+                              <Link
+                                to="/app/archive-dossiers/$fondId/$dossierId"
+                                params={{
+                                  fondId: row.fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID,
+                                  dossierId: row.dossierId,
+                                }}
+                                className="font-medium text-primary hover:underline cursor-pointer"
+                              >
+                                {row.dossierName}
+                              </Link>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="max-w-[320px] truncate text-muted-foreground">

@@ -1,9 +1,11 @@
 // WarehouseDiagramTab.tsx
+import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
+import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -1270,15 +1272,23 @@ function WarehouseMapCanvas({
                 </TableRow>
               ) : (
                 (boxPlacementsQuery.data ?? []).map((row) => (
-                  <TableRow key={row.id}>
+                  <TableRow key={row.id} className={cn(row.deletedAt && 'opacity-60')}>
                     <TableCell className="text-base font-medium">
                       <div className="flex items-center gap-2">
-                        <span>{row.dossierName}</span>
                         {row.deletedAt ? (
-                          <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive text-xs shrink-0">
-                            Đã xóa
-                          </Badge>
-                        ) : null}
+                          <span>{row.dossierName}</span>
+                        ) : (
+                          <Link
+                            to="/app/archive-dossiers/$fondId/$dossierId"
+                            params={{
+                              fondId: row.fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID,
+                              dossierId: row.dossierId,
+                            }}
+                            className="font-medium text-primary hover:underline cursor-pointer"
+                          >
+                            {row.dossierName}
+                          </Link>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-center text-lg tabular-nums text-muted-foreground">
