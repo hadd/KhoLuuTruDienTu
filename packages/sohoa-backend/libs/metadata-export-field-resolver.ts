@@ -161,23 +161,57 @@ export function extractDossierFileItems(metadata: DossierMetadata): DossierFileI
     ];
 }
 
+export function sanitizeDatePart(val: string | null | undefined): string {
+    if (!val) return "";
+    const trimmed = val.trim();
+    if (trimmed === "0" || trimmed === "00" || trimmed === "0000" || /^0+$/.test(trimmed)) {
+        return "";
+    }
+    return trimmed;
+}
+
+export function formatDateStringToVn(dateStr: string): string {
+    if (!dateStr) return "";
+    const str = dateStr.trim();
+    const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(str);
+    if (isoMatch) {
+        const year = isoMatch[1]!;
+        const monthNum = Number(isoMatch[2]);
+        const dayNum = Number(isoMatch[3]);
+        if (monthNum === 0 && dayNum === 0) {
+            return year === "0000" ? "" : year;
+        }
+        const month = String(monthNum).padStart(2, "0");
+        const day = String(dayNum).padStart(2, "0");
+        return `${day}/${month}/${year}`;
+    }
+    const vnMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(str);
+    if (vnMatch) {
+        const day = vnMatch[1]!.padStart(2, "0");
+        const month = vnMatch[2]!.padStart(2, "0");
+        const year = vnMatch[3]!;
+        return `${day}/${month}/${year}`;
+    }
+    return str;
+}
+
 function parseDateParts(dateStr: string | null | undefined): { day: string; month: string; year: string } {
     if (!dateStr) return { day: "", month: "", year: "" };
     const str = dateStr.trim();
     const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(str);
     if (isoMatch) {
         return {
-            year: isoMatch[1]!,
-            month: String(Number(isoMatch[2])),
-            day: String(Number(isoMatch[3])),
+            year: sanitizeDatePart(isoMatch[1]),
+            month: sanitizeDatePart(String(Number(isoMatch[2]))),
+            day: sanitizeDatePart(String(Number(isoMatch[3]))),
         };
     }
     const vnMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(str);
     if (vnMatch) {
         return {
-            day: String(Number(vnMatch[1])),
-            month: String(Number(vnMatch[2])),
-            year: vnMatch[3]!,
+            day: sanitizeDatePart(String(Number(vnMatch[1]))),
+            month: sanitizeDatePart(String(Number(vnMatch[2]))),
+            year: sanitizeDatePart(vnMatch[3]),
         };
     }
     return { day: "", month: "", year: "" };
@@ -200,7 +234,7 @@ function formatCellValue(value: string | null | undefined): string {
     if (value === null || value === undefined) {
         return "";
     }
-    return String(value);
+    return formatDateStringToVn(String(value));
 }
 
 function parseFieldKey(fieldKey: string): { groupCode: string; fieldName: string } | null {
@@ -235,6 +269,7 @@ export function resolveExportFieldValue(
         return "";
     }
 
+    const isDatePart = parsed.fieldName === "NGAY" || parsed.fieldName === "THANG" || parsed.fieldName === "NAM";
     const values: string[] = [];
     for (const group of metadata.metadata_groups) {
         if (group.group_code !== parsed.groupCode) {
@@ -246,7 +281,10 @@ export function resolveExportFieldValue(
             }
             const formatted = formatCellValue(field.value);
             if (formatted) {
-                values.push(formatted);
+                const finalVal = isDatePart ? sanitizeDatePart(formatted) : formatted;
+                if (finalVal) {
+                    values.push(finalVal);
+                }
             }
         }
     }
@@ -263,7 +301,10 @@ export function resolveExportFieldValue(
             }
             const formatted = formatCellValue(field.value);
             if (formatted) {
-                values.push(formatted);
+                const finalVal = isDatePart ? sanitizeDatePart(formatted) : formatted;
+                if (finalVal) {
+                    values.push(finalVal);
+                }
             }
         }
     }
@@ -310,14 +351,24 @@ export function resolveExportFieldValueForFileItem(
             fieldKey === "__date_month" ||
             fieldKey === "__date_year"
         ) {
+            const fieldName =
+                fieldKey === "__date_day"
+                    ? "NGAY"
+                    : fieldKey === "__date_month"
+                    ? "THANG"
+                    : "NAM";
+            const direct = findFieldValueInGroups(fileItem.groups, fieldName);
+            if (direct !== null) {
+                return sanitizeDatePart(direct);
+            }
             const dateStr =
                 findFieldValueInGroups(fileItem.groups, "NGAY_THANG_NAM_BAN_HANH") ??
                 findFieldValueInGroups(fileItem.groups, "NGAY_THANG_NAM_VAN_BAN") ??
                 findFieldValueInGroups(fileItem.groups, "NGAY_BAN_HANH_AN_QD");
             const parts = parseDateParts(dateStr);
-            if (fieldKey === "__date_day") return parts.day;
-            if (fieldKey === "__date_month") return parts.month;
-            if (fieldKey === "__date_year") return parts.year;
+            if (fieldKey === "__date_day") return sanitizeDatePart(parts.day);
+            if (fieldKey === "__date_month") return sanitizeDatePart(parts.month);
+            if (fieldKey === "__date_year") return sanitizeDatePart(parts.year);
         }
         return "";
     }
@@ -326,16 +377,22 @@ export function resolveExportFieldValueForFileItem(
 
     if (fieldName === "NGAY" || fieldName === "THANG" || fieldName === "NAM") {
         const direct = findFieldValueInGroups(fileItem.groups, fieldName);
-        if (direct) return direct;
+        if (direct !== null) {
+            return sanitizeDatePart(direct);
+        }
+
         const dateStr =
             findFieldValueInGroups(fileItem.groups, "NGAY_THANG_NAM_BAN_HANH") ??
-            findFieldValueInGroups(fileItem.groups, "NGAY_THANG_NAM_VAN_BAN");
+            findFieldValueInGroups(fileItem.groups, "NGAY_THANG_NAM_VAN_BAN") ??
+            findFieldValueInGroups(fileItem.groups, "NGAY_BAN_HANH_AN_QD");
         const parts = parseDateParts(dateStr);
-        if (fieldName === "NGAY") return parts.day;
-        if (fieldName === "THANG") return parts.month;
-        if (fieldName === "NAM") return parts.year;
+        if (fieldName === "NGAY") return sanitizeDatePart(parts.day);
+        if (fieldName === "THANG") return sanitizeDatePart(parts.month);
+        if (fieldName === "NAM") return sanitizeDatePart(parts.year);
+        return "";
     }
 
+    const isDatePart = fieldName === "NGAY" || fieldName === "THANG" || fieldName === "NAM";
     const values: string[] = [];
     for (const group of fileItem.groups) {
         if (group.group_code !== groupCode && groupCode !== "TAI_LIEU_LUU_TRU") {
@@ -347,7 +404,10 @@ export function resolveExportFieldValueForFileItem(
             }
             const formatted = formatCellValue(field.value);
             if (formatted) {
-                values.push(formatted);
+                const finalVal = isDatePart ? sanitizeDatePart(formatted) : formatted;
+                if (finalVal) {
+                    values.push(finalVal);
+                }
             }
         }
     }
@@ -361,7 +421,10 @@ export function resolveExportFieldValueForFileItem(
             if (fieldMatchesKey(field.name, fieldName)) {
                 const formatted = formatCellValue(field.value);
                 if (formatted) {
-                    values.push(formatted);
+                    const finalVal = isDatePart ? sanitizeDatePart(formatted) : formatted;
+                    if (finalVal) {
+                        values.push(finalVal);
+                    }
                 }
             }
         }

@@ -260,6 +260,7 @@ Deno.test("buildDynamicMetadataExcel exports PVEP sample metadata with file_name
     assertEquals(sheet!.getCell(2, 19).value, "14"); // Ngày
     assertEquals(sheet!.getCell(2, 20).value, "1"); // Tháng
     assertEquals(sheet!.getCell(2, 21).value, "2002"); // Năm
+    assertEquals(sheet!.getCell(2, 22).value, "14/01/2002"); // Ngày, tháng, năm văn bản (formatted dd/mm/yyyy)
 
     // Find column index for "Số lượng trang của văn bản" & "Tình trạng vật lý"
     const soLuongTrangColIdx = columns.findIndex((c) => c.header === "Số lượng trang của văn bản") + 1;
@@ -278,4 +279,52 @@ Deno.test("buildDynamicMetadataExcel exports PVEP sample metadata with file_name
     assertEquals(headers.includes("Chú giải"), false);
     assertEquals(headers.includes("Ghi chú"), false);
 });
+
+Deno.test("buildDynamicMetadataExcel formats dates to dd/mm/yyyy and omits 0 values for day, month, year", async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const zeroDateMetadata: DossierMetadata = {
+        ho_so_id: "HS_ZERO_DATE",
+        metadata_groups: [
+            {
+                group_code: "HO_SO_LUU_TRU",
+                group_name: "Metadata cấp Hồ sơ lưu trữ",
+                source_document: { file_name: "bia.pdf", file_path: "raw/bia.pdf" },
+                fields: [
+                    { name: "MA_HO_SO", display: "Mã hồ sơ", type: "string", value: "HS-001", page: null, bbox: null },
+                ],
+            },
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "Metadata cấp Tài liệu lưu trữ",
+                source_document: { file_name: "doc_zero.pdf", file_path: "raw/doc_zero.pdf" },
+                fields: [
+                    { name: "MA_DINH_DANH_TAI_LIEU", display: "Mã định danh", type: "string", value: "TL-ZERO", page: null, bbox: null },
+                    { name: "NGAY", display: "Ngày", type: "string", value: "0", page: null, bbox: null },
+                    { name: "THANG", display: "Tháng", type: "string", value: "0", page: null, bbox: null },
+                    { name: "NAM", display: "Năm", type: "string", value: "2024", page: null, bbox: null },
+                    { name: "NGAY_THANG_NAM_BAN_HANH", display: "Ngày tháng năm ban hành", type: "string", value: "2024-08-05", page: null, bbox: null },
+                ],
+            },
+        ],
+    };
+
+    const columns = buildDefaultExportConfig([zeroDateMetadata]);
+    const buffer = await buildDynamicMetadataExcel([zeroDateMetadata], { exportConfig: { columns } });
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer.buffer as ArrayBuffer);
+    const sheet = workbook.getWorksheet("Metadata");
+    assertEquals(sheet != null, true);
+
+    const dayVal = sheet!.getCell(2, 19).value;
+    const monthVal = sheet!.getCell(2, 20).value;
+    const yearVal = sheet!.getCell(2, 21).value;
+    const fullDateVal = sheet!.getCell(2, 22).value;
+
+    assertEquals(dayVal ?? "", "");
+    assertEquals(monthVal ?? "", "");
+    assertEquals(yearVal, "2024");
+    assertEquals(fullDateVal, "05/08/2024");
+});
+
 
