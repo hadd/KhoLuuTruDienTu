@@ -184,9 +184,9 @@ async function loadArchivedDossierContext(dossierId: string): Promise<{
   }
 
   // BYPASS FOR TESTING: Cho phép xuất DIP không cần trạng thái ARCHIVED
- if (dossier.status !== DossierStatus.APPROVED) {
-   throw httpError.badRequest("Dossier must be archived before DIP export");
-   }
+if (dossier.status !== DossierStatus.APPROVED && dossier.status !== DossierStatus.ARCHIVED) {
+    throw httpError.badRequest("Dossier must be approved or archived before DIP export");
+}
 
   if (!dossier.currentMetadataKey) {
     throw httpError.badRequest("Dossier has no current metadata");
