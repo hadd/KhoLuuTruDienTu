@@ -75,6 +75,12 @@ export type {
     MetadataExtractSettings,
     NewMetadataExtractSettings,
 } from "./metadata-extract-settings.ts";
+export {
+    metadataHiddenFields,
+    type MetadataHiddenField,
+    type NewMetadataHiddenField,
+} from "./metadata-hidden-field.ts";
+
 
 // ========================================
 // Workflow (folders, dossiers, assignments)

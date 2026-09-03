@@ -26,6 +26,7 @@ import { createNotificationRouter } from "../modules/notification/notification.r
 import { createPhysicalWarehouseRouter } from "../modules/physical-warehouse/index.ts"
 import { createSecurityLevelRouter, createSecurityPermissionDefRouter } from "../modules/security-level/index.ts"
 import { createMetadataExtractRouter } from "../modules/metadata-extract/index.ts"
+import { createMetadataHiddenFieldRouter } from "../modules/metadata-hidden-field/index.ts"
 import { createDashboardWarehouseRouter } from "../modules/dashboard/dashboard.warehouse-router.ts"
 
 export const apiV1Router = new Elysia({
@@ -49,6 +50,8 @@ export const apiV1Router = new Elysia({
     .use(createDashboardRouter("/dashboard"))
     .use(createOcrCallbackRouter("/internal"))
     .use(createMetadataExtractRouter("/metadata"))
+    .use(createMetadataHiddenFieldRouter("/metadata-hidden-fields"))
+
     .use(createProjectPlanRouter())
     .use(createPaperSizeRouter())
     .use(createPaperPlanRouter())
