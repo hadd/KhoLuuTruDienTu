@@ -1,4 +1,6 @@
+import { useQuery } from '@tanstack/react-query'
 import type { KeyboardEvent, RefObject } from 'react'
+import { useMemo } from 'react'
 import type { TFunction } from 'i18next'
 
 import { LinkDocumentBreadcrumb } from '@/features/data-management/components/LinkDocumentBreadcrumb'
@@ -11,7 +13,6 @@ import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import {
   findAllDocumentsForMetadataGroup,
   getMetadataGroupDisplayName,
-  isHiddenMetadataFieldForTT05,
   isInternalMetadataField,
   resolveMetadataGroupSourceDocumentPath,
 } from '@/features/data-management/lib/metadataHelpers'
@@ -21,7 +22,9 @@ import type {
   DataMetadataGroupT,
   DataTreeNodeT,
 } from '@/features/data-management/types'
+import { activeMetadataHiddenFieldsQueryOptions } from '@/features/metadata-extract/queries'
 import { cn } from '@/lib/utils/cn'
+
 
 type PdfDoc = {
   id: string
@@ -147,6 +150,26 @@ export function RecordMetadataGroupCard({
     getMetadataGroupDisplayName(group) ||
     t('recordDetail.unknownFile')
 
+  const { data: activeHiddenFields = [] } = useQuery(
+    activeMetadataHiddenFieldsQueryOptions(),
+  )
+
+  const activeHiddenSet = useMemo(() => {
+    return new Set(activeHiddenFields.map((f) => f.trim().toUpperCase()))
+  }, [activeHiddenFields])
+
+  const visibleFields = useMemo(() => {
+    if (activeHiddenSet.size === 0) return group.fields
+    return group.fields.filter((field) => {
+      const nameUpper = field.name.trim().toUpperCase()
+      const normalizedUpper = nameUpper
+        .replace(/_\d+_/g, '_')
+        .replace(/_\d+$/, '')
+        .replace(/^\d+_/, '')
+      return !activeHiddenSet.has(nameUpper) && !activeHiddenSet.has(normalizedUpper)
+    })
+  }, [group.fields, activeHiddenSet])
+
   return (
     <div
       key={`${group.group_code}-${groupIndex}`}
@@ -212,14 +235,8 @@ export function RecordMetadataGroupCard({
         </p>
       ) : null}
       <div className="grid gap-2">
-        {group.fields.length > 0 ? (
-          group.fields.map((field, fieldIndex) => {
-            if (
-              isInternalMetadataField(field) ||
-              isHiddenMetadataFieldForTT05(group.group_code, field.name)
-            ) {
-              return null
-            }
+        {visibleFields.length > 0 ? (
+          visibleFields.map((field, fieldIndex) => {
             const fieldKey = `${groupIndex}-${field.name}-${fieldIndex}`
             const fieldValue = coerceMetadataText(field.value)
             const effectiveType = resolveEffectiveFieldType(

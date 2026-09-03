@@ -460,63 +460,42 @@ function groupLabelMatchesDocument(
   )
 }
 
-export function isInternalMetadataField(field: DataDocumentFieldT): boolean {
-  return isGenericMetadataGroupKey(field.name) || isHiddenMetadataFieldName(field.name)
-}
-
-const TT05_HIDDEN_FIELDS_HO_SO = new Set([
-  'MA_HO_SO',
-  'MA_CO_QUAN_LUU_TRU_LICH_SU',
-  'MA_PHONG',
-  'FOND',
-  'MUC_LUC_SO_HOAC_NAM_HINH_THANH_HO_SO',
-  'MUC_LUC_SO_HOAC_NAM_HINH_THANH',
-  'MUC_LUC_SO',
-  'NAM_HINH_THANH_HO_SO',
-  'TONG_SO_VAN_BAN_TRONG_HO_SO',
-  'TONG_SO_TAI_LIEU_TRONG_HO_SO',
-  'CHU_GIAI',
-  'KY_HIEU_THONG_TIN',
-  'TU_KHOA',
-  'TINH_TRANG_VAT_LY',
-])
-
-const TT05_HIDDEN_FIELDS_TAI_LIEU = new Set([
-  'MA_HO_SO',
-  'MA_CO_QUAN_LUU_TRU_LICH_SU',
-  'MA_PHONG',
-  'MA_PHONG_CONG_TRINH_SUU_TAP_LUU_TRU',
-  'FOND',
-  'MUC_LUC_SO_HOAC_NAM_HINH_THANH_HO_SO',
-  'MUC_LUC_SO_HOAC_NAM_HINH_THANH_TAI_LIEU',
-  'MUC_LUC_SO_HOAC_NAM_HINH_THANH',
-  'MUC_LUC_SO',
-  'SO_LUONG_TRANG_CUA_VAN_BAN',
-  'SO_LUONG_TRANG',
-  'KY_HIEU_THONG_TIN',
-  'TU_KHOA',
-  'BUT_TICH',
-  'TINH_TRANG_VAT_LY',
-])
-
-export function isHiddenMetadataFieldForTT05(
-  groupCode: string,
-  fieldName: string,
+export function isInternalMetadataField(
+  field: DataDocumentFieldT,
+  hiddenFieldCodes?: Array<string> | Set<string>,
 ): boolean {
-  if (groupCode === 'HO_SO_LUU_TRU') {
-    return TT05_HIDDEN_FIELDS_HO_SO.has(fieldName)
-  }
-  if (groupCode === 'TAI_LIEU_LUU_TRU') {
-    return TT05_HIDDEN_FIELDS_TAI_LIEU.has(fieldName)
+  if (isGenericMetadataGroupKey(field.name)) return true
+  if (hiddenFieldCodes) {
+    const nameUpper = field.name.trim().toUpperCase()
+    const normalizedUpper = nameUpper
+      .replace(/_\d+_/g, '_')
+      .replace(/_\d+$/, '')
+      .replace(/^\d+_/, '')
+    if (hiddenFieldCodes instanceof Set) {
+      if (hiddenFieldCodes.has(nameUpper) || hiddenFieldCodes.has(normalizedUpper)) {
+        return true
+      }
+    } else if (Array.isArray(hiddenFieldCodes)) {
+      if (
+        hiddenFieldCodes.some((code) => {
+          const cUpper = code.trim().toUpperCase()
+          return cUpper === nameUpper || cUpper === normalizedUpper
+        })
+      ) {
+        return true
+      }
+    }
   }
   return false
 }
 
 export function getVisibleMetadataFields(
   fields: Array<DataDocumentFieldT>,
+  hiddenFieldCodes?: Array<string> | Set<string>,
 ): Array<DataDocumentFieldT> {
-  return fields.filter((field) => !isInternalMetadataField(field))
+  return fields.filter((field) => !isInternalMetadataField(field, hiddenFieldCodes))
 }
+
 
 export function findMetadataGroupIndexForDocument(
   groups: Array<DataMetadataGroupT>,

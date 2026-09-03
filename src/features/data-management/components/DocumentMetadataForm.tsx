@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Loader2, Save } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -33,7 +33,6 @@ import {
   mergeFormValuesIntoFields,
   normalizeSavedCustomFields,
   resolveGroupCodeForDocument,
-  isHiddenMetadataFieldForTT05,
 } from '@/features/data-management/lib/metadataHelpers'
 import {
   findHoSoFondFieldValue,
@@ -47,6 +46,7 @@ import {
   useRefreshDataManagementTreeMutation,
   useSaveDossierMetadataMutation,
 } from '@/features/data-management/queries'
+import { activeMetadataHiddenFieldsQueryOptions } from '@/features/metadata-extract/queries'
 import type {
   DataDocumentFieldT,
   DataDossierMetadataT,
@@ -85,6 +85,13 @@ export function DocumentMetadataForm({
 }) {
   const { t } = useTranslation('data-management')
   const permissions = getPermissionsByRole(role as DataManagementRole)
+  const { data: activeHiddenFields = [] } = useQuery(
+    activeMetadataHiddenFieldsQueryOptions(),
+  )
+
+  const activeHiddenSet = useMemo(() => {
+    return new Set(activeHiddenFields.map((f) => f.trim().toUpperCase()))
+  }, [activeHiddenFields])
   const canManage = canManageDossierMetadata({
     role: role as DataManagementRole,
     dossierStatus,
@@ -336,11 +343,7 @@ export function DocumentMetadataForm({
       <div className="flex-1 overflow-y-auto">
         <div className="grid gap-3">
           {fields.map((field, index) => {
-            if (
-              isInternalMetadataField(field) ||
-              (documentGroupCode &&
-                isHiddenMetadataFieldForTT05(documentGroupCode, field.name))
-            ) {
+            if (isInternalMetadataField(field, activeHiddenSet)) {
               return null
             }
             return canManage && isDraftCustomField(field) ? (

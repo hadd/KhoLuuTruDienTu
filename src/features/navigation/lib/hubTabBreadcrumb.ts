@@ -61,6 +61,10 @@ const PATH_LEAF_CRUMBS: Record<string, { ns: string; key: string }> = {
     ns: 'data-config',
     key: 'tiles.metadataExtractSettings',
   },
+  '/app/data-config/metadata-hidden-fields': {
+    ns: 'data-config',
+    key: 'tiles.metadataHiddenFields',
+  },
   '/app/data-config/notification-configs': {
     ns: 'data-config',
     key: 'tiles.notificationConfigs',

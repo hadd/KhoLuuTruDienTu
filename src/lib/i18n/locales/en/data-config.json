@@ -11,6 +11,7 @@
     "metadataExportPresets": "Export presets",
     "documentNaming": "Document naming",
     "metadataExtractSettings": "Metadata extract",
+    "metadataHiddenFields": "Metadata visibility",
     "notificationConfigs": "Notifications",
     "watermarkConfigs": "Watermark",
     "auditLogConfig": "Audit log configuration",

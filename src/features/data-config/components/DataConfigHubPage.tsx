@@ -5,6 +5,7 @@ import {
   Bell,
   BookOpenCheck,
   Droplets,
+  EyeOff,
   FileSpreadsheet,
   FileText,
   FileType,
@@ -45,6 +46,7 @@ const DATA_CONFIG_TILE_ICONS: Record<DataConfigNavItemId, LucideIcon> = {
   'metadata-export-presets': FileSpreadsheet,
   'document-naming': FileText,
   'metadata-extract-settings': ScanSearch,
+  'metadata-hidden-fields': EyeOff,
   'notification-configs': Bell,
   'watermark-configs': Droplets,
   'audit-log-config': ScrollText,
@@ -58,6 +60,7 @@ const DATA_CONFIG_TILE_LABEL_KEYS: Record<
   | 'tiles.metadataExportPresets'
   | 'tiles.documentNaming'
   | 'tiles.metadataExtractSettings'
+  | 'tiles.metadataHiddenFields'
   | 'tiles.notificationConfigs'
   | 'tiles.watermarkConfigs'
   | 'tiles.auditLogConfig'
@@ -68,6 +71,7 @@ const DATA_CONFIG_TILE_LABEL_KEYS: Record<
   'metadata-export-presets': 'tiles.metadataExportPresets',
   'document-naming': 'tiles.documentNaming',
   'metadata-extract-settings': 'tiles.metadataExtractSettings',
+  'metadata-hidden-fields': 'tiles.metadataHiddenFields',
   'notification-configs': 'tiles.notificationConfigs',
   'watermark-configs': 'tiles.watermarkConfigs',
   'audit-log-config': 'tiles.auditLogConfig',
