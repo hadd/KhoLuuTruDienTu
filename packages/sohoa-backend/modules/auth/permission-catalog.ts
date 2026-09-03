@@ -22,6 +22,7 @@ export const Permission = {
   DOSSIERS_EXPORT: "dossiers.export",
   DOSSIERS_SIGN: "dossiers.sign",
   DOSSIERS_DIRECT_APPROVE: "dossiers.direct_approve",
+  DOSSIERS_DIRECT_EDIT: "dossiers.direct_edit",
   DOSSIERS_METADATA_SUMMARY_EDIT: "dossiers.metadata.summary.edit",
 
   FOLDERS_BROWSE_ALL: "folders.browse_all",
@@ -447,6 +448,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     label: "Duyệt hồ sơ trực tiếp (không qua phân công)",
     description:
       "Cho phép duyệt hoặc từ chối hồ sơ ở các bước QC mà không cần nằm trong danh sách phân công",
+  },
+  {
+    key: Permission.DOSSIERS_DIRECT_EDIT,
+    module: "dossiers",
+    label: "Biên tập hồ sơ trực tiếp (không qua phân công)",
+    description:
+      "Cho phép biên tập, sửa metadata hồ sơ trực tiếp mà không cần được phân công trước đó.",
   },
   {
     key: Permission.DOSSIERS_METADATA_SUMMARY_EDIT,

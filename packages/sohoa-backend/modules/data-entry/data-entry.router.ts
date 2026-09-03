@@ -11,6 +11,7 @@ import {
     rejectCheckerBodySchema,
     rejectResponseSchema,
     submitResponseSchema,
+    submitMetadataBodySchema,
 } from "./types.ts";
 
 const tags = ["Data Entry"];
@@ -58,6 +59,29 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
                 summary: "Get maker claim payload for a specific dossier",
                 description:
                     "Returns claim payload (metadata, allowedFields, files) for the logged-in editor when they have an IN_PROGRESS/DRAFT MAKER assignment on the dossier. Reopens a completed legacy PHONG-slot assignment when the dossier is still in maker entry.",
+            },
+        },
+    );
+
+    app.post(
+        "/maker/direct-edit/:dossierId",
+        async ({ profile, params, body }) => {
+            authHelper.checkPermission(profile, Permission.DOSSIERS_DIRECT_EDIT);
+            return await service.directEditDossier(
+                params.dossierId,
+                profile.id,
+                body.metadata,
+                body.issue_report,
+            );
+        },
+        {
+            params: t.Object({ dossierId: IdParam("Dossier ID") }),
+            body: submitMetadataBodySchema,
+            response: submitResponseSchema,
+            detail: {
+                tags,
+                summary: "Maker direct edit dossier metadata (without assignment)",
+                description: "Directly edits dossier metadata and automatically logs a completed assignment for audit purposes.",
             },
         },
     );

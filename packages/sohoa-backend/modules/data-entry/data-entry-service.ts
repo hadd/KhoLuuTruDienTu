@@ -607,6 +607,17 @@ async function directApproveDossier(
             throw httpError.notFound("Dossier not found");
         }
 
+        await tx.insert(dossierAssignments).values({
+            dossierId: dossier.id,
+            assigneeId: actorId,
+            role: WorkerRole.CHECKER_1,
+            status: AssignmentStatus.COMPLETED,
+            workQuality: WorkQuality.CORRECT,
+            metadataKey: storedKey,
+            completedAt: now,
+            assignedAt: now,
+        });
+
         const { IssueReportService } = await import("../issue-report/issue-report-service.ts");
         await IssueReportService.closeConfirmedOnCheckerApprove(tx, dossierId);
         await cancelStaleDraftAssignmentsOnDossier(tx, dossierId, now);
@@ -648,9 +659,156 @@ async function directApproveDossier(
     return {
         dossierId: dossier.id,
         assignmentId: null,
-        metadataKey: storedKey ?? "",
-        dossierStatus: updatedDossier.status,
-        currentQcStep: updatedDossier.currentQcStep,
+        role: WorkerRole.CHECKER_1,
+        dossierStatus: DossierStatus.APPROVED,
+        metadataKey: storedKey,
+        currentQcStep: dossier.requiredQcCount,
+        approvedQcStep: dossier.requiredQcCount,
+    };
+}
+
+async function directEditDossier(
+    dossierId: string,
+    actorId: string,
+    metadata: unknown,
+    issueReport?: import("../issue-report/types.ts").IssueReportInput,
+) {
+    const dossier = await db.query.dossiers.findFirst({
+        where: activeDossierWhere(eq(dossiers.id, dossierId)),
+    });
+
+    if (!isActiveDossier(dossier)) {
+        throw httpError.notFound("Dossier not found or inactive");
+    }
+
+    if (dossier.status === DossierStatus.APPROVED || dossier.status === DossierStatus.ARCHIVED) {
+        throw httpError.conflict("Dossier is already approved or archived");
+    }
+
+    const metadataKey = buildCuratedMetadataUpdateKey(
+        dossier.ocrMetadataKey ?? "metadata/curated",
+        WorkerRole.MAKER,
+        1,
+    );
+    const storedKey = await uploadJsonToStorage(metadataKey, metadata);
+
+    const { syncDossierFondIdFromMetadata } = await import(
+        "../dossier/dossier-fond-sync.ts"
+    );
+    const syncedFondId = await syncDossierFondIdFromMetadata(dossierId, metadata);
+    const effectiveFondId = syncedFondId || dossier.fondId;
+
+    try {
+        const { syncDocumentTypesFromOcrMetadata } = await import("../dossier/dossier-fond-sync.ts");
+        await syncDocumentTypesFromOcrMetadata(dossierId, metadata);
+    } catch (err) {
+        console.error("[DataEntry] Failed to sync document types on direct edit:", err);
+    }
+
+    const now = new Date();
+    // Ép buộc luôn về trạng thái Chờ QC 1 (theo yêu cầu Hướng 2), bỏ qua cấu hình requiredQcCount
+    const nextStatus = issueReport 
+        ? DossierStatus.WAITING_ISSUE_RESOLUTION 
+        : DossierStatus.WAITING_CHECKER_1;
+
+    const updatedDossier = await db.transaction(async (tx) => {
+        const newRequiredQcCount = Math.max(dossier.requiredQcCount, 1);
+
+        const [dossierRow] = await tx
+            .update(dossiers)
+            .set({
+                status: nextStatus,
+                currentQcStep: 0,
+                requiredQcCount: newRequiredQcCount,
+                currentMetadataKey: storedKey,
+                fondId: effectiveFondId,
+                updatedAt: now,
+            })
+            .where(activeDossierWhere(eq(dossiers.id, dossier.id)))
+            .returning();
+
+        if (!dossierRow) {
+            throw httpError.notFound("Dossier not found");
+        }
+
+        if (issueReport) {
+            const { IssueReportService } = await import("../issue-report/issue-report-service.ts");
+            await IssueReportService.createIssueReport(tx, {
+                input: issueReport,
+                reporterAssignmentId: null, // no assignment id
+                dossierId: dossier.id,
+                reporterId: actorId,
+                reporterRole: WorkerRole.MAKER,
+            });
+        }
+
+        await cancelStaleDraftAssignmentsOnDossier(tx, dossierId, now);
+
+        await tx.insert(dossierAssignments).values({
+            dossierId: dossier.id,
+            assigneeId: actorId,
+            role: WorkerRole.MAKER,
+            status: AssignmentStatus.COMPLETED,
+            workQuality: WorkQuality.CORRECT,
+            metadataKey: storedKey,
+            completedAt: now,
+            assignedAt: now,
+        });
+
+        await insertWorkflowLog(tx, {
+            dossierId: dossier.id,
+            actorId: actorId,
+            action: "DIRECT_EDIT",
+            fromStatus: dossier.status,
+            toStatus: nextStatus,
+        });
+
+        return dossierRow;
+    });
+
+    recordSnapshot({
+        dossierId: dossier.id,
+        actorId,
+        role: WorkerRole.MAKER,
+        action: "DIRECT_EDIT",
+        fromStatus: dossier.status,
+        toStatus: nextStatus,
+        s3Key: storedKey,
+        previousS3Key: dossier.currentMetadataKey ?? dossier.ocrMetadataKey,
+    }).catch((err) => {
+        console.error("[MetadataHistory] Failed to record direct edit snapshot:", err);
+    });
+
+    if (nextStatus === DossierStatus.APPROVED) {
+        generateAndPersistAip({ dossierId: dossier.id }).catch((err) => {
+            console.error("[AIP] Failed to generate archival package:", err);
+        });
+        scheduleDossierApprovedNotification({
+            dossierId: dossier.id,
+            dossierName: dossier.name,
+            folderId: dossier.folderId,
+        });
+    } else {
+        scheduleQcStepCompletedNotification({
+            dossierId: dossier.id,
+            dossierName: dossier.name,
+            folderId: dossier.folderId,
+            completedStep: 0,
+            nextRole: WorkerRole.CHECKER_1,
+        });
+    }
+
+    const currentMetadataUrl = await buildLinkGet(storedKey);
+
+    return {
+        dossierId: dossier.id,
+        assignmentId: null,
+        role: WorkerRole.MAKER,
+        dossierStatus: nextStatus,
+        metadataKey: storedKey,
+        currentMetadataUrl,
+        partial: false,
+        currentQcStep: 0,
         approvedQcStep: dossier.requiredQcCount,
     };
 }
@@ -1267,4 +1425,5 @@ export const DataEntryService = {
     },
 
     directApproveDossier,
+    directEditDossier,
 };
