@@ -12,6 +12,7 @@ import {
   Trash2,
   TrendingUp,
   Warehouse,
+  ArrowRight,
 } from 'lucide-react'
 import {
   Area,
@@ -300,6 +301,15 @@ export function WarehouseDashboard() {
 
   const disposalItems = (disposalData?.items ?? []) as any[]
   const totalDisposalCandidates = disposalData?.total ?? disposalItems.length
+  const expiredCount = disposalItems.filter((item: any) =>
+    Array.isArray(item.categories) && item.categories.includes('expired')
+  ).length
+  const expiringSoonCount = disposalItems.filter((item: any) =>
+    Array.isArray(item.categories) && item.categories.includes('expiring_soon')
+  ).length
+  const duplicateCount = disposalItems.filter((item: any) =>
+    Array.isArray(item.categories) && item.categories.includes('duplicate')
+  ).length
 
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-y-auto">
@@ -742,105 +752,81 @@ export function WarehouseDashboard() {
 
           <Card className="border-border bg-card shadow-xs flex flex-col justify-between">
             <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">
-                  {t('warehouse.disposal.title')}
-                </CardTitle>
-                <Badge
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base font-semibold">
+                    {t('warehouse.disposal.title')}
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    {t('warehouse.disposal.desc')}
+                  </CardDescription>
+                </div>
+                <Button
                   variant="outline"
-                  className="text-xs text-rose-600 dark:text-rose-400 border-rose-500/30 bg-rose-500/10"
+                  size="sm"
+                  className="h-8 text-xs font-medium text-rose-700 dark:text-rose-400 border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 transition-colors"
+                  onClick={() =>
+                    void navigate({
+                      to: '/app/archive-warehouse',
+                      search: { tab: 'expiryReview' },
+                    })
+                  }
                 >
-                  <Trash2 className="size-3 mr-1" />
-                  {t('warehouse.disposal.countBadge', { count: totalDisposalCandidates })}
-                </Badge>
+                  <Trash2 className="size-3.5 mr-1.5" />
+                  {t('warehouse.disposal.goToDisposal')}
+                  <ArrowRight className="size-3.5 ml-1" />
+                </Button>
               </div>
             </CardHeader>
-            <CardContent className="flex-1 pt-1">
-              <div className="max-h-[300px] overflow-y-auto overflow-x-auto">
-                <Table>
-                  <TableHeader className="sticky top-0 bg-card z-10">
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs py-2 px-2 font-semibold">
-                        {t('warehouse.unplaced.table.colName')}
-                      </TableHead>
-                      <TableHead className="text-xs py-2 px-2 font-semibold">
-                        {t('warehouse.disposal.table.colFond')}
-                      </TableHead>
-                      <TableHead className="text-xs py-2 px-2 text-right font-semibold">
-                        {t('warehouse.disposal.table.colStatus')}
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {disposalItems.length > 0 ? (
-                      disposalItems.map((exp: any) => (
-                        <TableRow key={exp?.id ?? exp?.dossierId ?? ''} className="text-xs">
-                          <TableCell
-                            className="py-2.5 px-2 max-w-[160px]"
-                            title={exp?.title ?? exp?.name ?? exp?.dossierName}
-                          >
-                            <div className="font-medium truncate">
-                              {exp?.title ?? exp?.name ?? exp?.dossierName ?? '-'}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground font-mono">
-                              {exp?.code ?? (
-                                (exp?.id ?? exp?.dossierId)
-                                  ? (exp?.id ?? exp?.dossierId)!.substring(0, 8).toUpperCase()
-                                  : '-'
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-2.5 px-2 text-muted-foreground">
-                            {exp?.fondName ?? t('warehouse.disposal.table.fallbackFond')}
-                          </TableCell>
-                          <TableCell className="py-2.5 px-2 text-right">
-                            {exp?.categories && Array.isArray(exp.categories) && exp.categories.length > 0 ? (
-                              exp.categories.map((cat: string) => (
-                                <Badge
-                                  key={cat}
-                                  variant="outline"
-                                  className={`text-[10px] ml-1 ${
-                                    cat === 'expired'
-                                      ? 'bg-rose-500/10 text-rose-700 border-rose-500/30 dark:text-rose-400'
-                                      : cat === 'expiring_soon'
-                                      ? 'bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-400'
-                                      : cat === 'duplicate'
-                                      ? 'bg-blue-500/10 text-blue-700 border-blue-500/30 dark:text-blue-400'
-                                      : 'bg-muted text-muted-foreground'
-                                  }`}
-                                >
-                                  {cat === 'expired'
-                                    ? 'Hết hạn'
-                                    : cat === 'expiring_soon'
-                                    ? 'Sắp hết hạn'
-                                    : cat === 'duplicate'
-                                    ? 'Trùng lặp'
-                                    : cat}
-                                </Badge>
-                              ))
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-400"
-                              >
-                                {t('warehouse.disposal.table.statusPending')}
-                              </Badge>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell
-                          colSpan={3}
-                          className="text-center text-xs text-muted-foreground py-6"
-                        >
-                          {t('warehouse.disposal.table.empty')}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+
+            <CardContent className="space-y-4 pt-2">
+              <div className="flex items-baseline justify-between border-b pb-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    {t('warehouse.disposal.totalLabel')}
+                  </p>
+                  <p className="text-3xl font-bold tracking-tight text-rose-600 dark:text-rose-400">
+                    {formatNumber(totalDisposalCandidates)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 pt-1">
+                <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3">
+                  <p className="text-xs font-medium text-rose-800 dark:text-rose-300">
+                    {t('warehouse.disposal.expired')}
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-rose-600 dark:text-rose-400">
+                    {formatNumber(expiredCount)}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {t('warehouse.disposal.expiredDesc')}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+                  <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+                    {t('warehouse.disposal.expiringSoon')}
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-amber-600 dark:text-amber-400">
+                    {formatNumber(expiringSoonCount)}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {t('warehouse.disposal.expiringSoonDesc')}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+                  <p className="text-xs font-medium text-blue-800 dark:text-blue-300">
+                    {t('warehouse.disposal.duplicate')}
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {formatNumber(duplicateCount)}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {t('warehouse.disposal.duplicateDesc')}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

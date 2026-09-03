@@ -1,15 +1,18 @@
-import { useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useQuery } from '@tanstack/react-query'
+import { getRouteApi } from '@tanstack/react-router'
 import {
-  ArrowUpDown,
-  Search,
-  Users,
-  CheckCircle2,
   AlertTriangle,
+  ArrowUpDown,
+  CheckCircle2,
   Clock,
+  FileSpreadsheet,
   RotateCcw,
+  Search,
   Sparkles,
+  Users,
 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -37,25 +40,92 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { formatPercentValue } from './AdminDashboardPage'
+import { adminGroupsQueryOptions } from '@/features/group/queries'
+import { adminRolesQueryOptions } from '@/features/user/queries'
 import { formatNumber } from '@/lib/utils/format'
 
-import type { AdminDashboardEmployeeKpiT } from '../types'
+import { exportEmployeeKpiToExcel } from '../lib/exportKpiExcel'
+import type { AdminDashboardEmployeeKpiT, AdminDashboardGroupStatsT } from '../types'
+import { formatPercentValue } from './AdminDashboardPage'
+
+const dashboardRouteApi = getRouteApi('/app/dashboard/')
 
 export type EmployeeKpiTableProps = {
   data: Array<AdminDashboardEmployeeKpiT>
+  selectedGroupId?: string
+  dashboardGroups?: Array<AdminDashboardGroupStatsT>
 }
 
-export function EmployeeKpiTable({ data }: EmployeeKpiTableProps) {
+export function EmployeeKpiTable({
+  data,
+  selectedGroupId,
+  dashboardGroups = [],
+}: EmployeeKpiTableProps) {
   const { t } = useTranslation('admin-dashboard')
+  const navigate = dashboardRouteApi.useNavigate()
+
+  // 1. Tải danh sách nhóm & vai trò hệ thống từ API
+  const { data: adminGroupsData } = useQuery(
+    adminGroupsQueryOptions({ limit: 100 }),
+  )
+  const { data: systemRoles = [] } = useQuery(adminRolesQueryOptions())
+
+  // Tổng hợp danh sách tổ/nhóm duy nhất từ prop dashboardGroups, adminGroupsData và data KPI
+  const combinedGroups = useMemo(() => {
+    const map = new Map<string, string>()
+
+    dashboardGroups.forEach((g) => {
+      if (g.id || g.name) {
+        map.set(g.id ?? g.name, g.name)
+      }
+    })
+
+    if (adminGroupsData?.items) {
+      adminGroupsData.items.forEach((g) => {
+        if (g.id && g.name) {
+          map.set(g.id, g.name)
+        }
+      })
+    }
+
+    data.forEach((item) => {
+      if (item.groupId && item.groupName) {
+        map.set(item.groupId, item.groupName)
+      } else if (item.groupName) {
+        map.set(item.groupName, item.groupName)
+      }
+    })
+
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
+  }, [dashboardGroups, adminGroupsData, data])
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('')
+  const [groupFilter, setGroupFilter] = useState<string>(selectedGroupId || 'all')
   const [roleFilter, setRoleFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [period, setPeriod] = useState<string>('30d')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [isExporting, setIsExporting] = useState(false)
+
+  // Đồng bộ groupFilter nếu query parameter URL selectedGroupId thay đổi
+  useEffect(() => {
+    if (selectedGroupId !== undefined && selectedGroupId !== groupFilter) {
+      setGroupFilter(selectedGroupId || 'all')
+    }
+  }, [selectedGroupId])
+
+  const handleGroupChange = (val: string) => {
+    setGroupFilter(val)
+    setCurrentPage(1)
+    void (navigate as (opts: any) => Promise<void>)({
+      search: (prev: any) => ({
+        ...prev,
+        groupId: val === 'all' ? undefined : val,
+      }),
+    })
+  }
 
   // Sorting & Pagination States
   const [sortBy, setSortBy] = useState<
@@ -75,12 +145,35 @@ export function EmployeeKpiTable({ data }: EmployeeKpiTableProps) {
 
       if (!matchSearch) return false
 
-      // 2. Role Filter
-      if (roleFilter !== 'all' && item.role !== roleFilter) {
-        return false
+      // 2. Group Filter
+      if (groupFilter !== 'all') {
+        const selectedGroup = combinedGroups.find((g) => g.id === groupFilter)
+        const targetName = selectedGroup ? selectedGroup.name.toLowerCase() : groupFilter.toLowerCase()
+        const matchesGroup =
+          item.groupId === groupFilter ||
+          (item.groupName ?? '').toLowerCase() === targetName ||
+          (item.groupName ?? '').toLowerCase().includes(targetName)
+
+        if (!matchesGroup) return false
       }
 
-      // 3. KPI Status Filter (Visual Badges)
+      // 3. Role Filter (Dynamic System Roles)
+      if (roleFilter !== 'all') {
+        const matchedRoleObj = systemRoles.find((r) => r.id === roleFilter)
+        const roleTargetName = matchedRoleObj ? matchedRoleObj.name.toLowerCase() : roleFilter.toLowerCase()
+
+        const matchesRole =
+          item.role === roleFilter ||
+          item.role.toLowerCase() === roleFilter.toLowerCase() ||
+          (matchedRoleObj && (
+            item.role.toLowerCase() === matchedRoleObj.id.toLowerCase() ||
+            item.role.toLowerCase() === matchedRoleObj.name.toLowerCase()
+          ))
+
+        if (!matchesRole) return false
+      }
+
+      // 4. KPI Status Filter (Visual Badges)
       if (statusFilter !== 'all') {
         if (statusFilter === 'EXCELLENT' && item.accuracyRate < 95) return false
         if (
@@ -93,7 +186,7 @@ export function EmployeeKpiTable({ data }: EmployeeKpiTableProps) {
 
       return true
     })
-  }, [data, searchQuery, roleFilter, statusFilter])
+  }, [data, searchQuery, groupFilter, combinedGroups, roleFilter, systemRoles, statusFilter])
 
   // Sort Data
   const sortedData = useMemo(() => {
@@ -155,6 +248,35 @@ export function EmployeeKpiTable({ data }: EmployeeKpiTableProps) {
       setSortBy(field)
       setSortOrder('desc')
     }
+  }
+
+  // Handle Export Excel
+  const handleExportExcel = async () => {
+    try {
+      setIsExporting(true)
+      const selectedGroupObj = combinedGroups.find((g) => g.id === groupFilter)
+      const selectedRoleObj = systemRoles.find((r) => r.id === roleFilter)
+
+      await exportEmployeeKpiToExcel(sortedData, {
+        groupName: selectedGroupObj ? selectedGroupObj.name : groupFilter === 'all' ? 'Tất cả' : groupFilter,
+        roleName: selectedRoleObj ? selectedRoleObj.name : roleFilter === 'all' ? 'Tất cả' : roleFilter,
+        searchQuery: searchQuery || undefined,
+        statusFilter: statusFilter === 'all' ? 'Tất cả' : statusFilter,
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // Get localized role name
+  const getRoleLabel = (roleKey: string) => {
+    const foundSystemRole = systemRoles.find(
+      (r) => r.id === roleKey || r.name.toLowerCase() === roleKey.toLowerCase(),
+    )
+    if (foundSystemRole) {
+      return foundSystemRole.name
+    }
+    return t(`roles.${roleKey}`, { defaultValue: roleKey })
   }
 
   // Summary Metrics
@@ -227,11 +349,22 @@ export function EmployeeKpiTable({ data }: EmployeeKpiTableProps) {
               })}
             </CardDescription>
           </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportExcel}
+            disabled={isExporting || totalItems === 0}
+            className="h-8 gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950 font-medium"
+          >
+            <FileSpreadsheet className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>{isExporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
+          </Button>
         </div>
 
         {/* Summary Stat Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-          <div className="flex items-center gap-3 p-2.5 rounded-lg border bg-card text-card-foreground shadow-sm">
+          <div className="flex items-center gap-3 p-2.5 rounded-lg border bg-card text-card-foreground shadow-xs">
             <div className="p-2 rounded-md bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
               <Users className="size-4" />
             </div>
@@ -241,7 +374,7 @@ export function EmployeeKpiTable({ data }: EmployeeKpiTableProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 p-2.5 rounded-lg border bg-card text-card-foreground shadow-sm">
+          <div className="flex items-center gap-3 p-2.5 rounded-lg border bg-card text-card-foreground shadow-xs">
             <div className="p-2 rounded-md bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
               <CheckCircle2 className="size-4" />
             </div>
@@ -253,7 +386,7 @@ export function EmployeeKpiTable({ data }: EmployeeKpiTableProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 p-2.5 rounded-lg border bg-card text-card-foreground shadow-sm">
+          <div className="flex items-center gap-3 p-2.5 rounded-lg border bg-card text-card-foreground shadow-xs">
             <div className="p-2 rounded-md bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400">
               <RotateCcw className="size-4" />
             </div>
@@ -265,7 +398,7 @@ export function EmployeeKpiTable({ data }: EmployeeKpiTableProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 p-2.5 rounded-lg border bg-card text-card-foreground shadow-sm">
+          <div className="flex items-center gap-3 p-2.5 rounded-lg border bg-card text-card-foreground shadow-xs">
             <div className="p-2 rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
               <Clock className="size-4" />
             </div>
@@ -280,7 +413,7 @@ export function EmployeeKpiTable({ data }: EmployeeKpiTableProps) {
         <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t">
           <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[200px]">
             {/* Search Input */}
-            <div className="relative w-[200px]">
+            <div className="relative w-[180px]">
               <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
               <Input
                 type="search"
@@ -294,7 +427,25 @@ export function EmployeeKpiTable({ data }: EmployeeKpiTableProps) {
               />
             </div>
 
-            {/* Role Filter */}
+            {/* Group Filter */}
+            <Select
+              value={groupFilter}
+              onValueChange={handleGroupChange}
+            >
+              <SelectTrigger className="h-8 w-[150px] text-xs">
+                <SelectValue placeholder="Tổ / Nhóm" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả tổ nhóm</SelectItem>
+                {combinedGroups.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>
+                    {g.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Role Filter (System Roles) */}
             <Select
               value={roleFilter}
               onValueChange={(val) => {
@@ -302,7 +453,7 @@ export function EmployeeKpiTable({ data }: EmployeeKpiTableProps) {
                 setCurrentPage(1)
               }}
             >
-              <SelectTrigger className="h-8 w-[130px] text-xs">
+              <SelectTrigger className="h-8 w-[140px] text-xs">
                 <SelectValue placeholder="Vai trò" />
               </SelectTrigger>
               <SelectContent>
@@ -310,6 +461,17 @@ export function EmployeeKpiTable({ data }: EmployeeKpiTableProps) {
                 <SelectItem value="editor">Biên tập (Editor)</SelectItem>
                 <SelectItem value="qc">Kiểm duyệt (QC)</SelectItem>
                 <SelectItem value="admin">Quản trị (Admin)</SelectItem>
+                {systemRoles
+                  .filter(
+                    (r) =>
+                      !['admin', 'editor', 'qc'].includes(r.id.toLowerCase()) &&
+                      !['admin', 'editor', 'qc'].includes(r.name.toLowerCase()),
+                  )
+                  .map((role) => (
+                    <SelectItem key={role.id} value={role.id}>
+                      {role.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
 
@@ -516,7 +678,7 @@ export function EmployeeKpiTable({ data }: EmployeeKpiTableProps) {
                             variant="secondary"
                             className="w-fit text-[9px] px-1 py-0 font-normal uppercase"
                           >
-                            {t(`roles.${row.role}`, { defaultValue: row.role })}
+                            {getRoleLabel(row.role)}
                           </Badge>
                         </div>
                       </div>

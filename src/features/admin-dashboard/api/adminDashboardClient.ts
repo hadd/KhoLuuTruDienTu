@@ -194,6 +194,7 @@ function normalizeEmployeeKpi(
     fullName: item.fullName ?? item.userFullName ?? item.name ?? `Nhân sự ${index + 1}`,
     role,
     groupName: item.groupName ?? null,
+    groupId: item.groupId ?? null,
     assignedDossiersCount,
     completedDossiersCount,
     rejectedDossiersCount,

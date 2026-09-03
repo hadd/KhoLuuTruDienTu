@@ -33,7 +33,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { EmployeeKpiTable } from './EmployeeKpiTable'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -81,6 +80,8 @@ import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { formatDate } from '@/lib/utils/date'
 import { formatNumber } from '@/lib/utils/format'
 
+import { EmployeeKpiTable } from './EmployeeKpiTable'
+
 const ROLE_CHART_COLORS = {
   admin: '#3b82f6',
   editor: '#10b981',
@@ -118,6 +119,7 @@ type AdminDashboardPageProps = {
   roleChart: AdminRoleChartTypeT
   dossierTrendGranularity: AdminDashboardDossierTrendGranularityT
   permissions?: Array<string>
+  groupId?: string
 }
 
 type ChartDatumT = {
@@ -134,6 +136,7 @@ export function AdminDashboardPage({
   roleChart,
   dossierTrendGranularity,
   permissions = [],
+  groupId,
 }: AdminDashboardPageProps) {
   const { t } = useTranslation('admin-dashboard')
   const language = useCurrentLanguage()
@@ -548,7 +551,11 @@ export function AdminDashboardPage({
 
       {/* Row 3: Biểu đồ KPI của từng nhân viên (dạng bảng) */}
       {canViewEmployeeKpis ? (
-        <EmployeeKpiTable data={data.employeeKpis} />
+        <EmployeeKpiTable
+          data={data.employeeKpis}
+          selectedGroupId={groupId}
+          dashboardGroups={data.groups}
+        />
       ) : null}
 
       {/* Row 4: Biểu đồ hiệu suất tổ nhóm */}
