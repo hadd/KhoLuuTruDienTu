@@ -119,21 +119,30 @@ function mapRawSuffixToDocJson(suffix: string): string {
 }
 
 /**
- * Mirror a raw/ object key to searchable_pdf/ with the same inner path.
+ * Mirror a known storage object key (e.g. raw/, signed/, processed/) 
+ * to searchable_pdf/ with the same inner path.
  */
 export function toSearchablePdfKey(objectKey: string): string | null {
     const normalized = normalizeStorageKey(objectKey);
-    const rawPrefix = resolveRawStoragePrefix();
 
     if (normalized.startsWith(`${SEARCHABLE_PDF_STORAGE_PREFIX}/`)) {
         return normalized;
     }
-    if (!normalized.startsWith(`${rawPrefix}/`)) {
-        return null;
+
+    const possiblePrefixes = [
+        resolveRawStoragePrefix(),
+        resolveSignedStoragePrefix(),
+        ...METADATA_OUTPUT_STORAGE_PREFIXES,
+    ];
+
+    for (const prefix of possiblePrefixes) {
+        if (normalized.startsWith(`${prefix}/`)) {
+            const suffix = normalized.slice(prefix.length + 1);
+            return `${SEARCHABLE_PDF_STORAGE_PREFIX}/${suffix}`;
+        }
     }
 
-    const suffix = normalized.slice(rawPrefix.length + 1);
-    return `${SEARCHABLE_PDF_STORAGE_PREFIX}/${suffix}`;
+    return null;
 }
 
 /**
