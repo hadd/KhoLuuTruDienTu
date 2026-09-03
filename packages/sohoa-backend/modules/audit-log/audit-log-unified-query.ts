@@ -377,21 +377,25 @@ export async function getUnifiedById(id: string): Promise<UnifiedAuditLogItem> {
         return { ...enriched, source: "live" };
     }
 
-    // Nguồn archived: Thử qua DuckDB cold query bằng GIN index trên shard.record_ids trước
-    const coldRecord = await fetchColdById(id);
-    if (coldRecord) {
-        const [hydrated] = await hydrateProjections([coldRecord]);
-        return {
-            ...hydrated,
-            ...coldRecord,
-            requestBody: coldRecord.requestBody ?? null,
-            responseBody: coldRecord.responseBody ?? null,
-            ip: coldRecord.ip ?? null,
-            userAgent: coldRecord.userAgent ?? null,
-            query: coldRecord.query ?? null,
-            responseTime: coldRecord.responseTime ?? null,
-            source: "archived",
-        };
+    // Nguồn archived: Thử qua record_ids GIN index trên shard trước
+    try {
+        const coldRecord = await fetchColdById(id);
+        if (coldRecord) {
+            const [hydrated] = await hydrateProjections([coldRecord]);
+            return {
+                ...hydrated,
+                ...coldRecord,
+                requestBody: coldRecord.requestBody ?? null,
+                responseBody: coldRecord.responseBody ?? null,
+                ip: coldRecord.ip ?? null,
+                userAgent: coldRecord.userAgent ?? null,
+                query: coldRecord.query ?? null,
+                responseTime: coldRecord.responseTime ?? null,
+                source: "archived",
+            };
+        }
+    } catch (err) {
+        logApi.warn({ err, id }, "[AUDIT_LOG] fetchColdById failed, falling back to legacy projection");
     }
 
     // Fallback legacy projection (nếu vẫn còn projection table trước A4)
