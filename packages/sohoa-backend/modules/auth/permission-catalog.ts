@@ -7,6 +7,7 @@ export const Permission = {
   USERS_EXPORT: "users.export",
 
   ROLES_MANAGE: "roles.manage",
+  AUTH_TWO_FACTOR_REQUIRE: "auth.two_factor_require",
 
   GROUPS_READ: "groups.read",
   GROUPS_READ_ALL: "groups.read_all",
@@ -762,6 +763,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     module: "roles",
     label: "Quản lý phân quyền hệ thống",
     description: "Tạo, sửa, xóa vai trò và cấu hình ma trận quyền truy cập",
+  },
+  {
+    key: Permission.AUTH_TWO_FACTOR_REQUIRE,
+    module: "roles",
+    label: "Yêu cầu xác thực 2 lớp (2FA)",
+    description:
+      "Bắt buộc người dùng thuộc vai trò này phải nhập mã OTP gửi qua Email khi đăng nhập",
   },
   {
     key: Permission.FONDS_READ,
