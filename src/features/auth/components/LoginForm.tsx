@@ -19,12 +19,18 @@ import { clearAllSecurityAccessTokens } from '@/features/security-level/lib/secu
 import { useFormError } from '@/lib/hooks/useFormError'
 import { getFieldError } from '@/lib/utils/form-validation'
 
+import { TwoFactorOtpForm } from './TwoFactorOtpForm'
+
 export const LoginForm = () => {
   const { t } = useTranslation('auth')
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { formError, setFormError, clearFormError } = useFormError()
   const [showPassword, setShowPassword] = useState(false)
+  const [twoFactorChallenge, setTwoFactorChallenge] = useState<{
+    challengeToken: string
+    maskedEmail?: string
+  } | null>(null)
 
   const getLoginErrorMessage = (error: unknown) => {
     if (isAxiosError(error)) {
@@ -61,11 +67,19 @@ export const LoginForm = () => {
   const mutation = useMutation({
     mutationFn: (values: LoginFormValues) => login(values),
     onSuccess: (data) => {
+      if (data.require2FA && data.challengeToken) {
+        setTwoFactorChallenge({
+          challengeToken: data.challengeToken,
+          maskedEmail: data.maskedEmail,
+        })
+        return
+      }
+
       resetDataManagementClientCache()
       clearAllSecurityAccessTokens()
       authStore.setTokens({
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
+        accessToken: data.accessToken ?? '',
+        refreshToken: data.refreshToken ?? '',
       })
       authStore.setRoles(data.roles ?? [])
       authStore.setUser(null)
@@ -93,6 +107,16 @@ export const LoginForm = () => {
       await mutation.mutateAsync(value)
     },
   })
+
+  if (twoFactorChallenge) {
+    return (
+      <TwoFactorOtpForm
+        challengeToken={twoFactorChallenge.challengeToken}
+        maskedEmail={twoFactorChallenge.maskedEmail}
+        onBackToLogin={() => setTwoFactorChallenge(null)}
+      />
+    )
+  }
 
   return (
     <form

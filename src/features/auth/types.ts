@@ -99,15 +99,32 @@ export type TokensT = {
   refreshToken: string
 }
 
-export type LoginResponseT = TokensT & {
+export type LoginResponseT = {
+  require2FA?: boolean
+  challengeToken?: string
+  maskedEmail?: string
+  accessToken?: string
+  refreshToken?: string
   roles?: Array<string>
   user?: UserT
 }
 
 export type AuthLoginApiResponseT = {
-  accessToken: string
-  refreshToken: string
-  expiresIn: number
-  tokenType: string
+  require2FA?: boolean
+  challengeToken?: string
+  maskedEmail?: string
+  accessToken?: string
+  refreshToken?: string
+  expiresIn?: number
+  tokenType?: string
   roles?: Array<string>
+}
+
+export type Verify2FAPayloadT = {
+  challengeToken: string
+  otpCode: string
+}
+
+export type Resend2FAPayloadT = {
+  challengeToken: string
 }

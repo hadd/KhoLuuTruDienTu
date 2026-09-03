@@ -862,8 +862,10 @@ function WarehouseMapCanvas({
                           }
                           return (
                             <>
-                              {b.cols.map((col) =>
-                                col.tiers.map((_, idx) => (
+                              {b.cols.map((col) => {
+                                const isDimmedCol =
+                                  Boolean(focusedColId) && focusedColId !== col.node.id
+                                return col.tiers.map((_, idx) => (
                                   <Rect
                                     key={`beam-${col.node.id}-${idx}`}
                                     x={col.x}
@@ -872,10 +874,11 @@ function WarehouseMapCanvas({
                                     height={E_BEAM_H}
                                     fill="#e8871e"
                                     stroke="#b96a12"
+                                    opacity={isDimmedCol ? 0.25 : 1}
                                     listening={false}
                                   />
-                                )),
-                              )}
+                                ))
+                              })}
                               {[...uprights.entries()].map(([ux, top]) => (
                                 <Group key={`up-${ux}`} listening={false}>
                                   <Rect
@@ -929,7 +932,10 @@ function WarehouseMapCanvas({
                                     : `${col.node.name} • ${leaf.name}`
                                   const isHighlighted = leaf.id === highlightPhysicalItemId
                                   const isBoxSelected = boxDialog?.id === leaf.id
-                                  const isDimmed = Boolean(boxDialog) && !isBoxSelected
+                                  const isColDimmed =
+                                    Boolean(focusedColId) && focusedColId !== col.node.id
+                                  const isDimmed =
+                                    isColDimmed || (Boolean(boxDialog) && !isBoxSelected)
                                   const emphasize = isHighlighted || isBoxSelected
                                   return (
                                     <Group key={leaf.id} opacity={isDimmed ? 0.25 : 1}>
@@ -1023,48 +1029,55 @@ function WarehouseMapCanvas({
                                     </Group>
                                   )
                                 })}
-                                {Array.from({ length: empties }, (_, ei) => (
-                                  <Group key={'ge' + ei} opacity={boxDialog ? 0.25 : 1}>
-                                    <Rect
-                                      key={'e' + ei}
-                                      x={slotX(filled + ei)}
-                                      y={palletY - E_BOX_H}
-                                      width={boxW}
-                                      height={E_BOX_H}
-                                      fill="rgba(255,255,255,0.5)"
-                                      stroke="#bbb"
-                                      strokeWidth={1}
-                                      dash={[4, 3]}
-                                      onMouseEnter={(e: any) => {
-                                        setCursor(e, 'pointer')
-                                        hoverAt(
-                                          `${col.node.name} • ${t('diagram.emptySlot')}`,
-                                          e,
-                                        )
-                                      }}
-                                      onMouseLeave={(e: any) => {
-                                        setCursor(e, '')
-                                        setHover(null)
-                                      }}
-                                      onClick={(e: any) => {
-                                        e.cancelBubble = true
-                                        setHover(null)
-                                        if (focusedColId !== col.node.id) {
-                                          setFocusedColId(col.node.id)
-                                          setBoxDialog(null)
-                                        } else if (boxDialog) {
-                                          setBoxDialog(null)
-                                        }
-                                      }}
-                                    />
-                                  </Group>
-                                ))}
+                                 {(() => {
+                                   const isColDimmed =
+                                     Boolean(focusedColId) && focusedColId !== col.node.id
+                                   const isEmptyDimmed = isColDimmed || Boolean(boxDialog)
+                                   return Array.from({ length: empties }, (_, ei) => (
+                                     <Group key={'ge' + ei} opacity={isEmptyDimmed ? 0.25 : 1}>
+                                       <Rect
+                                         key={'e' + ei}
+                                         x={slotX(filled + ei)}
+                                         y={palletY - E_BOX_H}
+                                         width={boxW}
+                                         height={E_BOX_H}
+                                         fill="rgba(255,255,255,0.5)"
+                                         stroke="#bbb"
+                                         strokeWidth={1}
+                                         dash={[4, 3]}
+                                         onMouseEnter={(e: any) => {
+                                           setCursor(e, 'pointer')
+                                           hoverAt(
+                                             `${col.node.name} • ${t('diagram.emptySlot')}`,
+                                             e,
+                                           )
+                                         }}
+                                         onMouseLeave={(e: any) => {
+                                           setCursor(e, '')
+                                           setHover(null)
+                                         }}
+                                         onClick={(e: any) => {
+                                           e.cancelBubble = true
+                                           setHover(null)
+                                           if (focusedColId !== col.node.id) {
+                                             setFocusedColId(col.node.id)
+                                             setBoxDialog(null)
+                                           } else if (boxDialog) {
+                                             setBoxDialog(null)
+                                           }
+                                         }}
+                                       />
+                                     </Group>
+                                   ))
+                                 })()}
                               </Group>
                             )
                           }),
                         )}
                         {b.cols.map((col) => {
                           const isColActive = focusedColId === col.node.id
+                          const isDimmedCol =
+                            Boolean(focusedColId) && !isColActive
                           return (
                             <Text
                               key={col.node.id}
@@ -1076,6 +1089,7 @@ function WarehouseMapCanvas({
                               fontSize={isColActive ? 12 : 11}
                               fontStyle="bold"
                               fill={isColActive ? '#7c3aed' : '#1e293b'}
+                              opacity={isDimmedCol ? 0.3 : 1}
                               onMouseEnter={(e: any) => setCursor(e, 'pointer')}
                               onMouseLeave={(e: any) => setCursor(e, '')}
                               onClick={(e: any) => {
