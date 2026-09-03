@@ -9,18 +9,6 @@ CREATE TYPE "sohoa_app"."disposal_proposal_item_source" AS ENUM('EXPIRED', 'EXPI
 CREATE TYPE "sohoa_app"."duplicate_detection_rule_key" AS ENUM('DOSSIER_NAME', 'DOSSIER_CODE', 'DOCUMENT_METADATA_SIMILARITY', 'FILE_NAME_STRICT');--> statement-breakpoint
 CREATE TYPE "sohoa_app"."group_member_role" AS ENUM('leader', 'editor', 'qc1', 'qc2', 'qc3', 'qc4', 'qc5');--> statement-breakpoint
 CREATE TYPE "sohoa_app"."retention_duration_unit" AS ENUM('YEAR', 'MONTH', 'DAY');--> statement-breakpoint
-CREATE TABLE "sohoa_app"."auth_two_factor_otps" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" uuid NOT NULL,
-	"challenge_token" varchar(255) NOT NULL,
-	"otp_hash" varchar(255) NOT NULL,
-	"attempts" integer DEFAULT 0 NOT NULL,
-	"expires_at" timestamp with time zone NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"used_at" timestamp with time zone,
-	"last_sent_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
 CREATE TABLE "sohoa_app"."disposal_appraisal_documents" (
 	"catalog_id" uuid NOT NULL,
 	"document_type" "sohoa_app"."disposal_appraisal_document_type" NOT NULL,
@@ -103,7 +91,6 @@ CREATE TABLE "sohoa_app"."metadata_hidden_fields" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "sohoa_app"."auth_two_factor_otps" ADD CONSTRAINT "auth_two_factor_otps_user_id_user_profiles_id_fk" FOREIGN KEY ("user_id") REFERENCES "sohoa_app"."user_profiles"("id") ON DELETE cascade ON UPDATE restrict;--> statement-breakpoint
 ALTER TABLE "sohoa_app"."disposal_appraisal_documents" ADD CONSTRAINT "disposal_appraisal_documents_catalog_id_disposal_proposal_catalogs_id_fk" FOREIGN KEY ("catalog_id") REFERENCES "sohoa_app"."disposal_proposal_catalogs"("id") ON DELETE cascade ON UPDATE restrict;--> statement-breakpoint
 ALTER TABLE "sohoa_app"."disposal_appraisal_documents" ADD CONSTRAINT "disposal_appraisal_documents_draft_exported_by_user_profiles_id_fk" FOREIGN KEY ("draft_exported_by") REFERENCES "sohoa_app"."user_profiles"("id") ON DELETE set null ON UPDATE restrict;--> statement-breakpoint
 ALTER TABLE "sohoa_app"."disposal_appraisal_documents" ADD CONSTRAINT "disposal_appraisal_documents_signed_uploaded_by_user_profiles_id_fk" FOREIGN KEY ("signed_uploaded_by") REFERENCES "sohoa_app"."user_profiles"("id") ON DELETE set null ON UPDATE restrict;--> statement-breakpoint
@@ -120,9 +107,6 @@ ALTER TABLE "sohoa_app"."disposal_review_council_item_evaluation_history" ADD CO
 ALTER TABLE "sohoa_app"."disposal_review_council_item_outcomes" ADD CONSTRAINT "disposal_review_council_item_outcomes_council_id_disposal_review_councils_id_fk" FOREIGN KEY ("council_id") REFERENCES "sohoa_app"."disposal_review_councils"("id") ON DELETE cascade ON UPDATE restrict;--> statement-breakpoint
 ALTER TABLE "sohoa_app"."disposal_review_council_item_outcomes" ADD CONSTRAINT "disposal_review_council_item_outcomes_item_id_disposal_proposal_items_id_fk" FOREIGN KEY ("item_id") REFERENCES "sohoa_app"."disposal_proposal_items"("id") ON DELETE cascade ON UPDATE restrict;--> statement-breakpoint
 ALTER TABLE "sohoa_app"."disposal_review_council_item_outcomes" ADD CONSTRAINT "disposal_review_council_item_outcomes_chair_decided_by_user_profiles_id_fk" FOREIGN KEY ("chair_decided_by") REFERENCES "sohoa_app"."user_profiles"("id") ON DELETE restrict ON UPDATE restrict;--> statement-breakpoint
-CREATE INDEX "auth_2fa_challenge_idx" ON "sohoa_app"."auth_two_factor_otps" USING btree ("challenge_token");--> statement-breakpoint
-CREATE INDEX "auth_2fa_user_idx" ON "sohoa_app"."auth_two_factor_otps" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "auth_2fa_active_idx" ON "sohoa_app"."auth_two_factor_otps" USING btree ("challenge_token") WHERE "sohoa_app"."auth_two_factor_otps"."used_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "disposal_appraisal_documents_catalog_type_unique" ON "sohoa_app"."disposal_appraisal_documents" USING btree ("catalog_id","document_type");--> statement-breakpoint
 CREATE INDEX "idx_disposal_appraisal_documents_catalog_id" ON "sohoa_app"."disposal_appraisal_documents" USING btree ("catalog_id");--> statement-breakpoint
 CREATE INDEX "idx_disposal_appraisal_export_runs_catalog_id" ON "sohoa_app"."disposal_appraisal_export_runs" USING btree ("catalog_id");--> statement-breakpoint

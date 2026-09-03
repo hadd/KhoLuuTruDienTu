@@ -1,6 +1,6 @@
 {
-  "id": "da06471e-3c6c-4740-a9d2-bb51fdb77d95",
-  "prevId": "091c35ff-c3ad-4fea-905a-6ee15c57bb4f",
+  "id": "a9c2f942-c312-45d0-9dec-cb32fb709f50",
+  "prevId": "da06471e-3c6c-4740-a9d2-bb51fdb77d95",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3531,6 +3531,139 @@
         "auth_sessions_user_id_user_profiles_id_fk": {
           "name": "auth_sessions_user_id_user_profiles_id_fk",
           "tableFrom": "auth_sessions",
+          "tableTo": "user_profiles",
+          "schemaTo": "sohoa_app",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "sohoa_app.auth_two_factor_otps": {
+      "name": "auth_two_factor_otps",
+      "schema": "sohoa_app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "challenge_token": {
+          "name": "challenge_token",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "otp_hash": {
+          "name": "otp_hash",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "used_at": {
+          "name": "used_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_sent_at": {
+          "name": "last_sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "auth_2fa_challenge_idx": {
+          "name": "auth_2fa_challenge_idx",
+          "columns": [
+            {
+              "expression": "challenge_token",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "auth_2fa_user_idx": {
+          "name": "auth_2fa_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "auth_2fa_active_idx": {
+          "name": "auth_2fa_active_idx",
+          "columns": [
+            {
+              "expression": "challenge_token",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"sohoa_app\".\"auth_two_factor_otps\".\"used_at\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "auth_two_factor_otps_user_id_user_profiles_id_fk": {
+          "name": "auth_two_factor_otps_user_id_user_profiles_id_fk",
+          "tableFrom": "auth_two_factor_otps",
           "tableTo": "user_profiles",
           "schemaTo": "sohoa_app",
           "columnsFrom": [
