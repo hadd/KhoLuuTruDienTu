@@ -46,18 +46,18 @@ export const SYSTEM_PERMISSION_DEFS = [
     description: "Cho phép tải bản có đóng dấu watermark",
     isSystem: true,
   },
-  {
-    key: "export",
-    name: "Xuất",
-    description: "Cho phép xuất dữ liệu hồ sơ",
-    isSystem: true,
-  },
-  {
-    key: "print",
-    name: "In",
-    description: "Cho phép in trực tiếp",
-    isSystem: true,
-  },
+  // {
+  //   key: "export",
+  //   name: "Xuất",
+  //   description: "Cho phép xuất dữ liệu hồ sơ",
+  //   isSystem: true,
+  // },
+  // {
+  //   key: "print",
+  //   name: "In",
+  //   description: "Cho phép in trực tiếp",
+  //   isSystem: true,
+  // },
   {
     key: "share",
     name: "Chia sẻ/Chuyển tiếp",
