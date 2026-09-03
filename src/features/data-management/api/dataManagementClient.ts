@@ -1345,7 +1345,6 @@ export async function assignPdfDocument({
       uploadedAt: createdAt,
       uploadedBy: 'System',
       projectCode: oldNode.projectCode,
-      dossierStatus: runMode === 'auto' ? 'NEW' : undefined,
     }
 
     dynamicTree = replaceChildInTreeAtPosition(

@@ -176,6 +176,8 @@ export function DataManagementPage({
   const [canExportDip, setCanExportDip] = useState(false)
   const [batchSignMode, setBatchSignMode] = useState(false)
   const [batchExportMode, setBatchExportMode] = useState(false)
+  const [batchExportDialogOpen, setBatchExportDialogOpen] = useState(false)
+  const [batchExportingMode, setBatchExportingMode] = useState<ExportMode | null>(null)
   const [selectedRecordIds, setSelectedRecordIds] = useState<Array<string>>([])
   const [batchSignDrawerOpen, setBatchSignDrawerOpen] = useState(false)
   const [archiveSubmitOpen, setArchiveSubmitOpen] = useState(false)
@@ -746,6 +748,57 @@ export function DataManagementPage({
       }
     },
     [exportContext, isExporting, t],
+  )
+
+  const batchExportContext: ExportContext | null = useMemo(() => {
+    if (selectedDossierIds.length === 0) return null
+    return {
+      kind: 'multi_dossiers',
+      dossierId: null,
+      folderId: null,
+      dossierIds: selectedDossierIds,
+      downloadName: `multi-export-${selectedDossierIds.length}-hoso`,
+    }
+  }, [selectedDossierIds])
+
+  const handleBatchExport = useCallback(
+    async (mode: ExportMode, options?: { presetId?: string }) => {
+      if (!batchExportContext || isExporting) return
+
+      setIsExporting(true)
+      setBatchExportingMode(mode)
+      try {
+        await runExport({
+          kind: batchExportContext.kind,
+          mode,
+          folderId: batchExportContext.folderId,
+          dossierId: batchExportContext.dossierId,
+          dossierIds: batchExportContext.dossierIds,
+          downloadName: batchExportContext.downloadName,
+          metadataExportConfig: options?.presetId
+            ? { presetId: options.presetId }
+            : undefined,
+        })
+        toast.success(
+          mode === 'metadata'
+            ? t('recordDetail.exportExcelSuccess', 'Đã tải xuống tệp Excel.')
+            : t('recordDetail.exportDipSuccess', 'Đã tải xuống gói DIP.'),
+        )
+        setBatchExportDialogOpen(false)
+      } catch (error) {
+        toast.error(
+          translateError(
+            error instanceof Error
+              ? error
+              : new Error(t('recordDetail.exportExcelError')),
+          ),
+        )
+      } finally {
+        setIsExporting(false)
+        setBatchExportingMode(null)
+      }
+    },
+    [batchExportContext, isExporting, t],
   )
 
   function handleFocusDocument(documentId: string, groupIndex: number) {
@@ -1320,44 +1373,13 @@ export function DataManagementPage({
                     size="sm"
                     className="shrink-0 gap-1.5"
                     disabled={selectedDossierIds.length === 0 || isExporting}
-                    onClick={() => {
-                      void (async () => {
-                        if (selectedDossierIds.length === 0) return
-                        setIsExporting(true)
-                        try {
-                          await runExport({
-                            kind: 'multi_dossiers',
-                            mode: 'metadata',
-                            folderId: null,
-                            dossierId: null,
-                            dossierIds: selectedDossierIds,
-                            downloadName: `multi-export-${selectedDossierIds.length}-hoso`,
-                          })
-                          toast.success(
-                            t('recordDetail.exportExcelSuccess', 'Đã tải xuống tệp Excel.'),
-                          )
-                        } catch (error) {
-                          toast.error(
-                            translateError(
-                              error instanceof Error
-                                ? error
-                                : new Error(t('recordDetail.exportExcelError')),
-                            ),
-                          )
-                        } finally {
-                          setIsExporting(false)
-                        }
-                      })()
-                    }}
+                    onClick={() => setBatchExportDialogOpen(true)}
                   >
                     <FolderUp className="size-3.5" aria-hidden />
-                    {t(
-                      'recordDetail.exportExcelBatchAction',
-                      `Xuất ${selectedDossierIds.length} hồ sơ đã chọn`,
-                      {
-                        count: selectedDossierIds.length,
-                      },
-                    )}
+                    {t('recordDetail.exportExcelRunBatch', {
+                      count: selectedDossierIds.length,
+                      defaultValue: `Xuất {{count}} hồ sơ đã chọn`,
+                    })}
                   </Button>
                 ) : null}
               </>
@@ -1514,6 +1536,15 @@ export function DataManagementPage({
         onExport={handleExport}
         isExporting={isExporting}
         exportingMode={exportingMode}
+      />
+      <ExportChoiceDialog
+        open={batchExportDialogOpen}
+        onOpenChange={setBatchExportDialogOpen}
+        context={batchExportContext}
+        canExportDip={Boolean(batchExportContext?.dossierIds?.length)}
+        onExport={handleBatchExport}
+        isExporting={isExporting}
+        exportingMode={batchExportingMode}
       />
       <BatchDigitalSignDrawer
         open={batchSignDrawerOpen}
