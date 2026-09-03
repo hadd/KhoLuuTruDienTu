@@ -11,6 +11,7 @@
     "metadataExportPresets": "Mẫu xuất",
     "documentNaming": "Tên tài liệu",
     "metadataExtractSettings": "Bóc tách metadata",
+    "metadataHiddenFields": "Hiển thị metadata",
     "notificationConfigs": "Thông báo",
     "watermarkConfigs": "Watermark",
     "auditLogConfig": "Cấu hình ghi lịch sử",

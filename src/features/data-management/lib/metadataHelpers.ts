@@ -453,15 +453,42 @@ function groupLabelMatchesDocument(
   )
 }
 
-export function isInternalMetadataField(field: DataDocumentFieldT): boolean {
-  return isGenericMetadataGroupKey(field.name)
+export function isInternalMetadataField(
+  field: DataDocumentFieldT,
+  hiddenFieldCodes?: Array<string> | Set<string>,
+): boolean {
+  if (isGenericMetadataGroupKey(field.name)) return true
+  if (hiddenFieldCodes) {
+    const nameUpper = field.name.trim().toUpperCase()
+    const normalizedUpper = nameUpper
+      .replace(/_\d+_/g, '_')
+      .replace(/_\d+$/, '')
+      .replace(/^\d+_/, '')
+    if (hiddenFieldCodes instanceof Set) {
+      if (hiddenFieldCodes.has(nameUpper) || hiddenFieldCodes.has(normalizedUpper)) {
+        return true
+      }
+    } else if (Array.isArray(hiddenFieldCodes)) {
+      if (
+        hiddenFieldCodes.some((code) => {
+          const cUpper = code.trim().toUpperCase()
+          return cUpper === nameUpper || cUpper === normalizedUpper
+        })
+      ) {
+        return true
+      }
+    }
+  }
+  return false
 }
 
 export function getVisibleMetadataFields(
   fields: Array<DataDocumentFieldT>,
+  hiddenFieldCodes?: Array<string> | Set<string>,
 ): Array<DataDocumentFieldT> {
-  return fields.filter((field) => !isInternalMetadataField(field))
+  return fields.filter((field) => !isInternalMetadataField(field, hiddenFieldCodes))
 }
+
 
 export function findMetadataGroupIndexForDocument(
   groups: Array<DataMetadataGroupT>,

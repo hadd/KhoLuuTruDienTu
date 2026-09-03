@@ -25,6 +25,8 @@ import {
   useUpdateMetadataExtractSettingsMutation,
 } from '@/features/metadata-extract/queries'
 
+import { MetadataHiddenFieldsSection } from '@/features/metadata-extract/components/MetadataHiddenFieldsSection'
+
 const MODE_OPTIONS: MetadataExtractMode[] = ['old', 'tt05', 'pvep']
 
 export function MetadataExtractSettingsPage() {
@@ -115,5 +117,6 @@ export function MetadataExtractSettingsPage() {
     </div>
   )
 }
+
 
  

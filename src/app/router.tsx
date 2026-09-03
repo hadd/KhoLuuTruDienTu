@@ -10,6 +10,11 @@ export const createAppRouter = (queryClient: QueryClient) =>
       queryClient,
     },
     defaultPreload: 'intent',
+    defaultNotFoundComponent: () => (
+      <div className="p-8 text-center text-muted-foreground">
+        Không tìm thấy trang yêu cầu
+      </div>
+    ),
   })
 
 export type AppRouter = ReturnType<typeof createAppRouter>
