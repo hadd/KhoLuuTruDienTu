@@ -513,6 +513,7 @@ function findBoxDialogData(
   used: number
   total: number
   rect: { x: number; y: number; w: number; h: number }
+  colId: string
 } | null {
   for (const row of layout.rows) {
     const elev = elevationModel(row)
@@ -542,7 +543,6 @@ function findBoxDialogData(
               warehouseName,
               row.node.name,
               col.node.name,
-              !isUnit ? tier.node.name : null,
               leaf.name,
             ].filter((p): p is string => Boolean(p && p.trim().length > 0))
 
@@ -558,6 +558,7 @@ function findBoxDialogData(
                 w: boxW,
                 h: E_BOX_H + E_PALLET_H,
               },
+              colId: col.node.id,
             }
           }
         }
@@ -598,6 +599,7 @@ function WarehouseMapCanvas({
     zoneId: string | null
     rowId: string | null
   }>({ zoneId: null, rowId: null })
+  const [focusedColId, setFocusedColId] = useState<string | null>(null)
   const [hover, setHover] = useState<{
     text: string
     x: number
@@ -622,9 +624,21 @@ function WarehouseMapCanvas({
   const scopeZone = layout.zoneRects.find((z) => z.node.id === scope.zoneId)
   const scopeRow = layout.rows.find((r) => r.node.id === scope.rowId)
 
+  useEffect(() => {
+    setFocusedColId(null)
+  }, [scope.rowId, scope.zoneId])
+
+  const focusedColNode = useMemo(() => {
+    if (!scopeRow || !focusedColId) return null
+    const b = elevationModel(scopeRow)
+    return b.cols.find((c) => c.node.id === focusedColId)?.node ?? null
+  }, [scopeRow, focusedColId])
+
   const handleBackStep = () => {
     if (boxDialog) {
       setBoxDialog(null)
+    } else if (focusedColId) {
+      setFocusedColId(null)
     } else if (scope.rowId) {
       setScope({ zoneId: scope.zoneId, rowId: null })
     } else if (scope.zoneId) {
@@ -635,22 +649,38 @@ function WarehouseMapCanvas({
   }
 
   const boxExtraBreadcrumb = useMemo(() => {
-    if (!boxDialog) return []
-    const full = boxDialog.breadcrumb
-    const rowName = scopeRow?.node.name
-    const whName = warehouse.name
-    let startIndex = -1
-    if (rowName) {
-      startIndex = full.indexOf(rowName)
+    const extra: Array<{ name: string; type: 'col' | 'extra'; colId?: string }> = []
+    if (focusedColNode) {
+      extra.push({
+        name: focusedColNode.name,
+        type: 'col',
+        colId: focusedColNode.id,
+      })
     }
-    if (startIndex === -1 && whName) {
-      startIndex = full.indexOf(whName)
+    if (boxDialog) {
+      const full = boxDialog.breadcrumb
+      const colName = focusedColNode?.name
+      const rowName = scopeRow?.node.name
+      const whName = warehouse.name
+      let startIndex = -1
+      if (colName) {
+        startIndex = full.indexOf(colName)
+      }
+      if (startIndex === -1 && rowName) {
+        startIndex = full.indexOf(rowName)
+      }
+      if (startIndex === -1 && whName) {
+        startIndex = full.indexOf(whName)
+      }
+      if (startIndex !== -1) {
+        const remaining = full.slice(startIndex + 1)
+        remaining.forEach((item) => extra.push({ name: item, type: 'extra' }))
+      } else {
+        extra.push({ name: boxDialog.name, type: 'extra' })
+      }
     }
-    if (startIndex !== -1) {
-      return full.slice(startIndex + 1)
-    }
-    return [boxDialog.name]
-  }, [boxDialog, scopeRow?.node.name, warehouse.name])
+    return extra
+  }, [boxDialog, focusedColNode, scopeRow?.node.name, warehouse.name])
 
   useEffect(() => {
     if (!highlightPhysicalItemId) return
@@ -665,6 +695,7 @@ function WarehouseMapCanvas({
       warehouse.name,
     )
     if (boxData) {
+      setFocusedColId(boxData.colId)
       setBoxDialog(boxData)
     }
   }, [highlightPhysicalItemId, layout, locationName, warehouse.name])
@@ -696,7 +727,24 @@ function WarehouseMapCanvas({
       }
     } else if (scope.rowId && scopeRow) {
       const b = elevationModel(scopeRow)
-      rect = { x: 0, y: 0, w: b.W, h: b.H }
+      if (focusedColId) {
+        const col = b.cols.find((c) => c.node.id === focusedColId)
+        if (col) {
+          const levels = col.tiers.length || 1
+          const colTop = b.floorY - levels * E_LEVEL_H - E_BEAM_H
+          const PAD = 40
+          rect = {
+            x: col.x - E_UP_W - PAD,
+            y: colTop - PAD,
+            w: col.w + E_UP_W * 2 + PAD * 2,
+            h: b.floorY - colTop + PAD * 2 + 30,
+          }
+        } else {
+          rect = { x: 0, y: 0, w: b.W, h: b.H }
+        }
+      } else {
+        rect = { x: 0, y: 0, w: b.W, h: b.H }
+      }
     } else if (scope.zoneId && scopeZone) {
       rect = scopeZone
     } else {
@@ -724,7 +772,7 @@ function WarehouseMapCanvas({
     }
     raf = requestAnimationFrame(step)
     return () => cancelAnimationFrame(raf)
-  }, [scope, layout, size, scopeRow, scopeZone, boxDialog])
+  }, [scope, layout, size, scopeRow, scopeZone, boxDialog, focusedColId])
 
   const zoomAt = (px: number, py: number, f: number) =>
     setView((v) => {
@@ -877,8 +925,8 @@ function WarehouseMapCanvas({
                                     leaf.name?.trim() || (isUnit ? tier.node.name : '')
                                   const boxLabel = elevationBoxLabel(displayName, sw)
                                   const label = isUnit
-                                    ? `${col.node.name} • ${tier.node.name}`
-                                    : `${col.node.name} • ${tier.node.name} • ${leaf.name}`
+                                    ? col.node.name
+                                    : `${col.node.name} • ${leaf.name}`
                                   const isHighlighted = leaf.id === highlightPhysicalItemId
                                   const isBoxSelected = boxDialog?.id === leaf.id
                                   const isDimmed = Boolean(boxDialog) && !isBoxSelected
@@ -917,12 +965,16 @@ function WarehouseMapCanvas({
                                         onClick={(e: any) => {
                                           e.cancelBubble = true
                                           setHover(null)
+                                          if (focusedColId !== col.node.id) {
+                                            setFocusedColId(col.node.id)
+                                            setBoxDialog(null)
+                                            return
+                                          }
                                           const breadcrumb = [
                                             locationName,
                                             warehouse.name,
                                             scopeRow?.node.name,
                                             col.node.name,
-                                            !isUnit ? tier.node.name : null,
                                             leaf.name,
                                           ].filter(
                                             (part): part is string =>
@@ -940,6 +992,7 @@ function WarehouseMapCanvas({
                                               w: sw,
                                               h: E_BOX_H + E_PALLET_H,
                                             },
+                                            colId: col.node.id,
                                           })
                                         }}
                                       />
@@ -985,13 +1038,23 @@ function WarehouseMapCanvas({
                                       onMouseEnter={(e: any) => {
                                         setCursor(e, 'pointer')
                                         hoverAt(
-                                          `${col.node.name} • ${tier.node.name} • ${t('diagram.emptySlot')}`,
+                                          `${col.node.name} • ${t('diagram.emptySlot')}`,
                                           e,
                                         )
                                       }}
                                       onMouseLeave={(e: any) => {
                                         setCursor(e, '')
                                         setHover(null)
+                                      }}
+                                      onClick={(e: any) => {
+                                        e.cancelBubble = true
+                                        setHover(null)
+                                        if (focusedColId !== col.node.id) {
+                                          setFocusedColId(col.node.id)
+                                          setBoxDialog(null)
+                                        } else if (boxDialog) {
+                                          setBoxDialog(null)
+                                        }
                                       }}
                                     />
                                   </Group>
@@ -1000,19 +1063,31 @@ function WarehouseMapCanvas({
                             )
                           }),
                         )}
-                        {b.cols.map((col) => (
-                          <Text
-                            key={col.node.id}
-                            x={col.x}
-                            y={b.floorY + 12}
-                            width={col.w}
-                            align="center"
-                            text={col.node.name}
-                            fontSize={11}
-                            fontStyle="bold"
-                            listening={false}
-                          />
-                        ))}
+                        {b.cols.map((col) => {
+                          const isColActive = focusedColId === col.node.id
+                          return (
+                            <Text
+                              key={col.node.id}
+                              x={col.x}
+                              y={b.floorY + 12}
+                              width={col.w}
+                              align="center"
+                              text={col.node.name}
+                              fontSize={isColActive ? 12 : 11}
+                              fontStyle="bold"
+                              fill={isColActive ? '#7c3aed' : '#1e293b'}
+                              onMouseEnter={(e: any) => setCursor(e, 'pointer')}
+                              onMouseLeave={(e: any) => setCursor(e, '')}
+                              onClick={(e: any) => {
+                                e.cancelBubble = true
+                                if (focusedColId !== col.node.id) {
+                                  setFocusedColId(col.node.id)
+                                  setBoxDialog(null)
+                                }
+                              }}
+                            />
+                          )
+                        })}
                         {b.levelNames.map((levelName, idx) =>
                           levelName == null ? null : (
                             <Text
@@ -1274,12 +1349,13 @@ function WarehouseMapCanvas({
             type="button"
             className={cn(
               'font-bold hover:underline',
-              scopeZone || scopeRow || boxDialog
+              scopeZone || scopeRow || focusedColId || boxDialog
                 ? 'text-muted-foreground hover:text-foreground'
                 : 'text-foreground',
             )}
             onClick={() => {
               setBoxDialog(null)
+              setFocusedColId(null)
               setScope({ zoneId: null, rowId: null })
             }}
           >
@@ -1292,12 +1368,13 @@ function WarehouseMapCanvas({
                 type="button"
                 className={cn(
                   'font-bold hover:underline',
-                  scopeRow || boxDialog
+                  scopeRow || focusedColId || boxDialog
                     ? 'text-muted-foreground hover:text-foreground'
                     : 'text-foreground',
                 )}
                 onClick={() => {
                   setBoxDialog(null)
+                  setFocusedColId(null)
                   setScope({ zoneId: scope.zoneId, rowId: null })
                 }}
               >
@@ -1312,11 +1389,14 @@ function WarehouseMapCanvas({
                 type="button"
                 className={cn(
                   'font-bold hover:underline',
-                  boxDialog
+                  focusedColId || boxDialog
                     ? 'text-muted-foreground hover:text-foreground'
                     : 'text-foreground',
                 )}
-                onClick={() => setBoxDialog(null)}
+                onClick={() => {
+                  setBoxDialog(null)
+                  setFocusedColId(null)
+                }}
               >
                 {scopeRow.node.name}
               </button>
@@ -1325,13 +1405,24 @@ function WarehouseMapCanvas({
           {boxExtraBreadcrumb.map((item, idx) => {
             const isLast = idx === boxExtraBreadcrumb.length - 1
             return (
-              <span key={`${item}-${idx}`} className="inline-flex items-center gap-1.5">
+              <span
+                key={`${item.name}-${idx}`}
+                className="inline-flex items-center gap-1.5"
+              >
                 <span className="text-muted-foreground">/</span>
                 {isLast ? (
-                  <b className="text-foreground">{item}</b>
+                  <b className="text-foreground">{item.name}</b>
+                ) : item.type === 'col' ? (
+                  <button
+                    type="button"
+                    className="font-semibold text-muted-foreground hover:text-foreground hover:underline"
+                    onClick={() => setBoxDialog(null)}
+                  >
+                    {item.name}
+                  </button>
                 ) : (
                   <span className="font-semibold text-muted-foreground">
-                    {item}
+                    {item.name}
                   </span>
                 )}
               </span>
