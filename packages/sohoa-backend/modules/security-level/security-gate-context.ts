@@ -1,5 +1,6 @@
 import { and, inArray, isNull } from "drizzle-orm"
 import { httpError } from "@shared/common-lib"
+import { DossierStatus } from "../../db/schemas/workflow-constants.ts"
 import { db } from "../../db/db-conn.ts"
 import { dossiers } from "../../db/schemas/dossier.ts"
 import { dossierFiles } from "../../db/schemas/dossier-file.ts"
@@ -100,6 +101,7 @@ export type LevelCredential = {
 export type DossierGateInfo = {
   id: string
   securityLevelId: string | null
+  status?: string | null
   accessPasswordEnabled: boolean
   accessPasswordHash: string | null
   passwordVersion: number
@@ -265,6 +267,7 @@ export class SecurityRequestCache {
       .select({
         id: dossiers.id,
         securityLevelId: dossiers.securityLevelId,
+        status: dossiers.status,
         accessPasswordEnabled: dossiers.accessPasswordEnabled,
         accessPasswordHash: dossiers.accessPasswordHash,
         passwordVersion: dossiers.passwordVersion,
@@ -276,6 +279,7 @@ export class SecurityRequestCache {
       this.dossiers.set(row.id, {
         id: row.id,
         securityLevelId: row.securityLevelId,
+        status: row.status,
         accessPasswordEnabled: row.accessPasswordEnabled,
         accessPasswordHash: row.accessPasswordHash ?? null,
         passwordVersion: row.passwordVersion ?? 1,
@@ -503,6 +507,11 @@ export async function assertPasswordGatesCached(
       await cache.loadDossiers([input.dossierId])
       dossierInfo = cache.getDossier(input.dossierId)
     }
+
+    if (dossierInfo?.status === DossierStatus.APPROVED) {
+      return
+    }
+
     dossierPasswordVersion = dossierInfo?.passwordVersion ?? 1
 
     if (dossierInfo?.accessPasswordEnabled && !dossierInfo.accessPasswordHash) {

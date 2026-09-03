@@ -1,5 +1,6 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { httpError, logApi } from "@shared/common-lib";
+import { DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import { db } from "../../db/db-conn.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { securityLevels } from "../../db/schemas/security-level.ts";
@@ -117,6 +118,7 @@ async function resolveVerifiedDossierAccessPassword(
       accessPasswordEnabled: dossiers.accessPasswordEnabled,
       accessPasswordHash: dossiers.accessPasswordHash,
       securityLevelId: dossiers.securityLevelId,
+      status: dossiers.status,
     })
     .from(dossiers)
     .where(and(inArray(dossiers.id, uniqueIds), isNull(dossiers.deletedAt)));
@@ -147,6 +149,9 @@ async function resolveVerifiedDossierAccessPassword(
   }
 
   for (const row of rows) {
+    if (row.status === DossierStatus.APPROVED) {
+      continue;
+    }
     let hash: string | null = null;
     if (row.accessPasswordEnabled && row.accessPasswordHash) {
       hash = row.accessPasswordHash;

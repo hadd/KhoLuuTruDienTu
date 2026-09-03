@@ -191,6 +191,9 @@ export async function resolveZipEncryptModeForDossiers(
   let sawDossier = false;
 
   for (const row of rows) {
+    if (row.status === DossierStatus.APPROVED) {
+      continue;
+    }
     const levelId = row.securityLevelId ?? lowestId;
     if (!levelId) continue;
     const personal = await cache.getEffectiveBool(
