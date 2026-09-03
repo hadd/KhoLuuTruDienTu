@@ -182,8 +182,8 @@ async function loadArchivedDossierContext(dossierId: string): Promise<{
     throw httpError.notFound("Dossier not found");
   }
 
-  if (dossier.status !== DossierStatus.ARCHIVED) {
-    throw httpError.badRequest("Dossier must be archived before DIP export");
+  if (dossier.status !== DossierStatus.ARCHIVED && dossier.status !== DossierStatus.APPROVED) {
+    throw httpError.badRequest("Dossier must be archived or approved before DIP export");
   }
 
   if (!dossier.currentMetadataKey) {
