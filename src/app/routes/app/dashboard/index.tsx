@@ -22,6 +22,7 @@ import {
   DASHBOARD_SCREEN_REQUIREMENTS,
   resolveDashboardVariant,
 } from '@/features/permissions/lib/dashboardAccess'
+import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 import { QcDashboardPage } from '@/features/qc-dashboard/components/QcDashboardPage'
 import { isQcGroupLeaderOnlyError } from '@/features/qc-dashboard/lib/loadErrors'
 import {
@@ -30,10 +31,9 @@ import {
 } from '@/features/qc-dashboard/queries'
 import { WarehouseDashboard } from '@/features/warehouse-dashboard'
 import { warehouseDashboardQueries } from '@/features/warehouse-dashboard/queries'
+import type { WarehouseDashboardIntakeGranularityT } from '@/features/warehouse-dashboard/types'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
-import { WarehouseDashboardIntakeGranularityT } from '@/features/warehouse-dashboard/types'
-import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 
 const dashboardSearchSchema = z.object({
   tab: z.enum(['overview', 'warehouse']).optional().catch('overview'),
@@ -49,16 +49,17 @@ const dashboardSearchSchema = z.object({
     .enum(['7d', '30d', '90d', '12m'])
     .optional()
     .catch('30d' satisfies EditorDashboardPeriodT),
-    intakeGranularity: z // Bổ sung cấu hình search param để đồng bộ hóa granular biểu đồ kho
+  intakeGranularity: z // Bổ sung cấu hình search param để đồng bộ hóa granular biểu đồ kho
     .enum(['day', 'month'])
     .optional()
     .catch('month' satisfies WarehouseDashboardIntakeGranularityT),
+  groupId: z.string().optional().catch(undefined),
 })
 
 export type DashboardSearchT = z.infer<typeof dashboardSearchSchema>
 
 // Helper kiểm tra quyền kho và xác định priority cho Overview
-function checkDashboardPermissions(permissions: string[]) {
+function checkDashboardPermissions(permissions: Array<string>) {
   const variant = resolveDashboardVariant(permissions)
   const hasWarehouse = isPermissionGranted(permissions, 'dashboard.warehouse', 'dashboard')
 
@@ -136,7 +137,7 @@ export const Route = createFileRoute('/app/dashboard/')({
 function DashboardRoute() {
   const { permissions } = Route.useLoaderData()
   const navigate = routeApi.useNavigate()
-  const { tab, roleChart, dossierTrendGranularity, period } = routeApi.useSearch()
+  const { tab, roleChart, dossierTrendGranularity, period, groupId } = routeApi.useSearch()
 
   const { overviewVariant, hasOverviewAccess, hasWarehouseAccess, isWarehouseOnly } = useMemo(
     () => checkDashboardPermissions(permissions),
@@ -208,6 +209,7 @@ function DashboardRoute() {
           roleChart={roleChart ?? 'pie'}
           dossierTrendGranularity={dossierTrendGranularity ?? 'month'}
           permissions={permissions}
+          groupId={groupId}
         />
       ) : overviewVariant === 'qc' ? (
         <QcDashboardContent />
@@ -237,10 +239,12 @@ function AdminDashboardContent({
   roleChart,
   dossierTrendGranularity,
   permissions,
+  groupId,
 }: {
   roleChart: AdminRoleChartTypeT
   dossierTrendGranularity: AdminDashboardDossierTrendGranularityT
   permissions: Array<string>
+  groupId?: string
 }) {
   const { data, isLoading } = useQuery(
     adminDashboardQueryOptions(dossierTrendGranularity),
@@ -256,6 +260,7 @@ function AdminDashboardContent({
       roleChart={roleChart}
       dossierTrendGranularity={dossierTrendGranularity}
       permissions={permissions}
+      groupId={groupId}
     />
   )
 }

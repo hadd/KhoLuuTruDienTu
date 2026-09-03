@@ -77,16 +77,16 @@
             "empty": "Chưa có Phông lưu trữ nào có hồ sơ đã lưu kho"
         },
         "disposal": {
-            "title": "Danh sách Danh Mục Hồ Sơ Cần Tiêu Hủy",
-            "countBadge": "{{count}} hồ sơ",
-            "desc": "Các hồ sơ đã hết thời hạn bảo quản lưu trữ hoặc trùng lặp trong hệ thống",
-            "table": {
-                "colFond": "Phông",
-                "colStatus": "Trạng thái",
-                "statusPending": "Chờ lập danh mục",
-                "fallbackFond": "Phông chung",
-                "empty": "Không có hồ sơ nào hết thời hạn bảo quản cần tiêu hủy"
-            }
+            "title": "Thống Kê Hồ Sơ Hết Hạn & Tiêu Hủy",
+            "desc": "Thống kê số lượng hồ sơ đã hết hạn, sắp hết hạn lưu trữ và trùng lặp",
+            "totalLabel": "Tổng số hồ sơ rà soát tiêu hủy",
+            "expired": "Đã hết hạn",
+            "expiredDesc": "Hết thời hạn bảo quản",
+            "expiringSoon": "Sắp hết hạn",
+            "expiringSoonDesc": "Cần rà soát tiêu hủy",
+            "duplicate": "Trùng lặp",
+            "duplicateDesc": "Hồ sơ bị trùng lặp",
+            "goToDisposal": "Chuyển đến Hủy hồ sơ"
         }
     }
 }

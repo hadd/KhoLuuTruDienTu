@@ -91,6 +91,7 @@ export type AdminDashboardEmployeeKpiT = {
   fullName: string
   role: string
   groupName?: string | null
+  groupId?: string | null
   assignedDossiersCount: number
   completedDossiersCount: number
   rejectedDossiersCount?: number
