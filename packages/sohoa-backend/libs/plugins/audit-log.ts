@@ -44,6 +44,8 @@ export interface AuditLogEntry {
     entityId: string | null;
     entityLabel: string | null;
     summary: string | null;
+    summaryKey?: string | null;
+    summaryParams?: Record<string, unknown> | null;
     sourceLogId: string | null;
     statusCode: number;
     responseTime: number | null;
@@ -59,6 +61,27 @@ export interface AuditLogOptions {
     logResponseBodyOnError?: boolean;
     maxResponseBodySize?: number;
 }
+
+/**
+ * Snapshot các field cần thiết đồng bộ từ ctx trước khi async enrich.
+ * Tất cả field phải được đọc trong onAfterHandle (sync), không đọc sau.
+ */
+type AuditSnapshot = {
+    requestId: string | null;
+    method: string;
+    pathname: string;
+    searchParams: URLSearchParams;
+    body: unknown;
+    responseValue: unknown;
+    routeParams: Record<string, string>;
+    profile: UserWithRoles | null | undefined;
+    statusCode: number;
+    startTime: number | null;
+    ip: string;
+    userAgent: string | null;
+    auditMeta: AuditRequestMeta;
+    skip: boolean;
+};
 
 function sanitizeBody(body: unknown): unknown {
     if (!body || typeof body !== "object" || Array.isArray(body)) return body;
@@ -107,18 +130,19 @@ function getUserRole(profile: UserWithRoles | null | undefined): string | null {
     if (!profile?.userRoles || profile.userRoles.length === 0) {
         return null;
     }
-
     return profile.userRoles[0]?.role?.name ?? null;
 }
 
-function resolveAuditMeta(
-    request: RequestWithAuditMeta,
-): AuditRequestMeta {
+function resolveAuditMeta(request: RequestWithAuditMeta): AuditRequestMeta {
     return request.__auditMeta ?? {};
 }
 
-function persistAuditLog(entry: AuditLogEntry): void {
-    if (entry.module && entry.eventType && !shouldLog(entry.module, entry.eventType)) {
+/**
+ * B1: persistAuditLog là async vì shouldLog (B4) là async.
+ * Hàm này được gọi trong void promise chain — không block response.
+ */
+async function persistAuditLog(entry: AuditLogEntry): Promise<void> {
+    if (entry.module && entry.eventType && !await shouldLog(entry.module, entry.eventType)) {
         return;
     }
 
@@ -136,6 +160,8 @@ function persistAuditLog(entry: AuditLogEntry): void {
         entityId: entry.entityId,
         entityLabel: entry.entityLabel,
         summary: entry.summary,
+        summaryKey: entry.summaryKey ?? null,
+        summaryParams: entry.summaryParams ?? null,
         sourceLogId: entry.sourceLogId,
         statusCode: entry.statusCode,
         responseTime: entry.responseTime,
@@ -164,7 +190,7 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
                 reqWithMeta.__body = body;
             }
         })
-        .onAfterHandle({ as: "scoped" }, async (ctx) => {
+        .onAfterHandle({ as: "scoped" }, (ctx) => {
             const { request, set } = ctx;
             const reqWithMeta = request as RequestWithAuditMeta & {
                 __body?: unknown;
@@ -175,113 +201,144 @@ export function createAuditLogPlugin(options: AuditLogOptions = {}) {
             if (reqWithMeta.__auditMeta?.skip) {
                 return;
             }
-            
-            const profile = (ctx as any).profile;
-            const body = reqWithMeta.__body ?? (ctx as any).body ?? null;
-            const responseValue = (ctx as any).responseValue
-                ?? (ctx as any).response
-                ?? null;
-            const routeParams = ((ctx as any).params ?? {}) as Record<string, string>;
 
+            // B1: Snapshot đồng bộ tất cả field cần thiết TRƯỚC khi async enrich.
+            // Không truy cập ctx sau đây trong async chain — ctx có thể bị GC.
             const url = new URL(request.url);
             const statusCode = typeof set.status === "number"
                 ? set.status
                 : typeof set.status === "string" && /^\d+$/.test(set.status)
                 ? Number(set.status)
                 : 200;
-            const responseTime = reqWithMeta.__startTime
-                ? Math.round(performance.now() - reqWithMeta.__startTime)
-                : null;
 
-            const auditMeta = resolveAuditMeta(reqWithMeta);
-            let routeAudit = null;
-            if (statusCode < 400) {
-                try {
-                    routeAudit = await resolveRouteAudit({
-                        method: request.method,
-                        pathname: url.pathname,
-                        params: routeParams,
-                        body,
-                        response: responseValue,
-                        profileId: profile?.id ?? null,
-                    });
-                } catch (err) {
-                    logApi.error({ err }, "[AUDIT] resolveRouteAudit failed");
-                }
-            }
-
-            const pathDerived = deriveAuditFromPath(request.method, url.pathname);
-
-            const module = normalizeAuditModule(
-                routeAudit?.module
-                    ?? auditMeta.module
-                    ?? pathDerived.module
-                    ?? resolveModuleFromPath(url.pathname),
-            );
-            const eventType = routeAudit?.eventType
-                ?? auditMeta.eventType
-                ?? pathDerived.eventType
-                ?? resolveEventTypeFromMethod(request.method);
-            const action = routeAudit
-                ? `${routeAudit.eventType}-${routeAudit.module}`
-                : reqWithMeta.__auditAction
-                ?? request.headers.get("x-audit-action")
-                ?? deriveAction(request.method, url.pathname);
-
-            const details = auditMeta.details ?? routeAudit?.details ?? null;
-
-            const entry: AuditLogEntry = {
+            const snapshot: AuditSnapshot = {
                 requestId: reqWithMeta.__requestId ?? null,
-                timestamp: new Date().toISOString(),
-                userId: profile?.id ?? null,
-                userRole: getUserRole(profile),
                 method: request.method,
-                path: url.pathname,
-                query: url.search ? Object.fromEntries(url.searchParams) : null,
-                action,
-                module,
-                eventType,
-                entityType: auditMeta.entityType ?? routeAudit?.entityType ?? null,
-                entityId: auditMeta.entityId ?? routeAudit?.entityId ?? null,
-                entityLabel: auditMeta.entityLabel
-                    ?? routeAudit?.entityLabel
-                    ?? null,
-                summary: auditMeta.summary
-                    ?? routeAudit?.summary
-                    ?? (reqWithMeta.__auditAction
-                        ? String(reqWithMeta.__auditAction)
-                        : null)
-                    ?? pathDerived.summary,
-                sourceLogId: auditMeta.sourceLogId ?? null,
+                pathname: url.pathname,
+                searchParams: url.searchParams,
+                body: reqWithMeta.__body ?? (ctx as any).body ?? null,
+                responseValue: (ctx as any).responseValue ?? (ctx as any).response ?? null,
+                routeParams: ((ctx as any).params ?? {}) as Record<string, string>,
+                profile: (ctx as any).profile,
                 statusCode,
-                responseTime,
-                ip: resolveClientIp(request),
+                startTime: reqWithMeta.__startTime ?? null,
+                ip: resolveClientIp(request) ?? "",
+
                 userAgent: request.headers.get("user-agent") ?? null,
+                auditMeta: resolveAuditMeta(reqWithMeta),
+                skip: false,
             };
 
-            if (details) {
-                entry.requestBody = sanitizeBody(details) as Record<string, unknown>;
-            } else if (MUTATING_METHODS.has(request.method) && body) {
-                entry.requestBody = sanitizeBody(body);
-            }
-
-            if (statusCode >= 400) {
-                const res = responseValue as { summary?: string; message?: string } | undefined;
-                entry.error = res?.summary ?? res?.message ?? null;
-
-                if (logResponseBodyOnError && responseValue) {
-                    entry.responseBody = sanitizeResponseBody(responseValue, maxResponseBodySize);
+            // B1: Toàn bộ enrich + persist là void promise — không block response.
+            // Audit có thể mất nếu process crash trước khi promise chạy xong.
+            // Đây là trade-off đã được business sign-off (2026-08-24).
+            void (async () => {
+                try {
+                    await processAuditSnapshot(snapshot, logResponseBody, logResponseBodyOnError, maxResponseBodySize);
+                } catch (err) {
+                    logApi.error({ err }, "[AUDIT] Async enrich pipeline failed");
                 }
-            } else if (logResponseBody && responseValue) {
-                entry.responseBody = sanitizeResponseBody(responseValue, maxResponseBodySize);
-            }
-
-            if (eventType === "view" && statusCode < 400) {
-                scheduleViewAuditLog(entry);
-            } else {
-                persistAuditLog(entry);
-            }
+            })();
         });
+}
+
+/**
+ * B1: Xử lý enrich + persist trong async context, hoàn toàn tách khỏi request lifecycle.
+ */
+async function processAuditSnapshot(
+    snapshot: AuditSnapshot,
+    logResponseBody: boolean,
+    logResponseBodyOnError: boolean,
+    maxResponseBodySize: number,
+): Promise<void> {
+    const pathDerived = deriveAuditFromPath(snapshot.method, snapshot.pathname);
+
+    let routeAudit = null;
+    if (snapshot.statusCode < 400) {
+        try {
+            routeAudit = await resolveRouteAudit({
+                method: snapshot.method,
+                pathname: snapshot.pathname,
+                params: snapshot.routeParams,
+                body: snapshot.body,
+                response: snapshot.responseValue,
+                profileId: snapshot.profile?.id ?? null,
+            });
+        } catch (err) {
+            logApi.error({ err }, "[AUDIT] resolveRouteAudit failed");
+        }
+    }
+
+    const module = normalizeAuditModule(
+        routeAudit?.module
+            ?? snapshot.auditMeta.module
+            ?? pathDerived.module
+            ?? resolveModuleFromPath(snapshot.pathname),
+    );
+    const eventType = routeAudit?.eventType
+        ?? snapshot.auditMeta.eventType
+        ?? pathDerived.eventType
+        ?? resolveEventTypeFromMethod(snapshot.method);
+    const action = routeAudit
+        ? `${routeAudit.eventType}-${routeAudit.module}`
+        : (snapshot.auditMeta as any).__auditAction
+        ?? (snapshot.auditMeta as any).action
+        ?? deriveAction(snapshot.method, snapshot.pathname);
+
+    const details = snapshot.auditMeta.details ?? routeAudit?.details ?? null;
+    const responseTime = snapshot.startTime
+        ? Math.round(performance.now() - snapshot.startTime)
+        : null;
+
+    const entry: AuditLogEntry = {
+        requestId: snapshot.requestId,
+        timestamp: new Date().toISOString(),
+        userId: snapshot.profile?.id ?? null,
+        userRole: getUserRole(snapshot.profile),
+        method: snapshot.method,
+        path: snapshot.pathname,
+        query: snapshot.searchParams.size > 0
+            ? Object.fromEntries(snapshot.searchParams)
+            : null,
+        action,
+        module,
+        eventType,
+        entityType: snapshot.auditMeta.entityType ?? routeAudit?.entityType ?? null,
+        entityId: snapshot.auditMeta.entityId ?? routeAudit?.entityId ?? null,
+        entityLabel: snapshot.auditMeta.entityLabel ?? routeAudit?.entityLabel ?? null,
+        summary: snapshot.auditMeta.summary
+            ?? routeAudit?.summary
+            ?? pathDerived.summary,
+        summaryKey: routeAudit?.summaryKey ?? null,
+        summaryParams: routeAudit?.summaryParams ?? null,
+        sourceLogId: snapshot.auditMeta.sourceLogId ?? null,
+        statusCode: snapshot.statusCode,
+        responseTime,
+        ip: snapshot.ip,
+        userAgent: snapshot.userAgent,
+    };
+
+    if (details) {
+        entry.requestBody = sanitizeBody(details) as Record<string, unknown>;
+    } else if (MUTATING_METHODS.has(snapshot.method) && snapshot.body) {
+        entry.requestBody = sanitizeBody(snapshot.body);
+    }
+
+    if (snapshot.statusCode >= 400) {
+        const res = snapshot.responseValue as { summary?: string; message?: string } | undefined;
+        entry.error = res?.summary ?? res?.message ?? null;
+        if (logResponseBodyOnError && snapshot.responseValue) {
+            entry.responseBody = sanitizeResponseBody(snapshot.responseValue, maxResponseBodySize);
+        }
+    } else if (logResponseBody && snapshot.responseValue) {
+        entry.responseBody = sanitizeResponseBody(snapshot.responseValue, maxResponseBodySize);
+    }
+
+    if (eventType === "view" && snapshot.statusCode < 400) {
+        scheduleViewAuditLog(entry);
+    } else {
+        await persistAuditLog(entry);
+    }
 }
 
 export const plAuditLog = createAuditLogPlugin();

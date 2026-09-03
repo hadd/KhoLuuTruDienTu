@@ -17,7 +17,7 @@ export function createAuditLogConfigAdminRouter(basePath: string = "/audit-log-c
             "/",
             async ({ profile }) => {
                 authHelper.checkPermission(profile, Permission.AUDIT_LOGS_CONFIG);
-                return await service.getGroupedConfig();
+                return await service.getGroupedConfig(profile);
             },
             {
                 detail: {
@@ -30,7 +30,7 @@ export function createAuditLogConfigAdminRouter(basePath: string = "/audit-log-c
             "/",
             async ({ profile, body }) => {
                 authHelper.checkPermission(profile, Permission.AUDIT_LOGS_CONFIG);
-                return await service.updateToggles(body.items);
+                return await service.updateToggles(body.items, profile);
             },
             {
                 body: t.Object({
@@ -47,3 +47,4 @@ export function createAuditLogConfigAdminRouter(basePath: string = "/audit-log-c
             },
         );
 }
+

@@ -35,7 +35,18 @@ type PendingView = {
     listSessionKey: string;
 };
 
-const pendingByActor = new Map<string, PendingView>();
+/**
+ * B2: Key dùng composite `${actor}:${listSessionKey}` thay vì chỉ actor.
+ * Tránh bug: đổi trang trước dwell timer bắn → view cũ bị clearTimeout + ghi đè, mất hoàn toàn.
+ * Với composite key: mỗi (actor, session) có entry riêng → cả 2 đều được ghi.
+ */
+const pendingByCompositeKey = new Map<string, PendingView>();
+
+/**
+ * Giới hạn số entry đồng thời để tránh memory leak khi nhiều user/session.
+ * Khi vượt ngưỡng, evict entry cũ nhất (FIFO) và fire ngay thay vì đợi timer.
+ */
+const MAX_PENDING_VIEWS = 500;
 
 function actorKey(entry: ViewAuditLogEntry): string {
     return entry.userId ?? `ip:${entry.ip ?? "unknown"}`;
@@ -47,8 +58,16 @@ export function buildListSessionKey(
     return `${entry.userId ?? "anon"}|${entry.module ?? ""}|${entry.path}`;
 }
 
+function compositeKey(entry: ViewAuditLogEntry): string {
+    return `${actorKey(entry)}:${buildListSessionKey(entry)}`;
+}
+
+function logErr(err: unknown): void {
+    logApi.error({ err }, "[AUDIT_BUFFER] Failed to persist buffered view");
+}
+
 async function insertView(entry: ViewAuditLogEntry): Promise<void> {
-    if (entry.module && entry.eventType && !shouldLog(entry.module, entry.eventType)) {
+    if (entry.module && entry.eventType && !await shouldLog(entry.module, entry.eventType)) {
         return;
     }
 
@@ -79,7 +98,7 @@ async function insertView(entry: ViewAuditLogEntry): Promise<void> {
 }
 
 async function coalesceOrInsert(entry: ViewAuditLogEntry): Promise<void> {
-    if (entry.module && entry.eventType && !shouldLog(entry.module, entry.eventType)) {
+    if (entry.module && entry.eventType && !await shouldLog(entry.module, entry.eventType)) {
         return;
     }
 
@@ -117,28 +136,44 @@ async function coalesceOrInsert(entry: ViewAuditLogEntry): Promise<void> {
     await insertView(entry);
 }
 
-function firePending(actor: string, listSessionKey: string): void {
-    const pending = pendingByActor.get(actor);
-    if (!pending || pending.listSessionKey !== listSessionKey) {
-        return;
-    }
-    pendingByActor.delete(actor);
-    coalesceOrInsert(pending.entry).catch((err) => {
-        logApi.error({ err }, "[AUDIT] Failed to persist buffered view");
-    });
+function firePending(key: string): void {
+    const pending = pendingByCompositeKey.get(key);
+    if (!pending) return;
+    pendingByCompositeKey.delete(key);
+    logApi.debug({ key, queueSize: pendingByCompositeKey.size }, "[AUDIT_BUFFER] Fire pending view");
+    coalesceOrInsert(pending.entry).catch(logErr);
 }
 
 export function scheduleViewAuditLog(entry: ViewAuditLogEntry): void {
-    const actor = actorKey(entry);
+    const key = compositeKey(entry);
     const listSessionKey = buildListSessionKey(entry);
-    const existing = pendingByActor.get(actor);
+    const existing = pendingByCompositeKey.get(key);
 
     if (existing) {
+        // B2 fix: cùng composite key (actor + session) → entry mới replace entry cũ cùng page.
+        // Clear timer cũ, fire entry cũ ngay để không mất log (coalesce vào DB).
         clearTimeout(existing.timer);
+        coalesceOrInsert(existing.entry).catch(logErr);
+    } else if (pendingByCompositeKey.size >= MAX_PENDING_VIEWS) {
+        // Eviction: Map quá lớn → fire FIFO entry cũ nhất ngay để giải phóng slot.
+        const [oldestKey] = pendingByCompositeKey.keys();
+        const oldest = pendingByCompositeKey.get(oldestKey)!;
+        clearTimeout(oldest.timer);
+        pendingByCompositeKey.delete(oldestKey);
+        logApi.warn(
+            { evictedKey: oldestKey, queueSize: pendingByCompositeKey.size },
+            "[AUDIT_BUFFER] Evicted oldest pending view (queue full)",
+        );
+        coalesceOrInsert(oldest.entry).catch(logErr);
     }
 
     const timer = setTimeout(() => {
-        firePending(actor, listSessionKey);
+        firePending(key);
     }, env.AUDIT_LOG_VIEW_DWELL_MS);
-    pendingByActor.set(actor, { entry, timer, listSessionKey });
+
+    pendingByCompositeKey.set(key, { entry, timer, listSessionKey });
+    logApi.debug(
+        { key, queueSize: pendingByCompositeKey.size },
+        "[AUDIT_BUFFER] Scheduled view",
+    );
 }

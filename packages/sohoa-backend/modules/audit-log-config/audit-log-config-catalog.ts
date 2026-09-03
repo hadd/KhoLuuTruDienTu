@@ -1,3 +1,5 @@
+import { Permission } from "../auth/permission-catalog.ts";
+
 export type AuditLogCatalogEntry = {
     module: string;
     moduleLabel: string;
@@ -116,6 +118,20 @@ export const AUDIT_LOG_CONFIG_CATALOG: AuditLogCatalogEntry[] = [
     { module: "projects", moduleLabel: "Dự án", actionKey: "update", label: "Cập nhật", defaultEnabled: true },
     { module: "projects", moduleLabel: "Dự án", actionKey: "delete", label: "Xóa", defaultEnabled: true },
 
+    { module: "project-plans", moduleLabel: "Kế hoạch dự án", actionKey: "view", label: "Xem danh sách / chi tiết", defaultEnabled: true },
+    { module: "project-plans", moduleLabel: "Kế hoạch dự án", actionKey: "create", label: "Tạo mới", defaultEnabled: true },
+    { module: "project-plans", moduleLabel: "Kế hoạch dự án", actionKey: "update", label: "Cập nhật", defaultEnabled: true },
+    { module: "project-plans", moduleLabel: "Kế hoạch dự án", actionKey: "delete", label: "Xóa", defaultEnabled: true },
+
+    { module: "archive-disposal", moduleLabel: "Xét hủy hồ sơ", actionKey: "view", label: "Xem danh sách đề xuất / xét hủy", defaultEnabled: true },
+    { module: "archive-disposal", moduleLabel: "Xét hủy hồ sơ", actionKey: "create", label: "Tạo đề xuất hủy", defaultEnabled: true },
+    { module: "archive-disposal", moduleLabel: "Xét hủy hồ sơ", actionKey: "update", label: "Cập nhật đề xuất hủy", defaultEnabled: true },
+    { module: "archive-disposal", moduleLabel: "Xét hủy hồ sơ", actionKey: "submit", label: "Trình duyệt đề xuất hủy", defaultEnabled: true },
+    { module: "archive-disposal", moduleLabel: "Xét hủy hồ sơ", actionKey: "council_create", label: "Tạo / thành lập Hội đồng xét hủy", defaultEnabled: true },
+    { module: "archive-disposal", moduleLabel: "Xét hủy hồ sơ", actionKey: "council_finalize", label: "Phê duyệt kết quả Hội đồng xét hủy", defaultEnabled: true },
+    { module: "archive-disposal", moduleLabel: "Xét hủy hồ sơ", actionKey: "council_publish", label: "Xuất bản Quyết định Hội đồng", defaultEnabled: true },
+    { module: "archive-disposal", moduleLabel: "Xét hủy hồ sơ", actionKey: "destroy", label: "Thực hiện hủy hồ sơ", defaultEnabled: true },
+
     { module: "security-levels", moduleLabel: "Cấp độ bảo mật", actionKey: "view", label: "Xem danh sách / chi tiết", defaultEnabled: true },
     { module: "security-levels", moduleLabel: "Cấp độ bảo mật", actionKey: "create", label: "Tạo mới", defaultEnabled: true },
     { module: "security-levels", moduleLabel: "Cấp độ bảo mật", actionKey: "update", label: "Cập nhật", defaultEnabled: true },
@@ -137,12 +153,104 @@ export const AUDIT_LOG_CONFIG_CATALOG: AuditLogCatalogEntry[] = [
     { module: "notifications", moduleLabel: "Thông báo", actionKey: "view", label: "Xem hộp thư", defaultEnabled: true },
     { module: "notifications", moduleLabel: "Thông báo", actionKey: "update", label: "Đánh dấu đã đọc", defaultEnabled: true },
 
+    { module: "dashboard", moduleLabel: "Dashboard thống kê", actionKey: "view", label: "Xem dashboard thống kê", defaultEnabled: true },
+
     { module: "audit-log", moduleLabel: "Lịch sử thao tác hệ thống", actionKey: "view", label: "Xem lịch sử thao tác hệ thống", defaultEnabled: true },
     { module: "audit-log", moduleLabel: "Lịch sử thao tác hệ thống", actionKey: "delete", label: "Xóa lịch sử thao tác hệ thống", defaultEnabled: true },
 
     { module: "audit-log-config", moduleLabel: "Cấu hình lịch sử thao tác hệ thống", actionKey: "view", label: "Xem cấu hình", defaultEnabled: true },
     { module: "audit-log-config", moduleLabel: "Cấu hình lịch sử thao tác hệ thống", actionKey: "update", label: "Cập nhật cấu hình", defaultEnabled: true },
 ];
+
+/** Mapping of module key -> required permissions array. If null, NO permission required (e.g. auth). */
+export const AUDIT_LOG_MODULE_PERMISSIONS: Record<string, readonly string[] | null> = {
+    auth: null, // "auth" module requires NO permissions as requested ("Riêng quyền xác thực thì không cần quyền")
+    fonds: [Permission.FONDS_READ, Permission.FONDS_CREATE, Permission.FONDS_UPDATE, Permission.FONDS_DELETE],
+    "retention-periods": [Permission.RETENTION_PERIODS_READ, Permission.RETENTION_PERIODS_CREATE, Permission.RETENTION_PERIODS_UPDATE, Permission.RETENTION_PERIODS_DELETE],
+    archive: [
+        Permission.ARCHIVE_WAREHOUSE_READ,
+        Permission.ARCHIVE_WAREHOUSE_EDIT,
+        Permission.ARCHIVE_WAREHOUSE_CONFIGURE_SECURITY,
+        Permission.ARCHIVE_WAREHOUSE_DELETE,
+        Permission.ARCHIVE_WAREHOUSE_REUPLOAD,
+        Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
+        Permission.ARCHIVE_PERMISSIONS_MANAGE,
+        Permission.DOSSIERS_READ,
+        Permission.DOSSIERS_WRITE,
+        Permission.ARCHIVE_SUBMIT,
+        Permission.ARCHIVE_REVIEW,
+        Permission.ARCHIVE_CONFIG_MANAGE,
+    ],
+    "physical-warehouse": [
+        Permission.PHYSICAL_WAREHOUSE_ITEM_READ,
+        Permission.PHYSICAL_WAREHOUSE_LOCATION_MANAGE,
+        Permission.PHYSICAL_WAREHOUSE_WAREHOUSE_MANAGE,
+    ],
+    inventories: [Permission.INVENTORIES_READ, Permission.INVENTORIES_CREATE, Permission.INVENTORIES_UPDATE, Permission.INVENTORIES_DELETE],
+    "data-entry": [Permission.DATA_ENTRY_MAKER, Permission.DATA_ENTRY_CHECKER],
+    users: [Permission.USERS_READ, Permission.USERS_CREATE, Permission.USERS_UPDATE, Permission.USERS_DELETE, Permission.USERS_IMPORT, Permission.USERS_EXPORT],
+    roles: [Permission.ROLES_MANAGE],
+    watermark: [Permission.WATERMARK_CONFIG_READ, Permission.WATERMARK_CONFIG_CREATE, Permission.WATERMARK_CONFIG_UPDATE, Permission.WATERMARK_CONFIG_DELETE],
+    metadata: [
+        Permission.METADATA_TEMPLATES_MANAGE,
+        Permission.METADATA_PERMISSIONS_MANAGE,
+        Permission.METADATA_EXPORT_PRESETS_MANAGE,
+        Permission.METADATA_NAMING_MANAGE,
+        Permission.METADATA_EXTRACT_SETTINGS_READ,
+        Permission.METADATA_EXTRACT_SETTINGS_UPDATE,
+        Permission.METADATA_EXTRACT_TRIGGER,
+    ],
+    folders: [Permission.FOLDERS_BROWSE_ALL, Permission.FOLDERS_BROWSE_ASSIGNED],
+    "scan-intake": [Permission.SCAN_INTAKE_USE],
+    "digital-sign": [Permission.DOSSIERS_SIGN, Permission.DOSSIERS_READ],
+    "dossier-types": [Permission.DOSSIER_TYPES_READ, Permission.DOSSIER_TYPES_CREATE, Permission.DOSSIER_TYPES_UPDATE, Permission.DOSSIER_TYPES_DELETE],
+    "document-types": [Permission.DOCUMENT_TYPES_READ, Permission.DOCUMENT_TYPES_CREATE, Permission.DOCUMENT_TYPES_UPDATE, Permission.DOCUMENT_TYPES_DELETE],
+    "issue-reports": [Permission.DOSSIERS_READ, Permission.DATA_ENTRY_MAKER, Permission.DATA_ENTRY_CHECKER],
+    groups: [
+        Permission.GROUPS_READ,
+        Permission.GROUPS_READ_ALL,
+        Permission.GROUPS_CREATE,
+        Permission.GROUPS_UPDATE,
+        Permission.GROUPS_DELETE,
+        Permission.GROUPS_MANAGE_MEMBERS,
+        Permission.GROUPS_START_WORKFLOW,
+    ],
+    projects: [Permission.PROJECTS_READ, Permission.PROJECTS_CREATE, Permission.PROJECTS_UPDATE, Permission.PROJECTS_DELETE],
+    "project-plans": [Permission.PROJECT_PLANS_READ, Permission.PROJECT_PLANS_CREATE, Permission.PROJECT_PLANS_UPDATE, Permission.PROJECT_PLANS_DELETE],
+    "archive-disposal": [
+        Permission.ARCHIVE_DISPOSAL_READ,
+        Permission.ARCHIVE_DISPOSAL_CREATE,
+        Permission.ARCHIVE_DISPOSAL_UPDATE,
+        Permission.ARCHIVE_DISPOSAL_SUBMIT,
+        Permission.ARCHIVE_DISPOSAL_COUNCIL_READ,
+        Permission.ARCHIVE_DISPOSAL_COUNCIL_CREATE,
+        Permission.ARCHIVE_DISPOSAL_COUNCIL_UPDATE,
+        Permission.ARCHIVE_DISPOSAL_COUNCIL_FINALIZE,
+        Permission.ARCHIVE_DISPOSAL_COUNCIL_PUBLISH,
+        Permission.ARCHIVE_DISPOSAL_COUNCIL_CHAIR_DECIDE,
+        Permission.ARCHIVE_DISPOSAL_SETTINGS_MANAGE,
+        Permission.ARCHIVE_DISPOSAL_DESTROY,
+    ],
+    "security-levels": [
+        Permission.SECURITY_LEVELS_READ,
+        Permission.SECURITY_LEVELS_CREATE,
+        Permission.SECURITY_LEVELS_UPDATE,
+        Permission.SECURITY_LEVELS_DELETE,
+        Permission.SECURITY_LEVELS_CONFIG,
+        Permission.SECURITY_LEVELS_PERMISSION_DEFS_READ,
+        Permission.SECURITY_LEVELS_PERMISSION_DEFS_MANAGE,
+    ],
+    "archive-borrow": [
+        Permission.ARCHIVE_BORROW_REQUEST,
+        Permission.ARCHIVE_BORROW_REVIEW,
+        Permission.LIBRARY_BORROW_APPROVAL_CONFIG_MANAGE,
+        Permission.LIBRARY_EXPLOITATION_READ,
+    ],
+    notifications: [Permission.NOTIFICATIONS_CONFIG_MANAGE],
+    dashboard: [Permission.DASHBOARD_EDITOR, Permission.DASHBOARD_QC, Permission.DASHBOARD_ADMIN, Permission.DASHBOARD_WAREHOUSE],
+    "audit-log": [Permission.AUDIT_LOGS_READ, Permission.AUDIT_LOGS_DELETE, Permission.AUDIT_LOGS_EXPORT],
+    "audit-log-config": [Permission.AUDIT_LOGS_CONFIG],
+};
 
 export function catalogKey(module: string, actionKey: string): string {
     return `${module}:${actionKey}`;
@@ -153,7 +261,6 @@ export function getCatalogDefault(module: string, actionKey: string): boolean {
         (item) => item.module === module && item.actionKey === actionKey,
     );
     if (entry) return entry.defaultEnabled;
-    // Read/list traffic is noisy; only log when explicitly catalogued & enabled.
-    //if (actionKey === "view" || actionKey === "list") return false;
     return true;
 }
+

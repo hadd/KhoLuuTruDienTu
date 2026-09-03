@@ -44,7 +44,7 @@ export {
 // Groups
 // ========================================
 export { groups, groupsRelations } from "./groups.ts";
-export { groupMembers } from "./group_members.ts";
+export { groupMembers, groupMemberRoleEnum, type GroupMember, type NewGroupMember } from "./group_members.ts";
 export { groupMembersRelations } from "./schema-relations.ts";
 export { metadataTemplates } from "./metadata_template.ts";
 export { metadataExportPresets } from "./metadata_export_preset.ts";
@@ -138,6 +138,11 @@ export { paperSizes } from "./paper-size.ts";
 // ========================================
 export { fonds } from "./fond.ts";
 export { retentionPeriods } from "./retention-period.ts";
+export {
+    retentionDurationUnitEnum,
+    RetentionDurationUnit,
+    RETENTION_DURATION_UNIT_VALUES,
+} from "./retention-period-enums.ts";
 export { inventories } from "./inventory.ts";
 export { dossierTypes } from "./dossier-type.ts";
 export { documentTypes, documentTypesRelations } from "./document-type.ts";
@@ -305,6 +310,12 @@ export {
     disposalReviewCouncilMembers,
     disposalReviewCouncilMemberHistory,
     disposalReviewCouncilItemEvaluations,
+    disposalReviewCouncilItemEvaluationHistory,
+    disposalReviewCouncilItemOutcomes,
+    disposalAppraisalDocuments,
+    disposalCatalogPl3Content,
+    disposalCatalogDocumentDrafts,
+    disposalAppraisalExportRuns,
     disposalProposalCatalogsRelations,
     disposalProposalItemsRelations,
     disposalReviewCouncilsRelations,
@@ -333,6 +344,17 @@ export {
     MIN_DISPOSAL_COUNCIL_MEMBERS,
     MANDATORY_DISPOSAL_COUNCIL_REPRESENTATION_TYPES,
 } from "./archive-disposal-constants.ts";
+export {
+    disposalProposalCatalogStatusEnum,
+    disposalProposalItemSourceEnum,
+    duplicateDetectionRuleKeyEnum,
+    disposalCouncilMemberPositionRoleEnum,
+    disposalCouncilMemberRepresentationTypeEnum,
+    disposalCouncilMemberHistoryActionEnum,
+    disposalCouncilReviewResultEnum,
+    disposalCouncilEvaluationDecisionEnum,
+    disposalAppraisalDocumentTypeEnum,
+} from "./archive-disposal-enums.ts";
 
 // ========================================
 // Archive Borrow

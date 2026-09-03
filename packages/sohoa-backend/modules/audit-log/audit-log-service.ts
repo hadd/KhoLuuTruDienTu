@@ -119,6 +119,34 @@ async function archiveShardAndDelete(
     const objectKey = buildShardObjectKey(windowStart, seq);
     const minCreatedAt = asDate(records[0]?.createdAt ?? windowStart);
     const maxCreatedAt = asDate(records[records.length - 1]?.createdAt ?? windowEnd);
+    const recordIds = records.map((r) => r.id);
+
+    // B6: Idempotency — nếu đã có shard ready chứa cùng records (retry sau fail),
+    // không tạo duplicate. Kiểm tra bằng first record ID (đủ để detect retry).
+    const existingReady = await db.select({ id: auditLogArchiveShards.id })
+        .from(auditLogArchiveShards)
+        .where(
+            and(
+                eq(auditLogArchiveShards.windowStart, windowStart),
+                eq(auditLogArchiveShards.windowEnd, windowEnd),
+                eq(auditLogArchiveShards.status, "ready"),
+                sql`${auditLogArchiveShards.recordIds} @> ARRAY[${recordIds[0]}]::text[]`,
+            ),
+        )
+        .limit(1);
+
+    if (existingReady.length > 0) {
+        // Shard đã tồn tại (retry sau partial fail) — chỉ xóa hot rows
+        logApi.warn(
+            { shardId: existingReady[0]!.id, windowStart, recordCount: records.length },
+            "[AUDIT_PURGE] Idempotent retry: shard already exists, skipping upload",
+        );
+        const ids = records.map((r) => r.id);
+        const deleted = await db.delete(apiAuditLogs)
+            .where(inArray(apiAuditLogs.id, ids))
+            .returning({ id: apiAuditLogs.id });
+        return deleted.length;
+    }
 
     const [shardRow] = await db.insert(auditLogArchiveShards).values({
         objectKey,
@@ -127,31 +155,42 @@ async function archiveShardAndDelete(
         minCreatedAt,
         maxCreatedAt,
         recordCount: records.length,
+        recordIds, // Pre-work: lưu IDs để lookup sau khi drop projection table (A4)
         status: "writing",
     }).returning();
 
     try {
         const uploaded = await uploadShardJsonlGz(objectKey, shardRecords);
-        await db.update(auditLogArchiveShards).set({
-            objectKey: uploaded.objectKey,
-            uncompressedBytes: uploaded.uncompressedBytes,
-            compressedBytes: uploaded.compressedBytes,
-            checksum: uploaded.checksum,
-            status: "ready",
-            error: null,
-        }).where(eq(auditLogArchiveShards.id, shardRow.id));
 
-        await db.insert(auditLogArchiveProjections).values(
-            records.map((record) => toProjectionRow(record, shardRow.id)),
+        // B6: Wrap set-ready + insert projection + delete hot rows trong 1 transaction.
+        // Nếu delete fail → transaction rollback → lần purge sau retry an toàn (idempotency check ở trên).
+        await db.transaction(async (tx) => {
+            await tx.update(auditLogArchiveShards).set({
+                objectKey: uploaded.objectKey,
+                uncompressedBytes: uploaded.uncompressedBytes,
+                compressedBytes: uploaded.compressedBytes,
+                checksum: uploaded.checksum,
+                status: "ready",
+                error: null,
+            }).where(eq(auditLogArchiveShards.id, shardRow.id));
+
+            await tx.insert(auditLogArchiveProjections).values(
+                records.map((record) => toProjectionRow(record, shardRow.id)),
+            );
+
+            const ids = records.map((r) => r.id);
+            await tx.delete(apiAuditLogs)
+                .where(inArray(apiAuditLogs.id, ids));
+        });
+
+        logApi.info(
+            { shardId: shardRow.id, objectKey: uploaded.objectKey, recordCount: records.length },
+            "[AUDIT_PURGE] Shard archived successfully",
         );
-
-        const ids = records.map((record) => record.id);
-        const deleted = await db.delete(apiAuditLogs)
-            .where(inArray(apiAuditLogs.id, ids))
-            .returning({ id: apiAuditLogs.id });
-        return deleted.length;
+        return records.length;
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
+        logApi.error({ err, shardId: shardRow.id }, "[AUDIT_PURGE] Archive shard failed");
         await db.update(auditLogArchiveShards).set({
             status: "failed",
             error: message,

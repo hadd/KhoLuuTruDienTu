@@ -650,12 +650,12 @@ export const ProfileService = {
                 if (profile && !authHelper.isAdmin(profile)) {
                     return notExists(
                         db.select()
-                        .from(userRoles)
-                        .where(and(
-                            eq(userRoles.userId, userProfiles.id),
-                            eq(userRoles.roleId, "admin"),
-                            isNull(userRoles.expiredAt)
-                        ))
+                            .from(userRoles)
+                            .where(and(
+                                eq(userRoles.userId, userProfiles.id),
+                                eq(userRoles.roleId, "admin"),
+                                isNull(userRoles.expiredAt)
+                            ))
                     );
                 }
                 return undefined;
@@ -794,9 +794,9 @@ export const ProfileService = {
         const cellF1 = worksheet.getCell("F1");
         cellF1.note = {
             texts: [
-                { 
-                    font: { size: 10, name: "Segoe UI" }, 
-                    text: `Tùy chọn. Chỉ được chọn:\n${roleListString}.\nĐể trống = ${defaultRole} (mặc định).` 
+                {
+                    font: { size: 10, name: "Segoe UI" },
+                    text: `Tùy chọn. Chỉ được chọn:\n${roleListString}.\nĐể trống = ${defaultRole} (mặc định).`
                 }
             ],
             margins: { left: 0.1, right: 0.1, top: 0.1, bottom: 0.1 }
@@ -881,12 +881,19 @@ export const ProfileService = {
         errors: string[];
         errorFile?: Uint8Array;
     }> {
-        // --- THÊM ĐOẠN NÀY ĐỂ LẤY VAI TRÒ THỰC TẾ ---
+        // --- LẤY VAI TRÒ THỰC TẾ TRONG HỆ THỐNG ---
         const activeRolesInDb = await db.query.roles.findMany({
             where: isNull(roles.deletedAt),
-            columns: { id: true }
+            columns: { id: true, name: true }
         });
         const systemRoleIds = activeRolesInDb.map(r => r.id);
+        const roleIdMap = new Map<string, string>();
+        for (const r of activeRolesInDb) {
+            roleIdMap.set(r.id.toLowerCase(), r.id);
+            if (r.name) {
+                roleIdMap.set(r.name.toLowerCase(), r.id);
+            }
+        }
         // --------------------------------------------
 
         const workbook = new ExcelJS.Workbook();
@@ -1000,9 +1007,8 @@ export const ProfileService = {
                 }
             }
 
-            // Thay đổi đoạn kiểm tra vai trò cũ bằng đoạn kiểm tra động này:
             const roleVal = row.role.trim();
-            if (roleVal && !systemRoleIds.includes(roleVal)) {
+            if (roleVal && !roleIdMap.has(roleVal.toLowerCase())) {
                 rowErrors.set(
                     col.ROLE,
                     `Vai trò "${row.role}" không hợp lệ. Chỉ được chọn: ${systemRoleIds.join(", ")}`,
@@ -1029,10 +1035,8 @@ export const ProfileService = {
             const rowErrMap = cellErrors.get(row.rowNumber);
             if (rowErrMap?.has(col.ROLE)) continue;
 
-            const existingRole = await db.query.roles.findFirst({
-                where: eq(roles.id, roleVal),
-            });
-            if (!existingRole) {
+            const matchedRoleId = roleIdMap.get(roleVal.toLowerCase());
+            if (!matchedRoleId) {
                 const errors = rowErrMap || new Map<number, string>();
                 errors.set(col.ROLE, `Vai trò "${roleVal}" không tồn tại trong hệ thống`);
                 cellErrors.set(row.rowNumber, errors);
@@ -1070,13 +1074,17 @@ export const ProfileService = {
         let failed = 0;
         const errors: string[] = [];
 
+        const defaultRoleId = systemRoleIds.includes("editor") ? "editor" : (systemRoleIds[0] || "editor");
         for (const row of validRows) {
             try {
                 const passwordHash = await hashPassword(row.password);
-                let roleId: string = "editor";
+                let roleId: string = defaultRoleId;
                 const roleVal = row.role.trim();
-                if (roleVal && isUserImportAllowedRole(roleVal)) {
-                    roleId = roleVal;
+                if (roleVal) {
+                    const matched = roleIdMap.get(roleVal.toLowerCase());
+                    if (matched) {
+                        roleId = matched;
+                    }
                 }
 
                 await db.transaction(async (tx) => {

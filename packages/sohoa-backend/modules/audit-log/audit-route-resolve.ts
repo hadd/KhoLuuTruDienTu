@@ -63,6 +63,8 @@ export type ResolvedRouteAudit = {
     module: string;
     eventType: string;
     summary: string | null;
+    summaryKey?: string | null;
+    summaryParams?: Record<string, unknown> | null;
     entityType: string | null;
     entityId: string | null;
     entityLabel: string | null;
@@ -103,6 +105,8 @@ function applyEnrichResult(
         module: enrichResult.module ?? definition.module,
         eventType: enrichResult.eventType ?? definition.eventType,
         summary: enrichResult.summary,
+        summaryKey: enrichResult.summaryKey ?? null,
+        summaryParams: enrichResult.summaryParams ?? null,
         entityType: enrichResult.entityType ?? definition.entityType ?? null,
         entityId,
         entityLabel: resolveEntityLabel(enrichResult),
@@ -132,6 +136,8 @@ export async function resolveRouteAudit(
             module: definition.module,
             eventType: definition.eventType,
             summary: `${definition.eventType} ${definition.module}`,
+            summaryKey: null,
+            summaryParams: null,
             entityType: definition.entityType ?? null,
             entityId: enrichContext.params.id
                 ?? enrichContext.params.dossierId
@@ -154,6 +160,8 @@ export async function resolveRouteAudit(
         module: definition.module,
         eventType: definition.eventType,
         summary,
+        summaryKey: null,
+        summaryParams: null,
         entityType: definition.entityType ?? null,
         entityId: entityId || null,
         entityLabel: null,

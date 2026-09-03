@@ -172,7 +172,7 @@ export const FondService = {
         };
     },
 
-    async listActiveWithDossierCount() {
+    async listActiveWithDossierCount(options?: { dossierStatus?: string }) {
         // 1. Lấy danh sách phông đang hoạt động
         const result = await db
             .select()
@@ -189,16 +189,22 @@ export const FondService = {
         }
 
         // 2. Tính toán số lượng hồ sơ (dossierCount) tương ứng cho từng phông
+        const whereConditions = [
+            inArray(dossiers.fondId, fondIds),
+            isNull(dossiers.deletedAt),
+        ];
+
+        if (options?.dossierStatus) {
+            whereConditions.push(eq(dossiers.status, options.dossierStatus as any));
+        }
+
         const counts = await db
             .select({
                 fondId: dossiers.fondId,
                 dossierCount: sql<number>`count(${dossiers.id})`.mapWith(Number),
             })
             .from(dossiers)
-            .where(and(
-                inArray(dossiers.fondId, fondIds),
-                isNull(dossiers.deletedAt),
-            ))
+            .where(and(...whereConditions))
             .groupBy(dossiers.fondId);
 
         const countMap = new Map(counts.map((c) => [c.fondId, c.dossierCount]));

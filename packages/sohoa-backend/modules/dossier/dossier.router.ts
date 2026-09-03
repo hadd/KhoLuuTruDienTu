@@ -589,6 +589,24 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     },
   );
 
+  app.post(
+    "/restore-batch",
+    async ({ body, profile }) => {
+      authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
+      return await service.restoreBatch(body.ids);
+    },
+    {
+      body: t.Object({
+        ids: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
+      }),
+      detail: {
+        tags,
+        summary: "Restore multiple soft-deleted dossiers",
+        description: "Restores multiple previously soft-deleted dossiers by setting deletedAt to null.",
+      },
+    },
+  );
+
   app.get(
     "/:id/dip/export",
     async ({ params, query, profile, request }) => {
