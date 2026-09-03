@@ -713,7 +713,7 @@ export function DataManagementPage({
       setExportingMode(mode)
       try {
         let dossierId = exportContext.dossierId
-        if (mode === 'dip' && !dossierId) {
+        if (mode === 'dip' && !dossierId && exportContext.kind !== 'multi_dossiers') {
           dossierId = await resolveDossierIdForDip(exportContext)
         }
         await runExport({
@@ -721,6 +721,7 @@ export function DataManagementPage({
           mode,
           folderId: exportContext.folderId,
           dossierId,
+          dossierIds: exportContext.dossierIds,
           downloadName: exportContext.downloadName,
           metadataExportConfig: options?.presetId
             ? { presetId: options.presetId }
@@ -1317,33 +1318,16 @@ export function DataManagementPage({
                     className="shrink-0 gap-1.5"
                     disabled={selectedDossierIds.length === 0 || isExporting}
                     onClick={() => {
-                      void (async () => {
-                        if (selectedDossierIds.length === 0) return
-                        setIsExporting(true)
-                        try {
-                          await runExport({
-                            kind: 'multi_dossiers',
-                            mode: 'metadata',
-                            folderId: null,
-                            dossierId: null,
-                            dossierIds: selectedDossierIds,
-                            downloadName: `multi-export-${selectedDossierIds.length}-hoso`,
-                          })
-                          toast.success(
-                            t('recordDetail.exportExcelSuccess', 'Đã tải xuống tệp Excel.'),
-                          )
-                        } catch (error) {
-                          toast.error(
-                            translateError(
-                              error instanceof Error
-                                ? error
-                                : new Error(t('recordDetail.exportExcelError')),
-                            ),
-                          )
-                        } finally {
-                          setIsExporting(false)
-                        }
-                      })()
+                      if (selectedDossierIds.length === 0) return
+                      setExportContext({
+                        kind: 'multi_dossiers',
+                        folderId: null,
+                        dossierId: null,
+                        dossierIds: selectedDossierIds,
+                        downloadName: `multi-export-${selectedDossierIds.length}-hoso`,
+                      })
+                      setCanExportDip(true)
+                      setExportDialogOpen(true)
                     }}
                   >
                     <FolderUp className="size-3.5" aria-hidden />

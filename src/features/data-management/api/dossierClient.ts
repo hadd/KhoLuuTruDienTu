@@ -495,6 +495,20 @@ export async function exportDossierDip(
   )
 }
 
+export async function exportMultiDossiersDip(
+  dossierIds: string[],
+  downloadName?: string,
+): Promise<void> {
+  const fallbackName = downloadName?.trim()
+    ? `${downloadName.trim()}-dip.zip`
+    : `multi-dossiers-dip.zip`
+  await downloadConfiguredMetadataExport(
+    `/api/v1/dossiers/dip/export`,
+    fallbackName,
+    { dossierIds } as unknown as MetadataExportRequestT,
+  )
+}
+
 export async function uploadFolderFiles(
   files: Array<File>,
   onProgress?: (progress: UploadProgress) => void,
