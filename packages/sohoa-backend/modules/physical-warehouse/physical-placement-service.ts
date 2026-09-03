@@ -338,6 +338,7 @@ export const PlacementService = {
                 folderPath: dossiers.folderPath,
                 dossierStatus: dossiers.status,
                 deletedAt: dossiers.deletedAt,
+                fondId: dossiers.fondId,
             })
             .from(dossierPhysicalPlacements)
             .innerJoin(
@@ -370,6 +371,7 @@ export const PlacementService = {
                 folderPath: row.folderPath,
                 dossierStatus: row.dossierStatus,
                 deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null,
+                fondId: row.fondId ?? null,
                 documentCount:
                     documentCountByDossierId.get(row.placement.dossierId) ?? 0,
             })),
