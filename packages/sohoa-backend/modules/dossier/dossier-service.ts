@@ -3319,9 +3319,7 @@ export const DossierService = {
           storedKey.endsWith(".json") ? storedKey : `${storedKey}.json`,
         );
         const parsedPartial = parseDossierMetadata(rawPartial);
-        const merged = parsedPartial
-          ? mergePartialMetadata(parsedBase, [parsedPartial])
-          : rawPartial;
+        const merged = parsedPartial ? parsedPartial : rawPartial;
         finalMetadataKey = await uploadJsonToStorage(
           buildEditorMergedMetadataKey(ocrMetadataKey, editorAttemptNumber),
           merged,
