@@ -122,14 +122,17 @@ export function canManageDossierMetadata({
   dossierStatus,
   baseCanManage,
   canDirectApprove = false,
+  canDirectEdit = false,
 }: {
   role: DataManagementRole
   dossierStatus?: DataDossierStatus
   baseCanManage: boolean
   canDirectApprove?: boolean
+  canDirectEdit?: boolean
 }): boolean {
-  if (!baseCanManage) return false
+  if (!baseCanManage && !canDirectEdit) return false
   if (isDossierMetadataLocked(dossierStatus)) return false
+  if (canDirectEdit) return true
   if (role !== 'qc') return baseCanManage
 
   const checkerLevel = getCheckerLevelForDossierStatus(dossierStatus)

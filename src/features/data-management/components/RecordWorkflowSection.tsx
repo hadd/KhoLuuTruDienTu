@@ -35,6 +35,9 @@ function stepTitle(
 ): string {
   if (step.kind === 'maker') return t('recordDetail.workflow.stepMaker')
   if (step.kind === 'approved') return t('recordDetail.workflow.stepApproved')
+  if (step.totalCheckers === 1) {
+    return t('recordDetail.workflow.stepCheckerSingle')
+  }
   return t('recordDetail.workflow.stepChecker', { level: step.level ?? 1 })
 }
 

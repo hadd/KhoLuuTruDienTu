@@ -599,7 +599,7 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
       dossierId: string
       metadata: DataDossierMetadataT
       isDraft?: boolean
-      saveMode?: 'approve' | 'summary'
+      saveMode?: 'approve' | 'summary' | 'direct_edit'
       storagePayload?: Record<string, unknown>
     }) =>
       persistDossierMetadataByRole(role, dossierId, metadata, {

@@ -232,6 +232,7 @@
       "completedQc": "Đã hoàn thành",
       "completedQcValue": "{{current}}/{{total}} cấp duyệt",
       "stepMaker": "Biên tập",
+      "stepCheckerSingle": "Duyệt",
       "stepChecker": "Duyệt {{level}}",
       "stepApproved": "Đã duyệt",
       "unassigned": "Chưa phân công",

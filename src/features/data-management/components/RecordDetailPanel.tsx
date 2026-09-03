@@ -161,6 +161,11 @@ export function RecordDetailPanel({
     'dossiers.direct_approve',
     'dossiers',
   )
+  const canDirectEdit = isPermissionGranted(
+    userPermissions,
+    'dossiers.direct_edit',
+    'dossiers',
+  )
   const canSignDossiers = isPermissionGranted(
     userPermissions,
     'dossiers.sign',
@@ -189,11 +194,13 @@ export function RecordDetailPanel({
     dossierStatus,
     baseCanManage: permissions.canEditFileMetadataFields,
     canDirectApprove,
+    canDirectEdit,
   })
   const isInQcStep = currentQcStepLevel != null
   const canShowSubmitButton =
     isDossierUnlocked &&
     (canDirectApprove ||
+      (canDirectEdit && !isInQcStep) ||
       (isInQcStep
         ? canActAsChecker
         : canManage &&
@@ -1027,7 +1034,7 @@ export function RecordDetailPanel({
         dossierId,
         metadata: payload,
         isDraft: isEditorRole && mode === 'draft',
-        saveMode: 'approve',
+        saveMode: (isActingAsQc || canDirectApprove) ? 'approve' : (canDirectEdit ? 'direct_edit' : 'approve'),
         storagePayload,
       })
       baseMetadataRef.current =
@@ -1328,9 +1335,36 @@ export function RecordDetailPanel({
               {t('recordDetail.exportExcel')}
             </Button>
           ) : canShowSubmitButton ? (
-            isEditorRole ? (
+            isActingAsQc || canDirectApprove ? (
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => void handleSaveMetadata()}
+                disabled={isSaving || isApproveBlockedByErrorReports}
+                ref={saveButtonRef}
+                title={
+                  isApproveBlockedByErrorReports
+                    ? t('editorErrorReport.alert.approveBlocked')
+                    : undefined
+                }
+              >
+                {isSaving ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <Save className="size-3.5" aria-hidden />
+                )}
+                {isSaving
+                  ? isActingAsQc || canDirectApprove
+                    ? t('metadata.approving')
+                    : t('metadata.saving')
+                  : isActingAsQc || canDirectApprove
+                    ? t('metadata.approve')
+                    : t('metadata.save')}
+              </Button>
+            ) : (
               <>
-                {!isEditorDraftDossier ? (
+                {!isEditorDraftDossier && isEditorRole ? (
                   <Button
                     type="button"
                     size="sm"
@@ -1363,37 +1397,14 @@ export function RecordDetailPanel({
                     <Save className="size-3.5" aria-hidden />
                   )}
                   {isFinalSaving
-                    ? t('metadata.submittingFinal')
-                    : t('metadata.finalSave')}
+                    ? isEditorRole
+                      ? t('metadata.submittingFinal')
+                      : t('metadata.saving')
+                    : isEditorRole
+                      ? t('metadata.finalSave')
+                      : t('metadata.save')}
                 </Button>
               </>
-            ) : (
-              <Button
-                type="button"
-                size="sm"
-                className="gap-1.5"
-                onClick={() => void handleSaveMetadata()}
-                disabled={isSaving || isApproveBlockedByErrorReports}
-                ref={saveButtonRef}
-                title={
-                  isApproveBlockedByErrorReports
-                    ? t('editorErrorReport.alert.approveBlocked')
-                    : undefined
-                }
-              >
-                {isSaving ? (
-                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                ) : (
-                  <Save className="size-3.5" aria-hidden />
-                )}
-                {isSaving
-                  ? isActingAsQc
-                    ? t('metadata.approving')
-                    : t('metadata.saving')
-                  : isActingAsQc
-                    ? t('metadata.approve')
-                    : t('metadata.save')}
-              </Button>
             )
           ) : null}
         </div>

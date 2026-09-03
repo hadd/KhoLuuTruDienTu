@@ -189,6 +189,7 @@ export interface DataWorkflowStepT {
   key: string
   kind: 'maker' | 'checker' | 'approved'
   level?: number
+  totalCheckers?: number
   role?: DataWorkerRoleT | string
   phase: DataWorkflowStepPhaseT
   assignees: Array<{ id: string; name: string; status: string }>

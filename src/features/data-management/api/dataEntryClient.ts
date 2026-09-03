@@ -113,6 +113,19 @@ export async function getEditorDraftMetadataFromApi(
   return undefined
 }
 
+/** POST /api/v1/data-entry/maker/direct-edit/:dossierId — Maker direct edit dossier metadata */
+export async function submitDirectEditDossierMetadata(
+  dossierId: string,
+  metadata: DataDossierMetadataT | Record<string, unknown>,
+  issueReport?: IssueReportInputT,
+): Promise<SaveDossierMetadataResultT> {
+  const response = await apiClient.post<SaveDossierMetadataResultT>(
+    `/api/v1/data-entry/maker/direct-edit/${dossierId}`,
+    { metadata, issue_report: issueReport },
+  )
+  return response.data
+}
+
 /** POST /api/v1/data-entry/checker/approve/:dossierId — QC approve dossier metadata */
 export async function approveCheckerDossier(
   dossierId: string,
@@ -155,13 +168,17 @@ export async function persistDossierMetadataByRole(
   metadata: DataDossierMetadataT,
   options?: {
     isDraft?: boolean
-    saveMode?: 'approve' | 'summary'
+    saveMode?: 'approve' | 'summary' | 'direct_edit'
     storagePayload?: Record<string, unknown>
   },
 ): Promise<SaveDossierMetadataResultT | void> {
   const payload =
     options?.storagePayload ??
     (metadata as unknown as Record<string, unknown>)
+
+  if (options?.saveMode === 'direct_edit') {
+    return await submitDirectEditDossierMetadata(dossierId, payload)
+  }
 
   if (role === 'editor') {
     if (options?.isDraft) {

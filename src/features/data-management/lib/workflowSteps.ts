@@ -150,18 +150,21 @@ export function buildWorkflowSteps(
       key: role,
       kind: 'checker',
       level,
+      totalCheckers: requiredQcCount,
       role,
       phase: resolveCheckerPhase(level, status, currentQcStep),
       assignees: byRole.get(role) ?? [],
     })
   }
 
-  steps.push({
-    key: 'approved',
-    kind: 'approved',
-    phase: resolveApprovedPhase(status),
-    assignees: [],
-  })
+  if (requiredQcCount === 0) {
+    steps.push({
+      key: 'approved',
+      kind: 'approved',
+      phase: resolveApprovedPhase(status),
+      assignees: [],
+    })
+  }
 
   return steps
 }
@@ -172,15 +175,16 @@ export function resolveCurrentStepLabel(
 ): string {
   const current = steps.find((step) => step.phase === 'current')
   if (!current) {
-    const approved = steps.find(
-      (step) => step.kind === 'approved' && step.phase === 'completed',
-    )
-    if (approved) return t('recordDetail.workflow.currentApproved')
+    const isFullyApproved = steps.length > 0 && steps[steps.length - 1].phase === 'completed'
+    if (isFullyApproved) return t('recordDetail.workflow.currentApproved')
     return t('recordDetail.workflow.currentNone')
   }
 
   if (current.kind === 'maker') return t('recordDetail.workflow.stepMaker')
   if (current.kind === 'checker' && current.level != null) {
+    if (current.totalCheckers === 1) {
+      return t('recordDetail.workflow.stepCheckerSingle')
+    }
     return t('recordDetail.workflow.stepChecker', { level: current.level })
   }
   return t('recordDetail.workflow.currentNone')
