@@ -14,6 +14,7 @@ import {
 } from "../../db/schemas/archive-disposal.ts";
 
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
+import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { groupMembers } from "../../db/schemas/group_members.ts";
 import { groups } from "../../db/schemas/groups.ts";
@@ -531,6 +532,15 @@ export const DashboardService = {
 
         const userIds = activeUsers.map((u) => u.id);
 
+        const dossierFileCounts = db
+            .select({
+                dossierId: dossierFiles.dossierId,
+                pageCount: sql<number>`count(*)`.mapWith(Number).as("page_count"),
+            })
+            .from(dossierFiles)
+            .groupBy(dossierFiles.dossierId)
+            .as("dossier_file_counts");
+
         const assignmentStats = await db
             .select({
                 assigneeId: dossierAssignments.assigneeId,
@@ -544,9 +554,16 @@ export const DashboardService = {
                 makerCompletedDossiersCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} = ${WorkerRole.MAKER} and ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then 1 else 0 end), 0)`.mapWith(Number),
                 qcAssignedDossiersCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} <> ${WorkerRole.MAKER} then 1 else 0 end), 0)`.mapWith(Number),
                 qcCompletedDossiersCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} <> ${WorkerRole.MAKER} and ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then 1 else 0 end), 0)`.mapWith(Number),
+                assignedPagesCount: sql<number>`coalesce(sum(coalesce(${dossierFileCounts.pageCount}, 0)), 0)`.mapWith(Number),
+                completedPagesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then coalesce(${dossierFileCounts.pageCount}, 0) else 0 end), 0)`.mapWith(Number),
+                makerAssignedPagesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} = ${WorkerRole.MAKER} then coalesce(${dossierFileCounts.pageCount}, 0) else 0 end), 0)`.mapWith(Number),
+                makerCompletedPagesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} = ${WorkerRole.MAKER} and ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then coalesce(${dossierFileCounts.pageCount}, 0) else 0 end), 0)`.mapWith(Number),
+                qcAssignedPagesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} <> ${WorkerRole.MAKER} then coalesce(${dossierFileCounts.pageCount}, 0) else 0 end), 0)`.mapWith(Number),
+                qcCompletedPagesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} <> ${WorkerRole.MAKER} and ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then coalesce(${dossierFileCounts.pageCount}, 0) else 0 end), 0)`.mapWith(Number),
             })
             .from(dossierAssignments)
             .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
+            .leftJoin(dossierFileCounts, eq(dossierAssignments.dossierId, dossierFileCounts.dossierId))
             .where(activeDossierWhere(
                 inArray(dossierAssignments.assigneeId, userIds),
                 ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
@@ -568,6 +585,12 @@ export const DashboardService = {
                 makerCompletedDossiersCount: 0,
                 qcAssignedDossiersCount: 0,
                 qcCompletedDossiersCount: 0,
+                assignedPagesCount: 0,
+                completedPagesCount: 0,
+                makerAssignedPagesCount: 0,
+                makerCompletedPagesCount: 0,
+                qcAssignedPagesCount: 0,
+                qcCompletedPagesCount: 0,
             };
 
             const roles = user.userRoles?.map((r) => r.roleId) ?? [];
@@ -580,23 +603,23 @@ export const DashboardService = {
 
             const groupName = user.groupMembers?.[0]?.group?.name ?? null;
 
-            const assignedPagesCount = stats.assignedDossiersCount * 10;
-            const completedPagesCount = stats.completedDossiersCount * 10;
+            const assignedPagesCount = stats.assignedPagesCount;
+            const completedPagesCount = stats.completedPagesCount;
 
             const dossierCompletionRate = calcRate(stats.completedDossiersCount, stats.assignedDossiersCount);
             const pageCompletionRate = calcRate(completedPagesCount, assignedPagesCount);
 
             const makerAssignedDossiersCount = stats.makerAssignedDossiersCount || (primaryRole === "editor" ? stats.assignedDossiersCount : 0);
             const makerCompletedDossiersCount = stats.makerCompletedDossiersCount || (primaryRole === "editor" ? stats.completedDossiersCount : 0);
-            const makerAssignedPagesCount = makerAssignedDossiersCount * 10;
-            const makerCompletedPagesCount = makerCompletedDossiersCount * 10;
+            const makerAssignedPagesCount = stats.makerAssignedPagesCount || (primaryRole === "editor" ? assignedPagesCount : 0);
+            const makerCompletedPagesCount = stats.makerCompletedPagesCount || (primaryRole === "editor" ? completedPagesCount : 0);
             const makerDossierCompletionRate = calcRate(makerCompletedDossiersCount, makerAssignedDossiersCount);
             const makerPageCompletionRate = calcRate(makerCompletedPagesCount, makerAssignedPagesCount);
 
             const qcAssignedDossiersCount = stats.qcAssignedDossiersCount || (primaryRole === "qc" ? stats.assignedDossiersCount : 0);
             const qcCompletedDossiersCount = stats.qcCompletedDossiersCount || (primaryRole === "qc" ? stats.completedDossiersCount : 0);
-            const qcAssignedPagesCount = qcAssignedDossiersCount * 10;
-            const qcCompletedPagesCount = qcCompletedDossiersCount * 10;
+            const qcAssignedPagesCount = stats.qcAssignedPagesCount || (primaryRole === "qc" ? assignedPagesCount : 0);
+            const qcCompletedPagesCount = stats.qcCompletedPagesCount || (primaryRole === "qc" ? completedPagesCount : 0);
             const qcDossierCompletionRate = calcRate(qcCompletedDossiersCount, qcAssignedDossiersCount);
             const qcPageCompletionRate = calcRate(qcCompletedPagesCount, qcAssignedPagesCount);
 
