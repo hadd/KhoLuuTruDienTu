@@ -56,6 +56,7 @@ import { Route as AppPermissionsFunctionMatrixRouteImport } from './routes/app/p
 import { Route as AppGroupsGroupIdRouteImport } from './routes/app/groups/$groupId'
 import { Route as AppDataConfigWatermarkConfigsRouteImport } from './routes/app/data-config/watermark-configs'
 import { Route as AppDataConfigNotificationConfigsRouteImport } from './routes/app/data-config/notification-configs'
+import { Route as AppDataConfigMetadataHiddenFieldsRouteImport } from './routes/app/data-config/metadata-hidden-fields'
 import { Route as AppDataConfigMetadataExtractSettingsRouteImport } from './routes/app/data-config/metadata-extract-settings'
 import { Route as AppDataConfigMetadataExportPresetsRouteImport } from './routes/app/data-config/metadata-export-presets'
 import { Route as AppDataConfigDocumentTypesRouteImport } from './routes/app/data-config/document-types'
@@ -320,6 +321,12 @@ const AppDataConfigNotificationConfigsRoute =
     path: '/data-config/notification-configs',
     getParentRoute: () => AppRouteRoute,
   } as any)
+const AppDataConfigMetadataHiddenFieldsRoute =
+  AppDataConfigMetadataHiddenFieldsRouteImport.update({
+    id: '/data-config/metadata-hidden-fields',
+    path: '/data-config/metadata-hidden-fields',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppDataConfigMetadataExtractSettingsRoute =
   AppDataConfigMetadataExtractSettingsRouteImport.update({
     id: '/data-config/metadata-extract-settings',
@@ -443,6 +450,7 @@ export interface FileRoutesByFullPath {
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/data-config/metadata-extract-settings': typeof AppDataConfigMetadataExtractSettingsRoute
+  '/app/data-config/metadata-hidden-fields': typeof AppDataConfigMetadataHiddenFieldsRoute
   '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
   '/app/data-config/watermark-configs': typeof AppDataConfigWatermarkConfigsRoute
   '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
@@ -509,6 +517,7 @@ export interface FileRoutesByTo {
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/data-config/metadata-extract-settings': typeof AppDataConfigMetadataExtractSettingsRoute
+  '/app/data-config/metadata-hidden-fields': typeof AppDataConfigMetadataHiddenFieldsRoute
   '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
   '/app/data-config/watermark-configs': typeof AppDataConfigWatermarkConfigsRoute
   '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
@@ -577,6 +586,7 @@ export interface FileRoutesById {
   '/app/data-config/document-types': typeof AppDataConfigDocumentTypesRoute
   '/app/data-config/metadata-export-presets': typeof AppDataConfigMetadataExportPresetsRoute
   '/app/data-config/metadata-extract-settings': typeof AppDataConfigMetadataExtractSettingsRoute
+  '/app/data-config/metadata-hidden-fields': typeof AppDataConfigMetadataHiddenFieldsRoute
   '/app/data-config/notification-configs': typeof AppDataConfigNotificationConfigsRoute
   '/app/data-config/watermark-configs': typeof AppDataConfigWatermarkConfigsRoute
   '/app/groups/$groupId': typeof AppGroupsGroupIdRoute
@@ -646,6 +656,7 @@ export interface FileRouteTypes {
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
     | '/app/data-config/metadata-extract-settings'
+    | '/app/data-config/metadata-hidden-fields'
     | '/app/data-config/notification-configs'
     | '/app/data-config/watermark-configs'
     | '/app/groups/$groupId'
@@ -712,6 +723,7 @@ export interface FileRouteTypes {
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
     | '/app/data-config/metadata-extract-settings'
+    | '/app/data-config/metadata-hidden-fields'
     | '/app/data-config/notification-configs'
     | '/app/data-config/watermark-configs'
     | '/app/groups/$groupId'
@@ -779,6 +791,7 @@ export interface FileRouteTypes {
     | '/app/data-config/document-types'
     | '/app/data-config/metadata-export-presets'
     | '/app/data-config/metadata-extract-settings'
+    | '/app/data-config/metadata-hidden-fields'
     | '/app/data-config/notification-configs'
     | '/app/data-config/watermark-configs'
     | '/app/groups/$groupId'
@@ -1172,6 +1185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDataConfigNotificationConfigsRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/data-config/metadata-hidden-fields': {
+      id: '/app/data-config/metadata-hidden-fields'
+      path: '/data-config/metadata-hidden-fields'
+      fullPath: '/app/data-config/metadata-hidden-fields'
+      preLoaderRoute: typeof AppDataConfigMetadataHiddenFieldsRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/data-config/metadata-extract-settings': {
       id: '/app/data-config/metadata-extract-settings'
       path: '/data-config/metadata-extract-settings'
@@ -1310,6 +1330,7 @@ interface AppRouteRouteChildren {
   AppDataConfigDocumentTypesRoute: typeof AppDataConfigDocumentTypesRoute
   AppDataConfigMetadataExportPresetsRoute: typeof AppDataConfigMetadataExportPresetsRoute
   AppDataConfigMetadataExtractSettingsRoute: typeof AppDataConfigMetadataExtractSettingsRoute
+  AppDataConfigMetadataHiddenFieldsRoute: typeof AppDataConfigMetadataHiddenFieldsRoute
   AppDataConfigNotificationConfigsRoute: typeof AppDataConfigNotificationConfigsRoute
   AppDataConfigWatermarkConfigsRoute: typeof AppDataConfigWatermarkConfigsRoute
   AppGroupsGroupIdRoute: typeof AppGroupsGroupIdRoute
@@ -1376,6 +1397,8 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
     AppDataConfigMetadataExportPresetsRoute,
   AppDataConfigMetadataExtractSettingsRoute:
     AppDataConfigMetadataExtractSettingsRoute,
+  AppDataConfigMetadataHiddenFieldsRoute:
+    AppDataConfigMetadataHiddenFieldsRoute,
   AppDataConfigNotificationConfigsRoute: AppDataConfigNotificationConfigsRoute,
   AppDataConfigWatermarkConfigsRoute: AppDataConfigWatermarkConfigsRoute,
   AppGroupsGroupIdRoute: AppGroupsGroupIdRoute,
