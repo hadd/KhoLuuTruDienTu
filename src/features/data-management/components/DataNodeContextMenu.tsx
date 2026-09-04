@@ -4,6 +4,7 @@ import {
   FileDown,
   FileText,
   FolderKanban,
+  FolderMinus,
   Package,
   PenLine,
   Trash2,
@@ -29,6 +30,7 @@ import {
   canShowRenameAction,
   canShowRevokeAssignmentsAction,
   canShowSubmitArchiveAction,
+  canShowUnassignProjectAction,
   isDossierWorkflowNode,
   isPdfDocumentNode,
 } from '@/features/data-management/lib/treeUtils'
@@ -146,6 +148,12 @@ export function DataNodeContextMenu({
         icon: FolderKanban,
       },
       {
+        key: 'unassignProject',
+        label: t('contextMenu.unassignProject', 'Gỡ dự án'),
+        icon: FolderMinus,
+        variant: 'destructive',
+      },
+      {
         key: 'submitArchive',
         label: t('contextMenu.submitArchive'),
         icon: Package,
@@ -229,6 +237,10 @@ export function DataNodeContextMenu({
     if (item.key === 'assignProject') {
       if (!permissions.canAssignProject) return false
       return canShowAssignProjectAction(node)
+    }
+    if (item.key === 'unassignProject') {
+      if (!permissions.canAssignProject) return false
+      return canShowUnassignProjectAction(node)
     }
     if (item.key === 'submitArchive') {
       if (!canSubmitArchive) return false

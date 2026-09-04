@@ -170,6 +170,7 @@ export type DataNodeActionDialogMode =
   | 'assignEditor'
   | 'assignGroup'
   | 'revokeAssignments'
+  | 'unassignProject'
 
 type DeleteModeT = 'soft' | 'permanent'
 
@@ -470,6 +471,8 @@ export function DataNodeActionDialogs({
       return t('actionDialog.assignGroup.success')
     if (currentMode === 'revokeAssignments')
       return t('actionDialog.revokeAssignments.success')
+    if (currentMode === 'unassignProject')
+      return t('actionDialog.unassignProject.success', 'Đã gỡ dự án thành công')
     return t('actionDialog.assign.success')
   }
 
@@ -517,6 +520,17 @@ export function DataNodeActionDialogs({
         await updateFolderProjectMutation.mutateAsync({
           folderId,
           projectCode: nextProjectCode,
+        })
+      }
+      if (currentMode === 'unassignProject') {
+        const folderId = node.folderId ?? node.id
+        if (!folderId || folderId === DATA_TREE_ROOT_ID) {
+          toast.error(t('actionDialog.assignProject.noFolder'))
+          return
+        }
+        await updateFolderProjectMutation.mutateAsync({
+          folderId,
+          projectCode: null as unknown as string,
         })
       }
       if (currentMode === 'delete') {
@@ -709,14 +723,18 @@ export function DataNodeActionDialogs({
           <DialogTitle>
             {mode === 'assignProject'
               ? t(`actionDialog.${assignProjectDialogKey}.title` as const)
-              : t(`actionDialog.${mode}.title` as const)}
+              : mode === 'unassignProject'
+                ? t('actionDialog.unassignProject.title', 'Xác nhận gỡ dự án')
+                : t(`actionDialog.${mode}.title` as const)}
           </DialogTitle>
           <DialogDescription>
             {mode === 'delete'
               ? t(`actionDialog.delete.${deleteDescriptionKey}` as const)
               : mode === 'assignProject'
                 ? t(`actionDialog.${assignProjectDialogKey}.description` as const)
-                : t(`actionDialog.${mode}.description` as const)}
+                : mode === 'unassignProject'
+                  ? t('actionDialog.unassignProject.description', 'Bạn có chắc chắn muốn gỡ dự án khỏi tài liệu này? Hành động này sẽ được áp dụng cho toàn bộ các thư mục con.')
+                  : t(`actionDialog.${mode}.description` as const)}
           </DialogDescription>
         </DialogHeader>
 

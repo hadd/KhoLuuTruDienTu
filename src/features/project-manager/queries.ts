@@ -11,6 +11,7 @@ import {
   getAdminIssueReports,
 } from '@/features/project-manager/api/issueReportClient'
 import {
+  checkProjectDependencies,
   createProject,
   deleteProject,
   getProjectDetail,
@@ -185,5 +186,11 @@ export function useDeleteProject() {
           i18n.t('delete.error', { ns: 'project-manager' }),
       )
     },
+  })
+}
+
+export function useCheckProjectDependencies() {
+  return useMutation({
+    mutationFn: (projectId: string) => checkProjectDependencies(projectId),
   })
 }

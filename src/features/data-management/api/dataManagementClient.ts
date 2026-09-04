@@ -1623,7 +1623,7 @@ export async function updateFolderProject({
   projectCode,
 }: {
   folderId: string
-  projectCode: string
+  projectCode: string | null
 }): Promise<DataTreeNodeT | undefined> {
   await apiClient.put(
     `/api/v1/folders/${encodeURIComponent(folderId)}/project`,
