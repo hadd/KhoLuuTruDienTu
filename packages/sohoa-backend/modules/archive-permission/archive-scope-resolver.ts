@@ -10,6 +10,7 @@ import { fonds } from "../../db/schemas/fond.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 import {
     parseRoleRules,
+    resolveEffectivePermissionsFromUserRoles,
     userRolesHavePermission,
 } from "../auth/permission-resolver.ts";
 import {
@@ -217,12 +218,7 @@ function resolvePrincipalFondIds(
 }
 
 function collectRolePermissions(profile: UserWithRoles): string[] {
-    const set = new Set<string>();
-    for (const userRole of profile.userRoles) {
-        const rules = parseRoleRules(userRole.role.rules);
-        for (const key of rules.permissions) set.add(key);
-    }
-    return [...set];
+    return resolveEffectivePermissionsFromUserRoles(profile.userRoles);
 }
 
 function roleIdsOf(profile: UserWithRoles): string[] {

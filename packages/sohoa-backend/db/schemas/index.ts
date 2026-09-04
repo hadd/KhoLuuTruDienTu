@@ -40,6 +40,12 @@ export {
     authSessionTokensRelations,
     authSessionTokenTypeEnum,
 } from "./auth_session_token.ts";
+export {
+    authTwoFactorOtps,
+    authTwoFactorOtpsRelations,
+    type AuthTwoFactorOtp,
+    type NewAuthTwoFactorOtp,
+} from "./auth-two-factor.ts";
 // ========================================
 // Groups
 // ========================================

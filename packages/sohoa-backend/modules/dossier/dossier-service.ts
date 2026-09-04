@@ -6,6 +6,7 @@ import { db } from "../../db/db-conn.ts";
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
+import { getPdfPageCount } from "../../libs/pdf-page-counter.ts";
 import { folders } from "../../db/schemas/folder.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import {
@@ -631,7 +632,13 @@ async function insertDossierFile(
   filePath: string,
   fileSizeKb: number | null,
   runMode: "auto" | "manual" = "auto",
+  pageCountInput?: number,
 ) {
+  let pageCount = pageCountInput ?? 1;
+  if (pageCountInput === undefined && fileName.toLowerCase().endsWith(".pdf")) {
+    pageCount = await getPdfPageCount(filePath);
+  }
+
   const [inserted] = await tx
     .insert(dossierFiles)
     .values({
@@ -639,6 +646,7 @@ async function insertDossierFile(
       fileName,
       filePath,
       fileSizeKb,
+      pageCount,
       ocrRunMode: runMode,
       ocrTriggerStatus: runMode === "manual" ? "pending" : null,
     })
