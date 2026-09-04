@@ -3,6 +3,11 @@ import { and, desc, eq, inArray, isNull, max, sql } from "drizzle-orm";
 import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
+import { folders } from "../../db/schemas/folder.ts";
+import { groups } from "../../db/schemas/groups.ts";
+import { paperPlans } from "../../db/schemas/paper-plans.ts";
+import { planDetails } from "../../db/schemas/plan-details.ts";
+import { projectPlans } from "../../db/schemas/project-plan.ts";
 import { projectProgressHistories } from "../../db/schemas/project-progress-history.ts";
 import { ProjectStatus } from "../../db/schemas/project-constants.ts";
 import { projects } from "../../db/schemas/project.ts";
@@ -325,32 +330,44 @@ export const ProjectService = {
         });
     },
 
+    async countDependencies(projectCode: string) {
+        await getActiveProjectOrThrow(projectCode);
+        const [dossierRes, folderRes, groupRes] = await Promise.all([
+            db.select({ count: sql<number>`count(*)` }).from(dossiers).where(eq(dossiers.projectCode, projectCode)),
+            db.select({ count: sql<number>`count(*)` }).from(folders).where(eq(folders.projectCode, projectCode)),
+            db.select({ count: sql<number>`count(*)` }).from(groups).where(eq(groups.projectCode, projectCode)),
+        ]);
+        return {
+            dossierCount: Number(dossierRes[0].count),
+            folderCount: Number(folderRes[0].count),
+            groupCount: Number(groupRes[0].count),
+            total: Number(dossierRes[0].count) + Number(folderRes[0].count) + Number(groupRes[0].count),
+        };
+    },
+
     async delete(projectCode: string) {
         await getActiveProjectOrThrow(projectCode);
 
-        const linkedDossier = await db.query.dossiers.findFirst({
-            where: activeDossierWhere(eq(dossiers.projectCode, projectCode)),
-            columns: { id: true },
+        return await db.transaction(async (tx) => {
+            const planIdsQuery = db.select({ id: projectPlans.id }).from(projectPlans).where(eq(projectPlans.projectCode, projectCode));
+            
+            await tx.delete(paperPlans).where(inArray(paperPlans.planId, planIdsQuery));
+            await tx.delete(planDetails).where(inArray(planDetails.planId, planIdsQuery));
+
+            await tx.delete(projectProgressHistories).where(eq(projectProgressHistories.projectCode, projectCode));
+            await tx.delete(projectPlans).where(eq(projectPlans.projectCode, projectCode));
+            await tx.update(groups).set({ projectCode: null }).where(eq(groups.projectCode, projectCode));
+            await tx.update(folders).set({ projectCode: null }).where(eq(folders.projectCode, projectCode));
+            await tx.update(dossiers).set({ projectCode: null }).where(eq(dossiers.projectCode, projectCode));
+
+            const [deleted] = await tx.delete(projects).where(eq(projects.projectCode, projectCode)).returning();
+
+            if (!deleted) {
+                throw httpError.notFound(`Project not found: ${projectCode}`);
+            }
+
+            return { projectCode, deleted: true as const };
         });
-
-        if (linkedDossier) {
-            throw httpError.conflict("Cannot delete project with active dossiers");
-        }
-
-        const [updated] = await db
-            .update(projects)
-            .set({ deletedAt: new Date(), updatedAt: new Date() })
-            .where(and(
-                eq(projects.projectCode, projectCode),
-                isNull(projects.deletedAt),
-            ))
-            .returning();
-
-        if (!updated) {
-            throw httpError.notFound(`Project not found: ${projectCode}`);
-        }
-
-        return { projectCode, deleted: true as const };
     },
 
     async listProgressHistory(projectCode: string) {

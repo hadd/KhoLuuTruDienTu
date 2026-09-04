@@ -36,7 +36,7 @@ export const updateFolderSchema = t.Object({
 });
 
 export const assignFolderProjectBodySchema = t.Object({
-    projectCode: t.String({ minLength: 1, maxLength: 50 }),
+    projectCode: t.Union([t.String({ minLength: 1, maxLength: 50 }), t.Null()]),
 });
 
 const browseFolderChildSchema = t.Object({

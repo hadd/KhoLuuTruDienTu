@@ -161,7 +161,23 @@ export function createProjectAdminRouter(basePath: string = "/projects") {
             params: projectCodeParamSchema,
             detail: {
                 tags,
-                summary: "Soft delete project",
+                summary: "Hard delete project",
+            },
+        },
+    );
+
+    app.get(
+        "/:projectCode/dependencies",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.PROJECTS_READ);
+            await projectAccessHelper.assertCanAccessProject(profile, params.projectCode);
+            return await service.countDependencies(params.projectCode);
+        },
+        {
+            params: projectCodeParamSchema,
+            detail: {
+                tags,
+                summary: "Get project dependency counts",
             },
         },
     );

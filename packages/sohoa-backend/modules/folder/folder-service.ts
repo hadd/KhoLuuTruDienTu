@@ -805,8 +805,10 @@ export const FolderService = {
     folderId: string,
     input: Static<typeof assignFolderProjectBodySchema>,
   ) {
-    const projectCode = input.projectCode.trim();
-    await ProjectService.assertProjectExists(projectCode);
+    const projectCode = input.projectCode?.trim() ?? null;
+    if (projectCode !== null) {
+      await ProjectService.assertProjectExists(projectCode);
+    }
 
     return await db.transaction(async (tx) => {
       const folder = await tx.query.folders.findFirst({
