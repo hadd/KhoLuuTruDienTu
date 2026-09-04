@@ -353,12 +353,12 @@ export function isHoSoRetentionMetadataField(
 
 const HO_SO_ACCESS_LEVEL_FIELD = 'MUC_DO_TIEP_CAN'
 
-export function isHoSoAccessLevelMetadataField(
+export function isAccessLevelMetadataField(
   groupCode: string,
   fieldName: string,
 ): boolean {
   return (
-    groupCode === HO_SO_LUU_TRU_GROUP_CODE &&
+    (groupCode === HO_SO_LUU_TRU_GROUP_CODE || groupCode === TAI_LIEU_LUU_TRU_GROUP_CODE) &&
     fieldName.trim().toUpperCase() === HO_SO_ACCESS_LEVEL_FIELD
   )
 }

@@ -16,7 +16,7 @@ import {
   isInternalMetadataField,
   resolveMetadataGroupSourceDocumentPath,
 } from '@/features/data-management/lib/metadataHelpers'
-import { isHoSoAccessLevelMetadataField, isHoSoFondMetadataField, isHoSoRetentionMetadataField, resolveEffectiveFieldType } from '@/features/data-management/lib/metadataNormalize'
+import { isAccessLevelMetadataField, isHoSoFondMetadataField, isHoSoRetentionMetadataField, resolveEffectiveFieldType } from '@/features/data-management/lib/metadataNormalize'
 import type {
   DataDocumentFieldT,
   DataMetadataGroupT,
@@ -303,7 +303,7 @@ export function RecordMetadataGroupCard({
               )
             }
 
-            const isAccessLevelField = isHoSoAccessLevelMetadataField(
+            const isAccessLevelField = isAccessLevelMetadataField(
               group.group_code,
               field.name,
             )
