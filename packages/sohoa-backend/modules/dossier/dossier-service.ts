@@ -48,6 +48,7 @@ import {
   deleteOrphanFoldersAfterDossier,
   hardDeleteFoldersByIds,
   purgeDossierFromMinIO,
+  purgeSingleFileFromMinIO,
   softDeleteFoldersByIds,
   softDeleteOrphanFoldersAfterDossier,
   sortFoldersDeepestFirst,
@@ -103,7 +104,6 @@ import {
   applyWatermarkConfigToPdfFiles,
   resolveWatermarkApplyConfig,
 } from "../../libs/watermark/maybe-watermark-pdf-files.ts";
-import { convertBatchToPdfA } from "../../libs/pdf-a/pdf-a-converter.ts";
 import { resolveExportZipPassword } from "../profile/resolve-export-zip-password.ts";
 import { assertExportFileLimit } from "../../libs/export-file-limit.ts";
 import {
@@ -1258,9 +1258,6 @@ async function buildApprovedMetadataExportZip(
         pdfBundle.pdfFiles,
         watermarkConfig,
       );
-      pdfBundle.pdfFiles = await convertBatchToPdfA(pdfBundle.pdfFiles, {
-        title: pdfBundle.dossierFolderName,
-      });
       return { metadata, pdfBundle };
     },
   );
@@ -2353,6 +2350,33 @@ export const DossierService = {
     };
   },
 
+  async deleteFile(fileId: string, _options?: { permanent?: boolean }) {
+    const existing = await db.query.dossierFiles.findFirst({
+      where: eq(dossierFiles.id, fileId),
+    });
+
+    if (!existing) {
+      throw httpError.notFound("File not found");
+    }
+
+    const deletedObjectCount = await purgeSingleFileFromMinIO(existing);
+
+    await db.transaction(async (tx) => {
+      await tx.delete(dossierFiles).where(eq(dossierFiles.id, fileId));
+      await tx
+        .update(dossiers)
+        .set({ updatedAt: new Date() })
+        .where(eq(dossiers.id, existing.dossierId));
+    });
+
+    return {
+      id: fileId,
+      dossierId: existing.dossierId,
+      status: "deleted" as const,
+      deletedObjectCount,
+    };
+  },
+
   async deleteByFolderId(folderId: string, options?: { permanent?: boolean }) {
     const permanent = options?.permanent === true;
     const {
@@ -3294,9 +3318,11 @@ export const DossierService = {
         const rawPartial = await downloadJsonFromStorage(
           storedKey.endsWith(".json") ? storedKey : `${storedKey}.json`,
         );
+        const parsedPartial = parseDossierMetadata(rawPartial);
+        const merged = parsedPartial ? parsedPartial : rawPartial;
         finalMetadataKey = await uploadJsonToStorage(
           buildEditorMergedMetadataKey(ocrMetadataKey, editorAttemptNumber),
-          rawPartial,
+          merged,
         );
       }
 
@@ -3692,7 +3718,26 @@ export const DossierService = {
     const metadataKey = buildSummaryMetadataUpdateKey(dossier.ocrMetadataKey);
     const previousMetadataKey =
       dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
-    const storedKey = await uploadJsonToStorage(metadataKey, metadata);
+
+    let finalMetadata: unknown = metadata;
+    if (previousMetadataKey && isDossierMetadata(metadata)) {
+      try {
+        const rawOld = await downloadJsonFromStorage(
+          resolveMetadataJsonKey(previousMetadataKey),
+        );
+        const oldParsed = parseDossierMetadata(rawOld);
+        if (oldParsed) {
+          finalMetadata = mergePartialMetadata(oldParsed, [metadata]);
+        }
+      } catch (err) {
+        console.error(
+          "[DossierService] Failed to merge old metadata in updateDossierMetadata:",
+          err,
+        );
+      }
+    }
+
+    const storedKey = await uploadJsonToStorage(metadataKey, finalMetadata);
 
     const [updatedDossier] = await db
       .update(dossiers)

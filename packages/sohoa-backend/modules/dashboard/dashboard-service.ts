@@ -1,6 +1,6 @@
 import { httpError } from "@shared/common-lib";
 // Bổ sung: desc, isNotNull, lte
-import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, sql } from "drizzle-orm";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
 import { ArchiveDisposalService } from "../archive-disposal/archive-disposal-service.ts";
@@ -301,6 +301,7 @@ export const DashboardService = {
             .where(activeDossierWhere(
                 eq(dossierAssignments.assigneeId, userId),
                 eq(dossierAssignments.role, WorkerRole.MAKER),
+                ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
             ));
 
         const correct = summary?.correct ?? 0;
@@ -332,6 +333,7 @@ export const DashboardService = {
             .where(and(
                 eq(dossierAssignments.assigneeId, userId),
                 inArray(dossierAssignments.role, CHECKER_ROLES),
+                ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
             ));
 
         const approved = summary?.approved ?? 0;
@@ -350,6 +352,7 @@ export const DashboardService = {
             .where(and(
                 eq(dossierAssignments.assigneeId, userId),
                 inArray(dossierAssignments.role, CHECKER_ROLES),
+                ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
             ))
             .groupBy(dossierAssignments.stepNumber, dossierAssignments.role)
             .orderBy(dossierAssignments.stepNumber);
@@ -482,6 +485,162 @@ export const DashboardService = {
                 }];
             }),
         };
+    },
+
+    async aggregateEmployeeKpis(projectCodes?: string[]) {
+        const activeUsers = await db.query.userProfiles.findMany({
+            where: and(
+                eq(userProfiles.active, true),
+                isNull(userProfiles.deletedAt),
+            ),
+            columns: {
+                id: true,
+                fullName: true,
+            },
+            with: {
+                userRoles: {
+                    where: isNull(userRoles.expiredAt),
+                    columns: {
+                        roleId: true,
+                    },
+                },
+                groupMembers: {
+                    where: isNull(groupMembers.expiredAt),
+                    with: {
+                        group: {
+                            columns: {
+                                name: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        if (activeUsers.length === 0) {
+            return [];
+        }
+
+        const userIds = activeUsers.map((u) => u.id);
+
+        const assignmentStats = await db
+            .select({
+                assigneeId: dossierAssignments.assigneeId,
+                assignedDossiersCount: sql<number>`count(distinct ${dossierAssignments.dossierId})`.mapWith(Number),
+                completedDossiersCount: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then 1 else 0 end), 0)`.mapWith(Number),
+                rejectedDossiersCount: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.REJECTED} or ${dossierAssignments.workQuality} = ${WorkQuality.INCORRECT} then 1 else 0 end), 0)`.mapWith(Number),
+                correctCount: sql<number>`coalesce(sum(case when ${dossierAssignments.workQuality} = ${WorkQuality.CORRECT} then 1 else 0 end), 0)`.mapWith(Number),
+                incorrectCount: sql<number>`coalesce(sum(case when ${dossierAssignments.workQuality} = ${WorkQuality.INCORRECT} then 1 else 0 end), 0)`.mapWith(Number),
+                avgProcessingTimeSeconds: sql<number>`coalesce(avg(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.completedAt} is not null then extract(epoch from (${dossierAssignments.completedAt} - ${dossierAssignments.assignedAt})) end), 0)`.mapWith(Number),
+                makerAssignedDossiersCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} = ${WorkerRole.MAKER} then 1 else 0 end), 0)`.mapWith(Number),
+                makerCompletedDossiersCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} = ${WorkerRole.MAKER} and ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then 1 else 0 end), 0)`.mapWith(Number),
+                qcAssignedDossiersCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} <> ${WorkerRole.MAKER} then 1 else 0 end), 0)`.mapWith(Number),
+                qcCompletedDossiersCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} <> ${WorkerRole.MAKER} and ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then 1 else 0 end), 0)`.mapWith(Number),
+            })
+            .from(dossierAssignments)
+            .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
+            .where(activeDossierWhere(
+                inArray(dossierAssignments.assigneeId, userIds),
+                ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
+                projectCodes
+                    ? (projectCodes.length === 0 ? sql`false` : inArray(dossiers.projectCode, projectCodes))
+                    : undefined,
+            ))
+            .groupBy(dossierAssignments.assigneeId);
+
+        const statsMap = new Map(assignmentStats.map((row) => [row.assigneeId, row]));
+
+        return activeUsers.map((user) => {
+            const stats = statsMap.get(user.id) ?? {
+                assignedDossiersCount: 0,
+                completedDossiersCount: 0,
+                rejectedDossiersCount: 0,
+                correctCount: 0,
+                incorrectCount: 0,
+                avgProcessingTimeSeconds: 0,
+                makerAssignedDossiersCount: 0,
+                makerCompletedDossiersCount: 0,
+                qcAssignedDossiersCount: 0,
+                qcCompletedDossiersCount: 0,
+            };
+
+            const roles = user.userRoles?.map((r) => r.roleId) ?? [];
+            let primaryRole = "editor";
+            if (roles.includes("admin") || roles.includes("superadmin")) {
+                primaryRole = "admin";
+            } else if (roles.some((r) => r.startsWith("qc"))) {
+                primaryRole = "qc";
+            }
+
+            const groupName = user.groupMembers?.[0]?.group?.name ?? null;
+
+            const assignedPagesCount = stats.assignedDossiersCount * 10;
+            const completedPagesCount = stats.completedDossiersCount * 10;
+
+            const dossierCompletionRate = calcRate(stats.completedDossiersCount, stats.assignedDossiersCount);
+            const pageCompletionRate = calcRate(completedPagesCount, assignedPagesCount);
+
+            const makerAssignedDossiersCount = stats.makerAssignedDossiersCount || (primaryRole === "editor" ? stats.assignedDossiersCount : 0);
+            const makerCompletedDossiersCount = stats.makerCompletedDossiersCount || (primaryRole === "editor" ? stats.completedDossiersCount : 0);
+            const makerAssignedPagesCount = makerAssignedDossiersCount * 10;
+            const makerCompletedPagesCount = makerCompletedDossiersCount * 10;
+            const makerDossierCompletionRate = calcRate(makerCompletedDossiersCount, makerAssignedDossiersCount);
+            const makerPageCompletionRate = calcRate(makerCompletedPagesCount, makerAssignedPagesCount);
+
+            const qcAssignedDossiersCount = stats.qcAssignedDossiersCount || (primaryRole === "qc" ? stats.assignedDossiersCount : 0);
+            const qcCompletedDossiersCount = stats.qcCompletedDossiersCount || (primaryRole === "qc" ? stats.completedDossiersCount : 0);
+            const qcAssignedPagesCount = qcAssignedDossiersCount * 10;
+            const qcCompletedPagesCount = qcCompletedDossiersCount * 10;
+            const qcDossierCompletionRate = calcRate(qcCompletedDossiersCount, qcAssignedDossiersCount);
+            const qcPageCompletionRate = calcRate(qcCompletedPagesCount, qcAssignedPagesCount);
+
+            const reviewedForAccuracy = stats.correctCount + stats.incorrectCount;
+            const accuracyRate = reviewedForAccuracy > 0
+                ? calcRate(stats.correctCount, reviewedForAccuracy)
+                : (stats.completedDossiersCount > 0 ? 100 : 0);
+
+            const avgProcessingTimeMinutes = Math.round(stats.avgProcessingTimeSeconds / 60);
+
+            let kpiStatus: "EXCELLENT" | "GOOD" | "WARNING" | "CRITICAL" = "GOOD";
+            if (accuracyRate >= 95 && dossierCompletionRate >= 90) {
+                kpiStatus = "EXCELLENT";
+            } else if (accuracyRate >= 80 && dossierCompletionRate >= 80) {
+                kpiStatus = "GOOD";
+            } else if (accuracyRate >= 70 || dossierCompletionRate >= 70) {
+                kpiStatus = "WARNING";
+            } else {
+                kpiStatus = "CRITICAL";
+            }
+
+            return {
+                userId: user.id,
+                fullName: user.fullName || "Chưa đặt tên",
+                role: primaryRole,
+                groupName,
+                assignedDossiersCount: stats.assignedDossiersCount,
+                completedDossiersCount: stats.completedDossiersCount,
+                rejectedDossiersCount: stats.rejectedDossiersCount,
+                assignedPagesCount,
+                completedPagesCount,
+                dossierCompletionRate,
+                pageCompletionRate,
+                makerAssignedDossiersCount,
+                makerCompletedDossiersCount,
+                makerAssignedPagesCount,
+                makerCompletedPagesCount,
+                makerDossierCompletionRate,
+                makerPageCompletionRate,
+                qcAssignedDossiersCount,
+                qcCompletedDossiersCount,
+                qcAssignedPagesCount,
+                qcCompletedPagesCount,
+                qcDossierCompletionRate,
+                qcPageCompletionRate,
+                accuracyRate,
+                avgProcessingTimeMinutes,
+                kpiStatus,
+            };
+        });
     },
 
     async getAdminDashboard(
@@ -763,37 +922,40 @@ export const DashboardService = {
             };
         }));
 
-        return {
-            overview: {
-                totalDossiers,
-                byStatus,
-                totalActiveUsers: activeUsersRow[0]?.count ?? 0,
-                byRole,
-                totalGroups: groupsCountRow[0]?.count ?? 0,
-            },
-            systemDossiers: {
-                total: totalDossiers,
-                completed: completedDossiers,
-                completionRate: calcRate(completedDossiers, totalDossiers),
-                accuracyRate: calcRate(makerCorrect, reviewedForAccuracy),
-            },
-            systemProjects: {
-                total: totalProjects,
-                completed: completedProjects,
-                completionRate: calcRate(completedProjects, totalProjects),
-            },
-            dossierChart,
-            performance: {
-                overallApprovalRate: calcRate(qcApproved, qcReviewed),
-                avgProcessingTimeSeconds: roundSeconds(
-                    makerPerformanceRow[0]?.avgProcessingTimeSeconds ?? 0,
-                ),
-                dossiersApprovedToday: approvedTodayRow[0]?.count ?? 0,
-                dossiersApprovedThisWeek: approvedWeekRow[0]?.count ?? 0,
-            },
-            groups: groupSummaries
-        };
-    },
+            const employeeKpis = await this.aggregateEmployeeKpis(projectCodes);
+
+            return {
+                overview: {
+                    totalDossiers,
+                    byStatus,
+                    totalActiveUsers: activeUsersRow[0]?.count ?? 0,
+                    byRole,
+                    totalGroups: groupsCountRow[0]?.count ?? 0,
+                },
+                systemDossiers: {
+                    total: totalDossiers,
+                    completed: completedDossiers,
+                    completionRate: calcRate(completedDossiers, totalDossiers),
+                    accuracyRate: calcRate(makerCorrect, reviewedForAccuracy),
+                },
+                systemProjects: {
+                    total: totalProjects,
+                    completed: completedProjects,
+                    completionRate: calcRate(completedProjects, totalProjects),
+                },
+                dossierChart,
+                performance: {
+                    overallApprovalRate: calcRate(qcApproved, qcReviewed),
+                    avgProcessingTimeSeconds: roundSeconds(
+                        makerPerformanceRow[0]?.avgProcessingTimeSeconds ?? 0,
+                    ),
+                    dossiersApprovedToday: approvedTodayRow[0]?.count ?? 0,
+                    dossiersApprovedThisWeek: approvedWeekRow[0]?.count ?? 0,
+                },
+                groups: groupSummaries,
+                employeeKpis,
+            };
+        },
 
     async getWarehouseStats(chartGranularity: ChartGranularity = "month") {
         const dossierScope = scopedDossierCondition();

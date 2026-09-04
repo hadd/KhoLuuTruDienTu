@@ -40,13 +40,14 @@ import {
     filterMetadataByAllowedFields,
     filterRejectFieldsForAssignment,
     canonicalizeMetadataFieldKeys,
+    mergePartialMetadata,
     parseAllowedFields,
     parseRejectFields,
     serializeRejectFields,
     shouldResetMakerOnReject,
 } from "../../libs/metadata-field-filter.ts";
 import { isDossierMetadata, type DossierMetadata } from "../../libs/metadata-types.ts";
-import { hasHoSoFondField } from "../../libs/metadata-normalize.ts";
+import { hasHoSoFondField, parseDossierMetadata } from "../../libs/metadata-normalize.ts";
 import {
     resolveEditorSlotFieldPatterns,
     resolveEffectiveAllowedFields,
@@ -565,16 +566,33 @@ async function directApproveDossier(
             WorkerRole.CHECKER_1,
             1,
         );
-        storedKey = await uploadJsonToStorage(metadataKey, metadata);
+
+        const previousMetadataKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
+        let finalMetadata: unknown = metadata;
+        if (previousMetadataKey && isDossierMetadata(metadata)) {
+            try {
+                const rawOld = await downloadJsonFromStorage(
+                    resolveMetadataJsonKey(previousMetadataKey),
+                );
+                const oldParsed = parseDossierMetadata(rawOld);
+                if (oldParsed) {
+                    finalMetadata = mergePartialMetadata(oldParsed, [metadata]);
+                }
+            } catch (err) {
+                console.error("[DataEntry] Failed to load old metadata for merge on direct approve:", err);
+            }
+        }
+
+        storedKey = await uploadJsonToStorage(metadataKey, finalMetadata);
 
         const { syncDossierFondIdFromMetadata } = await import(
             "../dossier/dossier-fond-sync.ts"
         );
-        const syncedFondId = await syncDossierFondIdFromMetadata(dossierId, metadata);
+        const syncedFondId = await syncDossierFondIdFromMetadata(dossierId, finalMetadata);
         const effectiveFondId = syncedFondId || dossier.fondId;
 
         try {
-            await syncDocumentTypesFromOcrMetadata(dossierId, metadata);
+            await syncDocumentTypesFromOcrMetadata(dossierId, finalMetadata);
         } catch (err) {
             console.error("[DataEntry] Failed to sync document types on direct approve:", err);
         }
@@ -701,17 +719,33 @@ async function approveMetadata(input: {
         ocrMetadataKey: dossier.ocrMetadataKey,
         assignmentId: assignment.id,
     });
-    const storedKey = await uploadJsonToStorage(metadataKey, input.metadata);
+
+    let finalMetadata: unknown = input.metadata;
+    if (previousMetadataKey && isDossierMetadata(input.metadata)) {
+        try {
+            const rawOld = await downloadJsonFromStorage(
+                resolveMetadataJsonKey(previousMetadataKey),
+            );
+            const oldParsed = parseDossierMetadata(rawOld);
+            if (oldParsed) {
+                finalMetadata = mergePartialMetadata(oldParsed, [input.metadata]);
+            }
+        } catch (err) {
+            console.error("[DataEntry] Failed to load old metadata for merge on checker approve:", err);
+        }
+    }
+
+    const storedKey = await uploadJsonToStorage(metadataKey, finalMetadata);
 
     const { syncDossierFondIdFromMetadata } = await import(
         "../dossier/dossier-fond-sync.ts"
     );
-    const syncedFondId = await syncDossierFondIdFromMetadata(input.dossierId, input.metadata);
+    const syncedFondId = await syncDossierFondIdFromMetadata(input.dossierId, finalMetadata);
     const effectiveFondId = syncedFondId || dossier.fondId;
 
     // Đồng bộ catalog loại tài liệu từ metadata đã duyệt (group_code/group_name).
     try {
-        await syncDocumentTypesFromOcrMetadata(input.dossierId, input.metadata);
+        await syncDocumentTypesFromOcrMetadata(input.dossierId, finalMetadata);
     } catch (err) {
         console.error("[DataEntry] Failed to sync document types on QC approve:", err);
     }

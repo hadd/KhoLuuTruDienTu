@@ -163,6 +163,31 @@ export async function purgeDossierFromMinIO(
     return deletedCount;
 }
 
+export async function purgeSingleFileFromMinIO(fileRow: {
+    filePath: string;
+    signedFilePath?: string | null;
+}): Promise<number> {
+    const s3 = await getS3Client();
+    if (!s3) return 0;
+    const bucket = resolveS3Bucket();
+    const keys = new Set<string>();
+    if (fileRow.filePath) keys.add(normalizeStorageKey(fileRow.filePath));
+    if (fileRow.signedFilePath) keys.add(normalizeStorageKey(fileRow.signedFilePath));
+    expandKeysWithDocJsonMirrors(keys);
+
+    let deletedCount = 0;
+    for (const objectName of keys) {
+        if (isProtectedArchivalKey(objectName)) continue;
+        try {
+            await s3.deleteFile({ bucket, objectName });
+            deletedCount++;
+        } catch {
+            // ignore missing object errors
+        }
+    }
+    return deletedCount;
+}
+
 async function countActiveDossiersOnFolder(tx: DbTx, folderId: string): Promise<number> {
     const [usage] = await tx
         .select({ value: count() })
