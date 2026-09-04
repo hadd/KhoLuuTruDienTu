@@ -7,7 +7,9 @@ import type {
   AuthLoginApiResponseT,
   LoginForm,
   LoginResponseT,
+  Resend2FAPayloadT,
   UserT,
+  Verify2FAPayloadT,
 } from '../types'
 
 const authHttp = axios.create({
@@ -20,11 +22,44 @@ export const login = async (payload: LoginForm): Promise<LoginResponseT> => {
     '/api/auth/login',
     payload,
   )
+  if (data.require2FA) {
+    return {
+      require2FA: true,
+      challengeToken: data.challengeToken,
+      maskedEmail: data.maskedEmail,
+    }
+  }
   return {
-    accessToken: data.accessToken,
-    refreshToken: data.refreshToken,
+    require2FA: false,
+    accessToken: data.accessToken ?? '',
+    refreshToken: data.refreshToken ?? '',
     roles: data.roles ?? [],
   }
+}
+
+export const verify2FA = async (
+  payload: Verify2FAPayloadT,
+): Promise<LoginResponseT> => {
+  const { data } = await authHttp.post<AuthLoginApiResponseT>(
+    '/api/auth/verify-2fa',
+    payload,
+  )
+  return {
+    require2FA: false,
+    accessToken: data.accessToken ?? '',
+    refreshToken: data.refreshToken ?? '',
+    roles: data.roles ?? [],
+  }
+}
+
+export const resend2FA = async (
+  payload: Resend2FAPayloadT,
+): Promise<{ status: string; expiresIn: number }> => {
+  const { data } = await authHttp.post<{ status: string; expiresIn: number }>(
+    '/api/auth/resend-2fa',
+    payload,
+  )
+  return data
 }
 
 export const getProfile = async (): Promise<UserT> => {

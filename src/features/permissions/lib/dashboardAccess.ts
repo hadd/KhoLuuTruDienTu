@@ -19,6 +19,8 @@ export const DASHBOARD_ADMIN_SUB_PERMISSIONS = {
   systemPerformance: 'dashboard.admin.system_performance',
   employeeKpis: 'dashboard.admin.employee_kpis',
   groupPerformanceChart: 'dashboard.admin.group_performance_chart',
+  unassigned: 'dashboard.admin.unassigned',
+  readAll: 'dashboard.admin.read_all',
 } as const
 
 export type DashboardVariantT = keyof typeof DASHBOARD_PERMISSION_KEYS
