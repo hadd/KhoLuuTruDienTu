@@ -10,11 +10,11 @@ export const HO_SO_FOND_FIELD = 'FOND'
 export const TEN_LOAI_TAI_LIEU_FIELD = 'TEN_LOAI_TAI_LIEU'
 
 /**
- * HO_SO_LUU_TRU fields that should be treated as date type even when
- * the backend/template marks them as 'string'. This ensures they render
- * with a date picker instead of a plain text input.
+ * Fields that should be treated as date type even when the backend/template
+ * marks them as 'string'. This ensures they render with a date picker
+ * instead of a plain text input.
  */
-const HO_SO_DATE_FIELD_NAMES: ReadonlySet<string> = new Set([
+const DATE_FIELD_NAMES: ReadonlySet<string> = new Set([
   'THOI_GIAN_BAT_DAU',
   'THOI_GIAN_KET_THUC',
 ])
@@ -56,17 +56,26 @@ export function filterHiddenMetadataFields<T extends { name: string }>(
 
 /**
  * Returns the effective field type, overriding 'string' → 'date' for
- * known date fields in HO_SO_LUU_TRU.
+ * known date fields in HO_SO_LUU_TRU and TAI_LIEU_LUU_TRU.
  */
 export function resolveEffectiveFieldType(
   groupCode: string,
   fieldName: string,
   declaredType: DataDocumentFieldT['type'],
+  fieldDisplay?: string,
 ): DataDocumentFieldT['type'] {
+  const normalizedName = fieldName.trim().toUpperCase()
+  const normalizedDisplay = fieldDisplay?.trim()?.toUpperCase() ?? ''
+  
+  const isDateName = DATE_FIELD_NAMES.has(normalizedName) || 
+                     normalizedName.includes('THOI_GIAN_BAT_DAU') || 
+                     normalizedName.includes('THOI_GIAN_KET_THUC') ||
+                     normalizedDisplay.includes('THỜI GIAN BẮT ĐẦU') ||
+                     normalizedDisplay.includes('THỜI GIAN KẾT THÚC')
+
   if (
-    declaredType === 'string' &&
-    groupCode === HO_SO_LUU_TRU_GROUP_CODE &&
-    HO_SO_DATE_FIELD_NAMES.has(fieldName.trim().toUpperCase())
+    (groupCode === HO_SO_LUU_TRU_GROUP_CODE || groupCode === TAI_LIEU_LUU_TRU_GROUP_CODE) &&
+    isDateName
   ) {
     return 'date'
   }

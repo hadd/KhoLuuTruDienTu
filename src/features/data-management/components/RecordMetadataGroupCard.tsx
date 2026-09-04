@@ -243,6 +243,7 @@ export function RecordMetadataGroupCard({
               group.group_code,
               field.name,
               field.type,
+              field.display,
             )
             const effectiveField = effectiveType !== field.type
               ? { ...field, type: effectiveType }

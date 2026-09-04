@@ -103,7 +103,7 @@ export function AssignPdfDocumentDialog({
       toast.error(
         err instanceof Error
           ? err.message
-          : t('assignDocument.error', 'Gán tài liệu thất bại'),
+          : t('assignDocument.error', 'Thay tài liệu thất bại'),
       )
     }
   }
@@ -115,7 +115,7 @@ export function AssignPdfDocumentDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {t('assignDocument.title', 'Gán tài liệu (File PDF)')}
+            {t('assignDocument.title', 'Thay thế tài liệu (File PDF)')}
           </DialogTitle>
           <DialogDescription>
             {t(
@@ -207,7 +207,7 @@ export function AssignPdfDocumentDialog({
             {mutation.isPending ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
             ) : null}
-            {t('assignDocument.confirmButton', 'Thực hiện gán tài liệu')}
+            {t('assignDocument.confirmButton', 'Thực hiện thay tài liệu')}
           </Button>
         </DialogFooter>
       </DialogContent>
