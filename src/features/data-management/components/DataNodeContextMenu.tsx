@@ -165,7 +165,7 @@ export function DataNodeContextMenu({
       },
       {
         key: 'assignDocument',
-        label: t('contextMenu.assignDocument', 'Gán tài liệu (PDF)'),
+        label: t('contextMenu.assignDocument', 'Thay thế tài liệu (PDF)'),
         icon: FileText,
       },
       {
