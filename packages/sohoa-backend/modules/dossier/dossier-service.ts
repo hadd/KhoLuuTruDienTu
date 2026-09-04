@@ -407,7 +407,7 @@ async function assignDossierProjectCode(
     status: string;
     name: string;
   },
-  projectCode: string,
+  projectCode: string | null,
 ) {
   if (existing.projectCode === projectCode) {
     return;
@@ -419,7 +419,9 @@ async function assignDossierProjectCode(
     );
   }
 
-  await ProjectService.assertProjectExists(projectCode);
+  if (projectCode !== null) {
+    await ProjectService.assertProjectExists(projectCode);
+  }
 
   const siblings = await tx.query.dossiers.findMany({
     where: activeDossierWhere(eq(dossiers.folderId, existing.folderId)),
