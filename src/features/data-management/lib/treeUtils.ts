@@ -117,7 +117,7 @@ export function getPathToNode(
 export function updateProjectCodeInSubtree(
   root: DataTreeNodeT,
   folderId: string,
-  projectCode: string,
+  projectCode: string | null,
 ): DataTreeNodeT {
   if (!findNodeById(root, folderId)) {
     return root
@@ -300,6 +300,12 @@ export function canShowAssignProjectAction(node: DataTreeNodeT): boolean {
   }
   if (hasAssignedIndicator(node)) return false
   return true
+}
+
+/** Context menu: gỡ dự án khỏi hồ sơ/thư mục. */
+export function canShowUnassignProjectAction(node: DataTreeNodeT): boolean {
+  if (!canShowAssignProjectAction(node)) return false
+  return node.projectCode != null && node.projectCode.trim() !== ''
 }
 
 /** Context menu: "Phân biên tập" — ẩn khi hồ sơ đã vào QC / đã duyệt. */

@@ -121,3 +121,22 @@ export const deleteProject = async (projectId: string): Promise<void> => {
     `/api/v1/admin/projects/${encodeURIComponent(projectId)}`,
   )
 }
+
+export const checkProjectDependencies = async (
+  projectId: string,
+): Promise<{
+  dossierCount: number
+  folderCount: number
+  groupCount: number
+  total: number
+}> => {
+  const response = await apiClient.get<{
+    dossierCount: number
+    folderCount: number
+    groupCount: number
+    total: number
+  }>(
+    `/api/v1/admin/projects/${encodeURIComponent(projectId)}/dependencies`,
+  )
+  return response.data
+}
