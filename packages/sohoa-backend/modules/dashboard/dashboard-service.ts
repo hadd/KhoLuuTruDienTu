@@ -13,6 +13,7 @@ import {
     disposalProposalItems,
 } from "../../db/schemas/archive-disposal.ts";
 
+import { getPdfPageCount } from "../../libs/pdf-page-counter.ts";
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
@@ -496,7 +497,32 @@ export const DashboardService = {
         };
     },
 
+    async syncExistingPdfPageCounts() {
+        try {
+            const uncountedPdfFiles = await db.query.dossierFiles.findMany({
+                where: and(
+                    like(dossierFiles.fileName, "%.pdf"),
+                    eq(dossierFiles.pageCount, 1),
+                ),
+                limit: 50,
+            });
+
+            for (const file of uncountedPdfFiles) {
+                const realCount = await getPdfPageCount(file.filePath);
+                if (realCount > 1) {
+                    await db
+                        .update(dossierFiles)
+                        .set({ pageCount: realCount })
+                        .where(eq(dossierFiles.id, file.id));
+                }
+            }
+        } catch {
+            // Ignore background sync errors
+        }
+    },
+
     async aggregateEmployeeKpis(projectCodes?: string[], includeUnassigned: boolean = false) {
+        await this.syncExistingPdfPageCounts();
         const activeUsers = await db.query.userProfiles.findMany({
             where: and(
                 eq(userProfiles.active, true),
@@ -535,7 +561,7 @@ export const DashboardService = {
         const dossierFileCounts = db
             .select({
                 dossierId: dossierFiles.dossierId,
-                pageCount: sql<number>`count(*)`.mapWith(Number).as("page_count"),
+                pageCount: sql<number>`coalesce(sum(coalesce(${dossierFiles.pageCount}, 1)), 0)`.mapWith(Number).as("page_count"),
             })
             .from(dossierFiles)
             .groupBy(dossierFiles.dossierId)

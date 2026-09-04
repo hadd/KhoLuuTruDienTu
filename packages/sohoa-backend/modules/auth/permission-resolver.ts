@@ -84,17 +84,65 @@ export function hasAnyPermissionInRules(rules: RoleRules, permissions: string[])
     return permissions.some((p) => hasPermissionInRules(rules, p));
 }
 
-type UserRoleWithRules = {
-    role: { rules: string | null | undefined };
+export type UserRoleWithRules = {
+    role: {
+        rules: string | null | undefined;
+        hiddenPermissions?: string | unknown;
+    };
 };
+
+export function parseHiddenPermissions(hiddenPermissions: unknown): string[] {
+    if (!hiddenPermissions) return [];
+    if (Array.isArray(hiddenPermissions)) {
+        return hiddenPermissions.filter((p): p is string => typeof p === "string");
+    }
+    if (typeof hiddenPermissions === "string" && hiddenPermissions.trim()) {
+        try {
+            const parsed = JSON.parse(hiddenPermissions);
+            return Array.isArray(parsed)
+                ? parsed.filter((p): p is string => typeof p === "string")
+                : [];
+        } catch {
+            return [];
+        }
+    }
+    return [];
+}
+
+export function isReadPermission(permission: string): boolean {
+    return (
+        permission.endsWith(".read") ||
+        permission.endsWith(".read_all") ||
+        permission.endsWith(".browse_all") ||
+        permission.endsWith(".browse_assigned") ||
+        permission.endsWith(".search") ||
+        permission.startsWith("dashboard.") ||
+        permission === Permission.SEARCH_GLOBAL
+    );
+}
+
+export function userRoleHasPermission(
+    userRole: UserRoleWithRules,
+    permission: string,
+): boolean {
+    const rules = parseRoleRules(userRole.role.rules);
+    if (isRestricted(permission, rules.restrictions)) {
+        return false;
+    }
+
+    const hasRolesManage = isGranted(Permission.ROLES_MANAGE, rules.permissions);
+    if (hasRolesManage && isReadPermission(permission)) {
+        return true;
+    }
+
+    return isGranted(permission, rules.permissions);
+}
 
 export function userRolesHavePermission(
     userRoles: ReadonlyArray<UserRoleWithRules>,
     permission: string,
 ): boolean {
-    return userRoles.some((userRole) =>
-        hasPermissionInRules(parseRoleRules(userRole.role.rules), permission),
-    );
+    return userRoles.some((userRole) => userRoleHasPermission(userRole, permission));
 }
 
 export function userRolesHaveAnyPermission(

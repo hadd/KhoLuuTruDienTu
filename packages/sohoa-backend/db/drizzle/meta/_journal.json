@@ -36,6 +36,13 @@
       "when": 1788429028322,
       "tag": "0004_fair_hercules",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788491943604,
+      "tag": "0005_solid_thena",
+      "breakpoints": true
     }
   ]
 }

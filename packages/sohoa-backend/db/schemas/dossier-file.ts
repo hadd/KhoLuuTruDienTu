@@ -16,6 +16,7 @@ export const dossierFiles = schema.table("files", {
     fileName: varchar("file_name", { length: 255 }).notNull(),
     filePath: text("file_path").notNull(),
     fileSizeKb: integer("file_size_kb"),
+    pageCount: integer("page_count").notNull().default(1),
     signedFilePath: text("signed_file_path"),
     signedAt: timestamp("signed_at", { withTimezone: true }),
     documentTypeId: text("document_type_id").references(() => documentTypes.id, {
