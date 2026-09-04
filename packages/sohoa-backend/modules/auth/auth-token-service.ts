@@ -7,6 +7,8 @@ import { randomRefreshToken, sha256Hex, verifyPassword } from "../../libs/helper
 import { ProfileService } from "../profile/profile-service.ts";
 import { resolveEffectivePermissionsFromUserRoles, userRolesHavePermission } from "./permission-resolver.ts";
 import { Permission } from "./permission-catalog.ts";
+import { authHelper } from "./auth-helper.ts";
+import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 import { sendNotificationEmail } from "../../libs/notification-email.ts";
 import { logActivity } from "../audit-log/audit-log-activity.ts";
 
@@ -152,7 +154,8 @@ export const AuthTokenService = {
             },
         });
 
-        const requires2FA = fullProfile?.userRoles?.length
+        const isAdmin = fullProfile ? authHelper.isAdmin(fullProfile as UserWithRoles) : false;
+        const requires2FA = !isAdmin && fullProfile?.userRoles?.length
             ? userRolesHavePermission(fullProfile.userRoles, Permission.AUTH_TWO_FACTOR_REQUIRE)
             : false;
 

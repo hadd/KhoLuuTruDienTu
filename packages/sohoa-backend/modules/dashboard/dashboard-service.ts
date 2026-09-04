@@ -1,6 +1,6 @@
 import { httpError } from "@shared/common-lib";
 // Bổ sung: desc, isNotNull, lte
-import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
 import { ArchiveDisposalService } from "../archive-disposal/archive-disposal-service.ts";
@@ -125,19 +125,27 @@ function mapSqlPeriodToChartKey(value: Date | string, granularity: ChartGranular
     return formatChartPeriod(date, granularity);
 }
 
-function scopedDossierCondition(projectCodes?: string[]) {
+function dossierProjectCondition(projectCodes?: string[], includeUnassigned: boolean = false) {
     if (!projectCodes) {
-        return activeDossierWhere();
+        return undefined;
     }
     if (projectCodes.length === 0) {
-        return activeDossierWhere(sql`false`);
+        return includeUnassigned ? isNull(dossiers.projectCode) : sql`false`;
     }
-    return activeDossierWhere(inArray(dossiers.projectCode, projectCodes));
+    return includeUnassigned
+        ? or(inArray(dossiers.projectCode, projectCodes), isNull(dossiers.projectCode))
+        : inArray(dossiers.projectCode, projectCodes);
+}
+
+function scopedDossierCondition(projectCodes?: string[], includeUnassigned: boolean = false) {
+    const cond = dossierProjectCondition(projectCodes, includeUnassigned);
+    return activeDossierWhere(cond);
 }
 
 async function aggregateDossierChart(
     granularity: ChartGranularity,
     projectCodes?: string[],
+    includeUnassigned: boolean = false,
 ) {
     const rangeStart = startOfChartRange(granularity);
     const rangeEnd = startOfToday();
@@ -157,7 +165,7 @@ async function aggregateDossierChart(
         .from(workflowLogs)
         .innerJoin(dossiers, eq(workflowLogs.dossierId, dossiers.id))
         .where(and(
-            scopedDossierCondition(projectCodes),
+            scopedDossierCondition(projectCodes, includeUnassigned),
             gte(workflowLogs.createdAt, rangeStart),
         ))
         .groupBy(periodBucket)
@@ -487,7 +495,7 @@ export const DashboardService = {
         };
     },
 
-    async aggregateEmployeeKpis(projectCodes?: string[]) {
+    async aggregateEmployeeKpis(projectCodes?: string[], includeUnassigned: boolean = false) {
         const activeUsers = await db.query.userProfiles.findMany({
             where: and(
                 eq(userProfiles.active, true),
@@ -542,9 +550,7 @@ export const DashboardService = {
             .where(activeDossierWhere(
                 inArray(dossierAssignments.assigneeId, userIds),
                 ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
-                projectCodes
-                    ? (projectCodes.length === 0 ? sql`false` : inArray(dossiers.projectCode, projectCodes))
-                    : undefined,
+                dossierProjectCondition(projectCodes, includeUnassigned),
             ))
             .groupBy(dossierAssignments.assigneeId);
 
@@ -645,14 +651,15 @@ export const DashboardService = {
 
     async getAdminDashboard(
         chartGranularity: ChartGranularity = "month",
-        options?: { projectCodes?: string[] },
+        options?: { projectCodes?: string[]; includeUnassigned?: boolean },
     ) {
         const projectCodes = options?.projectCodes;
+        const includeUnassigned = options?.includeUnassigned ?? false;
         const isScoped = projectCodes !== undefined;
         const todayStart = startOfToday();
         const weekStart = startOfWeek();
 
-        const dossierScope = scopedDossierCondition(projectCodes);
+        const dossierScope = scopedDossierCondition(projectCodes, includeUnassigned);
         const groupConditions = [isNull(groups.deletedAt)];
         if (projectCodes) {
             if (projectCodes.length === 0) {
@@ -734,11 +741,7 @@ export const DashboardService = {
                 .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
                 .where(and(
                     inArray(dossierAssignments.role, CHECKER_ROLES),
-                    projectCodes
-                        ? (projectCodes.length === 0
-                            ? sql`false`
-                            : inArray(dossiers.projectCode, projectCodes))
-                        : undefined,
+                    dossierProjectCondition(projectCodes, includeUnassigned),
                 )),
             db
                 .select({
@@ -748,11 +751,7 @@ export const DashboardService = {
                 .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
                 .where(activeDossierWhere(
                     eq(dossierAssignments.role, WorkerRole.MAKER),
-                    projectCodes
-                        ? (projectCodes.length === 0
-                            ? sql`false`
-                            : inArray(dossiers.projectCode, projectCodes))
-                        : undefined,
+                    dossierProjectCondition(projectCodes, includeUnassigned),
                 )),
             db
                 .select({
@@ -763,11 +762,7 @@ export const DashboardService = {
                 .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
                 .where(activeDossierWhere(
                     eq(dossierAssignments.role, WorkerRole.MAKER),
-                    projectCodes
-                        ? (projectCodes.length === 0
-                            ? sql`false`
-                            : inArray(dossiers.projectCode, projectCodes))
-                        : undefined,
+                    dossierProjectCondition(projectCodes, includeUnassigned),
                 )),
             db
                 .select({
@@ -786,11 +781,7 @@ export const DashboardService = {
                 .where(and(
                     eq(workflowLogs.toStatus, DossierStatus.APPROVED),
                     gte(workflowLogs.createdAt, todayStart),
-                    projectCodes
-                        ? (projectCodes.length === 0
-                            ? sql`false`
-                            : inArray(dossiers.projectCode, projectCodes))
-                        : undefined,
+                    dossierProjectCondition(projectCodes, includeUnassigned),
                 )),
             db
                 .select({
@@ -801,11 +792,7 @@ export const DashboardService = {
                 .where(and(
                     eq(workflowLogs.toStatus, DossierStatus.APPROVED),
                     gte(workflowLogs.createdAt, weekStart),
-                    projectCodes
-                        ? (projectCodes.length === 0
-                            ? sql`false`
-                            : inArray(dossiers.projectCode, projectCodes))
-                        : undefined,
+                    dossierProjectCondition(projectCodes, includeUnassigned),
                 )),
             db.query.groups.findMany({
                 where: and(...groupConditions),
@@ -814,7 +801,7 @@ export const DashboardService = {
                     name: true,
                 },
             }),
-            aggregateDossierChart(chartGranularity, projectCodes),
+            aggregateDossierChart(chartGranularity, projectCodes, includeUnassigned),
         ]);
 
         const byStatus: Record<string, number> = {};
@@ -922,7 +909,7 @@ export const DashboardService = {
             };
         }));
 
-            const employeeKpis = await this.aggregateEmployeeKpis(projectCodes);
+            const employeeKpis = await this.aggregateEmployeeKpis(projectCodes, includeUnassigned);
 
             return {
                 overview: {

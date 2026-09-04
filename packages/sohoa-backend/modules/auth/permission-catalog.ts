@@ -56,6 +56,8 @@ export const Permission = {
   DASHBOARD_ADMIN_SYSTEM_PERFORMANCE: "dashboard.admin.system_performance",
   DASHBOARD_ADMIN_EMPLOYEE_KPIS: "dashboard.admin.employee_kpis",
   DASHBOARD_ADMIN_GROUP_PERFORMANCE_CHART: "dashboard.admin.group_performance_chart",
+  DASHBOARD_ADMIN_UNASSIGNED: "dashboard.admin.unassigned",
+  DASHBOARD_ADMIN_READ_ALL: "dashboard.admin.read_all",
   DASHBOARD_WAREHOUSE: "dashboard.warehouse",
 
   DATA_ENTRY_MAKER: "data-entry.maker",
@@ -336,6 +338,20 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     label: "Biểu đồ hiệu suất tổ nhóm",
     description:
       "Xem biểu đồ sản lượng và tỷ lệ đúng trung bình của các tổ nhóm",
+  },
+  {
+    key: Permission.DASHBOARD_ADMIN_UNASSIGNED,
+    module: "dashboard",
+    label: "Xem tài liệu không gán dự án",
+    description:
+      "Cho phép hiển thị và thống kê các hồ sơ/tài liệu chưa được gán vào dự án nào trên Dashboard",
+  },
+  {
+    key: Permission.DASHBOARD_ADMIN_READ_ALL,
+    module: "dashboard",
+    label: "Xem tất cả tài liệu toàn hệ thống",
+    description:
+      "Cho phép hiển thị và thống kê toàn bộ hồ sơ/dự án của tất cả các bộ phận trong hệ thống trên Dashboard",
   },
   {
     key: Permission.DASHBOARD_WAREHOUSE,
@@ -1059,6 +1075,8 @@ export const DASHBOARD_ADMIN_SUB_PERMISSIONS = [
   Permission.DASHBOARD_ADMIN_SYSTEM_PERFORMANCE,
   Permission.DASHBOARD_ADMIN_EMPLOYEE_KPIS,
   Permission.DASHBOARD_ADMIN_GROUP_PERFORMANCE_CHART,
+  Permission.DASHBOARD_ADMIN_UNASSIGNED,
+  Permission.DASHBOARD_ADMIN_READ_ALL,
 ] as const;
 
 export const ALL_PERMISSION_KEYS = PERMISSION_CATALOG.map(

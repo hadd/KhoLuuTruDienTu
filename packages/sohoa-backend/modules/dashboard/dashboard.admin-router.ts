@@ -18,9 +18,12 @@ export function createDashboardAdminRouter(basePath: string = "/dashboard") {
         "/",
         async ({ profile, query }) => {
             authHelper.checkPermissionAny(profile, [Permission.DASHBOARD_ADMIN, ...DASHBOARD_ADMIN_SUB_PERMISSIONS]);
-            const scope = await projectAccessHelper.resolveScope(profile);
+            const hasReadAll = authHelper.hasPermission(profile, Permission.DASHBOARD_ADMIN_READ_ALL);
+            const scope = hasReadAll ? { type: "global" as const } : await projectAccessHelper.resolveScope(profile);
+            const includeUnassigned = authHelper.hasPermission(profile, Permission.DASHBOARD_ADMIN_UNASSIGNED);
             return await service.getAdminDashboard(query.chartGranularity ?? "month", {
                 projectCodes: scope.type === "managed" ? scope.projectCodes : undefined,
+                includeUnassigned,
             });
         },
         {
