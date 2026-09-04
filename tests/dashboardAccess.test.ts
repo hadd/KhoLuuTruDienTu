@@ -14,6 +14,14 @@ describe('resolveDashboardVariant', () => {
     expect(resolveDashboardVariant(['dashboard.admin'])).toBe('admin')
   })
 
+  it('returns admin when user has dashboard.admin.unassigned permission', () => {
+    expect(resolveDashboardVariant(['dashboard.admin.unassigned'])).toBe('admin')
+  })
+
+  it('returns admin when user has dashboard.admin.read_all permission', () => {
+    expect(resolveDashboardVariant(['dashboard.admin.read_all'])).toBe('admin')
+  })
+
   it('returns qc when user has explicit dashboard.qc permission', () => {
     expect(resolveDashboardVariant(['dashboard.qc'])).toBe('qc')
   })
