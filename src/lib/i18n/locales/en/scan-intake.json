@@ -1,7 +1,7 @@
 {
   "page": {
     "title": "Document Scanning",
-    "description": "Start scanning immediately. Project selection is only required when promoting to the data lake."
+    "description": "Supports TWAIN standard scanner devices."
   },
   "errors": {
     "loadFailed": "Failed to load scan intake page."
