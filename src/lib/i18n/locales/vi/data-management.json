@@ -72,9 +72,24 @@
     "exportExcel": "Xuất Hồ Sơ",
     "uploadDossier": "Tải lên hồ sơ",
     "uploadDocument": "Tải lên tài liệu",
+    "assignDocument": "Thay tài liệu (PDF)",
     "assignProject": "Gán dự án",
     "changeProject": "Đổi dự án",
     "submitArchive": "Nộp lưu kho"
+  },
+  "assignDocument": {
+    "title": "Thay tài liệu (File PDF)",
+    "description": "Chọn file PDF mới để thay thế vị trí tài liệu hiện tại trong hệ thống.",
+    "targetFile": "Tài liệu bị thay thế (xóa ngầm):",
+    "selectNewFile": "Chọn file PDF mới thế vị trí:",
+    "dragDropHint": "Nhấp để chọn file PDF mới",
+    "processing": "Đang xóa file cũ và gán file mới...",
+    "confirmButton": "Thực hiện thay tài liệu",
+    "success": "Đã thay thế tài liệu \"{{oldName}}\" bằng \"{{newName}}\" thành công!",
+    "error": "Thay tài liệu thất bại",
+    "errors": {
+      "notPdf": "Chỉ chấp nhận file định dạng PDF"
+    }
   },
   "nodeType": {
     "document": "Tài liệu",
@@ -302,6 +317,7 @@
       "title": "Xóa",
       "descriptionDossier": "Bạn có chắc chắn muốn xóa hồ sơ này không?",
       "descriptionFolder": "Bạn có chắc chắn muốn xóa thư mục/bộ hồ sơ này không?",
+      "descriptionFile": "Bạn có chắc chắn muốn xóa vĩnh viễn file tài liệu này không? Thao tác này sẽ xóa hẳn file khỏi lưu trữ và CSDL và không thể hoàn tác.",
       "modeLabel": "Loại xóa",
       "modeSoft": "Xóa mềm",
       "modePermanent": "Xóa vĩnh viễn",

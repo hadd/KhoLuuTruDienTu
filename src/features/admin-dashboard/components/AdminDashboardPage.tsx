@@ -1,17 +1,21 @@
 import { getRouteApi } from '@tanstack/react-router'
 import {
+  ArrowUpDown,
   Briefcase,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   Database,
   FolderKanban,
+  Search,
   ShieldCheck,
   Timer,
   UserCog,
   Users,
   UsersRound,
 } from 'lucide-react'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Bar,
@@ -30,6 +34,8 @@ import {
   YAxis,
 } from 'recharts'
 
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -46,6 +52,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
   aggregateDossierStatusCategories,
   aggregateProjectStatusCategories,
   DOSSIER_CATEGORY_COLORS,
@@ -57,11 +71,16 @@ import {
 } from '@/features/admin-dashboard/lib/dossierChartHelpers'
 import type {
   AdminDashboardDossierTrendGranularityT,
+  AdminDashboardEmployeeKpiT,
   AdminDashboardT,
 } from '@/features/admin-dashboard/types'
+import { DASHBOARD_ADMIN_SUB_PERMISSIONS } from '@/features/permissions/lib/dashboardAccess'
+import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { formatDate } from '@/lib/utils/date'
 import { formatNumber } from '@/lib/utils/format'
+
+import { EmployeeKpiTable } from './EmployeeKpiTable'
 
 const ROLE_CHART_COLORS = {
   admin: '#3b82f6',
@@ -99,6 +118,8 @@ type AdminDashboardPageProps = {
   data: AdminDashboardT
   roleChart: AdminRoleChartTypeT
   dossierTrendGranularity: AdminDashboardDossierTrendGranularityT
+  permissions?: Array<string>
+  groupId?: string
 }
 
 type ChartDatumT = {
@@ -114,10 +135,57 @@ export function AdminDashboardPage({
   data,
   roleChart,
   dossierTrendGranularity,
+  permissions = [],
+  groupId,
 }: AdminDashboardPageProps) {
   const { t } = useTranslation('admin-dashboard')
   const language = useCurrentLanguage()
   const navigate = dashboardRouteApi.useNavigate()
+
+  const canViewSummary = isPermissionGranted(
+    permissions,
+    DASHBOARD_ADMIN_SUB_PERMISSIONS.summary,
+    'dashboard',
+  )
+  const canViewDossierStatus = isPermissionGranted(
+    permissions,
+    DASHBOARD_ADMIN_SUB_PERMISSIONS.dossierStatusChart,
+    'dashboard',
+  )
+  const canViewProjectStatus = isPermissionGranted(
+    permissions,
+    DASHBOARD_ADMIN_SUB_PERMISSIONS.projectStatusChart,
+    'dashboard',
+  )
+  const canViewDossierTrend = isPermissionGranted(
+    permissions,
+    DASHBOARD_ADMIN_SUB_PERMISSIONS.dossierTrendChart,
+    'dashboard',
+  )
+  const canViewSystemPerformance = isPermissionGranted(
+    permissions,
+    DASHBOARD_ADMIN_SUB_PERMISSIONS.systemPerformance,
+    'dashboard',
+  )
+  const canViewEmployeeKpis = isPermissionGranted(
+    permissions,
+    DASHBOARD_ADMIN_SUB_PERMISSIONS.employeeKpis,
+    'dashboard',
+  )
+  const canViewGroupPerformance = isPermissionGranted(
+    permissions,
+    DASHBOARD_ADMIN_SUB_PERMISSIONS.groupPerformanceChart,
+    'dashboard',
+  )
+
+  const hasAnySubSectionPermission =
+    canViewSummary ||
+    canViewDossierStatus ||
+    canViewProjectStatus ||
+    canViewDossierTrend ||
+    canViewSystemPerformance ||
+    canViewEmployeeKpis ||
+    canViewGroupPerformance
 
   const dossierCategoryTotals = useMemo(
     () => aggregateDossierStatusCategories(data.byStatus),
@@ -239,394 +307,354 @@ export function AdminDashboardPage({
         <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
       </div>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <SummaryStatCard
-          icon={Database}
-          title={t('summary.systemDossiers.title')}
-          value={formatNumber(data.systemDossiers.total, {
-            maximumFractionDigits: 0,
-          })}
-          subtitle={t('summary.systemDossiers.completed', {
-            count: formatNumber(data.systemDossiers.completed, {
-              maximumFractionDigits: 0,
-            }),
-          })}
-          footer={t('summary.systemDossiers.footer', {
-            completion: formatPercentValue(
-              data.systemDossiers.completionRate,
-              1,
-            ),
-            accuracy: formatPercentValue(data.systemDossiers.accuracyRate, 1),
-          })}
-        />
-        <SummaryStatCard
-          icon={Briefcase}
-          title={t('summary.systemProjects.title')}
-          value={formatNumber(data.systemProjects.total, {
-            maximumFractionDigits: 0,
-          })}
-          subtitle={t('summary.systemProjects.completed', {
-            count: formatNumber(data.systemProjects.completed, {
-              maximumFractionDigits: 0,
-            }),
-          })}
-          footer={t('summary.systemProjects.footer', {
-            rate: formatPercentValue(data.systemProjects.completionRate, 1),
-          })}
-        />
-        <SummaryStatCard
-          icon={ClipboardList}
-          title={t('summary.performance.title')}
-          value={formatPercentValue(data.overallApprovalRate, 1)}
-          subtitle={t('summary.performance.approvedThisWeek', {
-            count: formatNumber(data.dossiersApprovedThisWeek, {
-              maximumFractionDigits: 0,
-            }),
-          })}
-          footer={t('summary.performance.footer', {
-            duration: avgDurationLabel,
-          })}
-        />
-      </section>
-
-      <Card>
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle>{t('charts.dossierStatus.title')}</CardTitle>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              type="date"
-              aria-label={t('charts.dossierStatus.dateFrom')}
-              className="w-[150px]"
-            />
-            <Input
-              type="date"
-              aria-label={t('charts.dossierStatus.dateTo')}
-              className="w-[150px]"
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <StatusDonutChart
-            data={dossierStatusChartData}
-            emptyLabel={t('table.empty')}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle>{t('charts.dossierTrend.title')}</CardTitle>
-            {dossierTrendRangeLabel ? (
-              <CardDescription>{dossierTrendRangeLabel}</CardDescription>
-            ) : null}
-          </div>
-          <Select
-            value={dossierTrendGranularity}
-            onValueChange={(value) => {
-              void navigate({
-                search: (prev) => ({
-                  ...prev,
-                  dossierTrendGranularity:
-                    value as AdminDashboardDossierTrendGranularityT,
-                }),
-              })
-            }}
-          >
-            <SelectTrigger
-              className="w-[180px]"
-              aria-label={t('charts.dossierTrend.granularityLabel')}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {DOSSIER_TREND_GRANULARITIES.map((item) => (
-                <SelectItem key={item} value={item}>
-                  {t(`charts.dossierTrend.granularity.${item}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardHeader>
-        <CardContent>
-          {dossierTrendChartData.length > 0 ? (
-            <div className="h-80 min-w-0 overflow-hidden">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dossierTrendChartData} margin={{ bottom: 8 }}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    className="stroke-border"
-                  />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                  <Tooltip
-                    formatter={(value) =>
-                      formatNumber(Number(value ?? 0), {
-                        maximumFractionDigits: 0,
-                      })
-                    }
-                  />
-                  <Legend />
-                  <Bar
-                    dataKey="editedCompleted"
-                    name={t('charts.dossierTrend.editedCompleted')}
-                    fill={DOSSIER_TREND_COLORS.editedCompleted}
-                    radius={[4, 4, 0, 0]}
-                  />
-                  <Bar
-                    dataKey="fullyCompleted"
-                    name={t('charts.dossierTrend.fullyCompleted')}
-                    fill={DOSSIER_TREND_COLORS.fullyCompleted}
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <p className="py-12 text-center text-sm text-muted-foreground">
-              {t('table.empty')}
+      {!hasAnySubSectionPermission ? (
+        <div className="flex flex-1 items-center justify-center py-16 text-center border rounded-lg bg-card p-8">
+          <div className="max-w-md space-y-2">
+            <h3 className="text-lg font-semibold text-foreground">
+              {t('errors.noPermissionTitle')}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {t('errors.noPermissionDescription')}
             </p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle>{t('charts.projects.title')}</CardTitle>
           </div>
-          <Select defaultValue="all" disabled>
-            <SelectTrigger
-              className="w-[180px]"
-              aria-label={t('charts.projects.title')}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">
-                {t('charts.projects.scopeAll')}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </CardHeader>
-        <CardContent>
-          <StatusDonutChart
-            data={projectStatusChartData}
-            emptyLabel={t('table.empty')}
-          />
-        </CardContent>
-      </Card>
-
-      <section className="space-y-4">
-        <h2 className="text-lg font-medium text-foreground">
-          {t('sections.overview.title')}
-        </h2>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <OverviewKpiCard
-            icon={Users}
-            label={t('sections.overview.totalActiveUsers')}
-            value={formatNumber(data.totalActiveUsers, {
-              maximumFractionDigits: 0,
-            })}
-            description={t('metrics.count', { count: data.totalActiveUsers })}
-          />
-          <OverviewKpiCard
-            icon={UsersRound}
-            label={t('sections.overview.totalGroups')}
-            value={formatNumber(data.totalGroups, { maximumFractionDigits: 0 })}
-          />
-          <OverviewKpiCard
-            icon={ShieldCheck}
-            label={t('roles.admin')}
-            value={formatNumber(data.byRole.admin, {
-              maximumFractionDigits: 0,
-            })}
-            description={t('metrics.count', { count: data.byRole.admin })}
-          />
-          <OverviewKpiCard
-            icon={UserCog}
-            label={t('roles.editor')}
-            value={formatNumber(data.byRole.editor, {
-              maximumFractionDigits: 0,
-            })}
-            description={t('metrics.count', { count: data.byRole.editor })}
-          />
-          <OverviewKpiCard
-            icon={CheckCircle2}
-            label={t('roles.qc')}
-            value={formatNumber(data.byRole.qc, { maximumFractionDigits: 0 })}
-            description={t('metrics.count', { count: data.byRole.qc })}
-          />
         </div>
+      ) : null}
 
-        <div className="grid gap-4 xl:grid-cols-2">
-          <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
-              <div>
-                <CardTitle>{t('sections.overview.roleDistribution')}</CardTitle>
-                <CardDescription>
-                  {t('metrics.count', { count: totalRoleUsers })}
-                </CardDescription>
-              </div>
-              <Select
-                value={roleChart}
-                onValueChange={(value) => {
-                  void navigate({
-                    search: (prev) => ({
-                      ...prev,
-                      roleChart: value as AdminRoleChartTypeT,
-                    }),
-                  })
-                }}
-              >
-                <SelectTrigger
-                  className="w-[160px]"
-                  aria-label={t('chart.typeLabel')}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLE_CHART_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {t(`chart.types.${type}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardHeader>
-            <CardContent>
-              <div className="h-72 min-w-0 overflow-hidden">
-                <RoleDistributionChart
-                  data={roleChartData}
-                  chartType={roleChart}
+      {/* Thẻ thống kê tổng quan */}
+      {canViewSummary ? (
+        <section className="grid gap-4 lg:grid-cols-3">
+          <SummaryStatCard
+            icon={Database}
+            title={t('summary.systemDossiers.title')}
+            value={formatNumber(data.systemDossiers.total, {
+              maximumFractionDigits: 0,
+            })}
+            subtitle={t('summary.systemDossiers.completed', {
+              count: formatNumber(data.systemDossiers.completed, {
+                maximumFractionDigits: 0,
+              }),
+            })}
+            footer={t('summary.systemDossiers.footer', {
+              completion: formatPercentValue(
+                data.systemDossiers.completionRate,
+                1,
+              ),
+              accuracy: formatPercentValue(data.systemDossiers.accuracyRate, 1),
+            })}
+          />
+          <SummaryStatCard
+            icon={Briefcase}
+            title={t('summary.systemProjects.title')}
+            value={formatNumber(data.systemProjects.total, {
+              maximumFractionDigits: 0,
+            })}
+            subtitle={t('summary.systemProjects.completed', {
+              count: formatNumber(data.systemProjects.completed, {
+                maximumFractionDigits: 0,
+              }),
+            })}
+            footer={t('summary.systemProjects.footer', {
+              rate: formatPercentValue(data.systemProjects.completionRate, 1),
+            })}
+          />
+          <SummaryStatCard
+            icon={ClipboardList}
+            title={t('summary.performance.title')}
+            value={formatPercentValue(data.overallApprovalRate, 1)}
+            subtitle={t('summary.performance.approvedThisWeek', {
+              count: formatNumber(data.dossiersApprovedThisWeek, {
+                maximumFractionDigits: 0,
+              }),
+            })}
+            footer={t('summary.performance.footer', {
+              duration: avgDurationLabel,
+            })}
+          />
+        </section>
+      ) : null}
+
+      {/* Row 1: Donut/Pie Charts */}
+      {canViewDossierStatus || canViewProjectStatus ? (
+        <section className={`grid gap-4 grid-cols-1 ${canViewDossierStatus && canViewProjectStatus ? 'lg:grid-cols-2' : 'lg:grid-cols-1'}`}>
+          {canViewDossierStatus ? (
+            <Card className="flex flex-col justify-between">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-2">
+                <div>
+                  <CardTitle className="text-base font-semibold">{t('charts.dossierStatus.title')}</CardTitle>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    type="date"
+                    aria-label={t('charts.dossierStatus.dateFrom')}
+                    className="h-8 w-[130px] text-xs"
+                  />
+                  <Input
+                    type="date"
+                    aria-label={t('charts.dossierStatus.dateTo')}
+                    className="h-8 w-[130px] text-xs"
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1">
+                <StatusDonutChart
+                  data={dossierStatusChartData}
+                  emptyLabel={t('table.empty')}
                 />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : null}
 
+          {canViewProjectStatus ? (
+            <Card className="flex flex-col justify-between">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-2">
+                <div>
+                  <CardTitle className="text-base font-semibold">{t('charts.projects.title')}</CardTitle>
+                </div>
+                <Select defaultValue="all" disabled>
+                  <SelectTrigger
+                    className="h-8 w-[140px] text-xs"
+                    aria-label={t('charts.projects.title')}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      {t('charts.projects.scopeAll')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </CardHeader>
+              <CardContent className="flex-1">
+                <StatusDonutChart
+                  data={projectStatusChartData}
+                  emptyLabel={t('table.empty')}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
+        </section>
+      ) : null}
+
+      {/* Row 2: Biểu đồ cột & Hiệu suất hệ thống */}
+      {canViewDossierTrend || canViewSystemPerformance ? (
+        <section className="grid gap-4 grid-cols-1 lg:grid-cols-12">
+          {canViewDossierTrend ? (
+            <Card className={`${canViewSystemPerformance ? 'lg:col-span-8' : 'lg:col-span-12'} flex flex-col justify-between`}>
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between pb-2">
+                <div>
+                  <CardTitle className="text-base font-semibold">{t('charts.dossierTrend.title')}</CardTitle>
+                  {dossierTrendRangeLabel ? (
+                    <CardDescription className="text-xs">{dossierTrendRangeLabel}</CardDescription>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select
+                    value={dossierTrendGranularity}
+                    onValueChange={(value) => {
+                      void navigate({
+                        search: (prev) => ({
+                          ...prev,
+                          dossierTrendGranularity:
+                            value as AdminDashboardDossierTrendGranularityT,
+                        }),
+                      })
+                    }}
+                  >
+                    <SelectTrigger
+                      className="h-8 w-[140px] text-xs"
+                      aria-label={t('charts.dossierTrend.granularityLabel')}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DOSSIER_TREND_GRANULARITIES.map((item) => (
+                        <SelectItem key={item} value={item}>
+                          {t(`charts.dossierTrend.granularity.${item}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1">
+                {dossierTrendChartData.length > 0 ? (
+                  <div className="h-72 min-w-0 overflow-hidden">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={dossierTrendChartData} margin={{ bottom: 8 }}>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          className="stroke-border"
+                        />
+                        <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                        <Tooltip
+                          formatter={(value) =>
+                            formatNumber(Number(value ?? 0), {
+                              maximumFractionDigits: 0,
+                            })
+                          }
+                        />
+                        <Legend />
+                        <Bar
+                          dataKey="editedCompleted"
+                          name={t('charts.dossierTrend.editedCompleted')}
+                          fill={DOSSIER_TREND_COLORS.editedCompleted}
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar
+                          dataKey="fullyCompleted"
+                          name={t('charts.dossierTrend.fullyCompleted')}
+                          fill={DOSSIER_TREND_COLORS.fullyCompleted}
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <p className="py-12 text-center text-sm text-muted-foreground">
+                    {t('table.empty')}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {canViewSystemPerformance ? (
+            <Card className={`${canViewDossierTrend ? 'lg:col-span-4' : 'lg:col-span-12'} flex flex-col justify-between`}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold">{t('sections.performance.title')}</CardTitle>
+                <CardDescription className="text-xs">Chỉ số thời gian và tỷ lệ duyệt toàn hệ thống</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 flex-1 flex-col justify-center">
+                <KpiInline
+                  icon={Timer}
+                  label={t('sections.performance.avgProcessingTime')}
+                  value={formatDurationSeconds(data.avgProcessingTimeSeconds)}
+                />
+                <KpiInline
+                  icon={CheckCircle2}
+                  label={t('sections.performance.overallApprovalRate')}
+                  value={formatPercentValue(data.overallApprovalRate)}
+                />
+                <KpiInline
+                  icon={FolderKanban}
+                  label={t('sections.performance.dossiersApprovedToday')}
+                  value={formatNumber(data.dossiersApprovedToday, {
+                    maximumFractionDigits: 0,
+                  })}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
+        </section>
+      ) : null}
+
+      {/* Row 3: Biểu đồ KPI của từng nhân viên (dạng bảng) */}
+      {canViewEmployeeKpis ? (
+        <EmployeeKpiTable
+          data={data.employeeKpis}
+          selectedGroupId={groupId}
+          dashboardGroups={data.groups}
+        />
+      ) : null}
+
+      {/* Row 4: Biểu đồ hiệu suất tổ nhóm */}
+      {canViewGroupPerformance ? (
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-lg font-medium text-foreground">
+              {t('sections.groups.title')}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t('sections.groups.description')}
+            </p>
+          </div>
           <Card>
             <CardHeader>
-              <CardTitle>{t('sections.performance.title')}</CardTitle>
+              <CardTitle>{t('charts.groupVolume.title')}</CardTitle>
+              <CardDescription>
+                {t('charts.groupVolume.description')}
+              </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4">
-              <KpiInline
-                icon={Timer}
-                label={t('sections.performance.avgProcessingTime')}
-                value={formatDurationSeconds(data.avgProcessingTimeSeconds)}
-              />
-              <KpiInline
-                icon={CheckCircle2}
-                label={t('sections.performance.overallApprovalRate')}
-                value={formatPercentValue(data.overallApprovalRate)}
-              />
-              <KpiInline
-                icon={FolderKanban}
-                label={t('sections.performance.dossiersApprovedToday')}
-                value={formatNumber(data.dossiersApprovedToday, {
-                  maximumFractionDigits: 0,
-                })}
-              />
+            <CardContent>
+              {groupPerformanceChartData.length > 0 ? (
+                <div className="h-80 min-w-0 overflow-hidden">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart
+                      data={groupPerformanceChartData}
+                      margin={{ bottom: 8 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        className="stroke-border"
+                      />
+                      <XAxis
+                        dataKey="name"
+                        tick={{ fontSize: 11 }}
+                        interval={0}
+                        angle={-24}
+                        textAnchor="end"
+                        height={72}
+                      />
+                      <YAxis
+                        yAxisId="left"
+                        allowDecimals={false}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        domain={[0, 100]}
+                        tick={{ fontSize: 12 }}
+                        tickFormatter={(value) => `${value}%`}
+                      />
+                      <Tooltip
+                        formatter={(value, _name, item) => {
+                          if (item?.dataKey === 'avgEditorCorrectRate') {
+                            return formatPercentValue(Number(value ?? 0))
+                          }
+                          return formatNumber(Number(value ?? 0), {
+                            maximumFractionDigits: 0,
+                          })
+                        }}
+                      />
+                      <Legend />
+                      <Bar
+                        yAxisId="left"
+                        dataKey="totalDossiers"
+                        name={t('charts.groupVolume.totalDossiers')}
+                        fill={GROUP_VOLUME_COLORS.totalDossiers}
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Bar
+                        yAxisId="left"
+                        dataKey="approved"
+                        name={t('charts.groupVolume.approved')}
+                        fill={GROUP_VOLUME_COLORS.approved}
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="avgEditorCorrectRate"
+                        name={t('chart.groups.avgEditorCorrectRate')}
+                        stroke={GROUP_EDITOR_CORRECT_RATE_COLOR}
+                        strokeWidth={2}
+                        dot={{ r: 4, fill: GROUP_EDITOR_CORRECT_RATE_COLOR }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <p className="py-12 text-center text-sm text-muted-foreground">
+                  {t('table.empty')}
+                </p>
+              )}
             </CardContent>
           </Card>
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-lg font-medium text-foreground">
-            {t('sections.groups.title')}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('sections.groups.description')}
-          </p>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('charts.groupVolume.title')}</CardTitle>
-            <CardDescription>
-              {t('charts.groupVolume.description')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {groupPerformanceChartData.length > 0 ? (
-              <div className="h-80 min-w-0 overflow-hidden">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart
-                    data={groupPerformanceChartData}
-                    margin={{ bottom: 8 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      className="stroke-border"
-                    />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: 11 }}
-                      interval={0}
-                      angle={-24}
-                      textAnchor="end"
-                      height={72}
-                    />
-                    <YAxis
-                      yAxisId="left"
-                      allowDecimals={false}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <YAxis
-                      yAxisId="right"
-                      orientation="right"
-                      domain={[0, 100]}
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => `${value}%`}
-                    />
-                    <Tooltip
-                      formatter={(value, _name, item) => {
-                        if (item?.dataKey === 'avgEditorCorrectRate') {
-                          return formatPercentValue(Number(value ?? 0))
-                        }
-                        return formatNumber(Number(value ?? 0), {
-                          maximumFractionDigits: 0,
-                        })
-                      }}
-                    />
-                    <Legend />
-                    <Bar
-                      yAxisId="left"
-                      dataKey="totalDossiers"
-                      name={t('charts.groupVolume.totalDossiers')}
-                      fill={GROUP_VOLUME_COLORS.totalDossiers}
-                      radius={[4, 4, 0, 0]}
-                    />
-                    <Bar
-                      yAxisId="left"
-                      dataKey="approved"
-                      name={t('charts.groupVolume.approved')}
-                      fill={GROUP_VOLUME_COLORS.approved}
-                      radius={[4, 4, 0, 0]}
-                    />
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="avgEditorCorrectRate"
-                      name={t('chart.groups.avgEditorCorrectRate')}
-                      stroke={GROUP_EDITOR_CORRECT_RATE_COLOR}
-                      strokeWidth={2}
-                      dot={{ r: 4, fill: GROUP_EDITOR_CORRECT_RATE_COLOR }}
-                      activeDot={{ r: 6 }}
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <p className="py-12 text-center text-sm text-muted-foreground">
-                {t('table.empty')}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </section>
+        </section>
+      ) : null}
     </div>
   )
 }
@@ -847,20 +875,20 @@ function SummaryStatCard({
 }: SummaryStatCardProps) {
   return (
     <Card>
-      <CardContent className="p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-            <Icon className="size-6 text-primary" />
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-start gap-3.5">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+            <Icon className="size-5 text-primary" />
           </div>
-          <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-muted-foreground">{title}</p>
+            <p className="mt-0.5 text-2xl font-bold tracking-tight text-foreground">
               {value}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
           </div>
         </div>
-        <div className="mt-5 rounded-lg bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary">
+        <div className="mt-3 rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
           {footer}
         </div>
       </CardContent>
@@ -881,15 +909,15 @@ function OverviewKpiCard({
 }) {
   return (
     <Card>
-      <CardContent className="flex items-start gap-4 p-6">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted">
-          <Icon className="size-5 text-primary" />
+      <CardContent className="flex items-start gap-3 p-4">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
+          <Icon className="size-4 text-primary" />
         </div>
         <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="mt-1 text-2xl font-semibold text-foreground">{value}</p>
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="mt-0.5 text-xl font-bold text-foreground">{value}</p>
           {description ? (
-            <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{description}</p>
           ) : null}
         </div>
       </CardContent>

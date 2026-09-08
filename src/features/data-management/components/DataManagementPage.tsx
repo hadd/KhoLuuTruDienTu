@@ -19,6 +19,7 @@ import {
   removeNodeFromTree,
 } from '@/features/data-management/api/dataManagementClient'
 import type { UploadFolderResult } from '@/features/data-management/api/dossierClient'
+import { AssignPdfDocumentDialog } from '@/features/data-management/components/AssignPdfDocumentDialog'
 import { DataFolderTree } from '@/features/data-management/components/DataFolderTree'
 import type {
   DataNodeActionDialogMode,
@@ -149,6 +150,9 @@ export function DataManagementPage({
   const [documentUploadOpen, setDocumentUploadOpen] = useState(false)
   const [uploadTargetRecord, setUploadTargetRecord] =
     useState<DataTreeNodeT | null>(null)
+  const [assignPdfOpen, setAssignPdfOpen] = useState(false)
+  const [assignPdfTargetNode, setAssignPdfTargetNode] =
+    useState<DataTreeNodeT | null>(null)
   const [actionState, setActionState] = useState<{
     node: DataTreeNodeT
     mode: DataNodeActionDialogMode
@@ -172,6 +176,8 @@ export function DataManagementPage({
   const [canExportDip, setCanExportDip] = useState(false)
   const [batchSignMode, setBatchSignMode] = useState(false)
   const [batchExportMode, setBatchExportMode] = useState(false)
+  const [batchExportDialogOpen, setBatchExportDialogOpen] = useState(false)
+  const [batchExportingMode, setBatchExportingMode] = useState<ExportMode | null>(null)
   const [selectedRecordIds, setSelectedRecordIds] = useState<Array<string>>([])
   const [batchSignDrawerOpen, setBatchSignDrawerOpen] = useState(false)
   const [archiveSubmitOpen, setArchiveSubmitOpen] = useState(false)
@@ -743,6 +749,57 @@ export function DataManagementPage({
       }
     },
     [exportContext, isExporting, t],
+  )
+
+  const batchExportContext: ExportContext | null = useMemo(() => {
+    if (selectedDossierIds.length === 0) return null
+    return {
+      kind: 'multi_dossiers',
+      dossierId: null,
+      folderId: null,
+      dossierIds: selectedDossierIds,
+      downloadName: `multi-export-${selectedDossierIds.length}-hoso`,
+    }
+  }, [selectedDossierIds])
+
+  const handleBatchExport = useCallback(
+    async (mode: ExportMode, options?: { presetId?: string }) => {
+      if (!batchExportContext || isExporting) return
+
+      setIsExporting(true)
+      setBatchExportingMode(mode)
+      try {
+        await runExport({
+          kind: batchExportContext.kind,
+          mode,
+          folderId: batchExportContext.folderId,
+          dossierId: batchExportContext.dossierId,
+          dossierIds: batchExportContext.dossierIds,
+          downloadName: batchExportContext.downloadName,
+          metadataExportConfig: options?.presetId
+            ? { presetId: options.presetId }
+            : undefined,
+        })
+        toast.success(
+          mode === 'metadata'
+            ? t('recordDetail.exportExcelSuccess', 'Đã tải xuống tệp Excel.')
+            : t('recordDetail.exportDipSuccess', 'Đã tải xuống gói DIP.'),
+        )
+        setBatchExportDialogOpen(false)
+      } catch (error) {
+        toast.error(
+          translateError(
+            error instanceof Error
+              ? error
+              : new Error(t('recordDetail.exportExcelError')),
+          ),
+        )
+      } finally {
+        setIsExporting(false)
+        setBatchExportingMode(null)
+      }
+    },
+    [batchExportContext, isExporting, t],
   )
 
   function handleFocusDocument(documentId: string, groupIndex: number) {
@@ -1331,13 +1388,10 @@ export function DataManagementPage({
                     }}
                   >
                     <FolderUp className="size-3.5" aria-hidden />
-                    {t(
-                      'recordDetail.exportExcelBatchAction',
-                      `Xuất ${selectedDossierIds.length} hồ sơ đã chọn`,
-                      {
-                        count: selectedDossierIds.length,
-                      },
-                    )}
+                    {t('recordDetail.exportExcelRunBatch', {
+                      count: selectedDossierIds.length,
+                      defaultValue: `Xuất {{count}} hồ sơ đã chọn`,
+                    })}
                   </Button>
                 ) : null}
               </>
@@ -1371,6 +1425,11 @@ export function DataManagementPage({
               onSelectNode={(id) => {
                 void handleSelectNode(id)
               }}
+              onViewInfo={(node) => {
+                setViewInfoNode(node)
+                setViewInfoOpen(true)
+              }}
+              onContextMenuNode={(node, x, y) => setContextMenu({ node, x, y })}
               onWorkflowComplete={handleMetadataReload}
               onDigitalSignCompleted={handleDigitalSignCompleted}
             />
@@ -1400,6 +1459,21 @@ export function DataManagementPage({
         targetRecord={uploadTargetRecord}
         onUploadSuccess={handleDocumentUploadSuccess}
       />
+      <AssignPdfDocumentDialog
+        open={assignPdfOpen}
+        onOpenChange={(open) => {
+          setAssignPdfOpen(open)
+          if (!open) setAssignPdfTargetNode(null)
+        }}
+        role={role}
+        projectCode={projectCode}
+        targetNode={assignPdfTargetNode}
+        onAssignSuccess={async () => {
+          if (nodeId) {
+            await loadNodeTree(nodeId, true)
+          }
+        }}
+      />
       <DataNodeActionDialogs
         node={actionState?.node ?? null}
         mode={actionState?.mode ?? null}
@@ -1417,6 +1491,7 @@ export function DataManagementPage({
       />
       <DataNodeContextMenu
         node={contextMenu?.node ?? null}
+        parentNode={contextMenu?.node?.parentId ? findNodeById(tree, contextMenu.node.parentId) : null}
         open={!!contextMenu}
         position={contextMenu ? { x: contextMenu.x, y: contextMenu.y } : null}
         onAction={(node, mode) => setActionState({ node, mode })}
@@ -1432,6 +1507,10 @@ export function DataManagementPage({
         onUploadDocument={(node) => {
           setUploadTargetRecord(node)
           setDocumentUploadOpen(true)
+        }}
+        onAssignPdfDocument={(node) => {
+          setAssignPdfTargetNode(node)
+          setAssignPdfOpen(true)
         }}
         onSubmitArchive={(node) => {
           void handleSubmitArchive(node)
@@ -1469,6 +1548,15 @@ export function DataManagementPage({
         onExport={handleExport}
         isExporting={isExporting}
         exportingMode={exportingMode}
+      />
+      <ExportChoiceDialog
+        open={batchExportDialogOpen}
+        onOpenChange={setBatchExportDialogOpen}
+        context={batchExportContext}
+        canExportDip={Boolean(batchExportContext?.dossierIds?.length)}
+        onExport={handleBatchExport}
+        isExporting={isExporting}
+        exportingMode={batchExportingMode}
       />
       <BatchDigitalSignDrawer
         open={batchSignDrawerOpen}

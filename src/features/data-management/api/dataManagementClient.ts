@@ -32,7 +32,9 @@ import {
 import { classifyFolderTypes } from '@/features/data-management/lib/treeClassifier'
 import type { DossierFolderTarget } from '@/features/data-management/lib/treeUtils'
 import {
+  findParentNode,
   mergeListingChildren,
+  replaceChildInTreeAtPosition,
   updateDossierWorkflowStateInTree,
   updateProjectCodeInSubtree,
 } from '@/features/data-management/lib/treeUtils'
@@ -1274,6 +1276,88 @@ export async function uploadDataDocuments(
   return uploadFolderFiles(files, onProgress, options)
 }
 
+export type AssignPdfDocumentParams = {
+  oldNode: DataTreeNodeT
+  file: File
+  role: DataManagementRole
+  projectCode?: string
+  onProgress?: (progress: UploadProgress) => void
+  runMode?: OcrRunMode
+}
+
+export async function assignPdfDocument({
+  oldNode,
+  file,
+  role: _role,
+  projectCode,
+  onProgress,
+  runMode,
+}: AssignPdfDocumentParams): Promise<UploadFolderResult> {
+  validateDocumentUploadFiles([file])
+
+  let storagePathPrefix: string | undefined
+  if (oldNode.filePath?.trim()) {
+    let normalized = oldNode.filePath.trim().replace(/^\/+/, '')
+    if (normalized.toLowerCase().startsWith('raw/')) {
+      normalized = normalized.slice(4)
+    }
+    const lastSlash = normalized.lastIndexOf('/')
+    if (lastSlash > 0) {
+      storagePathPrefix = normalized.slice(0, lastSlash)
+    }
+  }
+
+  const tree = dynamicTree
+  const parentNode = tree ? findParentNode(tree, oldNode.id) : null
+  if (!storagePathPrefix && parentNode) {
+    storagePathPrefix = resolveRecordStoragePrefix(parentNode)
+  }
+
+  // Step 1: Delete old file permanently
+  await deleteDataNode({ target: 'file', id: oldNode.id, permanent: true })
+
+  // Step 2: Upload new PDF file to parent folder storage prefix
+  const result = await uploadFolderFiles([file], onProgress, {
+    storagePathPrefix,
+    projectCode,
+    runMode,
+    allowOverwrite: true,
+    skipPathCheck: true,
+  })
+
+  const uploadedResult = result.results[0]
+  if (uploadedResult?.status === 'error') {
+    throw new Error(uploadedResult.error || 'Failed to upload PDF document')
+  }
+
+  // Step 3: Update dynamicTree in-memory preserving position index
+  if (dynamicTree && parentNode) {
+    const realId = uploadedResult?.dossierId || uploadedResult?.folderId
+    const newDocId = realId || createClientId('dm-doc')
+    const createdAt = new Date().toISOString()
+    const newDocNode: DataTreeNodeT = {
+      id: newDocId,
+      name: file.name,
+      type: 'document',
+      parentId: parentNode.id,
+      children: [],
+      sizeBytes: file.size,
+      uploadedAt: createdAt,
+      uploadedBy: 'System',
+      projectCode: oldNode.projectCode,
+    }
+
+    dynamicTree = replaceChildInTreeAtPosition(
+      dynamicTree,
+      parentNode.id,
+      oldNode.id,
+      newDocNode,
+    )
+  }
+
+  return result
+}
+
 export async function renameDataNode(
   id: string,
   name: string,
@@ -1286,18 +1370,23 @@ export async function renameDataNode(
 }
 
 export type DataDeleteRequestT = {
-  target: 'dossier' | 'folder'
+  target: 'dossier' | 'folder' | 'file'
   id: string
   permanent: boolean
 }
 
-/** Delete dossier or folder collection — soft delete by default, `permanent=true` for hard delete. */
+/** Delete dossier, file or folder collection — soft delete by default, `permanent=true` for hard delete. */
 export async function deleteDataNode({
   target,
   id,
   permanent,
 }: DataDeleteRequestT): Promise<void> {
   const params = permanent ? { permanent: true } : undefined
+
+  if (target === 'file') {
+    await apiClient.delete(`/api/v1/dossiers/files/${id}`, { params })
+    return
+  }
 
   if (target === 'dossier') {
     await apiClient.delete(`/api/v1/dossiers/${id}`, { params })
@@ -1534,7 +1623,7 @@ export async function updateFolderProject({
   projectCode,
 }: {
   folderId: string
-  projectCode: string
+  projectCode: string | null
 }): Promise<DataTreeNodeT | undefined> {
   await apiClient.put(
     `/api/v1/folders/${encodeURIComponent(folderId)}/project`,

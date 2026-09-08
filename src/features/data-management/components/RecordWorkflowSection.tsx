@@ -2,7 +2,6 @@ import { Check, Circle, Loader2, X } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { Badge } from '@/components/ui/badge'
 import { DossierStatusBadge } from '@/features/data-management/components/DossierStatusBadge'
 import {
   buildWorkflowSteps,
@@ -95,36 +94,36 @@ export function RecordWorkflowSection({
   }
 
   return (
-    <div className="flex flex-col gap-3 pb-2">
-      <div className="rounded-md border border-border p-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-sm font-medium text-foreground">
+    <div className="flex flex-col gap-4 pb-2">
+      <div className="rounded-2xl border border-border/80 bg-card/50 p-4">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h3 className="text-base font-semibold text-foreground">
             {t('recordDetail.workflow.title')}
           </h3>
           <DossierStatusBadge status={data.status as DataDossierStatus} />
         </div>
-        <dl className="mt-2 grid gap-1.5 text-sm sm:grid-cols-2">
+        <dl className="mt-3 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
           <div>
-            <dt className="text-muted-foreground">
+            <dt className="text-sm text-muted-foreground">
               {t('recordDetail.workflow.requiredSteps')}
             </dt>
-            <dd className="font-medium text-foreground">
+            <dd className="mt-0.5 text-sm font-semibold text-foreground">
               {t('recordDetail.workflow.requiredStepsValue', {
                 count: data.requiredQcCount,
               })}
             </dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">
+            <dt className="text-sm text-muted-foreground">
               {t('recordDetail.workflow.currentStep')}
             </dt>
-            <dd className="font-medium text-foreground">{currentLabel}</dd>
+            <dd className="mt-0.5 text-sm font-semibold text-foreground">{currentLabel}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">
+            <dt className="text-sm text-muted-foreground">
               {t('recordDetail.workflow.completedQc')}
             </dt>
-            <dd className="font-medium text-foreground">
+            <dd className="mt-0.5 text-sm font-semibold text-foreground">
               {t('recordDetail.workflow.completedQcValue', {
                 current: data.currentQcStep,
                 total: data.requiredQcCount,
@@ -139,67 +138,73 @@ export function RecordWorkflowSection({
           {t('recordDetail.workflow.empty')}
         </p>
       ) : (
-        <ol className="flex flex-col gap-2">
+        <ol className="flex flex-col gap-3">
           {steps.map((step) => {
             const isCurrent = step.phase === 'current'
             return (
               <li
                 key={step.key}
                 className={cn(
-                  'rounded-md border border-border p-3',
-                  isCurrent && 'border-primary bg-primary/5',
+                  'rounded-2xl border p-4 transition-all',
+                  isCurrent
+                    ? 'border-blue-500/80 bg-blue-50/40 shadow-xs'
+                    : 'border-border/80 bg-card',
                   step.phase === 'rejected' &&
-                    'border-destructive/40 bg-destructive/5',
+                    'border-destructive/50 bg-destructive/5',
                 )}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
                     <span
                       className={cn(
-                        'flex size-6 shrink-0 items-center justify-center rounded-full border',
+                        'flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
                         step.phase === 'completed' &&
-                          'border-emerald-600/40 bg-emerald-500/10 text-emerald-700',
+                          'border-emerald-500 bg-emerald-50 text-emerald-600',
                         step.phase === 'current' &&
-                          'border-primary/40 bg-primary/10 text-primary',
+                          'border-blue-500 bg-blue-100 text-blue-600',
                         step.phase === 'rejected' &&
-                          'border-destructive/40 bg-destructive/10 text-destructive',
+                          'border-destructive bg-destructive/10 text-destructive',
                         step.phase === 'pending' &&
-                          'border-border text-muted-foreground',
+                          'border-muted-foreground/30 bg-transparent text-muted-foreground/40',
                       )}
                     >
                       {phaseIcon(step.phase)}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground">
+                      <p className="text-base font-bold text-foreground leading-tight">
                         {stepTitle(step, t)}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         {phaseLabel(step.phase, t)}
                       </p>
                     </div>
                   </div>
                   {isCurrent ? (
-                    <Badge variant="outline" className="shrink-0 text-xs">
+                    <span className="shrink-0 rounded-full bg-blue-100 px-3 py-0.5 text-xs font-semibold text-blue-700">
                       {t('recordDetail.workflow.currentBadge')}
-                    </Badge>
+                    </span>
                   ) : null}
                 </div>
 
                 {step.kind !== 'approved' ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     {step.assignees.length > 0 ? (
                       step.assignees.map((person) => (
-                        <Badge
+                        <span
                           key={person.id}
-                          variant="secondary"
-                          className="max-w-full truncate"
+                          className={cn(
+                            'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium',
+                            isCurrent
+                              ? 'bg-blue-100/70 text-blue-950'
+                              : 'bg-secondary text-secondary-foreground',
+                          )}
                           title={`${person.name} (${assignmentStatusLabel(person.status, t)})`}
                         >
-                          {person.name}
-                          <span className="ml-1 font-normal text-muted-foreground">
+                          <span className="font-semibold">{person.name}</span>
+                          <span className="text-muted-foreground">
                             · {assignmentStatusLabel(person.status, t)}
                           </span>
-                        </Badge>
+                        </span>
                       ))
                     ) : (
                       <span className="text-xs text-muted-foreground">

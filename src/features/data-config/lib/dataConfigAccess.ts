@@ -53,6 +53,7 @@ export const DATA_CONFIG_RELATED_PATHS = [
   '/app/data-config/watermark-configs',
   '/app/data-config/document-naming',
   '/app/data-config/metadata-extract-settings',
+  '/app/data-config/metadata-hidden-fields',
   '/app/data-config/audit-log-config',
   '/app/data-config/borrow-approval-clearance',
 ] as const

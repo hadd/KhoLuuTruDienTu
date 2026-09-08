@@ -170,6 +170,7 @@ export type DataNodeActionDialogMode =
   | 'assignEditor'
   | 'assignGroup'
   | 'revokeAssignments'
+  | 'unassignProject'
 
 type DeleteModeT = 'soft' | 'permanent'
 
@@ -421,8 +422,9 @@ export function DataNodeActionDialogs({
 
   useEffect(() => {
     if (mode !== 'delete') return
-    setDeleteMode('soft')
-  }, [mode, node?.id])
+    const isFile = node?.type === 'document'
+    setDeleteMode(isFile ? 'permanent' : 'soft')
+  }, [mode, node?.id, node?.type])
 
   const handleSelectLevelUser = (level: number, userId: string) => {
     setAssignments((prev) => ({
@@ -435,9 +437,11 @@ export function DataNodeActionDialogs({
 
   const deleteDescriptionKey =
     resolveDeleteTarget(node, tree)?.descriptionKey ??
-    (node.type === 'folder' && !isDossierWorkflowNode(node)
-      ? 'descriptionFolder'
-      : 'descriptionDossier')
+    (node.type === 'document'
+      ? 'descriptionFile'
+      : node.type === 'folder' && !isDossierWorkflowNode(node)
+        ? 'descriptionFolder'
+        : 'descriptionDossier')
 
   const isPending =
     isHandlingSubmit ||
@@ -467,6 +471,8 @@ export function DataNodeActionDialogs({
       return t('actionDialog.assignGroup.success')
     if (currentMode === 'revokeAssignments')
       return t('actionDialog.revokeAssignments.success')
+    if (currentMode === 'unassignProject')
+      return t('actionDialog.unassignProject.success', 'Đã gỡ dự án thành công')
     return t('actionDialog.assign.success')
   }
 
@@ -516,6 +522,17 @@ export function DataNodeActionDialogs({
           projectCode: nextProjectCode,
         })
       }
+      if (currentMode === 'unassignProject') {
+        const folderId = node.folderId ?? node.id
+        if (!folderId || folderId === DATA_TREE_ROOT_ID) {
+          toast.error(t('actionDialog.assignProject.noFolder'))
+          return
+        }
+        await updateFolderProjectMutation.mutateAsync({
+          folderId,
+          projectCode: null as unknown as string,
+        })
+      }
       if (currentMode === 'delete') {
         let targetNode = node
         let deleteTarget = resolveDeleteTarget(node, tree)
@@ -529,7 +546,13 @@ export function DataNodeActionDialogs({
         }
 
         if (!deleteTarget) {
-          if (
+          if (targetNode.type === 'document') {
+            deleteTarget = {
+              target: 'file',
+              id: targetNode.id,
+              descriptionKey: 'descriptionFile',
+            }
+          } else if (
             targetNode.type === 'folder' &&
             !isDossierWorkflowNode(targetNode)
           ) {
@@ -562,7 +585,7 @@ export function DataNodeActionDialogs({
         await deleteMutation.mutateAsync({
           target: deleteTarget.target,
           id: deleteTarget.id,
-          permanent: deleteMode === 'permanent',
+          permanent: deleteTarget.target === 'file' ? true : deleteMode === 'permanent',
         })
         await onDeleteSuccess?.({
           deletedNodeId: targetNode.id,
@@ -700,18 +723,22 @@ export function DataNodeActionDialogs({
           <DialogTitle>
             {mode === 'assignProject'
               ? t(`actionDialog.${assignProjectDialogKey}.title` as const)
-              : t(`actionDialog.${mode}.title` as const)}
+              : mode === 'unassignProject'
+                ? t('actionDialog.unassignProject.title', 'Xác nhận gỡ dự án')
+                : t(`actionDialog.${mode}.title` as const)}
           </DialogTitle>
           <DialogDescription>
             {mode === 'delete'
               ? t(`actionDialog.delete.${deleteDescriptionKey}` as const)
               : mode === 'assignProject'
                 ? t(`actionDialog.${assignProjectDialogKey}.description` as const)
-                : t(`actionDialog.${mode}.description` as const)}
+                : mode === 'unassignProject'
+                  ? t('actionDialog.unassignProject.description', 'Bạn có chắc chắn muốn gỡ dự án khỏi tài liệu này? Hành động này sẽ được áp dụng cho toàn bộ các thư mục con.')
+                  : t(`actionDialog.${mode}.description` as const)}
           </DialogDescription>
         </DialogHeader>
 
-        {mode === 'delete' ? (
+        {mode === 'delete' && node.type !== 'document' ? (
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium leading-none">
               {t('actionDialog.delete.modeLabel')}

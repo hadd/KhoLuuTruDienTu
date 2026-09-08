@@ -70,7 +70,7 @@ function AuditLogDetailContent({ log }: { log: AuditLogT }) {
           />
           <DetailField
             label={t('table.columns.user')}
-            value={getAuditLogUserLabel(log, t('unknown'))}
+            value={getAuditLogUserLabel(log, t('unknown'), t('system'))}
           />
           <DetailField label={t('table.columns.module')} value={moduleLabel} />
           <DetailField label={t('table.columns.eventType')} value={eventLabel} />

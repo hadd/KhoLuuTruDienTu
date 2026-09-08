@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Loader2, Save } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -28,6 +28,7 @@ import {
   createDraftCustomField,
   handleMetadataFieldNavigationKeyDown,
   isDraftCustomField,
+  isInternalMetadataField,
   isPdfDocumentRef,
   mergeFormValuesIntoFields,
   normalizeSavedCustomFields,
@@ -45,6 +46,7 @@ import {
   useRefreshDataManagementTreeMutation,
   useSaveDossierMetadataMutation,
 } from '@/features/data-management/queries'
+import { activeMetadataHiddenFieldsQueryOptions } from '@/features/metadata-extract/queries'
 import type {
   DataDocumentFieldT,
   DataDossierMetadataT,
@@ -83,6 +85,13 @@ export function DocumentMetadataForm({
 }) {
   const { t } = useTranslation('data-management')
   const permissions = getPermissionsByRole(role as DataManagementRole)
+  const { data: activeHiddenFields = [] } = useQuery(
+    activeMetadataHiddenFieldsQueryOptions(),
+  )
+
+  const activeHiddenSet = useMemo(() => {
+    return new Set(activeHiddenFields.map((f) => f.trim().toUpperCase()))
+  }, [activeHiddenFields])
   const canManage = canManageDossierMetadata({
     role: role as DataManagementRole,
     dossierStatus,
@@ -196,15 +205,6 @@ export function DocumentMetadataForm({
     try {
       const updatedFields = buildUpdatedFields()
       const metadata = buildUpdatedMetadata()
-
-      if ((isQcRole || isQcComplete) && hasHoSoFondField(metadata)) {
-        const fondValue = findHoSoFondFieldValue(metadata)?.trim()
-        if (!fondValue) {
-          setIsHandlingSave(false)
-          toast.error('Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ')
-          return
-        }
-      }
 
       if (shouldPersistMetadata) {
         await saveMutation.mutateAsync({ dossierId, metadata })
@@ -342,8 +342,11 @@ export function DocumentMetadataForm({
 
       <div className="flex-1 overflow-y-auto">
         <div className="grid gap-3">
-          {fields.map((field, index) =>
-            canManage && isDraftCustomField(field) ? (
+          {fields.map((field, index) => {
+            if (isInternalMetadataField(field, activeHiddenSet)) {
+              return null
+            }
+            return canManage && isDraftCustomField(field) ? (
               <MetadataFieldEditorRow
                 key={field.name}
                 field={field}
@@ -394,10 +397,9 @@ export function DocumentMetadataForm({
                 fieldRef={(element) => {
                   fieldRefs.current[index] = element
                 }}
-                rejectMark={buildFieldRejectMark(field)}
               />
-            ),
-          )}
+            )
+          })}
         </div>
       </div>
 

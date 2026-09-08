@@ -9,6 +9,7 @@ export type DataConfigNavItemId =
   | 'metadata-export-presets'
   | 'document-naming'
   | 'metadata-extract-settings'
+  | 'metadata-hidden-fields'
   | 'notification-configs'
   | 'watermark-configs'
   | 'audit-log-config'
@@ -23,6 +24,7 @@ export type DataConfigNavItemDef = {
     | 'admin.dataConfig.metadataExportPresets'
     | 'admin.dataConfig.documentNaming'
     | 'admin.dataConfig.metadataExtractSettings'
+    | 'admin.dataConfig.metadataHiddenFields'
     | 'admin.dataConfig.notificationConfigs'
     | 'admin.dataConfig.watermarkConfigs'
     | 'admin.dataConfig.auditLogConfig'
@@ -54,6 +56,11 @@ export const DATA_CONFIG_NAV_ITEM_DEFS: Array<DataConfigNavItemDef> = [
     id: 'metadata-extract-settings',
     to: '/app/data-config/metadata-extract-settings',
     labelKey: 'admin.dataConfig.metadataExtractSettings',
+  },
+  {
+    id: 'metadata-hidden-fields',
+    to: '/app/data-config/metadata-hidden-fields',
+    labelKey: 'admin.dataConfig.metadataHiddenFields',
   },
   {
     id: 'notification-configs',
@@ -90,6 +97,13 @@ export function isDataConfigNavItemVisible(
     id === 'metadata-extract-settings'
   ) {
     return isMetadataSidebarChildGranted(id, permissions, catalog)
+  }
+  if (id === 'metadata-hidden-fields') {
+    return isMetadataSidebarChildGranted(
+      'metadata-hidden-fields',
+      permissions,
+      catalog,
+    )
   }
   if (id === 'notification-configs') {
     return isPermissionGranted(

@@ -1,8 +1,10 @@
+import { Link } from '@tanstack/react-router'
 import { Loader2, MapPin, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { UNASSIGNED_WAREHOUSE_FOND_ID } from '@/features/archive-warehouse/lib/unassignedFond'
 import {
   hasWarehouseMetadataFieldSearch,
   resolveWarehouseMetadataSearchLines,
@@ -99,7 +101,17 @@ export function PhysicalWarehouseSearchResults({
               onClick={() => onSelect(hit)}
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-medium text-foreground">{hit.title}</p>
+                <Link
+                  to="/app/archive-dossiers/$fondId/$dossierId"
+                  params={{
+                    fondId: hit.fondId ?? UNASSIGNED_WAREHOUSE_FOND_ID,
+                    dossierId: hit.entityId,
+                  }}
+                  className="font-medium text-primary hover:underline cursor-pointer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {hit.title}
+                </Link>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {hit.fondName ? (
                     <Badge variant="secondary">{hit.fondName}</Badge>

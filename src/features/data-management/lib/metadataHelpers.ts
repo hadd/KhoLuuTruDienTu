@@ -10,9 +10,11 @@ import {
   collapseTaiLieuDocuments,
   ensureHoSoFondField,
   expandTaiLieuDocuments,
+  filterHiddenMetadataFields,
   groupMergeKey,
   HO_SO_FOND_FIELD,
   HO_SO_LUU_TRU_GROUP_CODE,
+  isHiddenMetadataFieldName,
   resolveCatalogGroupAliasCodes,
   resolveMetadataGroupCatalogCode,
   TAI_LIEU_LUU_TRU_GROUP_CODE,
@@ -156,6 +158,7 @@ function parseRootScalarFields(
   for (const [key, value] of Object.entries(record)) {
     if (METADATA_ROOT_RESERVED_KEYS.has(key)) continue
     if (key === 'ho_so_id' || key === 'trang_thai_ho_so') continue
+    if (isHiddenMetadataFieldName(key)) continue
     if (!isScalarRootMetadataValue(value)) continue
 
     const name = key.trim()
@@ -214,11 +217,12 @@ export function normalizeSavedCustomFields(
 function normalizeMetadataGroup(
   group: Record<string, unknown>,
 ): DataMetadataGroupT {
-  const fields = Array.isArray(group.fields)
+  const rawFields = Array.isArray(group.fields)
     ? group.fields.map((field) =>
         normalizeField(field as Record<string, unknown>),
       )
     : []
+  const fields = rawFields
 
   const rawDocuments = Array.isArray(group.documents)
     ? group.documents
@@ -229,6 +233,11 @@ function normalizeMetadataGroup(
     ? rawDocuments.map((item) => {
         const record = item as Record<string, unknown>
         const source = record.source_document as Record<string, unknown> | undefined
+        const rawItemFields = Array.isArray(record.fields)
+          ? record.fields.map((field) =>
+              normalizeField(field as Record<string, unknown>),
+            )
+          : []
         return {
           source_document: source
             ? {
@@ -236,11 +245,7 @@ function normalizeMetadataGroup(
                 file_path: String(source.file_path ?? source.filePath ?? ''),
               }
             : undefined,
-          fields: Array.isArray(record.fields)
-            ? record.fields.map((field) =>
-                normalizeField(field as Record<string, unknown>),
-              )
-            : [],
+          fields: rawItemFields,
         }
       })
     : undefined
@@ -271,7 +276,7 @@ function parseGeneralFields(
   const rawFields = record.general_fields ?? record.thong_tin_chung
   if (!Array.isArray(rawFields)) return []
 
-  return rawFields
+  const parsed = rawFields
     .map((field) => {
       const item = field as Record<string, unknown>
       const name = String(item.name ?? '')
@@ -280,6 +285,8 @@ function parseGeneralFields(
       return { name, value }
     })
     .filter((field): field is DataRecordInfoFieldT => field != null)
+
+  return parsed
 }
 
 export function parseDossierMetadata(
@@ -453,15 +460,42 @@ function groupLabelMatchesDocument(
   )
 }
 
-export function isInternalMetadataField(field: DataDocumentFieldT): boolean {
-  return isGenericMetadataGroupKey(field.name)
+export function isInternalMetadataField(
+  field: DataDocumentFieldT,
+  hiddenFieldCodes?: Array<string> | Set<string>,
+): boolean {
+  if (isGenericMetadataGroupKey(field.name)) return true
+  if (hiddenFieldCodes) {
+    const nameUpper = field.name.trim().toUpperCase()
+    const normalizedUpper = nameUpper
+      .replace(/_\d+_/g, '_')
+      .replace(/_\d+$/, '')
+      .replace(/^\d+_/, '')
+    if (hiddenFieldCodes instanceof Set) {
+      if (hiddenFieldCodes.has(nameUpper) || hiddenFieldCodes.has(normalizedUpper)) {
+        return true
+      }
+    } else if (Array.isArray(hiddenFieldCodes)) {
+      if (
+        hiddenFieldCodes.some((code) => {
+          const cUpper = code.trim().toUpperCase()
+          return cUpper === nameUpper || cUpper === normalizedUpper
+        })
+      ) {
+        return true
+      }
+    }
+  }
+  return false
 }
 
 export function getVisibleMetadataFields(
   fields: Array<DataDocumentFieldT>,
+  hiddenFieldCodes?: Array<string> | Set<string>,
 ): Array<DataDocumentFieldT> {
-  return fields.filter((field) => !isInternalMetadataField(field))
+  return fields.filter((field) => !isInternalMetadataField(field, hiddenFieldCodes))
 }
+
 
 export function findMetadataGroupIndexForDocument(
   groups: Array<DataMetadataGroupT>,

@@ -100,7 +100,31 @@
   "table": {
     "empty": "Không có dữ liệu"
   },
+  "employeeKpi": {
+    "title": "KPI Xử lý hồ sơ theo nhân viên",
+    "description": "Ghi nhận tiến độ xử lý hồ sơ và trang hồ sơ được giao cùng tỷ lệ chính xác",
+    "searchPlaceholder": "Tìm tên nhân viên...",
+    "periodLabel": "Thời gian",
+    "period": {
+      "today": "Hôm nay",
+      "7d": "7 ngày qua",
+      "30d": "30 ngày qua",
+      "month": "Tháng này",
+      "custom": "Tùy chỉnh"
+    },
+    "columns": {
+      "employee": "Nhân viên",
+      "dossierProgress": "Hồ sơ (Đã làm / Được giao)",
+      "pageProgress": "Số trang (Đã làm / Được giao)",
+      "accuracyRate": "Tỷ lệ chính xác"
+    },
+    "dossierCountFormat": "{{completed}} / {{assigned}} hồ sơ",
+    "pageCountFormat": "{{completed}} / {{assigned}} trang",
+    "pagination": "Hiển thị {{from}} - {{to}} trên tổng số {{total}} nhân sự"
+  },
   "errors": {
-    "loadFailed": "Không thể tải dữ liệu bảng điều khiển"
+    "loadFailed": "Không thể tải dữ liệu bảng điều khiển",
+    "noPermissionTitle": "Chưa có quyền xem dữ liệu Dashboard Quản trị",
+    "noPermissionDescription": "Tài khoản của bạn chưa được phân quyền truy cập các mục chi tiết trong Dashboard Quản trị. Vui lòng liên hệ Quản trị viên hệ thống để được cấp quyền."
   }
 }

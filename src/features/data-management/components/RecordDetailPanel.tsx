@@ -983,15 +983,6 @@ export function RecordDetailPanel({
       : mergeMetadataFieldChanges(baseMetadata, activeMetadata)
     const storagePayload = serializeDossierMetadataForStorage(payload)
 
-    if ((!isEditorRole || mode !== 'draft') && hasHoSoFondField(payload)) {
-      const fondValue = findHoSoFondFieldValue(payload)?.trim()
-      if (!fondValue) {
-        setIsHandlingSave(false)
-        toast.error('Vui lòng chọn phông lưu trữ trước khi duyệt hồ sơ')
-        return
-      }
-    }
-
     try {
       if (isEditorRole && mode === 'final') {
         let isPartialSubmit = false

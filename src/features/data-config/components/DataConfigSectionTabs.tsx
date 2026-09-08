@@ -5,6 +5,7 @@ import {
   Bell,
   BookOpenCheck,
   Droplets,
+  EyeOff,
   FileSpreadsheet,
   FileText,
   FileType,
@@ -38,6 +39,7 @@ export type DataConfigSectionT =
   | 'watermark-configs'
   | 'document-naming'
   | 'metadata-extract-settings'
+  | 'metadata-hidden-fields'
   | 'audit-log-config'
   | 'borrow-approval-clearance'
 
@@ -51,6 +53,7 @@ type DataConfigSectionTabItem = {
     | '/app/data-config/watermark-configs'
     | '/app/data-config/document-naming'
     | '/app/data-config/metadata-extract-settings'
+    | '/app/data-config/metadata-hidden-fields'
     | '/app/data-config/audit-log-config'
     | '/app/data-config/borrow-approval-clearance'
   label: string
@@ -137,6 +140,20 @@ export function useDataConfigSectionTabs(): Array<DataConfigSectionTabItem> {
         to: '/app/data-config/metadata-extract-settings',
         label: t('tiles.metadataExtractSettings'),
         icon: ScanSearch,
+      })
+    }
+    if (
+      isMetadataSidebarChildGranted(
+        'metadata-hidden-fields',
+        permissions,
+        catalog,
+      )
+    ) {
+      items.push({
+        id: 'metadata-hidden-fields',
+        to: '/app/data-config/metadata-hidden-fields',
+        label: t('tiles.metadataHiddenFields'),
+        icon: EyeOff,
       })
     }
     if (

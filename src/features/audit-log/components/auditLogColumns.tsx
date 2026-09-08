@@ -4,9 +4,63 @@ import { StatusBadge } from '@/components/common/StatusBadge'
 import { formatDate } from '@/lib/utils/date'
 import type { AuditLogT } from '@/features/audit-log/types'
 
-export function getAuditLogUserLabel(log: AuditLogT, unknownLabel: string): string {
+export function isSystemAutomatedLog(log: AuditLogT): boolean {
+  if (log.userId) return false
+
+  const eventType = (log.eventType ?? '').toLowerCase()
+  const summary = (log.summary ?? '').toLowerCase()
+
+  // Các eventType tác vụ chạy ngầm của hệ thống
+  if (
+    eventType === 'expire_borrow' ||
+    eventType === 'auto_reject_borrow' ||
+    eventType.startsWith('auto_') ||
+    eventType.startsWith('cron_') ||
+    eventType.startsWith('purge_') ||
+    eventType.startsWith('system_')
+  ) {
+    return true
+  }
+
+  // Các module worker hệ thống
+  if (log.module === 'system-cron' || log.module === 'system_worker') {
+    return true
+  }
+
+  // Từ khóa mô tả tác vụ tự động
+  if (
+    summary.includes('hết hạn phiếu mượn') ||
+    summary.includes('tự động từ chối') ||
+    summary.includes('tự động dọn dẹp') ||
+    summary.includes('tự động đồng bộ') ||
+    summary.includes('tự động ocr') ||
+    summary.includes('hệ thống tự động') ||
+    summary.includes('tự động xử lý') ||
+    summary.includes('auto-rejected') ||
+    summary.includes('auto-expired') ||
+    summary.includes('scheduled purge') ||
+    summary.includes('purge expired')
+  ) {
+    return true
+  }
+
+  return false
+}
+
+export function getAuditLogUserLabel(
+  log: AuditLogT,
+  unknownLabel: string,
+  systemLabel: string = 'Hệ thống',
+): string {
   if (log.user?.email) return log.user.email
   if (log.user?.fullName) return log.user.fullName
+
+  // Tác vụ tự động ngầm của hệ thống -> "Hệ thống"
+  if (isSystemAutomatedLog(log)) {
+    return systemLabel
+  }
+
+  // Mặc định đăng nhập thất bại / user đã bị xóa -> "Không xác định"
   return unknownLabel
 }
 

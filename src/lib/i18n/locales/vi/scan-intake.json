@@ -1,7 +1,7 @@
 {
   "page": {
     "title": "Quét Tài Liệu",
-    "description": "Mở trang là quét được ngay. Chọn dự án chỉ khi chuyển tiếp lên data lake."
+    "description": "Hệ thống hỗ trợ các thiết bị máy quét chuẩn TWAIN."
   },
   "errors": {
     "loadFailed": "Không tải được trang Quét Tài Liệu."

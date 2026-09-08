@@ -23,6 +23,7 @@ import { canDeleteArchiveWarehouse } from '@/features/archive-warehouse/lib/arch
 import { ListPagePagination } from '@/components/common/list-page/ListPagePagination'
 import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearchInput'
 import { Badge } from '@/components/ui/badge'
+import { ArchiveWarehousePhysicalPlacementBadge } from '@/features/archive-warehouse/components/ArchiveWarehousePhysicalPlacementBadge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -928,15 +929,7 @@ export function ArchiveWarehouseDossiersPage({
                         {item.name}
                       </TableCell>
                       <TableCell>
-                        {item.hasPhysicalPlacement ? (
-                          <span className="text-sm">
-                            {item.physicalBoxName ?? '—'}
-                          </span>
-                        ) : (
-                          <Badge variant="secondary">
-                            {t('table.physicalUnplaced')}
-                          </Badge>
-                        )}
+                        <ArchiveWarehousePhysicalPlacementBadge item={item} />
                       </TableCell>
                       <TableCell>{item.documentCount}</TableCell>
                       <TableCell className="whitespace-nowrap text-muted-foreground">

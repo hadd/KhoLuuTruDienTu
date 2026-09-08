@@ -284,27 +284,6 @@ export function PhysicalWarehousePage() {
             }}
             className="flex min-h-0 w-full flex-1 flex-col gap-0 overflow-hidden"
           >
-            <div className="flex shrink-0 items-end gap-2 border-b border-border">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="mb-0.5 size-7 shrink-0 text-muted-foreground"
-                aria-label={t('actions.backToWarehouses')}
-                onClick={navigateBackFromWarehouse}
-              >
-                <ArrowLeft className="size-4" />
-              </Button>
-              <p className="mb-1.5 min-w-0 max-w-[min(100%,20rem)] shrink truncate text-sm font-semibold">
-                {selectedLocation?.name && selectedWarehouse?.name
-                  ? t('detail.locationWarehouseTitle', {
-                      location: selectedLocation.name,
-                      warehouse: selectedWarehouse.name,
-                    })
-                  : (selectedWarehouse?.name ?? selectedLocation?.name ?? '...')}
-              </p>
-            </div>
-
             <TabsContent
               value="diagram"
               className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden"
@@ -339,6 +318,8 @@ export function PhysicalWarehousePage() {
                 stats={stats}
                 compact
                 highlightPhysicalItemId={highlightPhysicalItemId}
+                focusDossierId={focusDossierId}
+                onNavigateBack={navigateBackFromWarehouse}
               />
             </TabsContent>
 

@@ -11,6 +11,18 @@ export const DASHBOARD_PERMISSION_KEYS = {
   warehouse: 'dashboard.warehouse',
 } as const
 
+export const DASHBOARD_ADMIN_SUB_PERMISSIONS = {
+  summary: 'dashboard.admin.summary',
+  dossierStatusChart: 'dashboard.admin.dossier_status_chart',
+  projectStatusChart: 'dashboard.admin.project_status_chart',
+  dossierTrendChart: 'dashboard.admin.dossier_trend_chart',
+  systemPerformance: 'dashboard.admin.system_performance',
+  employeeKpis: 'dashboard.admin.employee_kpis',
+  groupPerformanceChart: 'dashboard.admin.group_performance_chart',
+  unassigned: 'dashboard.admin.unassigned',
+  readAll: 'dashboard.admin.read_all',
+} as const
+
 export type DashboardVariantT = keyof typeof DASHBOARD_PERMISSION_KEYS
 
 export const DASHBOARD_SCREEN_REQUIREMENTS = [
@@ -26,6 +38,10 @@ export const DASHBOARD_SCREEN_REQUIREMENTS = [
     module: 'dashboard',
     permissionKey: DASHBOARD_PERMISSION_KEYS.admin,
   },
+  ...Object.values(DASHBOARD_ADMIN_SUB_PERMISSIONS).map((permissionKey) => ({
+    module: 'dashboard',
+    permissionKey,
+  })),
   {
     module: 'dashboard',
     permissionKey: DASHBOARD_PERMISSION_KEYS.warehouse,
@@ -55,13 +71,24 @@ export function canAccessAnyDashboard(permissions: Array<string>): boolean {
   )
 }
 
+export function hasAnyAdminDashboardPermission(permissions: Array<string>): boolean {
+  if (hasFullAccess(permissions)) {
+    return true
+  }
+
+  if (isPermissionGranted(permissions, DASHBOARD_PERMISSION_KEYS.admin, 'dashboard')) {
+    return true
+  }
+
+  return Object.values(DASHBOARD_ADMIN_SUB_PERMISSIONS).some((key) =>
+    isPermissionGranted(permissions, key, 'dashboard'),
+  )
+}
+
 export function resolveDashboardVariant(
   permissions: Array<string>,
 ): DashboardVariantT | null {
-  if (
-    hasFullAccess(permissions) ||
-    permissions.includes(DASHBOARD_PERMISSION_KEYS.admin)
-  ) {
+  if (hasAnyAdminDashboardPermission(permissions)) {
     return 'admin'
   }
 
@@ -70,8 +97,7 @@ export function resolveDashboardVariant(
       permissions,
       DASHBOARD_PERMISSION_KEYS.qc,
       'dashboard',
-    ) ||
-    isPermissionGranted(permissions, 'data-entry.checker', 'data-entry')
+    )
   ) {
     return 'qc'
   }
@@ -81,8 +107,7 @@ export function resolveDashboardVariant(
       permissions,
       DASHBOARD_PERMISSION_KEYS.editor,
       'dashboard',
-    ) ||
-    isPermissionGranted(permissions, 'data-entry.maker', 'data-entry')
+    )
   ) {
     return 'editor'
   }
@@ -97,15 +122,14 @@ export function resolveDashboardVariant(
     return 'warehouse'
   }
 
-  if (
-    isPermissionGranted(
-      permissions,
-      DASHBOARD_PERMISSION_KEYS.admin,
-      'dashboard',
-    )
-  ) {
-    return 'admin'
+  if (isPermissionGranted(permissions, 'data-entry.checker', 'data-entry')) {
+    return 'qc'
+  }
+
+  if (isPermissionGranted(permissions, 'data-entry.maker', 'data-entry')) {
+    return 'editor'
   }
 
   return null
 }
+

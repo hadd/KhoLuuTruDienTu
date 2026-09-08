@@ -10,6 +10,7 @@ import { ListPageSearchInput } from '@/components/common/list-page/ListPageSearc
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { ArchiveWarehousePhysicalPlacementBadge } from '@/features/archive-warehouse/components/ArchiveWarehousePhysicalPlacementBadge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -911,15 +912,7 @@ export function ArchiveWarehouseFondsPage({
                         {item.fondName ?? '—'}
                       </TableCell>
                       <TableCell>
-                        {item.hasPhysicalPlacement ? (
-                          <span className="text-sm">
-                            {item.physicalBoxName ?? '—'}
-                          </span>
-                        ) : (
-                          <Badge variant="secondary">
-                            {t('table.physicalUnplaced')}
-                          </Badge>
-                        )}
+                        <ArchiveWarehousePhysicalPlacementBadge item={item} />
                       </TableCell>
                       <TableCell>{item.documentCount}</TableCell>
                       <TableCell className="whitespace-nowrap text-muted-foreground">

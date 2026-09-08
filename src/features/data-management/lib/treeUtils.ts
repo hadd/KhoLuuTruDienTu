@@ -117,7 +117,7 @@ export function getPathToNode(
 export function updateProjectCodeInSubtree(
   root: DataTreeNodeT,
   folderId: string,
-  projectCode: string,
+  projectCode: string | null,
 ): DataTreeNodeT {
   if (!findNodeById(root, folderId)) {
     return root
@@ -302,6 +302,12 @@ export function canShowAssignProjectAction(node: DataTreeNodeT): boolean {
   return true
 }
 
+/** Context menu: gỡ dự án khỏi hồ sơ/thư mục. */
+export function canShowUnassignProjectAction(node: DataTreeNodeT): boolean {
+  if (!canShowAssignProjectAction(node)) return false
+  return node.projectCode != null && node.projectCode.trim() !== ''
+}
+
 /** Context menu: "Phân biên tập" — ẩn khi hồ sơ đã vào QC / đã duyệt. */
 export function canShowAssignEditorAction(node: DataTreeNodeT): boolean {
   if (node.type === 'document') return false
@@ -392,27 +398,23 @@ export function resolveDossierEditorAssignId(
 }
 
 export type DataDeleteTargetT = {
-  target: 'dossier' | 'folder'
+  target: 'dossier' | 'folder' | 'file'
   id: string
-  descriptionKey: 'descriptionDossier' | 'descriptionFolder'
+  descriptionKey: 'descriptionDossier' | 'descriptionFolder' | 'descriptionFile'
 }
 
-/** Resolve DELETE target — dossier id for hồ sơ, folder id for thư mục / bộ hồ sơ. */
+/** Resolve DELETE target — file id for file PDF, dossier id for hồ sơ, folder id for thư mục / bộ hồ sơ. */
 export function resolveDeleteTarget(
   node: DataTreeNodeT,
-  tree?: DataTreeNodeT | null,
+  _tree?: DataTreeNodeT | null,
 ): DataDeleteTargetT | null {
   if (node.id === DATA_TREE_ROOT_ID) return null
 
   if (node.type === 'document') {
-    if (!tree) return null
-    const record = findRecordParentForDocument(tree, node.id)
-    const dossierId = record ? resolveRecordDossierId(record) : null
-    if (!dossierId) return null
     return {
-      target: 'dossier',
-      id: dossierId,
-      descriptionKey: 'descriptionDossier',
+      target: 'file',
+      id: node.id,
+      descriptionKey: 'descriptionFile',
     }
   }
 
@@ -1485,3 +1487,39 @@ export function filterTreeForSearch(
 
   return filt(root) ?? { ...root, children: [] }
 }
+
+/** Check if node is a PDF document. */
+export function isPdfDocumentNode(
+  node: DataTreeNodeT | null | undefined,
+): boolean {
+  if (!node || node.type !== 'document') return false
+  return node.name.toLowerCase().endsWith('.pdf')
+}
+
+/** Replace a child node in tree at the exact index of oldChildId in parent's children array. */
+export function replaceChildInTreeAtPosition(
+  root: DataTreeNodeT,
+  parentId: string,
+  oldChildId: string,
+  newChildNode: DataTreeNodeT,
+): DataTreeNodeT {
+  function walk(node: DataTreeNodeT): DataTreeNodeT {
+    if (node.id === parentId) {
+      const idx = node.children.findIndex((c) => c.id === oldChildId)
+      let nextChildren = [...node.children]
+      if (idx >= 0) {
+        nextChildren[idx] = newChildNode
+      } else {
+        nextChildren.push(newChildNode)
+      }
+      return { ...node, children: nextChildren }
+    }
+    return {
+      ...node,
+      children: node.children.map(walk),
+    }
+  }
+
+  return walk(root)
+}
+

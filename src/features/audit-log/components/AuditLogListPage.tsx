@@ -250,7 +250,7 @@ export function AuditLogListPage() {
                         defaultValue: display.eventType,
                       })
                     : t('unknown')
-                  const userLabel = getAuditLogUserLabel(log, t('unknown'))
+                  const userLabel = getAuditLogUserLabel(log, t('unknown'), t('system'))
                   return (
                     <TableRow key={log.id}>
                       <TableCell className="overflow-hidden">

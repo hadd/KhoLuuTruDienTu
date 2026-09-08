@@ -16,7 +16,11 @@ const config = defineConfig(({ mode }) => {
       include: ['page-flip/dist/js/page-flip.module.js'],
     },
     plugins: [
-      devtools(),
+      devtools({
+        eventBusConfig: {
+          port: 42070,
+        },
+      }),
       tanstackRouter({
         target: 'react',
         routesDirectory: './src/app/routes',
@@ -63,3 +67,4 @@ const config = defineConfig(({ mode }) => {
 })
 
 export default config
+// Vite dev server trigger reload
