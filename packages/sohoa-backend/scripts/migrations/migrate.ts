@@ -76,9 +76,9 @@ try {
   const currentTableCount = currentTablesQuery.length;
 
   let tagsToRun = pendingTags;
-  if (pendingTags.length === 0 && currentTableCount < 79) {
+  if (pendingTags.length === 0 && currentTableCount < 80) {
     console.log(
-      `[migrate] Detected schema table discrepancy (${currentTableCount}/79 tables). Triggering safe catch-up migration...`,
+      `[migrate] Detected schema table discrepancy (${currentTableCount}/80 tables). Triggering safe catch-up migration...`,
     );
     tagsToRun = journalTags;
   }
@@ -155,7 +155,7 @@ try {
   console.log(`\n==================================================`);
   console.log(`📊 DATABASE SCHEMA AUDIT SUMMARY:`);
   console.log(`   Target Schema: "${schema}"`);
-  console.log(`   Total Tables Found: ${tableNames.length} / 79`);
+  console.log(`   Total Tables Found: ${tableNames.length} / 80`);
   console.log(`==================================================\n`);
 
   console.log("✅ Migration completed successfully");

@@ -7,6 +7,7 @@ export const Permission = {
   USERS_EXPORT: "users.export",
 
   ROLES_MANAGE: "roles.manage",
+  AUTH_TWO_FACTOR_REQUIRE: "auth.two_factor_require",
 
   GROUPS_READ: "groups.read",
   GROUPS_READ_ALL: "groups.read_all",
@@ -56,6 +57,8 @@ export const Permission = {
   DASHBOARD_ADMIN_SYSTEM_PERFORMANCE: "dashboard.admin.system_performance",
   DASHBOARD_ADMIN_EMPLOYEE_KPIS: "dashboard.admin.employee_kpis",
   DASHBOARD_ADMIN_GROUP_PERFORMANCE_CHART: "dashboard.admin.group_performance_chart",
+  DASHBOARD_ADMIN_UNASSIGNED: "dashboard.admin.unassigned",
+  DASHBOARD_ADMIN_READ_ALL: "dashboard.admin.read_all",
   DASHBOARD_WAREHOUSE: "dashboard.warehouse",
 
   DATA_ENTRY_MAKER: "data-entry.maker",
@@ -68,6 +71,8 @@ export const Permission = {
   METADATA_EXTRACT_SETTINGS_READ: "metadata.extract.settings.read",
   METADATA_EXTRACT_SETTINGS_UPDATE: "metadata.extract.settings.update",
   METADATA_EXTRACT_TRIGGER: "metadata.extract.trigger",
+  METADATA_HIDDEN_FIELDS_READ: "metadata.hidden_fields.read",
+  METADATA_HIDDEN_FIELDS_UPDATE: "metadata.hidden_fields.update",
 
   WATERMARK_CONFIG_READ: "watermark.config.read",
   WATERMARK_CONFIG_CREATE: "watermark.config.create",
@@ -336,6 +341,20 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     label: "Biểu đồ hiệu suất tổ nhóm",
     description:
       "Xem biểu đồ sản lượng và tỷ lệ đúng trung bình của các tổ nhóm",
+  },
+  {
+    key: Permission.DASHBOARD_ADMIN_UNASSIGNED,
+    module: "dashboard",
+    label: "Xem tài liệu không gán dự án",
+    description:
+      "Cho phép hiển thị và thống kê các hồ sơ/tài liệu chưa được gán vào dự án nào trên Dashboard",
+  },
+  {
+    key: Permission.DASHBOARD_ADMIN_READ_ALL,
+    module: "dashboard",
+    label: "Xem tất cả tài liệu toàn hệ thống",
+    description:
+      "Cho phép hiển thị và thống kê toàn bộ hồ sơ/dự án của tất cả các bộ phận trong hệ thống trên Dashboard",
   },
   {
     key: Permission.DASHBOARD_WAREHOUSE,
@@ -772,6 +791,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     description: "Tạo, sửa, xóa vai trò và cấu hình ma trận quyền truy cập",
   },
   {
+    key: Permission.AUTH_TWO_FACTOR_REQUIRE,
+    module: "roles",
+    label: "Yêu cầu xác thực 2 lớp (2FA)",
+    description:
+      "Bắt buộc người dùng thuộc vai trò này phải nhập mã OTP gửi qua Email khi đăng nhập",
+  },
+  {
     key: Permission.FONDS_READ,
     module: "fonds",
     label: "Xem phông lưu trữ",
@@ -1003,6 +1029,20 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     description: "Kích hoạt tay hoặc bóc tách lại metadata (old / TT05 / both)",
   },
   {
+    key: Permission.METADATA_HIDDEN_FIELDS_READ,
+    module: "metadata",
+    label: "Xem cấu hình ẩn/hiện trường Metadata",
+    description:
+      "Xem danh sách cấu hình ẩn hoặc hiển thị các trường metadata ở màn hình quản lý dữ liệu",
+  },
+  {
+    key: Permission.METADATA_HIDDEN_FIELDS_UPDATE,
+    module: "metadata",
+    label: "Cập nhật cấu hình ẩn/hiện trường Metadata",
+    description:
+      "Thêm, sửa, xóa cấu hình ẩn hoặc hiển thị các trường metadata ở màn hình quản lý dữ liệu",
+  },
+  {
     key: Permission.WATERMARK_CONFIG_READ,
     module: "watermark",
     label: "Xem cấu hình watermark",
@@ -1059,6 +1099,8 @@ export const DASHBOARD_ADMIN_SUB_PERMISSIONS = [
   Permission.DASHBOARD_ADMIN_SYSTEM_PERFORMANCE,
   Permission.DASHBOARD_ADMIN_EMPLOYEE_KPIS,
   Permission.DASHBOARD_ADMIN_GROUP_PERFORMANCE_CHART,
+  Permission.DASHBOARD_ADMIN_UNASSIGNED,
+  Permission.DASHBOARD_ADMIN_READ_ALL,
 ] as const;
 
 export const ALL_PERMISSION_KEYS = PERMISSION_CATALOG.map(

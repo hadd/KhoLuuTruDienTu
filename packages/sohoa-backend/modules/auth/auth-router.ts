@@ -32,6 +32,45 @@ export function createAuthPublicRouter(basePath: string = "/api/auth") {
                 }),
                 response: {
                     200: t.Object({
+                        require2FA: t.Optional(t.Boolean()),
+                        challengeToken: t.Optional(t.String()),
+                        maskedEmail: t.Optional(t.String()),
+                        accessToken: t.Optional(t.String()),
+                        refreshToken: t.Optional(t.String()),
+                        expiresIn: t.Number(),
+                        tokenType: t.Optional(t.Literal("Bearer")),
+                        roles: t.Optional(t.Array(t.String())),
+                        permissions: t.Optional(t.Array(t.String())),
+                    }),
+                },
+                detail: {
+                    tags: ["Authentication"],
+                    summary: "Login with email and password",
+                },
+            },
+        )
+        .post(
+            "/verify-2fa",
+            async ({ body, request }) => {
+                const { challengeToken, otpCode } = body;
+                if (!challengeToken || !otpCode) {
+                    throw httpError.badRequest("challengeToken and otpCode are required");
+                }
+                const ua = request.headers.get("user-agent");
+                const ip = resolveClientIp(request);
+                return await AuthTokenService.verify2FA(challengeToken, otpCode, {
+                    userAgent: ua,
+                    ip,
+                });
+            },
+            {
+                body: t.Object({
+                    challengeToken: t.String(),
+                    otpCode: t.String(),
+                }),
+                response: {
+                    200: t.Object({
+                        require2FA: t.Literal(false),
                         accessToken: t.String(),
                         refreshToken: t.String(),
                         expiresIn: t.Number(),
@@ -42,7 +81,32 @@ export function createAuthPublicRouter(basePath: string = "/api/auth") {
                 },
                 detail: {
                     tags: ["Authentication"],
-                    summary: "Login with email and password",
+                    summary: "Verify 2FA OTP code and complete login",
+                },
+            },
+        )
+        .post(
+            "/resend-2fa",
+            async ({ body }) => {
+                const { challengeToken } = body;
+                if (!challengeToken) {
+                    throw httpError.badRequest("challengeToken is required");
+                }
+                return await AuthTokenService.resend2FA(challengeToken);
+            },
+            {
+                body: t.Object({
+                    challengeToken: t.String(),
+                }),
+                response: {
+                    200: t.Object({
+                        status: t.String(),
+                        expiresIn: t.Number(),
+                    }),
+                },
+                detail: {
+                    tags: ["Authentication"],
+                    summary: "Resend 2FA OTP code to user email",
                 },
             },
         )

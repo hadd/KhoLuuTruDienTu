@@ -54,7 +54,7 @@ export const updateDossierSchema = t.Object({
     name: t.Optional(t.String({ maxLength: 255 })),
     requiredQcCount: t.Optional(t.Number()),
     fondId: t.Optional(t.String()),
-    projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
+    projectCode: t.Optional(t.Union([t.String({ minLength: 1, maxLength: 50 }), t.Null()])),
     securityLevelId: t.Optional(t.Union([t.String({ format: "uuid" }), t.Null()])),
     /** Đặt mật khẩu truy cập hồ sơ (sẽ bật accessPasswordEnabled). */
     accessPassword: t.Optional(t.String({ minLength: 1 })),

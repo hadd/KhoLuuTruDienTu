@@ -28,7 +28,15 @@ export const projectAccessHelper = {
 
     /** System admin sees all projects; other roles only see projects they manage. */
     hasGlobalProjectScope(profile: UserWithRoles): boolean {
-        return projectAccessHelper.isSystemAdmin(profile);
+        if (projectAccessHelper.isSystemAdmin(profile)) {
+            return true;
+        }
+
+        if (projectAccessHelper.isProjectManager(profile)) {
+            return false;
+        }
+
+        return true;
     },
 
     async resolveScope(profile: UserWithRoles): Promise<ProjectAccessScope> {

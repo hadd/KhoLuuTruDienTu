@@ -22,6 +22,27 @@
       "when": 1787558447378,
       "tag": "0002_sudden_kingpin",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788426918218,
+      "tag": "0003_lean_warstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788429028322,
+      "tag": "0004_fair_hercules",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788491943604,
+      "tag": "0005_solid_thena",
+      "breakpoints": true
     }
   ]
 }

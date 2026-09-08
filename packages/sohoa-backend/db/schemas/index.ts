@@ -40,6 +40,12 @@ export {
     authSessionTokensRelations,
     authSessionTokenTypeEnum,
 } from "./auth_session_token.ts";
+export {
+    authTwoFactorOtps,
+    authTwoFactorOtpsRelations,
+    type AuthTwoFactorOtp,
+    type NewAuthTwoFactorOtp,
+} from "./auth-two-factor.ts";
 // ========================================
 // Groups
 // ========================================
@@ -75,6 +81,12 @@ export type {
     MetadataExtractSettings,
     NewMetadataExtractSettings,
 } from "./metadata-extract-settings.ts";
+export {
+    metadataHiddenFields,
+    type MetadataHiddenField,
+    type NewMetadataHiddenField,
+} from "./metadata-hidden-field.ts";
+
 
 // ========================================
 // Workflow (folders, dossiers, assignments)

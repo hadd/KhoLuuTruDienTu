@@ -1,0 +1,1 @@
+ALTER TABLE "sohoa_app"."files" ADD COLUMN "page_count" integer DEFAULT 1 NOT NULL;

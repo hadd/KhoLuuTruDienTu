@@ -1,12 +1,29 @@
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
-import { authSessions, authSessionTokens, userProfiles, userRoles } from "../../db/schemas/index.ts";
+import { authSessions, authSessionTokens, userProfiles, userRoles, authTwoFactorOtps } from "../../db/schemas/index.ts";
 import { httpError } from "@shared/common-lib";
 import { getAccessTtlSeconds, getRefreshTtlSeconds, signAccessToken } from "../../libs/helpers/jwt.ts";
 import { randomRefreshToken, sha256Hex, verifyPassword } from "../../libs/helpers/password.ts";
 import { ProfileService } from "../profile/profile-service.ts";
-import { resolveEffectivePermissionsFromUserRoles } from "./permission-resolver.ts";
+import { resolveEffectivePermissionsFromUserRoles, userRolesHavePermission } from "./permission-resolver.ts";
+import { Permission } from "./permission-catalog.ts";
+import { authHelper } from "./auth-helper.ts";
+import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
+import { sendNotificationEmail } from "../../libs/notification-email.ts";
 import { logActivity } from "../audit-log/audit-log-activity.ts";
+
+function maskEmail(email: string): string {
+    const [name, domain] = email.split("@");
+    if (!domain) return email;
+    const maskedName = name.length <= 2
+        ? name[0] + "*"
+        : name[0] + "*".repeat(name.length - 2) + name[name.length - 1];
+    return `${maskedName}@${domain}`;
+}
+
+function generateOtpCode(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 async function assertActiveSession(sessionId: string, userId: string) {
     const session = await db.query.authSessions.findFirst({
@@ -126,6 +143,57 @@ export const AuthTokenService = {
         if (!profile.active) {
             throw httpError.forbidden("account is inactive");
         }
+
+        const fullProfile = await db.query.userProfiles.findFirst({
+            where: eq(userProfiles.id, profile.id),
+            with: {
+                userRoles: {
+                    where: isNull(userRoles.expiredAt),
+                    with: { role: true },
+                },
+            },
+        });
+
+        const isAdmin = fullProfile ? authHelper.isAdmin(fullProfile as UserWithRoles) : false;
+        const requires2FA = !isAdmin && fullProfile?.userRoles?.length
+            ? userRolesHavePermission(fullProfile.userRoles, Permission.AUTH_TWO_FACTOR_REQUIRE)
+            : false;
+
+        if (requires2FA) {
+            const otpCode = generateOtpCode();
+            const otpHash = await sha256Hex(otpCode);
+            const challengeToken = crypto.randomUUID();
+            const now = new Date();
+            const expiresAt = new Date(now.getTime() + 5 * 60 * 1000);
+
+            await db.insert(authTwoFactorOtps).values({
+                userId: profile.id,
+                challengeToken,
+                otpHash,
+                attempts: 0,
+                expiresAt,
+                lastSentAt: now,
+            });
+
+            try {
+                await sendNotificationEmail({
+                    to: profile.email,
+                    subject: "Mã OTP xác thực đăng nhập 2 lớp",
+                    text: `Mã OTP xác thực đăng nhập của bạn là: ${otpCode}. Mã này có hiệu lực trong vòng 5 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.`,
+                });
+            } catch (err) {
+                console.error("Failed to send 2FA OTP email:", err);
+                throw httpError.internalServerError("Không thể gửi email OTP xác thực 2 lớp. Vui lòng kiểm tra lại cấu hình SMTP.");
+            }
+
+            return {
+                require2FA: true,
+                challengeToken,
+                maskedEmail: maskEmail(profile.email),
+                expiresIn: 300,
+            };
+        }
+
         const result = await this.issueTokensForUser(profile.id, meta);
         logActivity({
             userId: profile.id,
@@ -142,7 +210,124 @@ export const AuthTokenService = {
                 statusCode: 200,
             },
         });
-        return result;
+        return {
+            require2FA: false,
+            ...result,
+        };
+    },
+
+    async verify2FA(challengeToken: string, otpCode: string, meta: { userAgent: string | null; ip: string | null }) {
+        const now = new Date();
+        const record = await db.query.authTwoFactorOtps.findFirst({
+            where: and(
+                eq(authTwoFactorOtps.challengeToken, challengeToken),
+                isNull(authTwoFactorOtps.usedAt),
+                gt(authTwoFactorOtps.expiresAt, now),
+            ),
+        });
+
+        if (!record) {
+            throw httpError.badRequest("Mã thách thức không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.");
+        }
+
+        if (record.attempts >= 5) {
+            throw httpError.badRequest("Mã OTP đã nhập sai quá 5 lần. Vui lòng đăng nhập lại.");
+        }
+
+        const inputOtpHash = await sha256Hex(otpCode.trim());
+        if (inputOtpHash !== record.otpHash) {
+            await db.update(authTwoFactorOtps)
+                .set({ attempts: record.attempts + 1 })
+                .where(eq(authTwoFactorOtps.id, record.id));
+            throw httpError.badRequest(`Mã OTP không chính xác. Bạn còn ${4 - record.attempts} lần thử.`);
+        }
+
+        await db.update(authTwoFactorOtps)
+            .set({ usedAt: now })
+            .where(eq(authTwoFactorOtps.id, record.id));
+
+        const result = await this.issueTokensForUser(record.userId, meta);
+        const profile = await db.query.userProfiles.findFirst({
+            where: eq(userProfiles.id, record.userId),
+        });
+
+        logActivity({
+            userId: record.userId,
+            module: "auth",
+            eventType: "login",
+            summary: `Đăng nhập thành công (2FA): ${profile?.email ?? record.userId}`,
+            entityType: "user",
+            entityId: record.userId,
+            ip: meta.ip,
+            userAgent: meta.userAgent,
+            requestMeta: {
+                method: "POST",
+                path: "/api/auth/verify-2fa",
+                statusCode: 200,
+            },
+        });
+
+        return {
+            require2FA: false,
+            ...result,
+        };
+    },
+
+    async resend2FA(challengeToken: string) {
+        const now = new Date();
+        const record = await db.query.authTwoFactorOtps.findFirst({
+            where: and(
+                eq(authTwoFactorOtps.challengeToken, challengeToken),
+                isNull(authTwoFactorOtps.usedAt),
+            ),
+        });
+
+        if (!record) {
+            throw httpError.badRequest("Mã thách thức không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.");
+        }
+
+        const secondsSinceLastSent = (now.getTime() - new Date(record.lastSentAt).getTime()) / 1000;
+        if (secondsSinceLastSent < 60) {
+            const waitSeconds = Math.ceil(60 - secondsSinceLastSent);
+            throw httpError.badRequest(`Vui lòng đợi ${waitSeconds} giây trước khi yêu cầu gửi lại mã OTP.`);
+        }
+
+        const profile = await db.query.userProfiles.findFirst({
+            where: eq(userProfiles.id, record.userId),
+        });
+
+        if (!profile?.email) {
+            throw httpError.badRequest("Không tìm thấy email của người dùng.");
+        }
+
+        const newOtpCode = generateOtpCode();
+        const newOtpHash = await sha256Hex(newOtpCode);
+        const expiresAt = new Date(now.getTime() + 5 * 60 * 1000);
+
+        await db.update(authTwoFactorOtps)
+            .set({
+                otpHash: newOtpHash,
+                attempts: 0,
+                expiresAt,
+                lastSentAt: now,
+            })
+            .where(eq(authTwoFactorOtps.id, record.id));
+
+        try {
+            await sendNotificationEmail({
+                to: profile.email,
+                subject: "Mã OTP xác thực đăng nhập 2 lớp (Gửi lại)",
+                text: `Mã OTP xác thực đăng nhập mới của bạn là: ${newOtpCode}. Mã này có hiệu lực trong vòng 5 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.`,
+            });
+        } catch (err) {
+            console.error("Failed to resend 2FA OTP email:", err);
+            throw httpError.internalServerError("Không thể gửi email OTP xác thực 2 lớp. Vui lòng kiểm tra lại cấu hình SMTP.");
+        }
+
+        return {
+            status: "otp_resent",
+            expiresIn: 300,
+        };
     },
 
     async refreshWithToken(refreshToken: string) {

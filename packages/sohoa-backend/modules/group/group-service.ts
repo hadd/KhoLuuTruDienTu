@@ -1612,17 +1612,12 @@ export const GroupService = {
             });
 
             await tx
-                .update(groups)
-                .set({ deletedAt: now, updatedAt: now })
-                .where(eq(groups.id, groupId));
+                .delete(groupMembers)
+                .where(eq(groupMembers.groupId, groupId));
 
             await tx
-                .update(groupMembers)
-                .set({ expiredAt: now })
-                .where(and(
-                    eq(groupMembers.groupId, groupId),
-                    isNull(groupMembers.expiredAt),
-                ));
+                .delete(groups)
+                .where(eq(groups.id, groupId));
         });
 
         return { status: "deleted" as const, id: groupId };
