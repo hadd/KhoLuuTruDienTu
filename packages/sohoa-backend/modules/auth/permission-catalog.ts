@@ -49,6 +49,13 @@ export const Permission = {
   DASHBOARD_EDITOR: "dashboard.editor",
   DASHBOARD_QC: "dashboard.qc",
   DASHBOARD_ADMIN: "dashboard.admin",
+  DASHBOARD_ADMIN_SUMMARY: "dashboard.admin.summary",
+  DASHBOARD_ADMIN_DOSSIER_STATUS_CHART: "dashboard.admin.dossier_status_chart",
+  DASHBOARD_ADMIN_PROJECT_STATUS_CHART: "dashboard.admin.project_status_chart",
+  DASHBOARD_ADMIN_DOSSIER_TREND_CHART: "dashboard.admin.dossier_trend_chart",
+  DASHBOARD_ADMIN_SYSTEM_PERFORMANCE: "dashboard.admin.system_performance",
+  DASHBOARD_ADMIN_EMPLOYEE_KPIS: "dashboard.admin.employee_kpis",
+  DASHBOARD_ADMIN_GROUP_PERFORMANCE_CHART: "dashboard.admin.group_performance_chart",
   DASHBOARD_WAREHOUSE: "dashboard.warehouse",
 
   DATA_ENTRY_MAKER: "data-entry.maker",
@@ -281,7 +288,57 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     description:
       "Xem tổng quan hệ thống, biểu đồ tiến độ hồ sơ và hiệu suất theo nhóm/dự án",
   },
-  { key: Permission.DASHBOARD_WAREHOUSE,
+  {
+    key: Permission.DASHBOARD_ADMIN_SUMMARY,
+    module: "dashboard",
+    label: "Thẻ thống kê tổng quan",
+    description:
+      "Xem các thẻ thống kê tổng quan (Hồ sơ hệ thống, Dự án hệ thống, Hiệu suất duyệt)",
+  },
+  {
+    key: Permission.DASHBOARD_ADMIN_DOSSIER_STATUS_CHART,
+    module: "dashboard",
+    label: "Biểu đồ trạng thái hồ sơ",
+    description:
+      "Xem biểu đồ phân bổ trạng thái hồ sơ số hóa",
+  },
+  {
+    key: Permission.DASHBOARD_ADMIN_PROJECT_STATUS_CHART,
+    module: "dashboard",
+    label: "Biểu đồ trạng thái dự án",
+    description:
+      "Xem biểu đồ phân bổ trạng thái dự án số hóa",
+  },
+  {
+    key: Permission.DASHBOARD_ADMIN_DOSSIER_TREND_CHART,
+    module: "dashboard",
+    label: "Biểu đồ xu hướng tiến độ hồ sơ",
+    description:
+      "Xem biểu đồ cột xu hướng hoàn thành hồ sơ theo tháng/quý",
+  },
+  {
+    key: Permission.DASHBOARD_ADMIN_SYSTEM_PERFORMANCE,
+    module: "dashboard",
+    label: "Chỉ số hiệu suất hệ thống",
+    description:
+      "Xem các chỉ số thời gian xử lý trung bình và tỷ lệ duyệt toàn hệ thống",
+  },
+  {
+    key: Permission.DASHBOARD_ADMIN_EMPLOYEE_KPIS,
+    module: "dashboard",
+    label: "Bảng KPI nhân viên",
+    description:
+      "Xem bảng thống kê chi tiết sản lượng và tỷ lệ đúng của từng nhân viên",
+  },
+  {
+    key: Permission.DASHBOARD_ADMIN_GROUP_PERFORMANCE_CHART,
+    module: "dashboard",
+    label: "Biểu đồ hiệu suất tổ nhóm",
+    description:
+      "Xem biểu đồ sản lượng và tỷ lệ đúng trung bình của các tổ nhóm",
+  },
+  {
+    key: Permission.DASHBOARD_WAREHOUSE,
     module: "dashboard",
     label: "Dashboard kho",
     description:
@@ -992,6 +1049,16 @@ const LEGACY_PERMISSION_KEYS = [
   /** Pre-library merge borrow keys (still accepted in role JSON). */
   "archive.borrow.request",
   "archive.borrow.review",
+] as const;
+
+export const DASHBOARD_ADMIN_SUB_PERMISSIONS = [
+  Permission.DASHBOARD_ADMIN_SUMMARY,
+  Permission.DASHBOARD_ADMIN_DOSSIER_STATUS_CHART,
+  Permission.DASHBOARD_ADMIN_PROJECT_STATUS_CHART,
+  Permission.DASHBOARD_ADMIN_DOSSIER_TREND_CHART,
+  Permission.DASHBOARD_ADMIN_SYSTEM_PERFORMANCE,
+  Permission.DASHBOARD_ADMIN_EMPLOYEE_KPIS,
+  Permission.DASHBOARD_ADMIN_GROUP_PERFORMANCE_CHART,
 ] as const;
 
 export const ALL_PERMISSION_KEYS = PERMISSION_CATALOG.map(
