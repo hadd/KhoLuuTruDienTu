@@ -171,6 +171,7 @@ vendor
 .coverage-tmp
 packages/sohoa-backend/.env
 
-# Graphify
+# AI agent skills & graphify knowledge graph outputs
+.agents/
 graphify-out/
-.agents/
+.graphify*

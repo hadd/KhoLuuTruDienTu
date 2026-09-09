@@ -1,11 +1,19 @@
 import { Elysia, t } from "elysia";
+import { plugins } from "../../libs/plugins/_index.ts";
+import { authHelper } from "../auth/auth-helper.ts";
+import { Permission } from "../auth/permission-catalog.ts";
 import { MetadataHiddenFieldService } from "./metadata-hidden-field-service.ts";
 
 export function createMetadataHiddenFieldRouter(
     basePath: string = "/metadata-hidden-fields"
 ) {
     return new Elysia({ prefix: basePath })
-        .get("/", async () => {
+        .use(plugins.authProfile)
+        .get("/", async ({ profile }) => {
+            authHelper.checkPermission(
+                profile,
+                Permission.METADATA_HIDDEN_FIELDS_READ,
+            );
             const data = await MetadataHiddenFieldService.getAll();
             return { success: true, data };
         })
@@ -16,7 +24,11 @@ export function createMetadataHiddenFieldRouter(
         })
         .post(
             "/",
-            async ({ body }) => {
+            async ({ body, profile }) => {
+                authHelper.checkPermission(
+                    profile,
+                    Permission.METADATA_HIDDEN_FIELDS_UPDATE,
+                );
                 const data = await MetadataHiddenFieldService.create(body);
                 return { success: true, data };
             },
@@ -31,7 +43,11 @@ export function createMetadataHiddenFieldRouter(
         )
         .put(
             "/:id",
-            async ({ params, body }) => {
+            async ({ params, body, profile }) => {
+                authHelper.checkPermission(
+                    profile,
+                    Permission.METADATA_HIDDEN_FIELDS_UPDATE,
+                );
                 const data = await MetadataHiddenFieldService.update(
                     params.id,
                     body
@@ -52,7 +68,11 @@ export function createMetadataHiddenFieldRouter(
         )
         .delete(
             "/:id",
-            async ({ params }) => {
+            async ({ params, profile }) => {
+                authHelper.checkPermission(
+                    profile,
+                    Permission.METADATA_HIDDEN_FIELDS_UPDATE,
+                );
                 const data = await MetadataHiddenFieldService.delete(
                     params.id
                 );
