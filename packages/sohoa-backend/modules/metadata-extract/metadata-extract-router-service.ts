@@ -138,6 +138,11 @@ export async function routeMetadataExtract(
         input.mode ?? (await getMetadataExtractMode());
 
     const topics = resolvePublishTopics(mode);
+
+    console.info(
+        `[MetadataExtract] ho_so_id=${hoSoId} | mode=${mode} | json_path=${jsonPath} | topics=[${topics.join(",") || "(none)"}]`,
+    );
+
     const fromStatus = dossier.status;
     const shouldAdvance =
         fromStatus === DossierStatus.NEW ||
@@ -150,17 +155,25 @@ export async function routeMetadataExtract(
 
     if (kafkaPublished) {
         if (!env.KAFKA_ENABLED) {
-            throw httpError.serviceUnavailable(
-                "Kafka is disabled (KAFKA_ENABLED=false); cannot publish metadata extract messages",
+            // KAFKA_ENABLED=false: không publish nhưng vẫn update DB và log cảnh báo rõ ràng.
+            // Không throw để tránh làm mất workflow log và mergeJsonPath.
+            console.warn(
+                `[MetadataExtract] KAFKA_ENABLED=false — bỏ qua publish topics=[${topics.join(",")}] cho ho_so_id=${hoSoId}. Hãy set KAFKA_ENABLED=true trong .env để AI nhận được message.`,
             );
+        } else {
+            const payload: MetadataExtractKafkaPayload = {
+                ho_so_id: hoSoId,
+                json_path: jsonPath,
+            };
+            for (const topic of topics) {
+                await publishKafkaMessage(topic, payload);
+                console.info(
+                    `[MetadataExtract] Published → topic=${topic} | ho_so_id=${hoSoId} | json_path=${jsonPath}`,
+                );
+            }
         }
-        const payload: MetadataExtractKafkaPayload = {
-            ho_so_id: hoSoId,
-            json_path: jsonPath,
-        };
-        for (const topic of topics) {
-            await publishKafkaMessage(topic, payload);
-        }
+    } else if (isOffMode) {
+        console.info(`[MetadataExtract] mode=off — không publish Kafka. Chờ manual trigger.`);
     }
 
     const action = isOffMode
