@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Eye, EyeOff, Plus, Trash2, Edit2, Loader2, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -30,12 +30,38 @@ import {
   useUpdateMetadataHiddenFieldMutation,
 } from '@/features/metadata-extract/queries'
 import type { MetadataHiddenFieldItemT } from '@/features/metadata-extract/api/metadataHiddenFieldClient'
+import {
+  getCurrentUserRoleId,
+  resolvePermissionsForUser,
+} from '@/features/auth/lib/permission-access'
+import { profileQueryOptions } from '@/features/auth/queries'
+import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
+import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 
 export function MetadataHiddenFieldsSection() {
   const { data: fields = [], isLoading } = useQuery(metadataHiddenFieldsQueryOptions())
   const createMutation = useCreateMetadataHiddenFieldMutation()
   const updateMutation = useUpdateMetadataHiddenFieldMutation()
   const deleteMutation = useDeleteMetadataHiddenFieldMutation()
+
+  // --- Permission check ---
+  const { data: user } = useQuery(profileQueryOptions)
+  const roleId = getCurrentUserRoleId(user)
+  const { data: rolePermissions } = useQuery({
+    ...rolePermissionsQueryOptions(roleId ?? ''),
+    enabled: Boolean(roleId),
+  })
+  const canUpdate = useMemo(() => {
+    const permissions = resolvePermissionsForUser(
+      user,
+      rolePermissions?.rules.permissions,
+    )
+    return isPermissionGranted(
+      permissions,
+      'metadata.hidden_fields.update',
+      'metadata',
+    )
+  }, [user, rolePermissions])
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<MetadataHiddenFieldItemT | null>(null)
@@ -112,10 +138,12 @@ export function MetadataHiddenFieldsSection() {
           </CardDescription>
         </div>
 
-        <Button onClick={openAddDialog} size="sm" className="gap-1.5">
-          <Plus className="size-4" />
-          Thêm trường ẩn
-        </Button>
+        {canUpdate && (
+          <Button onClick={openAddDialog} size="sm" className="gap-1.5">
+            <Plus className="size-4" />
+            Thêm trường ẩn
+          </Button>
+        )}
       </CardHeader>
 
       <CardContent>
@@ -137,9 +165,11 @@ export function MetadataHiddenFieldsSection() {
         ) : fields.length === 0 ? (
           <div className="flex h-32 flex-col items-center justify-center rounded-lg border border-dashed text-center text-sm text-muted-foreground">
             <p>Chưa có trường metadata ẩn nào được cấu hình.</p>
-            <Button onClick={openAddDialog} variant="link" size="sm" className="mt-1">
-              + Thêm trường ngay
-            </Button>
+            {canUpdate && (
+              <Button onClick={openAddDialog} variant="link" size="sm" className="mt-1">
+                + Thêm trường ngay
+              </Button>
+            )}
           </div>
         ) : (
           <div className="rounded-md border overflow-hidden">
@@ -149,7 +179,9 @@ export function MetadataHiddenFieldsSection() {
                   <TableHead className="w-[200px] font-semibold">Mã trường (Field Code)</TableHead>
                   <TableHead className="font-semibold">Tên / Mô tả</TableHead>
                   <TableHead className="w-[220px] font-semibold">Trạng thái Ẩn/Hiện</TableHead>
-                  <TableHead className="w-[100px] text-right font-semibold">Thao tác</TableHead>
+                  {canUpdate && (
+                    <TableHead className="w-[100px] text-right font-semibold">Thao tác</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
 
@@ -169,7 +201,7 @@ export function MetadataHiddenFieldsSection() {
                         <Switch
                           checked={item.isHidden}
                           onCheckedChange={(checked) => handleToggle(item, checked)}
-                          disabled={updateMutation.isPending}
+                          disabled={!canUpdate || updateMutation.isPending}
                         />
 
                         {item.isHidden ? (
@@ -186,29 +218,31 @@ export function MetadataHiddenFieldsSection() {
                       </div>
                     </TableCell>
 
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          onClick={() => openEditDialog(item)}
-                          title="Sửa cấu hình"
-                        >
-                          <Edit2 className="size-3.5 text-muted-foreground hover:text-foreground" />
-                        </Button>
+                    {canUpdate && (
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            onClick={() => openEditDialog(item)}
+                            title="Sửa cấu hình"
+                          >
+                            <Edit2 className="size-3.5 text-muted-foreground hover:text-foreground" />
+                          </Button>
 
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(item.id)}
-                          title="Xóa cấu hình"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDelete(item.id)}
+                            title="Xóa cấu hình"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

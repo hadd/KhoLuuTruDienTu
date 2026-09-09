@@ -51,12 +51,24 @@ export const Route = createFileRoute('/app/data-config/')({
         permissionKey: 'metadata.naming.manage',
       }) ||
       canAccessScreen(permissions, {
+        module: 'metadata',
+        permissionKey: 'metadata.extract.settings.read',
+      }) ||
+      canAccessScreen(permissions, {
+        module: 'metadata',
+        permissionKey: 'metadata.hidden_fields.read',
+      }) ||
+      canAccessScreen(permissions, {
         module: 'audit_logs',
         permissionKey: 'audit_logs.config',
       }) ||
       canAccessScreen(permissions, {
         module: 'library',
         permissionKey: 'library.borrow.approval-config.manage',
+      }) ||
+      canAccessScreen(permissions, {
+        module: 'notifications',
+        permissionKey: 'notifications.config.manage',
       })
 
     if (!canAccess) {

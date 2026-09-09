@@ -141,6 +141,14 @@ export function useDataConfigSectionTabs(): Array<DataConfigSectionTabItem> {
         label: t('tiles.metadataExtractSettings'),
         icon: ScanSearch,
       })
+    }
+    if (
+      isMetadataSidebarChildGranted(
+        'metadata-hidden-fields',
+        permissions,
+        catalog,
+      )
+    ) {
       items.push({
         id: 'metadata-hidden-fields',
         to: '/app/data-config/metadata-hidden-fields',

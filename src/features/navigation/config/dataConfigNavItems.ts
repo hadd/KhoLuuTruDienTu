@@ -98,10 +98,9 @@ export function isDataConfigNavItemVisible(
   ) {
     return isMetadataSidebarChildGranted(id, permissions, catalog)
   }
-  // metadata-hidden-fields shares the same permission gate as metadata-extract-settings
   if (id === 'metadata-hidden-fields') {
     return isMetadataSidebarChildGranted(
-      'metadata-extract-settings',
+      'metadata-hidden-fields',
       permissions,
       catalog,
     )

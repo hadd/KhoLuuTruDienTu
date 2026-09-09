@@ -16,7 +16,7 @@ const METADATA_CHILD_SCREEN_ACCESS = {
   'metadata-extract-settings':
     APP_SCREEN_ACCESS.dataConfig.metadataExtractSettings,
   'metadata-hidden-fields':
-    APP_SCREEN_ACCESS.dataConfig.metadataExtractSettings,
+    APP_SCREEN_ACCESS.dataConfig.metadataHiddenFields,
 } as const
 
 type MetadataChildId = keyof typeof METADATA_CHILD_SCREEN_ACCESS
@@ -69,7 +69,7 @@ const METADATA_CHILD_KEY_PATTERNS: Record<MetadataChildId, Array<RegExp>> = {
   'metadata-export-presets': [/export_presets\.manage/i],
   'document-naming': [/naming\.manage/i],
   'metadata-extract-settings': [/extract\.settings/i],
-  'metadata-hidden-fields': [/extract\.settings/i, /hidden_fields\.manage/i],
+  'metadata-hidden-fields': [/hidden_fields\.manage/i, /hidden_fields\.read/i, /hidden_fields\.update/i],
 }
 
 function isMetadataChildId(childId: string): childId is MetadataChildId {

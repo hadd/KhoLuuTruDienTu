@@ -230,7 +230,7 @@ export const APP_SCREEN_ACCESS = {
     metadataHiddenFields: {
       to: '/app/data-config/metadata-hidden-fields',
       module: 'metadata',
-      permissionKey: 'metadata.extract.settings.read',
+      permissionKey: 'metadata.hidden_fields.read',
     },
     auditLogConfig: {
       to: '/app/data-config/audit-log-config',
