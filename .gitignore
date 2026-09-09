@@ -170,3 +170,7 @@ vendor
 .env.test
 .coverage-tmp
 packages/sohoa-backend/.env
+
+# Graphify
+graphify-out/
+.agents/
