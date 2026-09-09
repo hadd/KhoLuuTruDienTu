@@ -6,6 +6,7 @@ import { userRoles } from "../../db/schemas/user_role.ts";
 import { isNull } from "drizzle-orm";
 import { authHelper } from "../auth/auth-helper.ts";
 import { Permission } from "../auth/permission-catalog.ts";
+import { resolveEffectivePermissionsFromUserRoles, parseRulesForResponse } from "../auth/permission-resolver.ts";
 
 const updateDownloadPasswordSchema = t.Object({
     downloadPassword: t.Optional(t.Nullable(t.String({ maxLength: 128 }))),
@@ -37,12 +38,20 @@ export function createProfileRouter(_basePath: string = "/users") {
                         },
                     },
                 });
+
+                const userRolesWithParsedRules = record?.userRoles?.map((ur: any) => ({
+                    ...ur,
+                    role: ur.role ? { ...ur.role, rules: parseRulesForResponse(ur.role.rules) } : ur.role
+                })) ?? [];
+
+                const permissions = resolveEffectivePermissionsFromUserRoles(userRolesWithParsedRules);
+
                 return {
-                    record: stripProfileSecrets(record as {
-                        passwordHash?: string | null;
-                        downloadPasswordEncrypted?: string | null;
-                        downloadPasswordEnabled?: boolean | null;
-                    }),
+                    record: {
+                        ...stripProfileSecrets(record as any),
+                        userRoles: userRolesWithParsedRules,
+                        permissions,
+                    },
                 };
             },
             {
