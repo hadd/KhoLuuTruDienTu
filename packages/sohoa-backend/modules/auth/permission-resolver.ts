@@ -13,22 +13,35 @@ export interface RoleRules {
 
 const EMPTY_RULES: RoleRules = { permissions: [], restrictions: [] };
 
-export function parseRoleRules(rulesJson: string | null | undefined): RoleRules {
-    if (!rulesJson?.trim()) {
+export function parseRoleRules(rulesJson: any): RoleRules {
+    if (!rulesJson) {
         return { ...EMPTY_RULES };
     }
-    try {
-        const parsed = JSON.parse(rulesJson) as Partial<RoleRules>;
-        const permissions = Array.isArray(parsed.permissions)
-            ? parsed.permissions.filter((p): p is string => typeof p === "string")
-            : [];
-        const restrictions = Array.isArray(parsed.restrictions)
-            ? parsed.restrictions.filter((r): r is string => typeof r === "string")
-            : [];
-        return { permissions, restrictions };
-    } catch {
+
+    let parsed: Partial<RoleRules> = {};
+
+    if (typeof rulesJson === "string") {
+        if (!rulesJson.trim()) {
+            return { ...EMPTY_RULES };
+        }
+        try {
+            parsed = (JSON.parse(rulesJson) || {}) as Partial<RoleRules>;
+        } catch {
+            return { ...EMPTY_RULES };
+        }
+    } else if (typeof rulesJson === "object") {
+        parsed = rulesJson as Partial<RoleRules>;
+    } else {
         return { ...EMPTY_RULES };
     }
+
+    const permissions = Array.isArray(parsed.permissions)
+        ? parsed.permissions.filter((p): p is string => typeof p === "string")
+        : [];
+    const restrictions = Array.isArray(parsed.restrictions)
+        ? parsed.restrictions.filter((r): r is string => typeof r === "string")
+        : [];
+    return { permissions, restrictions };
 }
 
 /** Old borrow keys → current library.borrow.* keys (role JSON may still use legacy). */
