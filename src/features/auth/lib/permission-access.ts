@@ -507,6 +507,11 @@ export function canAccessPathBySidebar(
 
 export async function loadPermissionContext(queryClient: QueryClient) {
   const user = await queryClient.ensureQueryData(profileQueryOptions)
+
+  if (user.permissions && Array.isArray(user.permissions)) {
+    return { user, permissions: user.permissions }
+  }
+
   const roleIds = getUserRoleIdsFromProfile(user)
   const merged = new Set(getPermissionsFromUser(user))
 

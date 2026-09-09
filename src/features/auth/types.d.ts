@@ -15,4 +15,5 @@ export interface UserT {
   hasDownloadPassword?: boolean
   downloadPasswordEnabled?: boolean
   userRoles?: Array<{ roleId: string; role?: { name: string } }>
+  permissions?: Array<string>
 }
