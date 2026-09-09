@@ -260,6 +260,15 @@ export function extractBasenameFromPath(pathStr: string | null | undefined): str
     return segments.at(-1) ?? clean;
 }
 
+export function cleanFilePath(pathStr: string | null | undefined): string {
+    if (!pathStr) return "";
+    const clean = pathStr.trim();
+    if (clean.startsWith("raw/") || clean.startsWith("raw\\")) {
+        return clean.substring(4);
+    }
+    return clean;
+}
+
 export function resolveExportFieldValue(
     metadata: DossierMetadata,
     fieldKey: string,
@@ -330,7 +339,8 @@ export function resolveExportFieldValueForFileItem(
 
     if (!parsed) {
         if (fieldKey === "__file_path") {
-            return fileItem.sourceDocument.file_path ?? fileItem.sourceDocument.file_name ?? "";
+            const fp = fileItem.sourceDocument.file_path ?? fileItem.sourceDocument.file_name ?? "";
+            return cleanFilePath(fp);
         }
         if (fieldKey === "__file_identifier") {
             const idVal =
@@ -467,10 +477,11 @@ export function resolveExportColumnValueForFile(
             } else if (fieldKey === "__ho_so_id") {
                 value = extractBasenameFromPath(metadata.ho_so_id);
             } else if (fieldKey === "__file_path") {
-                value =
+                const fp =
                     fileItem.sourceDocument.file_path ??
                     fileItem.sourceDocument.file_name ??
                     "";
+                value = cleanFilePath(fp);
             } else {
                 value = resolveExportFieldValueForFileItem(metadata, fileItem, fieldKey);
             }
@@ -478,6 +489,10 @@ export function resolveExportColumnValueForFile(
             value = resolveExportFieldValue(metadata, fieldKey);
         } else {
             value = resolveExportFieldValueForFileItem(metadata, fileItem, fieldKey);
+        }
+
+        if (fieldKey === "TAI_LIEU_LUU_TRU.TEP_TIN_TAI_LIEU" && value) {
+            value = cleanFilePath(value);
         }
 
         if (value && !parts.includes(value)) {
