@@ -31,10 +31,11 @@ export function parseRoleRules(rulesJson: string | null | undefined): RoleRules 
     }
 }
 
-/** Old borrow keys → current library.borrow.* keys (role JSON may still use legacy). */
+/** Old borrow keys & 2FA key → current keys (role JSON may still use legacy). */
 const LEGACY_PERMISSION_ALIASES: Record<string, string> = {
     "archive.borrow.request": Permission.ARCHIVE_BORROW_REQUEST,
     "archive.borrow.review": Permission.ARCHIVE_BORROW_REVIEW,
+    "auth.two_factor_require": Permission.AUTH_TWO_FACTOR_REQUIRE,
 };
 
 function normalizePermissionKey(key: string): string {
