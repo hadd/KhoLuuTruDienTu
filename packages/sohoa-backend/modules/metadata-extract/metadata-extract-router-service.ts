@@ -15,6 +15,8 @@ import { publishKafkaMessage } from "../../libs/kafka-producer.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import {
     normalizeStorageKey,
+    storageDirname,
+    toDocJsonDataLakeKey,
     toProcessedMetadataKey,
 } from "../dossier/dossier-path-utils.ts";
 import { getMetadataExtractMode } from "./metadata-extract-settings-service.ts";
@@ -74,6 +76,18 @@ async function resolveDossierByHoSoId(hoSoId: string) {
     return dossier;
 }
 
+function deriveFolderPathFromDocJsonPath(
+    jsonPath: string,
+    rawPrefix = env.STORAGE_RAW_PREFIX ?? "raw",
+): string | null {
+    const normalized = normalizeStorageKey(jsonPath);
+    if (!normalized.startsWith("doc_json/")) return null;
+    const inner = normalized.slice("doc_json/".length);
+    const dir = storageDirname(inner);
+    if (!dir) return null;
+    return `${rawPrefix}/${dir}`;
+}
+
 function resolveJsonPath(
     dossier: { folderPath: string; mergeJsonPath: string | null },
     jsonPath?: string | null,
@@ -83,6 +97,11 @@ function resolveJsonPath(
     }
     if (dossier.mergeJsonPath?.trim()) {
         return normalizeStorageKey(dossier.mergeJsonPath.trim());
+    }
+    // Fallback: Ưu tiên tính đường dẫn doc_json vì đây là nơi NiFi xuất kết quả merge
+    const docJsonKey = toDocJsonDataLakeKey(dossier.folderPath);
+    if (docJsonKey) {
+        return docJsonKey;
     }
     const derived = toProcessedMetadataKey(dossier.folderPath);
     if (!derived) {
@@ -131,7 +150,31 @@ export async function routeMetadataExtract(
     }
 
     const hoSoId = input.ho_so_id.trim();
-    const dossier = await resolveDossierByHoSoId(hoSoId);
+    let dossier = await resolveDossierByHoSoId(hoSoId).catch(() => null);
+
+    // Fallback: Tìm dossier từ json_path nếu ho_so_id (document_id) không khớp với tên hồ sơ.
+    if (!dossier && input.json_path) {
+        const derivedFolder = deriveFolderPathFromDocJsonPath(input.json_path);
+        if (derivedFolder) {
+            dossier = await db.query.dossiers.findFirst({
+                where: activeDossierWhere(eq(dossiers.folderPath, derivedFolder)),
+            }) ?? null;
+            if (dossier) {
+                console.info(
+                    `[Router] Resolved dossier "${dossier.name}" via json_path fallback` +
+                    ` (document_id="${hoSoId}" → folderPath="${derivedFolder}")`,
+                );
+            }
+        }
+    }
+
+    if (!dossier) {
+        throw httpError.notFound(
+            `Dossier not found for ho_so_id="${hoSoId}"` +
+            (input.json_path ? ` json_path="${input.json_path}"` : ""),
+        );
+    }
+
     const jsonPath = resolveJsonPath(dossier, input.json_path);
 
     const mode: MetadataExtractTriggerModeType | MetadataExtractModeType =
