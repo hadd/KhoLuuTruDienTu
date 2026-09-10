@@ -7,7 +7,7 @@ export const Permission = {
   USERS_EXPORT: "users.export",
 
   ROLES_MANAGE: "roles.manage",
-  AUTH_TWO_FACTOR_REQUIRE: "auth.two_factor_require",
+  AUTH_TWO_FACTOR_REQUIRE: "roles.two_factor_require",
 
   GROUPS_READ: "groups.read",
   GROUPS_READ_ALL: "groups.read_all",

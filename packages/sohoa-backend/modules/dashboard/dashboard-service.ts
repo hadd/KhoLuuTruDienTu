@@ -1,6 +1,6 @@
 import { httpError } from "@shared/common-lib";
 // Bổ sung: desc, isNotNull, lte
-import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, like, lte, ne, or, sql } from "drizzle-orm";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
 import { ArchiveDisposalService } from "../archive-disposal/archive-disposal-service.ts";
@@ -521,7 +521,12 @@ export const DashboardService = {
         }
     },
 
-    async aggregateEmployeeKpis(projectCodes?: string[], includeUnassigned: boolean = false) {
+    async aggregateEmployeeKpis(
+        projectCodes?: string[],
+        includeUnassigned: boolean = false,
+        dateFrom?: string | Date,
+        dateTo?: string | Date,
+    ) {
         await this.syncExistingPdfPageCounts();
         const activeUsers = await db.query.userProfiles.findMany({
             where: and(
@@ -538,12 +543,21 @@ export const DashboardService = {
                     columns: {
                         roleId: true,
                     },
+                    with: {
+                        role: {
+                            columns: {
+                                id: true,
+                                name: true,
+                            },
+                        },
+                    },
                 },
                 groupMembers: {
                     where: isNull(groupMembers.expiredAt),
                     with: {
                         group: {
                             columns: {
+                                id: true,
                                 name: true,
                             },
                         },
@@ -566,6 +580,28 @@ export const DashboardService = {
             .from(dossierFiles)
             .groupBy(dossierFiles.dossierId)
             .as("dossier_file_counts");
+
+        const assignmentConditions = [
+            inArray(dossierAssignments.assigneeId, userIds),
+            ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
+            dossierProjectCondition(projectCodes, includeUnassigned),
+        ];
+
+        if (dateFrom) {
+            const dFrom = typeof dateFrom === "string" ? new Date(dateFrom) : dateFrom;
+            if (!isNaN(dFrom.getTime())) {
+                assignmentConditions.push(gte(dossierAssignments.assignedAt, dFrom));
+            }
+        }
+        if (dateTo) {
+            const dTo = typeof dateTo === "string" ? new Date(dateTo) : dateTo;
+            if (!isNaN(dTo.getTime())) {
+                if (typeof dateTo === "string" && dateTo.length === 10) {
+                    dTo.setHours(23, 59, 59, 999);
+                }
+                assignmentConditions.push(lte(dossierAssignments.assignedAt, dTo));
+            }
+        }
 
         const assignmentStats = await db
             .select({
@@ -590,11 +626,7 @@ export const DashboardService = {
             .from(dossierAssignments)
             .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
             .leftJoin(dossierFileCounts, eq(dossierAssignments.dossierId, dossierFileCounts.dossierId))
-            .where(activeDossierWhere(
-                inArray(dossierAssignments.assigneeId, userIds),
-                ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
-                dossierProjectCondition(projectCodes, includeUnassigned),
-            ))
+            .where(activeDossierWhere(...assignmentConditions))
             .groupBy(dossierAssignments.assigneeId);
 
         const statsMap = new Map(assignmentStats.map((row) => [row.assigneeId, row]));
@@ -619,15 +651,36 @@ export const DashboardService = {
                 qcCompletedPagesCount: 0,
             };
 
-            const roles = user.userRoles?.map((r) => r.roleId) ?? [];
+            const userRolesList = user.userRoles ?? [];
+            const roleIds = userRolesList.map((r) => (r.roleId ?? "").toLowerCase());
+            const roleNames = userRolesList.map((r) => (r.role?.name ?? "").toLowerCase());
+
             let primaryRole = "editor";
-            if (roles.includes("admin") || roles.includes("superadmin")) {
+            if (
+                roleIds.includes("admin") ||
+                roleIds.includes("superadmin") ||
+                roleNames.some((n) => n.includes("quản trị"))
+            ) {
                 primaryRole = "admin";
-            } else if (roles.some((r) => r.startsWith("qc"))) {
+            } else if (
+                roleIds.some((r) => r.startsWith("qc") || r.includes("checker")) ||
+                roleNames.some((n) => n.includes("kiểm duyệt") || n.includes("qc"))
+            ) {
                 primaryRole = "qc";
+            } else if (
+                roleIds.some((r) => r.includes("editor") || r.includes("maker")) ||
+                roleNames.some((n) => n.includes("biên tập"))
+            ) {
+                primaryRole = "editor";
+            } else if (userRolesList.length > 0 && userRolesList[0]?.role?.id) {
+                primaryRole = userRolesList[0].role.id;
+            } else if (userRolesList.length > 0) {
+                primaryRole = userRolesList[0].roleId;
             }
 
-            const groupName = user.groupMembers?.[0]?.group?.name ?? null;
+            const groupObj = user.groupMembers?.[0]?.group;
+            const groupId = groupObj?.id ?? null;
+            const groupName = groupObj?.name ?? null;
 
             const assignedPagesCount = stats.assignedPagesCount;
             const completedPagesCount = stats.completedPagesCount;
@@ -671,6 +724,7 @@ export const DashboardService = {
                 userId: user.id,
                 fullName: user.fullName || "Chưa đặt tên",
                 role: primaryRole,
+                groupId,
                 groupName,
                 assignedDossiersCount: stats.assignedDossiersCount,
                 completedDossiersCount: stats.completedDossiersCount,
@@ -695,12 +749,28 @@ export const DashboardService = {
                 avgProcessingTimeMinutes,
                 kpiStatus,
             };
+        }).filter((item) => {
+            // Ẩn admin tổng / quản trị viên khỏi danh sách KPI nhân sự
+            if (item.role === "admin") {
+                return false;
+            }
+            // Chỉ hiện những người được giao hồ sơ (assignedDossiersCount > 0)
+            const totalAssigned = item.assignedDossiersCount + (item.makerAssignedDossiersCount ?? 0) + (item.qcAssignedDossiersCount ?? 0);
+            if (totalAssigned <= 0 && item.assignedDossiersCount <= 0) {
+                return false;
+            }
+            return true;
         });
     },
 
     async getAdminDashboard(
         chartGranularity: ChartGranularity = "month",
-        options?: { projectCodes?: string[]; includeUnassigned?: boolean },
+        options?: {
+            projectCodes?: string[];
+            includeUnassigned?: boolean;
+            dateFrom?: string | Date;
+            dateTo?: string | Date;
+        },
     ) {
         const projectCodes = options?.projectCodes;
         const includeUnassigned = options?.includeUnassigned ?? false;
@@ -958,7 +1028,12 @@ export const DashboardService = {
             };
         }));
 
-            const employeeKpis = await this.aggregateEmployeeKpis(projectCodes, includeUnassigned);
+            const employeeKpis = await this.aggregateEmployeeKpis(
+                projectCodes,
+                includeUnassigned,
+                options?.dateFrom,
+                options?.dateTo,
+            );
 
             return {
                 overview: {
