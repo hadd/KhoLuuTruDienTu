@@ -166,7 +166,11 @@ export function DataNodeDetailPanel({
 
   focusGroupIndex,
 
+  focusFieldKey,
+
   onFocusDocument,
+
+  onMarkDocumentsComplete,
 
   onSelectNode,
 
@@ -192,7 +196,15 @@ export function DataNodeDetailPanel({
 
   focusGroupIndex?: number
 
-  onFocusDocument?: (documentId: string, groupIndex: number) => void
+  focusFieldKey?: string
+
+  onFocusDocument?: (
+    documentId: string | undefined,
+    groupIndex: number,
+    fieldKey?: string,
+  ) => void
+
+  onMarkDocumentsComplete?: (documentIds: Array<string>) => void
 
   onSelectNode: (id: string) => void
 
@@ -202,7 +214,7 @@ export function DataNodeDetailPanel({
 
   onWorkflowComplete?: (
     dossierId: string,
-    mode?: 'draft' | 'final' | 'error_report',
+    mode?: 'draft' | 'draft_advance' | 'final' | 'error_report',
   ) => void | Promise<void>
   onDigitalSignCompleted?: (dossierId: string) => void
 }) {
@@ -259,7 +271,9 @@ export function DataNodeDetailPanel({
           isEditorDraftView={isEditorDraftView}
           focusDocumentId={focusDocumentId}
           focusGroupIndex={focusGroupIndex}
+          focusFieldKey={focusFieldKey}
           onFocusDocument={onFocusDocument}
+          onMarkDocumentsComplete={onMarkDocumentsComplete}
           onWorkflowComplete={onWorkflowComplete}
           onDigitalSignCompleted={onDigitalSignCompleted}
         />

@@ -87,7 +87,10 @@ import type {
   DataMetadataEditFieldChangeT,
   DataTreeNodeT,
 } from '@/features/data-management/types'
-import { useSubmitEditorDraftFinalSaveItemsMutation } from '@/features/editor-dossiers/queries'
+import {
+  editorDraftDossiersQueryKey,
+  useSubmitEditorDraftFinalSaveItemsMutation,
+} from '@/features/editor-dossiers/queries'
 import { cn } from '@/lib/utils/cn'
 import { DigitalSignDialog } from '@/features/digital-sign/components/DigitalSignDialog'
 import {
@@ -102,7 +105,13 @@ function fieldToHighlight(
   return buildPdfFieldHighlight(field, groupFields)
 }
 
-export type EditorMetadataSaveMode = 'draft' | 'final' | 'error_report'
+export type EditorMetadataSaveMode =
+  | 'draft'
+  | 'draft_advance'
+  | 'final'
+  | 'error_report'
+
+const AUTO_DRAFT_SAVE_DELAY_MS = 3_000
 
 export function RecordDetailPanel({
   node,
@@ -112,7 +121,9 @@ export function RecordDetailPanel({
   isEditorDraftView = false,
   focusDocumentId,
   focusGroupIndex,
+  focusFieldKey,
   onFocusDocument,
+  onMarkDocumentsComplete,
   onWorkflowComplete,
   onDigitalSignCompleted,
 }: {
@@ -123,7 +134,13 @@ export function RecordDetailPanel({
   isEditorDraftView?: boolean
   focusDocumentId?: string
   focusGroupIndex?: number
-  onFocusDocument?: (documentId: string, groupIndex: number) => void
+  focusFieldKey?: string
+  onFocusDocument?: (
+    documentId: string | undefined,
+    groupIndex: number,
+    fieldKey?: string,
+  ) => void
+  onMarkDocumentsComplete?: (documentIds: Array<string>) => void
   onWorkflowComplete?: (
     dossierId: string,
     mode?: EditorMetadataSaveMode,
@@ -374,14 +391,21 @@ export function RecordDetailPanel({
   >(new Map())
   const saveButtonRef = useRef<HTMLButtonElement | null>(null)
   const baseMetadataRef = useRef<DataDossierMetadataT | null>(null)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isHandlingSaveRef = useRef(false)
+  const metadataStateRef = useRef<DataDossierMetadataT | null>(null)
+  const runAutoDraftSaveRef = useRef<() => void>(() => {})
   const nodeRef = useRef(node)
   nodeRef.current = node
+  isHandlingSaveRef.current = isHandlingSave
+  metadataStateRef.current = metadataState
   const pendingFieldActivationRef = useRef<{
     fieldKey: string
     highlight: PdfFieldHighlight | null
     changeId?: string | null
   } | null>(null)
   const lastAppliedFocusRef = useRef<string | null>(null)
+  const lastRestoredFocusFieldKeyRef = useRef<string | null>(null)
 
   function focusActivationKey(
     documentId?: string,
@@ -400,6 +424,55 @@ export function RecordDetailPanel({
     })
     return keys
   }, [activeMetadata, canEditFields])
+
+  function clearAutoDraftSaveTimer() {
+    if (autoSaveTimerRef.current == null) return
+    clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = null
+  }
+
+  function isMetadataDirtyForAutoSave(): boolean {
+    const current = metadataStateRef.current ?? metadata ?? null
+    const base = baseMetadataRef.current
+    if (!current) return false
+    if (!base) return true
+    return (
+      JSON.stringify(serializeDossierMetadataForStorage(current)) !==
+      JSON.stringify(serializeDossierMetadataForStorage(base))
+    )
+  }
+
+  function scheduleAutoDraftSave() {
+    if (!isEditorRole || !canEditFields || !isMetadataDirtyForAutoSave()) {
+      clearAutoDraftSaveTimer()
+      return
+    }
+    clearAutoDraftSaveTimer()
+    autoSaveTimerRef.current = setTimeout(() => {
+      autoSaveTimerRef.current = null
+      if (isHandlingSaveRef.current) return
+      if (!isMetadataDirtyForAutoSave()) return
+      runAutoDraftSaveRef.current()
+    }, AUTO_DRAFT_SAVE_DELAY_MS)
+  }
+
+  /** Reset timer only — avoid serializing full metadata on every keystroke. */
+  function rescheduleAutoDraftSaveIfPending() {
+    if (autoSaveTimerRef.current == null) return
+    clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(() => {
+      autoSaveTimerRef.current = null
+      if (isHandlingSaveRef.current) return
+      if (!isMetadataDirtyForAutoSave()) return
+      runAutoDraftSaveRef.current()
+    }, AUTO_DRAFT_SAVE_DELAY_MS)
+  }
+
+  useEffect(() => {
+    return () => {
+      clearAutoDraftSaveTimer()
+    }
+  }, [dossierId])
 
   useEffect(() => {
     const currentFocusKey = focusActivationKey(focusDocumentId, focusGroupIndex)
@@ -432,6 +505,8 @@ export function RecordDetailPanel({
       currentNode.fullDossierMetadata ?? nextMetadata ?? null
     setDetailTab('metadata')
     setDismissedRejectFieldKeys(new Set())
+    lastRestoredFocusFieldKeyRef.current = null
+    clearAutoDraftSaveTimer()
   }, [dossierContentKey, managementRole])
 
   useEffect(() => {
@@ -651,6 +726,47 @@ export function RecordDetailPanel({
     }
   }
 
+  useEffect(() => {
+    if (!focusFieldKey || !canEditFields) return
+    if (!editableFieldKeys.includes(focusFieldKey)) return
+    if (lastRestoredFocusFieldKeyRef.current === focusFieldKey) return
+
+    const frameId = window.requestAnimationFrame(() => {
+      if (!fieldInputRefs.current.has(focusFieldKey)) return
+      lastRestoredFocusFieldKeyRef.current = focusFieldKey
+      focusMetadataField(focusFieldKey)
+    })
+    return () => window.cancelAnimationFrame(frameId)
+  }, [focusFieldKey, canEditFields, editableFieldKeys, dossierContentKey])
+
+  function markDocumentsCompleteWhenLeavingGroup(
+    fromGroupIndex: number,
+    toGroupIndex: number | null,
+  ) {
+    if (!onMarkDocumentsComplete || !activeMetadata) return
+    const fromGroup = activeMetadata.metadata_groups[fromGroupIndex]
+    if (!fromGroup) return
+
+    const leavingDocs = findAllDocumentsForMetadataGroup(fromGroup, documents)
+    if (leavingDocs.length === 0) return
+
+    let stayingIds = new Set<string>()
+    if (toGroupIndex != null) {
+      const toGroup = activeMetadata.metadata_groups[toGroupIndex]
+      if (toGroup) {
+        stayingIds = new Set(
+          findAllDocumentsForMetadataGroup(toGroup, documents).map((doc) => doc.id),
+        )
+      }
+    }
+
+    const completedIds = leavingDocs
+      .map((doc) => doc.id)
+      .filter((id) => !stayingIds.has(id))
+    if (completedIds.length === 0) return
+    onMarkDocumentsComplete(completedIds)
+  }
+
   function focusNextMetadataField(groupIndex: number, fieldIndex: number) {
     const key = `${groupIndex}-${fieldIndex}`
     const position = editableFieldKeys.indexOf(key)
@@ -671,12 +787,21 @@ export function RecordDetailPanel({
           nextGroupIndex,
           nextField,
           `${nextGroupIndex}-${nextField.name}-${nextFieldIndex}`,
+          null,
+          nextKey,
         )
+      }
+
+      if (nextGroupIndex !== groupIndex) {
+        markDocumentsCompleteWhenLeavingGroup(groupIndex, nextGroupIndex)
+        scheduleAutoDraftSave()
       }
 
       return
     }
 
+    markDocumentsCompleteWhenLeavingGroup(groupIndex, null)
+    scheduleAutoDraftSave()
     saveButtonRef.current?.focus()
   }
 
@@ -700,6 +825,8 @@ export function RecordDetailPanel({
           prevGroupIndex,
           prevField,
           `${prevGroupIndex}-${prevField.name}-${prevFieldIndex}`,
+          null,
+          prevKey,
         )
       }
 
@@ -773,8 +900,11 @@ export function RecordDetailPanel({
           ),
         }
       })
-      return { ...prev, metadata_groups: nextGroups }
+      const next = { ...prev, metadata_groups: nextGroups }
+      metadataStateRef.current = next
+      return next
     })
+    rescheduleAutoDraftSaveIfPending()
   }
 
   const pdfDocs = useMemo(() => {
@@ -798,8 +928,11 @@ export function RecordDetailPanel({
           const { source_document: _, ...rest } = g
           return rest
         })
-        return { ...prev, metadata_groups: nextGroups }
+        const next = { ...prev, metadata_groups: nextGroups }
+        metadataStateRef.current = next
+        return next
       })
+      rescheduleAutoDraftSaveIfPending()
       return
     }
 
@@ -828,8 +961,25 @@ export function RecordDetailPanel({
           },
         }
       })
-      return { ...prev, metadata_groups: nextGroups }
+      const next = { ...prev, metadata_groups: nextGroups }
+      metadataStateRef.current = next
+      return next
     })
+    rescheduleAutoDraftSaveIfPending()
+  }
+
+  function resolveNavigationFieldKey(
+    groupIndex: number,
+    fieldKey: string,
+    navigationFieldKey?: string,
+  ): string | undefined {
+    if (navigationFieldKey) return navigationFieldKey
+    const match = /^(\d+)-.+-(\d+)$/.exec(fieldKey)
+    if (match) return `${match[1]}-${match[2]}`
+    if (editableFieldKeys.some((key) => key.startsWith(`${groupIndex}-`))) {
+      return editableFieldKeys.find((key) => key.startsWith(`${groupIndex}-`))
+    }
+    return undefined
   }
 
   function handleMetadataFieldActivate(
@@ -837,12 +987,18 @@ export function RecordDetailPanel({
     field: DataDocumentFieldT,
     fieldKey: string,
     changeId?: string | null,
+    navigationFieldKey?: string,
   ) {
     const group = activeMetadata?.metadata_groups[groupIndex]
     if (!group) return
 
     const highlight = fieldToHighlight(field, group.fields)
     const linkedDocuments = findAllDocumentsForMetadataGroup(group, documents)
+    const navKey = resolveNavigationFieldKey(
+      groupIndex,
+      fieldKey,
+      navigationFieldKey,
+    )
 
     if (linkedDocuments.length > 0) {
       const targetDocument = linkedDocuments[0]
@@ -856,9 +1012,13 @@ export function RecordDetailPanel({
           highlight,
           changeId: changeId ?? null,
         }
-        onFocusDocument?.(targetDocument.id, groupIndex)
+        onFocusDocument?.(targetDocument.id, groupIndex, navKey)
         return
       }
+
+      // Same PDF/group: update highlight locally — skip router navigate (lag).
+    } else if (groupIndex !== selectedGroupIndex) {
+      onFocusDocument?.(undefined, groupIndex, navKey)
     }
 
     pendingFieldActivationRef.current = null
@@ -966,14 +1126,18 @@ export function RecordDetailPanel({
   )
 
   async function handleSaveMetadata(mode: EditorMetadataSaveMode = 'draft') {
-    if (isHandlingSave || !activeMetadata || !dossierId.trim()) return
+    const latestMetadata = metadataStateRef.current ?? activeMetadata
+    if (isHandlingSave || !latestMetadata || !dossierId.trim()) return
 
+    const isDraftMode = mode === 'draft' || mode === 'draft_advance'
+
+    clearAutoDraftSaveTimer()
     setIsHandlingSave(true)
     const hasSlotAcl = isEditorRole && Boolean(node.allowedFields?.length)
-    const baseMetadata = baseMetadataRef.current ?? activeMetadata
+    const baseMetadata = baseMetadataRef.current ?? latestMetadata
     const payload = hasSlotAcl
-      ? activeMetadata
-      : mergeMetadataFieldChanges(baseMetadata, activeMetadata)
+      ? latestMetadata
+      : mergeMetadataFieldChanges(baseMetadata, latestMetadata)
     const storagePayload = serializeDossierMetadataForStorage(payload)
 
     try {
@@ -999,7 +1163,7 @@ export function RecordDetailPanel({
         }
         baseMetadataRef.current =
           hasSlotAcl && baseMetadataRef.current
-            ? mergeMetadataFieldChanges(baseMetadataRef.current, activeMetadata)
+            ? mergeMetadataFieldChanges(baseMetadataRef.current, latestMetadata)
             : payload
         try {
           await onWorkflowComplete?.(dossierId, 'final')
@@ -1017,23 +1181,39 @@ export function RecordDetailPanel({
       await saveMutation.mutateAsync({
         dossierId,
         metadata: payload,
-        isDraft: isEditorRole && mode === 'draft',
+        isDraft: isEditorRole && isDraftMode,
         saveMode: 'approve',
         storagePayload,
       })
       baseMetadataRef.current =
         hasSlotAcl && baseMetadataRef.current
-          ? mergeMetadataFieldChanges(baseMetadataRef.current, activeMetadata)
+          ? mergeMetadataFieldChanges(baseMetadataRef.current, latestMetadata)
           : payload
+
+      if (isEditorRole && isDraftMode) {
+        // Auto-save: quiet toast (replace same id) + no tree refresh.
+        // Manual Lưu nháp: claim next via onWorkflowComplete.
+        if (mode === 'draft_advance') {
+          toast.success(t('metadata.saveDraftSuccess'))
+          try {
+            await onWorkflowComplete?.(dossierId, mode)
+          } catch {
+            return
+          }
+        } else {
+          toast.success(t('metadata.saveDraftSuccess'), {
+            id: 'metadata-auto-draft-save',
+          })
+          void queryClient.invalidateQueries({
+            queryKey: editorDraftDossiersQueryKey,
+          })
+        }
+        return
+      }
 
       try {
         await onWorkflowComplete?.(dossierId, mode)
       } catch {
-        return
-      }
-
-      if (isEditorRole && mode === 'draft') {
-        toast.success(t('metadata.saveDraftSuccess'))
         return
       }
 
@@ -1045,6 +1225,10 @@ export function RecordDetailPanel({
     } finally {
       setIsHandlingSave(false)
     }
+  }
+
+  runAutoDraftSaveRef.current = () => {
+    void handleSaveMetadata('draft')
   }
 
   if (!activeMetadata) {
@@ -1327,7 +1511,7 @@ export function RecordDetailPanel({
                     size="sm"
                     variant="outline"
                     className="gap-1.5"
-                    onClick={() => void handleSaveMetadata('draft')}
+                    onClick={() => void handleSaveMetadata('draft_advance')}
                     disabled={isSaving}
                   >
                     {isDraftSaving ? (

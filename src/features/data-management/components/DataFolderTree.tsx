@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  Check,
   ChevronRight,
   Folder,
   FolderOpen,
@@ -42,6 +43,7 @@ export function DataFolderTree({
   className,
   scrollable = true,
   pendingErrorReportDossierIds,
+  completedDocumentIds,
   showProjectCode = false,
 }: {
   tree: DataTreeNodeT
@@ -60,6 +62,8 @@ export function DataFolderTree({
   className?: string
   scrollable?: boolean
   pendingErrorReportDossierIds?: Set<string>
+  /** Document ids the editor has finished (left last field of that PDF). */
+  completedDocumentIds?: Set<string>
   /** Show project code badge on folder nodes (e.g. when browsing all projects). */
   showProjectCode?: boolean
 }) {
@@ -154,6 +158,7 @@ export function DataFolderTree({
           onContextMenuNode={onContextMenuNode}
           collapsed={collapsed}
           pendingErrorReportDossierIds={pendingErrorReportDossierIds}
+          completedDocumentIds={completedDocumentIds}
           showProjectCode={showProjectCode}
         />
       ))}
@@ -191,6 +196,7 @@ function TreeBranch({
   onContextMenuNode,
   collapsed,
   pendingErrorReportDossierIds,
+  completedDocumentIds,
   showProjectCode,
 }: {
   node: DataTreeNodeT
@@ -206,6 +212,7 @@ function TreeBranch({
   onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
   collapsed: boolean
   pendingErrorReportDossierIds?: Set<string>
+  completedDocumentIds?: Set<string>
   showProjectCode?: boolean
 }) {
   const { t } = useTranslation('data-management')
@@ -237,6 +244,8 @@ function TreeBranch({
   const showPendingErrorReport = Boolean(
     node.dossierId && pendingErrorReportDossierIds?.has(node.dossierId),
   )
+  const isDocumentEditComplete =
+    node.type === 'document' && Boolean(completedDocumentIds?.has(node.id))
   const hasStatusRow =
     (node.type === 'document' && Boolean(node.isSigned)) ||
     Boolean(node.dossierStatus) ||
@@ -356,6 +365,17 @@ function TreeBranch({
                     />
                   </span>
                 ) : null}
+                {isDocumentEditComplete ? (
+                  <span
+                    className="inline-flex shrink-0"
+                    title={t('tree.editComplete')}
+                  >
+                    <Check
+                      className="size-3.5 text-emerald-600"
+                      aria-label={t('tree.editComplete')}
+                    />
+                  </span>
+                ) : null}
               </span>
               {hasStatusRow ? (
                 <span className="flex min-w-0 items-center gap-1 overflow-hidden">
@@ -411,6 +431,7 @@ function TreeBranch({
               onContextMenuNode={onContextMenuNode}
               collapsed={collapsed}
               pendingErrorReportDossierIds={pendingErrorReportDossierIds}
+              completedDocumentIds={completedDocumentIds}
               showProjectCode={showProjectCode}
             />
           ))}

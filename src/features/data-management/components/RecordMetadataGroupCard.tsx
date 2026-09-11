@@ -13,7 +13,6 @@ import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import {
   findAllDocumentsForMetadataGroup,
   getMetadataGroupDisplayName,
-  isInternalMetadataField,
   resolveMetadataGroupSourceDocumentPath,
 } from '@/features/data-management/lib/metadataHelpers'
 import { isAccessLevelMetadataField, isHoSoFondMetadataField, isHoSoRetentionMetadataField, resolveEffectiveFieldType } from '@/features/data-management/lib/metadataNormalize'
@@ -159,15 +158,20 @@ export function RecordMetadataGroupCard({
   }, [activeHiddenFields])
 
   const visibleFields = useMemo(() => {
-    if (activeHiddenSet.size === 0) return group.fields
-    return group.fields.filter((field) => {
-      const nameUpper = field.name.trim().toUpperCase()
-      const normalizedUpper = nameUpper
-        .replace(/_\d+_/g, '_')
-        .replace(/_\d+$/, '')
-        .replace(/^\d+_/, '')
-      return !activeHiddenSet.has(nameUpper) && !activeHiddenSet.has(normalizedUpper)
-    })
+    return group.fields
+      .map((field, originalIndex) => ({ field, originalIndex }))
+      .filter(({ field }) => {
+        if (activeHiddenSet.size === 0) return true
+        const nameUpper = field.name.trim().toUpperCase()
+        const normalizedUpper = nameUpper
+          .replace(/_\d+_/g, '_')
+          .replace(/_\d+$/, '')
+          .replace(/^\d+_/, '')
+        return (
+          !activeHiddenSet.has(nameUpper) &&
+          !activeHiddenSet.has(normalizedUpper)
+        )
+      })
   }, [group.fields, activeHiddenSet])
 
   return (
@@ -236,8 +240,8 @@ export function RecordMetadataGroupCard({
       ) : null}
       <div className="grid gap-2">
         {visibleFields.length > 0 ? (
-          visibleFields.map((field, fieldIndex) => {
-            const fieldKey = `${groupIndex}-${field.name}-${fieldIndex}`
+          visibleFields.map(({ field, originalIndex }) => {
+            const fieldKey = `${groupIndex}-${field.name}-${originalIndex}`
             const fieldValue = coerceMetadataText(field.value)
             const effectiveType = resolveEffectiveFieldType(
               group.group_code,
@@ -258,16 +262,16 @@ export function RecordMetadataGroupCard({
             if (isFondField) {
               return (
                 <MetadataFondFieldRow
-                  key={`${group.group_code}-${field.name}-${fieldIndex}`}
+                  key={`${group.group_code}-${field.name}-${originalIndex}`}
                   field={field}
                   value={fieldValue}
                   disabled={!canEditFields || isSaving}
                   onValueChange={(value) =>
-                    onFieldChange(groupIndex, fieldIndex, value)
+                    onFieldChange(groupIndex, originalIndex, value)
                   }
                   onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
                   isHighlighted={highlightedFieldKey === fieldKey}
-                  index={fieldIndex}
+                  index={originalIndex}
                   rejectMark={buildFieldRejectMark(group.group_code, field)}
                   isQcRejectedHighlight={isEditorRejectHighlighted(
                     group.group_code,
@@ -285,16 +289,16 @@ export function RecordMetadataGroupCard({
             if (isRetentionField) {
               return (
                 <MetadataRetentionFieldRow
-                  key={`${group.group_code}-${field.name}-${fieldIndex}`}
+                  key={`${group.group_code}-${field.name}-${originalIndex}`}
                   field={field}
                   value={fieldValue}
                   disabled={!canEditFields || isSaving}
                   onValueChange={(value) =>
-                    onFieldChange(groupIndex, fieldIndex, value)
+                    onFieldChange(groupIndex, originalIndex, value)
                   }
                   onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
                   isHighlighted={highlightedFieldKey === fieldKey}
-                  index={fieldIndex}
+                  index={originalIndex}
                   rejectMark={buildFieldRejectMark(group.group_code, field)}
                   isQcRejectedHighlight={isEditorRejectHighlighted(
                     group.group_code,
@@ -312,16 +316,16 @@ export function RecordMetadataGroupCard({
             if (isAccessLevelField) {
               return (
                 <MetadataAccessLevelFieldRow
-                  key={`${group.group_code}-${field.name}-${fieldIndex}`}
+                  key={`${group.group_code}-${field.name}-${originalIndex}`}
                   field={field}
                   value={fieldValue}
                   disabled={!canEditFields || isSaving}
                   onValueChange={(value) =>
-                    onFieldChange(groupIndex, fieldIndex, value)
+                    onFieldChange(groupIndex, originalIndex, value)
                   }
                   onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
                   isHighlighted={highlightedFieldKey === fieldKey}
-                  index={fieldIndex}
+                  index={originalIndex}
                   rejectMark={buildFieldRejectMark(group.group_code, field)}
                   isQcRejectedHighlight={isEditorRejectHighlighted(
                     group.group_code,
@@ -333,25 +337,25 @@ export function RecordMetadataGroupCard({
 
             return !canEditFields || isStringLike ? (
               <MetadataFieldRow
-                key={`${group.group_code}-${field.name}-${fieldIndex}`}
+                key={`${group.group_code}-${field.name}-${originalIndex}`}
                 field={effectiveField}
                 value={coerceMetadataText(field.value)}
                 disabled={!canEditFields || isSaving}
                 editDisplay={false}
                 onValueChange={(value) =>
-                  onFieldChange(groupIndex, fieldIndex, value)
+                  onFieldChange(groupIndex, originalIndex, value)
                 }
                 onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
                 isHighlighted={highlightedFieldKey === fieldKey}
-                index={fieldIndex}
+                index={originalIndex}
                 onKeyDown={
                   canEditFields
                     ? (event) =>
-                        onFieldKeyDown(event, groupIndex, fieldIndex)
+                        onFieldKeyDown(event, groupIndex, originalIndex)
                     : undefined
                 }
                 fieldRef={(element) => {
-                  const refKey = `${groupIndex}-${fieldIndex}`
+                  const refKey = `${groupIndex}-${originalIndex}`
                   if (
                     element instanceof HTMLInputElement ||
                     element instanceof HTMLTextAreaElement
@@ -369,22 +373,22 @@ export function RecordMetadataGroupCard({
               />
             ) : (
               <MetadataFieldInput
-                key={`${group.group_code}-${field.name}-${fieldIndex}`}
+                key={`${group.group_code}-${field.name}-${originalIndex}`}
                 field={effectiveField}
                 value={coerceMetadataText(field.value)}
                 onChange={(value) =>
-                  onFieldChange(groupIndex, fieldIndex, value)
+                  onFieldChange(groupIndex, originalIndex, value)
                 }
                 onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
                 isHighlighted={highlightedFieldKey === fieldKey}
-                index={fieldIndex}
+                index={originalIndex}
                 idPrefix={`record-metadata-${groupIndex}`}
                 disabled={!canEditFields || isSaving}
                 onKeyDown={(event, _index, isTextArea) =>
-                  onFieldKeyDown(event, groupIndex, fieldIndex, isTextArea)
+                  onFieldKeyDown(event, groupIndex, originalIndex, isTextArea)
                 }
                 fieldRef={(element) => {
-                  const refKey = `${groupIndex}-${fieldIndex}`
+                  const refKey = `${groupIndex}-${originalIndex}`
                   if (
                     element instanceof HTMLInputElement ||
                     element instanceof HTMLTextAreaElement

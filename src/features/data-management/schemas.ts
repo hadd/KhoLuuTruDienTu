@@ -11,6 +11,8 @@ export const dataManagementSearchSchema = z.object({
     .nonnegative()
     .optional()
     .catch(undefined),
+  /** Navigation key `${groupIndex}-${fieldIndex}` for resume after reload. */
+  focusFieldKey: z.string().optional().catch(undefined),
   projectCode: z.string().optional().catch(undefined),
 })
 

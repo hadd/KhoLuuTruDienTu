@@ -44,6 +44,7 @@
     "collapse": "Thu gọn",
     "assigned": "Đã phân công",
     "signed": "Đã ký",
+    "editComplete": "Đã biên tập xong file này",
     "project": "Dự án: {{code}}",
     "noProject": "Chưa gán dự án",
     "actions": {

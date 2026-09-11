@@ -44,6 +44,7 @@
     "collapse": "Collapse",
     "assigned": "Assigned",
     "signed": "Signed",
+    "editComplete": "Finished editing this file",
     "project": "Project: {{code}}",
     "noProject": "No project",
     "actions": {

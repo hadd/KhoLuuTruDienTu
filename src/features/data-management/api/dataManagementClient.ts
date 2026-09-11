@@ -590,8 +590,12 @@ async function loadEditorDossierFromDraft(
   return cloneTree(dynamicTree)
 }
 
-async function buildEditorClaimTree(): Promise<DataTreeNodeT> {
-  const claim = await claimMakerAssignment()
+async function buildEditorClaimTree(options?: {
+  skipDraft?: boolean
+}): Promise<DataTreeNodeT> {
+  const claim = await claimMakerAssignment(
+    options?.skipDraft ? { skipDraft: true } : undefined,
+  )
   editorClaimSnapshot = claim
   editorDraftDossierId = null
   dynamicTree = await assembleEditorTreeFromClaim(claim)
@@ -910,7 +914,7 @@ export async function getDataTree(
       resetTreeCache(role)
       editorClaimSnapshot = null
       editorDraftDossierId = null
-      dynamicTree = await buildEditorClaimTree()
+      dynamicTree = await buildEditorClaimTree({ skipDraft: true })
       return cloneTree(dynamicTree)
     }
 

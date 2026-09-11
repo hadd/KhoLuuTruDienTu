@@ -46,6 +46,10 @@ import type { OcrTerminalCompletePayloadT } from '@/features/data-management/hoo
 import { useDataManagementOcrSocket } from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { useDataManagementProjectSelection } from '@/features/data-management/hooks/useDataManagementProjectSelection'
 import { resolveDossierNodeInTree } from '@/features/data-management/lib/dossierNavigation'
+import {
+  loadCompletedDocumentIds,
+  saveCompletedDocumentIds,
+} from '@/features/data-management/lib/documentEditProgress'
 import { collectDossierIdsWithPendingIssueReports } from '@/features/data-management/lib/editorErrorReportHelpers'
 import type {
   ExportContext,
@@ -210,6 +214,10 @@ export function DataManagementPage({
       Number.isFinite(search.focusGroupIndex)
       ? search.focusGroupIndex
       : undefined
+  const focusFieldKey =
+    typeof search.focusFieldKey === 'string' && search.focusFieldKey.trim()
+      ? search.focusFieldKey.trim()
+      : undefined
   const isEditorDraftView = role === 'editor' && Boolean(dossierId?.trim())
   // Only editor scopes the tree query by dossierId (draft view). QC/admin use
   // dossierId purely as a one-shot deep-link param — putting it in the query key
@@ -323,6 +331,11 @@ export function DataManagementPage({
         nodeId: resolved.nodeId,
         focusDocumentId: resolved.focusDocumentId,
         focusGroupIndex: resolved.focusGroupIndex,
+        focusFieldKey:
+          resolved.focusDocumentId === focusDocumentId &&
+          resolved.focusGroupIndex === focusGroupIndex
+            ? prev.focusFieldKey
+            : undefined,
       }),
       replace: true,
     })
@@ -454,6 +467,7 @@ export function DataManagementPage({
             dossierId: undefined,
             focusDocumentId: undefined,
             focusGroupIndex: undefined,
+            focusFieldKey: undefined,
           }),
           replace: true,
         })
@@ -539,6 +553,7 @@ export function DataManagementPage({
           node: parent,
           focusDocumentId: selectedNode.id,
           focusGroupIndex,
+          focusFieldKey,
           dossierId: resolveRecordDossierId(parent),
           dossierStatus: parent.dossierStatus,
         }
@@ -550,6 +565,7 @@ export function DataManagementPage({
         node: selectedNode,
         focusDocumentId,
         focusGroupIndex,
+        focusFieldKey,
         dossierId: resolveRecordDossierId(selectedNode),
         dossierStatus: selectedNode.dossierStatus,
       }
@@ -559,10 +575,44 @@ export function DataManagementPage({
       node: selectedNode,
       focusDocumentId: undefined,
       focusGroupIndex: undefined,
+      focusFieldKey: undefined,
       dossierId: null,
       dossierStatus: undefined,
     }
-  }, [tree, selectedNode, focusDocumentId, focusGroupIndex])
+  }, [tree, selectedNode, focusDocumentId, focusGroupIndex, focusFieldKey])
+
+  const activeDetailDossierId = detailContext?.dossierId?.trim() || ''
+
+  const [completedDocumentIds, setCompletedDocumentIds] = useState<Set<string>>(
+    () => new Set(),
+  )
+
+  useEffect(() => {
+    if (!activeDetailDossierId) {
+      setCompletedDocumentIds(new Set())
+      return
+    }
+    setCompletedDocumentIds(loadCompletedDocumentIds(activeDetailDossierId))
+  }, [activeDetailDossierId])
+
+  const handleMarkDocumentsComplete = useCallback(
+    (documentIds: Array<string>) => {
+      if (!activeDetailDossierId || documentIds.length === 0) return
+      setCompletedDocumentIds((prev) => {
+        const next = new Set(prev)
+        let changed = false
+        for (const id of documentIds) {
+          if (!id || next.has(id)) continue
+          next.add(id)
+          changed = true
+        }
+        if (!changed) return prev
+        saveCompletedDocumentIds(activeDetailDossierId, next)
+        return next
+      })
+    },
+    [activeDetailDossierId],
+  )
 
   useDataManagementOcrSocket({
     role,
@@ -801,18 +851,32 @@ export function DataManagementPage({
     [batchExportContext, isExporting, t],
   )
 
-  function handleFocusDocument(documentId: string, groupIndex: number) {
+  function handleFocusDocument(
+    documentId: string | undefined,
+    groupIndex: number,
+    fieldKey?: string,
+  ) {
     if (!tree || !nodeId) return
     const recordNode = findNodeById(tree, nodeId)
     if (recordNode?.type !== 'record') return
+
+    const nextDocumentId = documentId ?? focusDocumentId
+    const sameFocus =
+      nextDocumentId === focusDocumentId &&
+      groupIndex === focusGroupIndex &&
+      fieldKey === focusFieldKey
+    if (sameFocus) return
+
     void navigate({
       to: '.',
       search: (prev: DataManagementSearch) => ({
         ...prev,
         nodeId: recordNode.id,
-        focusDocumentId: documentId,
+        focusDocumentId: nextDocumentId,
         focusGroupIndex: groupIndex,
+        focusFieldKey: fieldKey,
       }),
+      replace: true,
     })
   }
 
@@ -827,6 +891,7 @@ export function DataManagementPage({
           nodeId: id,
           focusDocumentId: undefined,
           focusGroupIndex: undefined,
+          focusFieldKey: undefined,
         }),
       })
       return
@@ -858,6 +923,7 @@ export function DataManagementPage({
         nodeId: id,
         focusDocumentId: undefined,
         focusGroupIndex: undefined,
+        focusFieldKey: undefined,
       }),
     })
   }
@@ -982,6 +1048,7 @@ export function DataManagementPage({
           nodeId: nextNodeId,
           focusDocumentId: undefined,
           focusGroupIndex: undefined,
+          focusFieldKey: undefined,
         }),
       })
     }
@@ -995,6 +1062,7 @@ export function DataManagementPage({
         nodeId: undefined,
         focusDocumentId: undefined,
         focusGroupIndex: undefined,
+        focusFieldKey: undefined,
       }),
       replace: true,
     })
@@ -1016,17 +1084,40 @@ export function DataManagementPage({
     })
   }
 
-  async function handleEditorClaimNext(options?: { clearUrlFirst?: boolean }) {
+  async function handleEditorClaimNext(options?: {
+    clearUrlFirst?: boolean
+    excludeDossierId?: string
+  }) {
     if (options?.clearUrlFirst) {
       await clearDataManagementSelectionInUrl()
     }
     const nextTree = await claimNextMutation.mutateAsync()
+    const nextRecord = nextTree.children.find((child) => child.type === 'record')
+    const nextDossierId = nextRecord
+      ? resolveRecordDossierId(nextRecord)
+      : undefined
+
+    if (
+      !nextDossierId ||
+      (options?.excludeDossierId &&
+        nextDossierId === options.excludeDossierId)
+    ) {
+      await queryClient.invalidateQueries({
+        queryKey: editorDraftDossiersQueryKey,
+      })
+      void navigate({
+        to: '/app/dossiers',
+        search: {},
+      })
+      return
+    }
+
     await navigateToDefaultDataManagementSelection(nextTree)
   }
 
   async function handleMetadataReload(
     reloadDossierId: string,
-    mode: 'draft' | 'final' | 'error_report' = 'draft',
+    mode: 'draft' | 'draft_advance' | 'final' | 'error_report' = 'draft',
   ) {
     try {
       if (role === 'editor') {
@@ -1049,6 +1140,26 @@ export function DataManagementPage({
 
         if (mode === 'error_report') {
           await handleEditorClaimNext({ clearUrlFirst: true })
+          return
+        }
+
+        if (mode === 'draft_advance') {
+          try {
+            await handleEditorClaimNext({
+              clearUrlFirst: true,
+              excludeDossierId: reloadDossierId,
+            })
+          } catch (claimError) {
+            if (isNoAssignedDossierError(claimError)) {
+              toast.info(t('errors.noAssignedDossier'))
+              void navigate({
+                to: '/app/dossiers',
+                search: {},
+              })
+              return
+            }
+            throw claimError
+          }
           return
         }
 
@@ -1245,6 +1356,7 @@ export function DataManagementPage({
                 expandPathToNodeIds={treeExpandToNodeIds}
                 onExpandPathApplied={() => setTreeExpandToNodeIds([])}
                 pendingErrorReportDossierIds={pendingErrorReportDossierIds}
+                completedDocumentIds={completedDocumentIds}
                 showProjectCode={
                   isProjectScoped && isAllProjects && permissions.canReadProjects
                 }
@@ -1409,7 +1521,9 @@ export function DataManagementPage({
               isEditorDraftView={isEditorDraftView}
               focusDocumentId={detailContext?.focusDocumentId}
               focusGroupIndex={detailContext?.focusGroupIndex}
+              focusFieldKey={detailContext?.focusFieldKey}
               onFocusDocument={handleFocusDocument}
+              onMarkDocumentsComplete={handleMarkDocumentsComplete}
               onSelectNode={(id) => {
                 void handleSelectNode(id)
               }}

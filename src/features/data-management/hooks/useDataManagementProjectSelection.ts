@@ -58,6 +58,7 @@ export function useDataManagementProjectSelection() {
             nodeId: undefined,
             focusDocumentId: undefined,
             focusGroupIndex: undefined,
+            focusFieldKey: undefined,
           }),
         })
         return
@@ -73,6 +74,7 @@ export function useDataManagementProjectSelection() {
           nodeId: undefined,
           focusDocumentId: undefined,
           focusGroupIndex: undefined,
+          focusFieldKey: undefined,
         }),
       })
     },
@@ -95,6 +97,7 @@ export function useDataManagementProjectSelection() {
           nodeId,
           focusDocumentId: undefined,
           focusGroupIndex: undefined,
+          focusFieldKey: undefined,
         }),
       })
     },
