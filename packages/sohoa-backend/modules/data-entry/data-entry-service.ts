@@ -1099,7 +1099,11 @@ async function rejectMetadata(input: {
 }
 
 export const DataEntryService = {
-    async getMakerAssignment(assigneeId: string) {
+    async getMakerAssignment(
+        assigneeId: string,
+        options?: { skipDraft?: boolean },
+    ) {
+        const skipDraft = options?.skipDraft === true;
         const claimableStatuses = [
             DossierStatus.ENTRY_PROCESSING,
             DossierStatus.WAITING_ISSUE_RESOLUTION,
@@ -1174,8 +1178,10 @@ export const DataEntryService = {
             return { assignment: row.assignment, dossier: updatedDossier };
         });
 
-        let result = (await findAssignment(AssignmentStatus.IN_PROGRESS))
-            ?? (await findAssignment(AssignmentStatus.DRAFT));
+        let result = await findAssignment(AssignmentStatus.IN_PROGRESS);
+        if (!result && !skipDraft) {
+            result = await findAssignment(AssignmentStatus.DRAFT);
+        }
 
         if (!result) {
             const { reopenTopCompletedMakerAssignmentForClaim } = await import(

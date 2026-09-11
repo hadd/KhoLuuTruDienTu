@@ -26,17 +26,24 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
 
     app.get(
         "/maker/claim",
-        async ({ profile }) => {
+        async ({ profile, query }) => {
             authHelper.checkPermission(profile, Permission.DATA_ENTRY_MAKER);
-            return await service.getMakerAssignment(profile.id);
+            const skipDraft =
+                query.skipDraft === true || query.skipDraft === "true";
+            return await service.getMakerAssignment(profile.id, { skipDraft });
         },
         {
+            query: t.Object({
+                skipDraft: t.Optional(
+                    t.Union([t.Boolean(), t.Literal("true"), t.Literal("false")]),
+                ),
+            }),
             response: claimResponseSchema,
             detail: {
                 tags,
                 summary: "Get assigned dossier for data entry",
                 description:
-                    "Returns one assigned dossier per request. Skips assignments in DRAFT (resume those from the assignments list). Prioritizes ENTRY_PROCESSING (in progress), then any CHECKER_N_REJECTED, then READY_FOR_ENTRY. Returns dossier files with presigned URLs. When the MAKER assignment has allowedFields (field-level ACL), currentMetadata contains only permitted groups/fields (including value: null) and currentMetadataUrl is null — the client must render currentMetadata and must not fetch the presigned URL. When allowedFields is null, use currentMetadataUrl for full metadata as before.",
+                    "Returns one assigned dossier per request. When skipDraft=true (claim next after saving a draft), does not resume DRAFT assignments — use the draft list instead. Without skipDraft, may resume DRAFT. Prioritizes IN_PROGRESS, then reopen completed / READY_FOR_ENTRY. Returns dossier files with presigned URLs. When the MAKER assignment has allowedFields (field-level ACL), currentMetadata contains only permitted groups/fields (including value: null) and currentMetadataUrl is null — the client must render currentMetadata and must not fetch the presigned URL. When allowedFields is null, use currentMetadataUrl for full metadata as before.",
             },
         },
     );
