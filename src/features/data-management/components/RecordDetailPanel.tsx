@@ -49,6 +49,7 @@ import type {
 import { runExport } from '@/features/data-management/lib/exportHelpers'
 import { mapMetadataHistoryToBatches } from '@/features/data-management/lib/metadataEditHistoryMapper'
 import {
+  buildDossierRecordContent,
   buildRejectFieldKey,
   findAllDocumentsForMetadataGroup,
   findAllMetadataGroupIndicesForDocument,
@@ -285,12 +286,43 @@ export function RecordDetailPanel({
   const canViewEditHistory = permissions.canViewMetadataEditHistory
   const canEditFields = canManage || canActAsChecker
 
+  const { data: fetchedRecordContent, isPending: isRecordContentPending } =
+    useQuery({
+      queryKey: ['dossier-record-content', dossierId],
+      queryFn: () =>
+        buildDossierRecordContent(dossierId!, {
+          name: node.name,
+          dossierId,
+          status: effectiveDossierStatus,
+          projectCode: node.projectCode,
+          fondId: node.fondId,
+        }),
+      enabled: Boolean(dossierId && !node.dossierMetadata),
+      staleTime: 30_000,
+    })
+
+  const effectiveNode = useMemo(() => {
+    if (node.dossierMetadata || !fetchedRecordContent) return node
+    return {
+      ...node,
+      children:
+        fetchedRecordContent.children &&
+        fetchedRecordContent.children.length > 0
+          ? fetchedRecordContent.children
+          : node.children,
+      dossierMetadata: fetchedRecordContent.dossierMetadata,
+      fullDossierMetadata:
+        fetchedRecordContent.fullDossierMetadata ??
+        fetchedRecordContent.dossierMetadata,
+    }
+  }, [node, fetchedRecordContent])
+
   const metadata = useMemo(
-    () => resolveRecordPanelMetadata(node, managementRole),
+    () => resolveRecordPanelMetadata(effectiveNode, managementRole),
     [
-      node.dossierMetadata,
-      node.fullDossierMetadata,
-      node.allowedFields,
+      effectiveNode.dossierMetadata,
+      effectiveNode.fullDossierMetadata,
+      effectiveNode.allowedFields,
       managementRole,
     ],
   )
@@ -298,14 +330,14 @@ export function RecordDetailPanel({
     const groupKey = (metadata?.metadata_groups ?? [])
       .map((group) => `${group.group_code}:${group.fields.length}`)
       .join('|')
-    return `${node.id}:${metadata?.ho_so_id ?? ''}:${groupKey}`
-  }, [node.id, metadata?.ho_so_id, metadata?.metadata_groups])
+    return `${effectiveNode.id}:${metadata?.ho_so_id ?? ''}:${groupKey}`
+  }, [effectiveNode.id, metadata?.ho_so_id, metadata?.metadata_groups])
   const [metadataState, setMetadataState] =
     useState<DataDossierMetadataT | null>(metadata ?? null)
   const activeMetadata = metadataState ?? metadata ?? null
   const documents = useMemo(
-    () => node.children.filter((child) => child.type === 'document'),
-    [node.children],
+    () => effectiveNode.children.filter((child) => child.type === 'document'),
+    [effectiveNode.children],
   )
   const groups = activeMetadata?.metadata_groups ?? []
   const metadataDisplayLayout = useMemo(
@@ -1233,13 +1265,16 @@ export function RecordDetailPanel({
 
   if (!activeMetadata) {
     const isMetadataLoading =
-      !isNodeChildrenCached(node.id) && metadata == null
+      isRecordContentPending ||
+      (!isNodeChildrenCached(node.id) && metadata == null)
     return (
-      <p className="p-4 text-sm text-muted-foreground">
-        {isMetadataLoading
-          ? t('recordDetail.loadingMetadata')
-          : t('recordDetail.metadataUnavailable')}
-      </p>
+      <div className="flex flex-1 items-center justify-center p-8">
+        <p className="text-sm text-muted-foreground">
+          {isMetadataLoading
+            ? t('recordDetail.loadingMetadata')
+            : t('recordDetail.metadataUnavailable')}
+        </p>
+      </div>
     )
   }
 
