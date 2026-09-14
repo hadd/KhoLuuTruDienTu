@@ -369,7 +369,9 @@
     "empty": "Nhóm chưa có hồ sơ nào được gán",
     "loadFailed": "Không thể tải danh sách hồ sơ",
     "retry": "Thử lại",
-    "count": "{{count}} hồ sơ"
+    "count": "{{count}} hồ sơ",
+    "assignedTo": "Gán cho: {{name}}",
+    "unassigned": "Chưa gán người"
   },
   "memberDossiers": {
     "editorTitle": "Hồ sơ đã phân công — {{name}}",

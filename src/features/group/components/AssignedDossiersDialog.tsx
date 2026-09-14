@@ -146,6 +146,7 @@ export function AssignedDossiersDialog({
                     tree={filteredTree}
                     onSelect={handleSelect}
                     scrollable={false}
+                    showAssignee
                   />
                 </div>
                 {dossiers?.length ? (

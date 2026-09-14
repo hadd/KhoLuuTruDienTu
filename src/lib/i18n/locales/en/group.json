@@ -369,7 +369,9 @@
     "empty": "No dossiers assigned to this group",
     "loadFailed": "Failed to load assigned dossiers",
     "retry": "Retry",
-    "count": "{{count}} dossiers"
+    "count": "{{count}} dossiers",
+    "assignedTo": "Assigned to: {{name}}",
+    "unassigned": "Unassigned"
   },
   "memberDossiers": {
     "editorTitle": "Assigned dossiers — {{name}}",

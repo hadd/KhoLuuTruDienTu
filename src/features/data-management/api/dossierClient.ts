@@ -1,8 +1,14 @@
 import { applyStoragePathPrefix } from '@/features/data-management/lib/uploadPathPrefix'
 import { toScopedProjectCode } from '@/features/data-management/lib/constants'
+import { sumUploadPdfPages } from '@/features/data-management/lib/countPdfFilePages'
 import { notifyZipPasswordLocked } from '@/features/security-level/lib/zipPasswordToast'
+import { checkPageQuotaUpload } from '@/features/metadata-extract/api/pageQuotaClient'
 import { apiClient } from '@/lib/api/apiClient'
 import { env } from '@/lib/utils/env'
+import {
+  isPageQuotaUploadExceededMessage,
+  translateError,
+} from '@/lib/utils/translate-error'
 
 export type OcrRunMode = 'auto' | 'manual'
 
@@ -214,6 +220,7 @@ async function createDocumentFromStorage(
   const response = await apiClient.post<Record<string, unknown>>(
     '/api/v1/dossiers/create-document-from-storage',
     body,
+    { _skipGlobalErrorToast: true },
   )
 
   const data = unwrapApiRecord<Record<string, unknown>>(response.data)
@@ -440,7 +447,12 @@ export async function exportDossierMetadataExcel(
   const path = `/api/v1/dossiers/${encodeURIComponent(dossierId)}/metadata/export`
 
   if (config?.presetId || config?.columns) {
-    await downloadConfiguredMetadataExport(path, fallbackName, config, dossierId)
+    await downloadConfiguredMetadataExport(
+      path,
+      fallbackName,
+      config,
+      dossierId,
+    )
     return
   }
 
@@ -538,6 +550,15 @@ export async function uploadFolderFiles(
     phase: 'preparing',
   })
 
+  const totalPages = await sumUploadPdfPages(files)
+  const quotaCheck = await checkPageQuotaUpload(totalPages)
+  if (!quotaCheck.allowed) {
+    const message =
+      quotaCheck.message ??
+      `Không đủ hạn mức bóc tách: lượt tải có ${totalPages} trang, chỉ còn ${quotaCheck.remaining ?? 0} trang. Hãy nạp thêm license hoặc giảm số trang.`
+    throw new Error(message)
+  }
+
   const uploadPoint =
     options?.uploadPoint ??
     (await createUploadPoint(
@@ -589,14 +610,17 @@ export async function uploadFolderFiles(
         })
       }
     } catch (err) {
-      const error = err instanceof Error ? err.message : String(err)
+      const error = translateError(err)
       results.push({ file, relativePath, status: 'error', error })
+      if (isPageQuotaUploadExceededMessage(error)) {
+        break
+      }
     }
   }
 
   onProgress?.({
     total: files.length,
-    completed: files.length,
+    completed: results.length,
     currentFile: '',
     phase: 'uploading',
   })

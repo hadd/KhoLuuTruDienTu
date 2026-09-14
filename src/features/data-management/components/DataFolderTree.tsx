@@ -45,6 +45,7 @@ export function DataFolderTree({
   pendingErrorReportDossierIds,
   completedDocumentIds,
   showProjectCode = false,
+  showAssignee = false,
 }: {
   tree: DataTreeNodeT
   selectedId?: string | undefined
@@ -66,6 +67,8 @@ export function DataFolderTree({
   completedDocumentIds?: Set<string>
   /** Show project code badge on folder nodes (e.g. when browsing all projects). */
   showProjectCode?: boolean
+  /** Show maker assignee line on record nodes (group assigned-dossiers dialog). */
+  showAssignee?: boolean
 }) {
   if (collapsed) return null
 
@@ -160,6 +163,7 @@ export function DataFolderTree({
           pendingErrorReportDossierIds={pendingErrorReportDossierIds}
           completedDocumentIds={completedDocumentIds}
           showProjectCode={showProjectCode}
+          showAssignee={showAssignee}
         />
       ))}
     </ul>
@@ -198,6 +202,7 @@ function TreeBranch({
   pendingErrorReportDossierIds,
   completedDocumentIds,
   showProjectCode,
+  showAssignee,
 }: {
   node: DataTreeNodeT
   depth: number
@@ -214,8 +219,10 @@ function TreeBranch({
   pendingErrorReportDossierIds?: Set<string>
   completedDocumentIds?: Set<string>
   showProjectCode?: boolean
+  showAssignee?: boolean
 }) {
   const { t } = useTranslation('data-management')
+  const { t: tGroup } = useTranslation('group')
   const isFolder = node.type !== 'document'
   const isRecord = node.type === 'record'
   const showMultiSelectCheckbox =
@@ -246,10 +253,13 @@ function TreeBranch({
   )
   const isDocumentEditComplete =
     node.type === 'document' && Boolean(completedDocumentIds?.has(node.id))
+  const showAssigneeLine = Boolean(showAssignee && isRecord)
+  const assigneeName = node.editor?.name?.trim()
   const hasStatusRow =
     (node.type === 'document' && Boolean(node.isSigned)) ||
     Boolean(node.dossierStatus) ||
-    showPendingErrorReport
+    showPendingErrorReport ||
+    showAssigneeLine
   const displayName =
     node.type === 'document' ? getDocumentDisplayName(node.name) : node.name
   const Icon =
@@ -378,33 +388,53 @@ function TreeBranch({
                 ) : null}
               </span>
               {hasStatusRow ? (
-                <span className="flex min-w-0 items-center gap-1 overflow-hidden">
-                  {node.type === 'document' && node.isSigned ? (
-                    <span
-                      className="inline-flex shrink-0 items-center gap-0.5 rounded bg-emerald-100 px-1 py-0 text-[10px] font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
-                      title={t('tree.signed')}
-                    >
-                      <ShieldCheck className="size-3" aria-hidden />
-                      {t('tree.signed')}
-                    </span>
-                  ) : null}
-                  {node.dossierStatus ? (
-                    <DossierStatusBadge
-                      status={node.dossierStatus}
-                      className="h-auto min-w-0 max-w-full shrink truncate rounded px-1 py-0 text-[10px] font-medium leading-4"
-                    />
-                  ) : null}
-                  {showPendingErrorReport ? (
-                    <span
-                      className="inline-flex shrink-0"
-                      title={t('editorErrorReport.tree.pendingIndicator')}
-                    >
-                      <AlertCircle
-                        className="size-3.5 text-destructive"
-                        aria-label={t(
-                          'editorErrorReport.tree.pendingIndicator',
-                        )}
+                <span className="flex min-w-0 flex-col gap-0.5 overflow-hidden">
+                  <span className="flex min-w-0 items-center gap-1 overflow-hidden">
+                    {node.type === 'document' && node.isSigned ? (
+                      <span
+                        className="inline-flex shrink-0 items-center gap-0.5 rounded bg-emerald-100 px-1 py-0 text-[10px] font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                        title={t('tree.signed')}
+                      >
+                        <ShieldCheck className="size-3" aria-hidden />
+                        {t('tree.signed')}
+                      </span>
+                    ) : null}
+                    {node.dossierStatus ? (
+                      <DossierStatusBadge
+                        status={node.dossierStatus}
+                        className="h-auto min-w-0 max-w-full shrink truncate rounded px-1 py-0 text-[10px] font-medium leading-4"
                       />
+                    ) : null}
+                    {showPendingErrorReport ? (
+                      <span
+                        className="inline-flex shrink-0"
+                        title={t('editorErrorReport.tree.pendingIndicator')}
+                      >
+                        <AlertCircle
+                          className="size-3.5 text-destructive"
+                          aria-label={t(
+                            'editorErrorReport.tree.pendingIndicator',
+                          )}
+                        />
+                      </span>
+                    ) : null}
+                  </span>
+                  {showAssigneeLine ? (
+                    <span
+                      className="truncate text-[10px] leading-4 text-muted-foreground"
+                      title={
+                        assigneeName
+                          ? tGroup('assignedDossiers.assignedTo', {
+                              name: assigneeName,
+                            })
+                          : tGroup('assignedDossiers.unassigned')
+                      }
+                    >
+                      {assigneeName
+                        ? tGroup('assignedDossiers.assignedTo', {
+                            name: assigneeName,
+                          })
+                        : tGroup('assignedDossiers.unassigned')}
                     </span>
                   ) : null}
                 </span>
@@ -433,6 +463,7 @@ function TreeBranch({
               pendingErrorReportDossierIds={pendingErrorReportDossierIds}
               completedDocumentIds={completedDocumentIds}
               showProjectCode={showProjectCode}
+              showAssignee={showAssignee}
             />
           ))}
         </ul>

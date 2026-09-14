@@ -26,6 +26,7 @@ import {
 } from '@/features/metadata-extract/queries'
 
 import { MetadataHiddenFieldsSection } from '@/features/metadata-extract/components/MetadataHiddenFieldsSection'
+import { PageQuotaCard } from '@/features/metadata-extract/components/PageQuotaCard'
 
 const MODE_OPTIONS: MetadataExtractMode[] = ['old', 'tt05', 'pvep']
 
@@ -114,6 +115,8 @@ export function MetadataExtractSettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      <PageQuotaCard />
     </div>
   )
 }

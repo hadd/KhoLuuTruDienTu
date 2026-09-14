@@ -24,5 +24,22 @@
   "errors": {
     "loadFailed": "Failed to load metadata extract settings"
   },
-  "readOnlyHint": "You have read-only access. Update permission is required to change the mode."
+  "readOnlyHint": "You have read-only access. Update permission is required to change the mode.",
+  "quota": {
+    "title": "Extract page quota",
+    "description": "Total pages extracted across the system. Renew by applying a vendor-signed license file.",
+    "used": "Used",
+    "limit": "Limit",
+    "remaining": "{{remaining}} pages remaining",
+    "pending": "{{pending}} pages uploaded, not yet extracted",
+    "lowRemaining": "Quota is almost gone. Batches with more pages than remaining cannot be uploaded.",
+    "uploadExceeded": "Not enough extract page quota: upload batch has {{pages}} pages, only {{remaining}} remaining. Apply another license or reduce page count.",
+    "uploadExceededGeneric": "Not enough extract page quota. Apply another license or reduce page count.",
+    "noLicense": "No license applied. Upload a .lic file to set the page cap.",
+    "stopped": "Quota reached — Kafka extract routing is stopped.",
+    "customer": "Customer: {{name}}",
+    "upload": "Apply license file",
+    "loading": "Loading quota…",
+    "loadFailed": "Failed to load page quota"
+  }
 }
