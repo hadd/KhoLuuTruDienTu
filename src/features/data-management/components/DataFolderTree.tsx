@@ -69,16 +69,13 @@ export function DataFolderTree({
     () => new Set([tree.id]),
   )
 
-  const prevTreeRef = useRef(tree)
+  const prevTreeRootIdRef = useRef(tree.id)
   useEffect(() => {
-    if (prevTreeRef.current !== tree) {
-      prevTreeRef.current = tree
+    if (prevTreeRootIdRef.current !== tree.id) {
+      prevTreeRootIdRef.current = tree.id
       setExpanded(new Set([tree.id]))
     }
-  }, [tree])
-
-  const prevSelectedIdRef = useRef<string | undefined>(undefined)
-  const hasExpandedForSelectionRef = useRef<string | undefined>(undefined)
+  }, [tree.id])
 
   useEffect(() => {
     if (!expandPathToNodeIds?.length) return
@@ -99,25 +96,19 @@ export function DataFolderTree({
   useEffect(() => {
     if (multiSelect || !selectedId) return
 
-    const selectedChanged = prevSelectedIdRef.current !== selectedId
-    if (selectedChanged) {
-      prevSelectedIdRef.current = selectedId
-      hasExpandedForSelectionRef.current = undefined
-    }
-
-    if (hasExpandedForSelectionRef.current === selectedId) return
-
     const path = getPathToNode(tree, selectedId)
     if (path.length === 0) return
 
-    hasExpandedForSelectionRef.current = selectedId
-
     setExpanded((prev) => {
+      let hasNew = false
       const next = new Set(prev)
       for (const n of path) {
-        next.add(n.id)
+        if (!next.has(n.id)) {
+          next.add(n.id)
+          hasNew = true
+        }
       }
-      return next
+      return hasNew ? next : prev
     })
   }, [multiSelect, selectedId, tree])
 
@@ -337,7 +328,12 @@ function TreeBranch({
           {collapsed ? null : (
             <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden">
               <span className="flex min-w-0 items-center gap-1 overflow-hidden">
-                <span className="min-w-0 flex-1 truncate leading-snug">
+                <span
+                  className={cn(
+                    'min-w-0 flex-1 truncate leading-snug',
+                    node.isSearchMatch && 'font-medium text-primary',
+                  )}
+                >
                   {displayName}
                 </span>
                 {showProjectBadge ? (

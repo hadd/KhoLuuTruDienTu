@@ -1467,15 +1467,67 @@ export function filterTreeExcludeArchived(
   return filt(root) ?? { ...root, children: [] }
 }
 
+export function removeVietnameseTones(str: string): string {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .toLowerCase()
+}
+
+export function matchesFuzzyFileName(
+  targetName: string | undefined | null,
+  query: string,
+): boolean {
+  if (!targetName || !query) return false
+  const trimmedQ = query.trim()
+  if (!trimmedQ) return false
+
+  const rawTarget = targetName.toLowerCase()
+  const rawQ = trimmedQ.toLowerCase()
+  if (rawTarget.includes(rawQ)) return true
+
+  const unaccentTarget = removeVietnameseTones(targetName)
+  const unaccentQ = removeVietnameseTones(trimmedQ)
+  if (unaccentTarget.includes(unaccentQ)) return true
+
+  // Stripped alphanumeric matching (e.g. pvep2002 matches PVEP.2002.0964.001)
+  const cleanTarget = unaccentTarget.replace(/[^a-z0-9]/g, '')
+  const cleanQ = unaccentQ.replace(/[^a-z0-9]/g, '')
+  if (cleanQ.length >= 2 && cleanTarget.includes(cleanQ)) {
+    return true
+  }
+
+  // Without .pdf extension check
+  const cleanTargetWithoutExt = unaccentTarget.replace(/\.pdf$/i, '').replace(/[^a-z0-9]/g, '')
+  const cleanQWithoutExt = unaccentQ.replace(/\.pdf$/i, '').replace(/[^a-z0-9]/g, '')
+  if (cleanQWithoutExt.length >= 2 && cleanTargetWithoutExt.includes(cleanQWithoutExt)) {
+    return true
+  }
+
+  // Token matching: all tokens in query exist in target
+  const tokens = unaccentQ.split(/[\s_\-\.]+/).filter(Boolean)
+  if (tokens.length > 1) {
+    const normTarget = unaccentTarget.replace(/[\s_\-\.]+/g, ' ')
+    if (tokens.every((t) => normTarget.includes(t))) {
+      return true
+    }
+  }
+
+  return false
+}
+
 export function filterTreeForSearch(
   root: DataTreeNodeT,
   q: string,
 ): DataTreeNodeT {
-  const needle = q.trim().toLowerCase()
+  const needle = q.trim()
   if (!needle) return root
 
   function filt(node: DataTreeNodeT): DataTreeNodeT | null {
-    const selfMatch = node.name.toLowerCase().includes(needle)
+    const selfMatch =
+      Boolean(node.isSearchMatch) || matchesFuzzyFileName(node.name, needle)
     if (selfMatch) {
       return {
         ...node,

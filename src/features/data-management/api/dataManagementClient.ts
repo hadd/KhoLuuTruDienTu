@@ -1803,6 +1803,8 @@ function mapSearchTreeChild(child: Record<string, unknown>): DataTreeNodeT {
       fileCount: 0,
       uploadedAt: String(child.createdAt || new Date().toISOString()),
       uploadedBy: 'System',
+      filePath: child.filePath ? String(child.filePath) : undefined,
+      isSearchMatch: Boolean(child.isSearchMatch),
     }
   }
 
@@ -1836,6 +1838,7 @@ function mapSearchTreeChild(child: Record<string, unknown>): DataTreeNodeT {
       ...(fondId ? { fondId } : {}),
       ...(folderId ? { folderId } : {}),
       isAssigned: parseIsAssigned(child),
+      isSearchMatch: Boolean(child.isSearchMatch),
     }
   }
 

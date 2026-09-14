@@ -4,7 +4,10 @@ import {
   ArrowLeftToLine,
   ArrowRightFromLine,
   FolderUp,
+  Loader2,
   PenLine,
+  Search,
+  X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -47,7 +50,10 @@ import {
   type DataManagementRole,
 } from '@/features/data-management/config/roleConfig'
 import { useDataManagementResolvedPermissions } from '@/features/data-management/hooks/useDataManagementRole'
-import { ALL_PROJECTS_CODE } from '@/features/data-management/lib/constants'
+import {
+  ALL_PROJECTS_CODE,
+  DATA_TREE_ROOT_ID,
+} from '@/features/data-management/lib/constants'
 import type { OcrTerminalCompletePayloadT } from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { useDataManagementOcrSocket } from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { useDataManagementProjectSelection } from '@/features/data-management/hooks/useDataManagementProjectSelection'
@@ -72,6 +78,7 @@ import {
   findNodeById,
   findRecordParentForDocument,
   getPathToNode,
+  matchesFuzzyFileName,
   isBatchSignSelectableNode,
   isBatchExportSelectableNode,
   isDossierWorkflowNode,
@@ -246,6 +253,7 @@ export function DataManagementPage({
   const {
     data: searchTree,
     isPending: isSearchPending,
+    isFetching: isSearchFetching,
     isError: isSearchError,
     error: searchError,
   } = useQuery({
@@ -255,47 +263,81 @@ export function DataManagementPage({
     enabled: Boolean(q.trim()) && (!isProjectScopedDataRole(role) || Boolean(projectCode?.trim())),
   })
 
-  const tree = q.trim()
-    ? searchTree ?? baseTree
+  const isSearching = Boolean(q.trim())
+
+  const tree = isSearching
+    ? (searchTree ?? null)
     : baseTree
 
-  const isPending = q.trim() ? isSearchPending || isBasePending : isBasePending
-  const isError = q.trim() ? isSearchError || isBaseError : isBaseError
-  const error = q.trim() ? searchError ?? baseError : baseError
+  const isPending = isSearching ? isSearchPending || isBasePending : isBasePending
+  const isError = isSearching ? isSearchError : isBaseError
+  const error = isSearching ? searchError : baseError
 
   const displayTree = useMemo(() => {
     if (!tree) return null
 
-    const isFromSearchApi = q.trim() && tree === searchTree
-
-    let currentTree = tree
-    if (isFromSearchApi && baseTree) {
-      function mergeChildren(node: DataTreeNodeT, bt: DataTreeNodeT): DataTreeNodeT {
-        const mergedNode = { ...node }
-        if (mergedNode.children.length === 0) {
-          const baseNode = findNodeById(bt, mergedNode.id)
-          if (baseNode && baseNode.children.length > 0) {
-            mergedNode.children = baseNode.children
-          }
-        } else {
-          mergedNode.children = mergedNode.children.map((child) =>
-            mergeChildren(child, bt),
-          )
-        }
-        return mergedNode
+    if (isSearching) {
+      if (!searchTree) return null
+      // Search returned 0 results: do NOT merge baseTree, keep search result completely empty
+      if (searchTree.children.length === 0) {
+        return { ...searchTree, children: [] }
       }
-      currentTree = mergeChildren(currentTree, baseTree)
+
+      let currentTree = searchTree
+      if (baseTree) {
+        function mergeChildren(node: DataTreeNodeT, bt: DataTreeNodeT): DataTreeNodeT {
+          const mergedNode = { ...node }
+          // Never merge baseTree into root:
+          if (mergedNode.id === DATA_TREE_ROOT_ID) {
+            mergedNode.children = mergedNode.children.map((child) =>
+              mergeChildren(child, bt),
+            )
+            return mergedNode
+          }
+
+          const baseNode = findNodeById(bt, mergedNode.id)
+          if (baseNode) {
+            if (mergedNode.children.length === 0 && baseNode.children.length > 0) {
+              mergedNode.children = baseNode.children
+            } else if (mergedNode.children.length > 0) {
+              mergedNode.children = mergedNode.children.map((child) =>
+                mergeChildren(child, bt),
+              )
+            }
+
+            if (baseNode.dossierMetadata && !mergedNode.dossierMetadata) {
+              mergedNode.dossierMetadata = baseNode.dossierMetadata
+            }
+            if (mergedNode.type === 'record') {
+              mergedNode.fileCount = baseNode.fileCount || mergedNode.fileCount
+              mergedNode.pageCount = baseNode.pageCount || mergedNode.pageCount
+              mergedNode.sizeBytes = baseNode.sizeBytes || mergedNode.sizeBytes
+              mergedNode.dossierStatus = baseNode.dossierStatus || mergedNode.dossierStatus
+            }
+          } else if (mergedNode.children.length > 0) {
+            mergedNode.children = mergedNode.children.map((child) =>
+              mergeChildren(child, bt),
+            )
+          }
+
+          return mergedNode
+        }
+        currentTree = mergeChildren(currentTree, baseTree)
+      }
+
+      return filterTreeExcludeArchived(currentTree)
     }
 
-    const afterArchived = filterTreeExcludeArchived(currentTree)
-
-    // Backend search already filters by q — don't double-filter or we lose ancestor folders
-    if (isFromSearchApi) {
-      return afterArchived
-    }
-
+    const afterArchived = filterTreeExcludeArchived(tree)
     return filterTreeForSearch(afterArchived, q)
-  }, [tree, q, baseTree, searchTree])
+  }, [tree, q, isSearching, baseTree, searchTree])
+
+  const isSearchEmpty =
+    isSearching &&
+    !isSearchPending &&
+    !isSearchError &&
+    displayTree !== null &&
+    displayTree.children.length === 0
 
   const effectiveTree = displayTree ?? tree
 
@@ -591,11 +633,12 @@ export function DataManagementPage({
   useEffect(() => {
     if (!q.trim() || !searchTree) return
 
-    const normalizedQ = q.trim().toLowerCase()
+    const trimmedQ = q.trim()
     const expandIds = new Set<string>()
 
     function checkNode(node: DataTreeNodeT): boolean {
-      const isDirectMatch = node.name.toLowerCase().includes(normalizedQ)
+      const isDirectMatch =
+        Boolean(node.isSearchMatch) || matchesFuzzyFileName(node.name, trimmedQ)
       let hasMatchingDescendant = false
 
       for (const child of node.children) {
@@ -991,42 +1034,43 @@ export function DataManagementPage({
           return
         }
 
-        if (!isSearching) {
-          if (targetNode?.type === 'document') {
-            const parent = findRecordParentForDocument(workingTree, id)
-            const loadId = parent?.id ?? targetNode.parentId
-            if (loadId) {
-              const parentNode =
-                parent ?? findNodeById(workingTree, loadId) ?? null
-              if (
-                !parentNode ||
-                parentNode.type !== 'record' ||
-                !parentNode.dossierMetadata
-              ) {
-                workingTree = await loadNodeTree(loadId)
-              }
+        if (targetNode?.type === 'document') {
+          const parent = findRecordParentForDocument(workingTree, id)
+          const loadId = parent?.id ?? targetNode.parentId
+          if (loadId) {
+            const parentNode =
+              parent ?? findNodeById(workingTree, loadId) ?? null
+            if (
+              !parentNode ||
+              parentNode.type !== 'record' ||
+              !parentNode.dossierMetadata
+            ) {
+              const loaded = await loadNodeTree(loadId)
+              if (!isSearching) workingTree = loaded
             }
-          } else if (targetNode?.type === 'folder' && isProjectScoped) {
-            const isStaleDossierFolder =
-              isDossierWorkflowNode(targetNode) &&
-              targetNode.children.length === 0 &&
-              isNodeChildrenCached(id)
-
-            if (isStaleDossierFolder || !isNodeChildrenCached(id)) {
-              workingTree = await loadNodeTree(
-                id,
-                isStaleDossierFolder ? { refresh: true } : undefined,
-              )
-            }
-          } else if (targetNode?.type === 'record') {
-            if (!targetNode.dossierMetadata) {
-              workingTree = await loadChildrenMutation
-                .mutateAsync(id)
-                .then((r) => r.tree)
-            }
-          } else if (!isNodeChildrenCached(id)) {
-            loadChildrenMutation.mutate(id)
           }
+        } else if (targetNode?.type === 'folder' && isProjectScoped) {
+          const isStaleDossierFolder =
+            isDossierWorkflowNode(targetNode) &&
+            targetNode.children.length === 0 &&
+            isNodeChildrenCached(id)
+
+          if (isStaleDossierFolder || !isNodeChildrenCached(id)) {
+            const loaded = await loadNodeTree(
+              id,
+              isStaleDossierFolder ? { refresh: true } : undefined,
+            )
+            if (!isSearching) workingTree = loaded
+          }
+        } else if (targetNode?.type === 'record') {
+          if (!targetNode.dossierMetadata) {
+            const loaded = await loadChildrenMutation
+              .mutateAsync(id)
+              .then((r) => r.tree)
+            if (!isSearching) workingTree = loaded
+          }
+        } else if (!isNodeChildrenCached(id)) {
+          loadChildrenMutation.mutate(id)
         }
       }
     } catch {
@@ -1034,7 +1078,7 @@ export function DataManagementPage({
       return
     }
 
-    navigateToNode(id, workingTree ?? undefined)
+    navigateToNode(id, isSearching ? undefined : (workingTree ?? undefined))
   }
 
   async function handleDeleteSuccess({
@@ -1313,27 +1357,73 @@ export function DataManagementPage({
                   />
                 ) : null}
                 {showSearch ? (
-                  <Input
-                    type="search"
-                    placeholder={t('search.placeholder')}
-                    className="w-full bg-background pl-8 pr-10"
-                    value={localSearchQuery}
-                    onChange={(e) => {
-                      setLocalSearchQuery(e.target.value)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        handleSearchInput(localSearchQuery)
-                      }
-                    }}
-                    aria-label={t('search.placeholder')}
-                  />
+                  <div className="relative flex items-center">
+                    <Search className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder={t('search.placeholder')}
+                      className="w-full bg-background pl-8 pr-8"
+                      value={localSearchQuery}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setLocalSearchQuery(val)
+                        if (!val.trim() && q) {
+                          handleSearchInput('')
+                        }
+                      }}
+                      onSearch={(e) => {
+                        const target = e.target as HTMLInputElement
+                        setLocalSearchQuery(target.value)
+                        handleSearchInput(target.value)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleSearchInput(localSearchQuery)
+                        }
+                      }}
+                      aria-label={t('search.placeholder')}
+                    />
+                    {localSearchQuery ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLocalSearchQuery('')
+                          handleSearchInput('')
+                        }}
+                        className="absolute right-2 flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
+                        title="Xóa tìm kiếm"
+                        aria-label="Xóa tìm kiếm"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
             ) : null}
-            {displayTree ? (
+            {isSearching && (isSearchFetching || !searchTree) ? (
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                <Loader2 className="mb-2 size-6 animate-spin text-muted-foreground/60" />
+                <p>{t('search.searching', 'Đang tìm kiếm...')}</p>
+              </div>
+            ) : isSearchEmpty ? (
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                <Search className="mb-2 size-8 text-muted-foreground/40" />
+                <p className="font-medium text-foreground">
+                  {t('search.noResults', 'Không tìm thấy kết quả')}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t(
+                    'search.noResultsDesc',
+                    'Không có thư mục hoặc tài liệu nào phù hợp với "{{query}}"',
+                    { query: q },
+                  )}
+                </p>
+              </div>
+            ) : displayTree ? (
               <DataFolderTree
+                key={`tree-${projectCode ?? 'all'}-${isSearching ? `search-${q.trim()}` : 'browse'}`}
                 tree={displayTree}
                 selectedId={focusDocumentId ?? nodeId}
                 selectedIds={selectedRecordIds}
