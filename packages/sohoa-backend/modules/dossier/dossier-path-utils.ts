@@ -263,6 +263,23 @@ export function isCanonicalOcrOutputKey(outputPath: string): boolean {
     return normalized === expected;
 }
 
+function stripRawPrefix(path: string): string {
+  const normalized = normalizeStorageKey(path).replace(/^\/+|\/+$/g, "");
+  const rawPrefix = resolveRawStoragePrefix();
+  if (normalized === rawPrefix) return "";
+  if (normalized.startsWith(`${rawPrefix}/`)) {
+    return normalized.slice(rawPrefix.length + 1);
+  }
+  return normalized;
+}
+
+/** True when `path` equals `prefix` or is a child path under `prefix/` (segment-safe). */
+function isPathPrefixOrEqual(path: string, prefix: string): boolean {
+  if (!prefix) return true;
+  if (path === prefix) return true;
+  return path.startsWith(`${prefix}/`);
+}
+
 export function computeRelativeFolderPath(
   dossierPath: string | null | undefined,
   basePath: string | undefined,
@@ -271,26 +288,20 @@ export function computeRelativeFolderPath(
   if (!dossierPath) return undefined;
   if (!basePath) return undefined;
 
-  let rel = normalizeStorageKey(dossierPath);
-  let base = normalizeStorageKey(basePath);
+  const rel = stripRawPrefix(dossierPath);
+  const base = stripRawPrefix(basePath);
 
-  const rawPrefix = resolveRawStoragePrefix();
-  if (rel.startsWith(`${rawPrefix}/`)) rel = rel.substring(rawPrefix.length + 1);
-  if (base.startsWith(`${rawPrefix}/`)) base = base.substring(rawPrefix.length + 1);
-
-  if (rel.startsWith(base)) {
-    rel = rel.substring(base.length);
-    if (rel.startsWith("/")) rel = rel.substring(1);
-    return rel;
+  if (isPathPrefixOrEqual(rel, base)) {
+    if (rel === base) return "";
+    return rel.slice(base.length + 1);
   }
 
+  // Fallback: locate selected folder name as a full path segment (not a substring).
   if (baseFolderName) {
-    const idx = rel.indexOf(baseFolderName + "/");
+    const segments = rel.split("/").filter(Boolean);
+    const idx = segments.lastIndexOf(baseFolderName);
     if (idx >= 0) {
-      return rel.substring(idx + baseFolderName.length + 1);
-    }
-    if (rel.endsWith(baseFolderName)) {
-      return "";
+      return segments.slice(idx + 1).join("/");
     }
   }
 
