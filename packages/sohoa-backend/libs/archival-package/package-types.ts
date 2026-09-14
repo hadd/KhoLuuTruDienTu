@@ -10,8 +10,12 @@ export interface PackageBuildInput {
     metadata: DossierMetadata;
     pdfFiles: PackagePdfFile[];
     hoSoId: string;
-    folderPath?: string;   // relative path từ baseFolderPath tới folder chứa hồ sơ
-    folderName?: string;   // tên của folder được click (baseFolderName), dùng làm sub-folder trong ZIP
+    /** Nested ZIP folder path preserving warehouse hierarchy; falls back to hoSoId. */
+    zipFolderPath?: string;
+    /** Relative path from the clicked folder to the dossier folder. */
+    folderPath?: string;
+    /** Clicked folder name (baseFolderName), used as the ZIP sub-folder for folder exports. */
+    folderName?: string;
 }
 
 export interface PackageBuildResult {

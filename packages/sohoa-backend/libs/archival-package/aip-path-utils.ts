@@ -1,4 +1,8 @@
-import { normalizeStorageKey, storageBasename } from "../../modules/dossier/dossier-path-utils.ts";
+import {
+    getRawStoragePrefix,
+    normalizeStorageKey,
+    storageBasename,
+} from "../../modules/dossier/dossier-path-utils.ts";
 import type { DossierMetadata } from "../metadata-types.ts";
 
 function resolveAipPrefix(): string {
@@ -36,6 +40,63 @@ export function resolveAipZipFileName(baseName: string): string {
 
 export function resolveDipZipFileName(baseName: string): string {
     return `${sanitizeArchiveBaseName(baseName)}-DIP_hoso.zip`;
+}
+
+/**
+ * ZIP relative path from dossier.folderPath, stripping the warehouse raw/ prefix
+ * so parent folders remain (e.g. raw/A/B/HoSo → A/B/HoSo).
+ */
+export function resolveExportZipRelativePath(
+    folderPath: string,
+    fallbackName = "export",
+): string {
+    const normalized = normalizeStorageKey(folderPath).replace(/^\/+|\/+$/g, "");
+    const rawPrefix = getRawStoragePrefix();
+    let relative = normalized;
+    if (relative === rawPrefix) {
+        return sanitizeArchiveBaseName(fallbackName);
+    }
+    if (relative.startsWith(`${rawPrefix}/`)) {
+        relative = relative.slice(rawPrefix.length + 1);
+    }
+    const segments = relative
+        .split("/")
+        .filter(Boolean)
+        .map((segment) => sanitizeArchiveBaseName(segment));
+    if (segments.length === 0) {
+        return sanitizeArchiveBaseName(fallbackName);
+    }
+    return segments.join("/");
+}
+
+/** Keep nested path separators; uniquify by suffixing the leaf segment when needed. */
+export function uniqueZipFolderPath(
+    folderPath: string,
+    usedPaths: Set<string>,
+): string {
+    const segments = folderPath
+        .split("/")
+        .filter(Boolean)
+        .map((segment) => sanitizeArchiveBaseName(segment));
+    let safePath = segments.join("/") || sanitizeArchiveBaseName("export");
+    if (!usedPaths.has(safePath)) {
+        usedPaths.add(safePath);
+        return safePath;
+    }
+
+    const leaf = segments.at(-1) ?? "export";
+    const parent = segments.slice(0, -1).join("/");
+    let counter = 2;
+    while (true) {
+        const candidate = parent
+            ? `${parent}/${leaf} (${counter})`
+            : `${leaf} (${counter})`;
+        if (!usedPaths.has(candidate)) {
+            usedPaths.add(candidate);
+            return candidate;
+        }
+        counter += 1;
+    }
 }
 
 /**

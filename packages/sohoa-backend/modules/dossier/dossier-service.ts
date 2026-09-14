@@ -131,6 +131,7 @@ import {
   collectMetadataPdfSources,
   type FolderDossierPdfBundle,
 } from "../../libs/metadata-export.ts";
+import { resolveExportZipRelativePath } from "../../libs/archival-package/aip-path-utils.ts";
 import {
   type DossierMetadata,
   isDossierMetadata,
@@ -1317,7 +1318,12 @@ async function buildApprovedMetadataExportZip(
   const stream = await buildFolderMetadataExportZipStream({
     excelFileName,
     excelBuffer,
-    dossierPdfBundles: loaded.map((item) => item.pdfBundle),
+    dossierPdfBundles: loaded.map((item) => ({
+      dossierFolderName: item.pdfBundle.zipFolderPath || item.pdfBundle.dossierFolderName,
+      relativeFolderPath: item.pdfBundle.relativeFolderPath,
+      baseFolderName: item.pdfBundle.baseFolderName,
+      pdfFiles: item.pdfBundle.pdfFiles,
+    })),
     password: zipPassword,
   });
 
@@ -1350,6 +1356,10 @@ async function buildDossierPdfExportBundle(
 ): Promise<FolderDossierPdfBundle> {
   const baseName = metadata.ho_so_id || dossier.name || dossier.id;
   const dossierFolderName = sanitizeExportBaseName(baseName);
+  const zipFolderPath = resolveExportZipRelativePath(
+    dossier.folderPath,
+    dossierFolderName,
+  );
   const pdfSources = collectMetadataPdfSources(metadata, dossier.files ?? []);
   const pdfFiles = await mapWithConcurrency(
     pdfSources,
@@ -1360,7 +1370,7 @@ async function buildDossierPdfExportBundle(
     }),
   );
 
-  return { dossierFolderName, pdfFiles };
+  return { dossierFolderName, zipFolderPath, pdfFiles };
 }
 
 async function assignDossiersByFolderId(input: {
