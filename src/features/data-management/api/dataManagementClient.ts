@@ -534,8 +534,15 @@ function applyDossierFields(
   if (projectCode) node.projectCode = projectCode
   const fondId = extractFondId(source)
   if (fondId) node.fondId = fondId
-  if (source.name != null && String(source.name).trim()) {
-    node.name = String(source.name)
+  // Keep listing label (folderName). Dossier.name can differ / match a parent
+  // segment; overwriting here causes the tree rename-on-select bug.
+  const folderName =
+    source.folderName != null ? String(source.folderName).trim() : ''
+  const dossierName = source.name != null ? String(source.name).trim() : ''
+  if (folderName) {
+    node.name = folderName
+  } else if (dossierName && !String(node.name ?? '').trim()) {
+    node.name = dossierName
   }
   applyCheckerAssignmentsToNode(node, source)
 }
