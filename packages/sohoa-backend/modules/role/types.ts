@@ -3,6 +3,7 @@ import { t } from "elysia";
 export const roleRulesSchema = t.Object({
     permissions: t.Array(t.String()),
     restrictions: t.Array(t.String()),
+    hidden: t.Optional(t.Array(t.String())),
 });
 
 export const createRoleBodySchema = t.Object({

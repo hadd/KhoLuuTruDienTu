@@ -1,7 +1,12 @@
 import { Elysia } from "elysia";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
-import { DASHBOARD_ADMIN_SUB_PERMISSIONS, Permission } from "../auth/permission-catalog.ts";
+import {
+    DASHBOARD_ADMIN_SUB_PERMISSIONS,
+    DASHBOARD_OVERVIEW_SECTION_PERMISSIONS,
+    DASHBOARD_TEAM_SECTION_PERMISSIONS,
+    Permission,
+} from "../auth/permission-catalog.ts";
 import { projectAccessHelper } from "../auth/project-access-helper.ts";
 import { DashboardService as service } from "./dashboard-service.ts";
 import { adminDashboardQuerySchema, adminDashboardResponseSchema } from "./types.ts";
@@ -17,7 +22,14 @@ export function createDashboardAdminRouter(basePath: string = "/dashboard") {
     app.get(
         "/",
         async ({ profile, query }) => {
-            authHelper.checkPermissionAny(profile, [Permission.DASHBOARD_ADMIN, ...DASHBOARD_ADMIN_SUB_PERMISSIONS]);
+            authHelper.checkPermissionAny(profile, [
+                Permission.DASHBOARD_ADMIN,
+                Permission.DASHBOARD_OVERVIEW,
+                Permission.DASHBOARD_TEAM,
+                ...DASHBOARD_ADMIN_SUB_PERMISSIONS,
+                ...DASHBOARD_OVERVIEW_SECTION_PERMISSIONS,
+                ...DASHBOARD_TEAM_SECTION_PERMISSIONS,
+            ]);
             const hasReadAll = authHelper.hasPermission(profile, Permission.DASHBOARD_ADMIN_READ_ALL);
             const scope = hasReadAll ? { type: "global" as const } : await projectAccessHelper.resolveScope(profile);
             const includeUnassigned = authHelper.hasPermission(profile, Permission.DASHBOARD_ADMIN_UNASSIGNED);
