@@ -1,6 +1,9 @@
 import JSZip from "jszip";
 import { buildHosoXmlFromMetadata } from "./field-mapper.ts";
-import { resolveDipZipFileName } from "./aip-path-utils.ts";
+import {
+    resolveDipZipFileName,
+    uniqueZipFolderPath,
+} from "./aip-path-utils.ts";
 import type { PackageBuildInput, PackageBuildResult } from "./package-types.ts";
 import { encodeUtf8, uniqueZipEntryName } from "./zip-utils.ts";
 import { encryptedZipEntriesToReadableStream } from "../encrypted-zip-stream.ts";
@@ -8,6 +11,10 @@ import {
     jszipToReadableStream,
     readableStreamToUint8Array,
 } from "../jszip-stream.ts";
+
+function resolvePackageZipFolderPath(input: PackageBuildInput): string {
+    return input.zipFolderPath?.trim() || input.hoSoId;
+}
 
 function collectSingleDipEntries(
     input: PackageBuildInput,
@@ -51,7 +58,7 @@ export async function buildDipHosoPackage(input: PackageBuildInput): Promise<Pac
     };
 }
 
-/** Outer ZIP with one folder per hồ sơ: `{hoSoId}/hoso.xml` + `{hoSoId}/documents/*.pdf`. */
+/** Outer ZIP with one folder per hồ sơ, preserving warehouse relative paths. */
 export async function buildMultiDipHosoZip(
     packages: PackageBuildInput[],
 ): Promise<PackageBuildResult> {
@@ -59,7 +66,10 @@ export async function buildMultiDipHosoZip(
     const usedFolderNames = new Set<string>();
 
     for (const input of packages) {
-        const folderName = uniqueZipEntryName(input.hoSoId, usedFolderNames);
+        const folderName = uniqueZipFolderPath(
+            resolvePackageZipFolderPath(input),
+            usedFolderNames,
+        );
         appendSingleDipToZip(zip, input, folderName);
     }
 
@@ -104,7 +114,10 @@ export async function buildDipExportZipStream(
 
         const usedFolderNames = new Set<string>();
         for (const input of packages) {
-            const folderName = uniqueZipEntryName(input.hoSoId, usedFolderNames);
+            const folderName = uniqueZipFolderPath(
+                resolvePackageZipFolderPath(input),
+                usedFolderNames,
+            );
             entries.push(...collectSingleDipEntries(input, folderName));
         }
         return {
@@ -130,7 +143,10 @@ export async function buildDipExportZipStream(
 
     const usedFolderNames = new Set<string>();
     for (const input of packages) {
-        const folderName = uniqueZipEntryName(input.hoSoId, usedFolderNames);
+        const folderName = uniqueZipFolderPath(
+            resolvePackageZipFolderPath(input),
+            usedFolderNames,
+        );
         appendSingleDipToZip(zip, input, folderName);
     }
 
@@ -142,12 +158,15 @@ export async function buildDipExportZipStream(
     };
 }
 
-/** Add one DIP package into an existing multi-dossier ZIP (folder per hoSoId). */
+/** Add one DIP package into an existing multi-dossier ZIP (folder per path/hoSoId). */
 export function appendDipPackageToMultiZip(
     zip: JSZip,
     input: PackageBuildInput,
     usedFolderNames: Set<string>,
 ): void {
-    const folderName = uniqueZipEntryName(input.hoSoId, usedFolderNames);
+    const folderName = uniqueZipFolderPath(
+        resolvePackageZipFolderPath(input),
+        usedFolderNames,
+    );
     appendSingleDipToZip(zip, input, folderName);
 }

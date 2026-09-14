@@ -2,6 +2,7 @@ import JSZip from "jszip";
 import type { DossierMetadata } from "./metadata-types.ts";
 import { expandTaiLieuDocuments } from "./metadata-normalize.ts";
 import { normalizeStorageKey, storageBasename } from "../modules/dossier/dossier-path-utils.ts";
+import { uniqueZipFolderPath } from "./archival-package/aip-path-utils.ts";
 import { encryptedZipEntriesToReadableStream } from "./encrypted-zip-stream.ts";
 import {
     jszipToReadableStream,
@@ -146,6 +147,7 @@ export async function buildMetadataExportZip(input: {
 }
 
 export interface FolderDossierPdfBundle {
+    /** Nested ZIP folder path preserving warehouse hierarchy (e.g. A/B/HoSo). */
     dossierFolderName: string;
     pdfFiles: MetadataExportPdfFile[];
 }
@@ -160,7 +162,10 @@ function collectFolderMetadataExportEntries(input: {
     ];
     const usedFolderNames = new Set<string>();
     for (const bundle of input.dossierPdfBundles) {
-        const folderName = uniqueZipEntryName(bundle.dossierFolderName, usedFolderNames);
+        const folderName = uniqueZipFolderPath(
+            bundle.dossierFolderName,
+            usedFolderNames,
+        );
         const usedPdfNames = new Set<string>();
         for (const pdf of bundle.pdfFiles) {
             const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);

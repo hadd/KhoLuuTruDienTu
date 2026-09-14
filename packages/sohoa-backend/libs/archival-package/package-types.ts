@@ -10,6 +10,8 @@ export interface PackageBuildInput {
     metadata: DossierMetadata;
     pdfFiles: PackagePdfFile[];
     hoSoId: string;
+    /** Nested ZIP folder path preserving warehouse hierarchy; falls back to hoSoId. */
+    zipFolderPath?: string;
 }
 
 export interface PackageBuildResult {
