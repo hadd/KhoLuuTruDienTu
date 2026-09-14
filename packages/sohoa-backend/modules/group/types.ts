@@ -60,3 +60,9 @@ export const groupListQuerySchema = t.Object({
     search: t.Optional(t.String({ maxLength: 255 })),
     projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
 });
+
+export const memberAssignmentsQuerySchema = t.Object({
+    userId: t.String({ format: "uuid" }),
+    kind: t.Union([t.Literal("editor"), t.Literal("checker")]),
+    level: t.Optional(t.Integer({ minimum: 1, maximum: 5 })),
+});

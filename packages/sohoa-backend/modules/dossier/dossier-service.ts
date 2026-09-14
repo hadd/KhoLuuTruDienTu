@@ -1602,6 +1602,7 @@ async function runGroupFolderAssignment(input: {
   targets: Array<{ dossierId: string; folderId: string; name: string }>;
   rootFolder: { id: string; folderPath: string; folderName: string };
   leafFolders: Array<{ id: string; folderPath: string; folderName: string }>;
+  roundRobinOffset?: number;
 }) {
   const { executeGroupFolderAssignment } =
     await import("../group/group-folder-assign.ts");
@@ -1620,6 +1621,7 @@ async function runGroupFolderAssignment(input: {
     targets: input.targets,
     rootFolder: input.rootFolder,
     leafFolders: input.leafFolders,
+    roundRobinOffset: input.roundRobinOffset,
     ...deps,
   });
 }
@@ -1638,6 +1640,7 @@ async function assignDossiersByFolderToGroup(input: {
   qcPeersByStep: Map<number, string[]>;
   actorId: string;
   mode?: "initial" | "continue";
+  roundRobinOffset?: number;
 }) {
   const {
     rootFolder,
@@ -3023,6 +3026,7 @@ export const DossierService = {
     qcPeersByStep: Map<number, string[]>;
     actorId: string;
     mode?: "initial" | "continue";
+    roundRobinOffset?: number;
   }) {
     return await assignDossiersByFolderToGroup(input);
   },

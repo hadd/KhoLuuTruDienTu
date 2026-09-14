@@ -10,6 +10,7 @@ import {
     assignByFolderToGroupBodySchema,
     createGroupBodySchema,
     metadataPermissionConfigBodySchema,
+    memberAssignmentsQuerySchema,
     permissionAssignmentsBodySchema,
     revokeByFolderFromGroupBodySchema,
     syncQcWorkflowBodySchema,
@@ -325,6 +326,43 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
                 summary: "List queued and active dossiers for a group folder pool",
                 description:
                     "Returns dossiers in the folder subtree with assignedGroupId matching the group: queued (no active group MAKER) and activeByEditor.",
+            },
+        },
+    );
+
+    app.get(
+        "/:id/assignment-counts",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.GROUPS_READ);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
+            return await service.getAssignmentCounts(params.id);
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }) }),
+            detail: {
+                tags,
+                summary: "Count active assignments per editor and checker",
+                description:
+                    "Editors: active MAKER assignments (IN_PROGRESS/DRAFT) on dossiers assigned to the group. Checkers: active CHECKER_N assignments (IN_PROGRESS/DRAFT) on dossiers assigned to the group, regardless of dossier status.",
+            },
+        },
+    );
+
+    app.get(
+        "/:id/member-assignments",
+        async ({ params, query, profile }) => {
+            authHelper.checkPermission(profile, Permission.GROUPS_READ);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
+            return await service.getMemberAssignments(params.id, query);
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }) }),
+            query: memberAssignmentsQuerySchema,
+            detail: {
+                tags,
+                summary: "List dossiers assigned to a group member for viewing",
+                description:
+                    "kind=editor returns active MAKER dossiers for that editor. kind=checker&level=N returns dossiers with an active CHECKER_N assignment for that checker, regardless of dossier status.",
             },
         },
     );

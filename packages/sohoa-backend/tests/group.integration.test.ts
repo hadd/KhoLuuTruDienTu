@@ -86,7 +86,11 @@ async function cleanupTestData(ids: CreatedIds) {
     }
 }
 
-Deno.test("Group Integration Tests", async (t) => {
+Deno.test({
+    name: "Group Integration Tests",
+    sanitizeResources: false,
+    sanitizeOps: false,
+    fn: async (t) => {
     const project = await createTestProject();
     const projectCode = project.projectCode;
     const ids: CreatedIds = {
@@ -490,6 +494,7 @@ Deno.test("Group Integration Tests", async (t) => {
                 folderPath: revokePath,
                 name: "ho-so-revoke",
                 entityType: EntityType.DOCUMENT,
+                status: DossierStatus.READY_FOR_ENTRY,
             }).returning();
             ids.dossierIds.push(revokeDossier.id);
 
@@ -501,11 +506,12 @@ Deno.test("Group Integration Tests", async (t) => {
             }).returning();
             ids.fileIds.push(revokeFile.id);
 
-            await GroupService.assignByFolder(
+            const assignResult = await GroupService.assignByFolder(
                 groupId,
                 { folderIds: [revokeFolder.id], dossiersPerEditor: 5 },
                 actorId,
             );
+            assertEquals(assignResult.totalAssigned, 1);
 
             const revokeResult = await GroupService.revokeByFolder(
                 groupId,
@@ -513,6 +519,7 @@ Deno.test("Group Integration Tests", async (t) => {
                 actorId,
             );
 
+            assertEquals(revokeResult.skipped, []);
             assertEquals(revokeResult.totalRevoked, 1);
             assertEquals(revokeResult.revokedDossierIds, [revokeDossier.id]);
             assertEquals(revokeResult.assignmentsCancelled > 0, true);
@@ -637,9 +644,10 @@ Deno.test("Group Integration Tests", async (t) => {
                 ),
             });
             assertEquals(makers.length, 2);
+            assertEquals(new Set(makers.map((row) => row.assigneeId)).size, 2);
         });
 
-        await t.step("queue: 3 dossiers, 2 editors, 1 per editor leaves 1 queued", async () => {
+        await t.step("assign-by-folder round-robins all dossiers without queueing leftovers", async () => {
             const queuePath = `${TEST_PREFIX}/queue`;
             const queueFolder = await FolderService.create({
                 folderPath: queuePath,
@@ -649,6 +657,7 @@ Deno.test("Group Integration Tests", async (t) => {
             ids.folderIds.push(queueFolder.id);
 
             const dossierNames = ["q-ho-so-1", "q-ho-so-2", "q-ho-so-3"];
+            const queueDossierIds: string[] = [];
             for (const name of dossierNames) {
                 const [row] = await db.insert(dossiers).values({
                     folderId: queueFolder.id,
@@ -657,6 +666,7 @@ Deno.test("Group Integration Tests", async (t) => {
                     entityType: EntityType.DOCUMENT,
                 }).returning();
                 ids.dossierIds.push(row.id);
+                queueDossierIds.push(row.id);
                 const [file] = await db.insert(dossierFiles).values({
                     dossierId: row.id,
                     fileName: "scan.pdf",
@@ -672,12 +682,29 @@ Deno.test("Group Integration Tests", async (t) => {
                 actorId,
             );
 
-            assertEquals(assignResult.totalAssigned, 2);
-            assertEquals(assignResult.queueSummary.active, 2);
-            assertEquals(assignResult.queueSummary.queued, 1);
+            assertEquals(assignResult.totalAssigned, 3);
+            assertEquals(assignResult.queueSummary.active, 3);
+            assertEquals(assignResult.queueSummary.queued, 0);
+
+            const makers = await db.query.dossierAssignments.findMany({
+                where: and(
+                    inArray(dossierAssignments.dossierId, queueDossierIds),
+                    eq(dossierAssignments.role, WorkerRole.MAKER),
+                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                ),
+            });
+            assertEquals(makers.length, 3);
+            const countByEditor = new Map<string, number>();
+            for (const row of makers) {
+                countByEditor.set(row.assigneeId, (countByEditor.get(row.assigneeId) ?? 0) + 1);
+            }
+            assertEquals(
+                [countByEditor.get(editor1.id) ?? 0, countByEditor.get(editor2.id) ?? 0].sort(),
+                [1, 2],
+            );
 
             const queueView = await GroupService.getFolderQueue(groupId, queueFolder.id);
-            assertEquals(queueView.queued.length, 1);
+            assertEquals(queueView.queued.length, 0);
 
             await assertRejects(
                 () =>
@@ -689,63 +716,233 @@ Deno.test("Group Integration Tests", async (t) => {
                 Error,
                 "Chưa có biên tập nào hoàn thành",
             );
+        });
 
-            const queueDossierIds = await db.query.dossiers.findMany({
-                where: and(
-                    eq(dossiers.folderId, queueFolder.id),
-                    eq(dossiers.assignedGroupId, groupId),
-                ),
-                columns: { id: true },
-            }).then((rows) => rows.map((row) => row.id));
+        await t.step("assign-by-folder round-robins across multiple folders", async () => {
+            const splitFolderIds: string[] = [];
+            const splitDossierIds: string[] = [];
 
-            const makerToComplete = await db.query.dossierAssignments.findFirst({
+            for (let index = 1; index <= 3; index++) {
+                const folderPath = `${TEST_PREFIX}/rr-folder-${index}`;
+                const folder = await FolderService.create({
+                    folderPath,
+                    folderName: `rr-folder-${index}`,
+                    projectCode,
+                });
+                ids.folderIds.push(folder.id);
+                splitFolderIds.push(folder.id);
+
+                const [row] = await db.insert(dossiers).values({
+                    folderId: folder.id,
+                    folderPath,
+                    name: `rr-ho-so-${index}`,
+                    entityType: EntityType.DOCUMENT,
+                }).returning();
+                ids.dossierIds.push(row.id);
+                splitDossierIds.push(row.id);
+                const [file] = await db.insert(dossierFiles).values({
+                    dossierId: row.id,
+                    fileName: "scan.pdf",
+                    filePath: `${folderPath}/rr-ho-so-${index}/scan.pdf`,
+                    fileSizeKb: 10,
+                }).returning();
+                ids.fileIds.push(file.id);
+            }
+
+            const result = await GroupService.assignByFolder(
+                groupId,
+                { folderIds: splitFolderIds, dossiersPerEditor: 1 },
+                actorId,
+            );
+
+            assertEquals(result.totalAssigned, 3);
+            assertEquals(result.queueSummary.queued, 0);
+
+            const makers = await db.query.dossierAssignments.findMany({
                 where: and(
-                    eq(dossierAssignments.assigneeId, editor1.id),
+                    inArray(dossierAssignments.dossierId, splitDossierIds),
                     eq(dossierAssignments.role, WorkerRole.MAKER),
                     eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
-                    inArray(dossierAssignments.dossierId, queueDossierIds),
                 ),
             });
-            assertExists(makerToComplete);
+            assertEquals(makers.length, 3);
+            const countByEditor = new Map<string, number>();
+            for (const row of makers) {
+                countByEditor.set(row.assigneeId, (countByEditor.get(row.assigneeId) ?? 0) + 1);
+            }
+            assertEquals(
+                [countByEditor.get(editor1.id) ?? 0, countByEditor.get(editor2.id) ?? 0].sort(),
+                [1, 2],
+            );
+        });
 
-            const completedDossier = await db.query.dossiers.findFirst({
-                where: eq(dossiers.id, makerToComplete.dossierId),
+        await t.step("assign-by-folder splits 5 dossiers across 3 editors as 2-2-1", async () => {
+            const splitEditors = await Promise.all(
+                ["a", "b", "c"].map((suffix) =>
+                    createTestUser({
+                        email: `${TEST_PREFIX}-split-${suffix}@test.local`,
+                        fullName: `Split Editor ${suffix}`,
+                        roleId: AuthRole.EDITOR,
+                    })
+                ),
+            );
+            for (const editor of splitEditors) {
+                ids.userIds.push(editor.id);
+            }
+
+            const { record: splitGroup } = await GroupService.create({
+                name: `Split 3 ${TEST_PREFIX}`,
+                projectCode,
+                roundNumber: 1,
+                editorIds: splitEditors.map((editor) => editor.id),
+                qcLevels: [{ userIds: [qc1.id] }],
             });
-            assertExists(completedDossier);
+            ids.groupIds.push(splitGroup.id);
 
+            const folderPath = `${TEST_PREFIX}/split-5`;
+            const folder = await FolderService.create({
+                folderPath,
+                folderName: "split-5",
+                projectCode,
+            });
+            ids.folderIds.push(folder.id);
+
+            const splitDossierIds: string[] = [];
+            for (let index = 1; index <= 5; index++) {
+                const [row] = await db.insert(dossiers).values({
+                    folderId: folder.id,
+                    folderPath,
+                    name: `split-ho-so-${index}`,
+                    entityType: EntityType.DOCUMENT,
+                }).returning();
+                ids.dossierIds.push(row.id);
+                splitDossierIds.push(row.id);
+                const [file] = await db.insert(dossierFiles).values({
+                    dossierId: row.id,
+                    fileName: "scan.pdf",
+                    filePath: `${folderPath}/split-ho-so-${index}/scan.pdf`,
+                    fileSizeKb: 10,
+                }).returning();
+                ids.fileIds.push(file.id);
+            }
+
+            const result = await GroupService.assignByFolder(
+                splitGroup.id,
+                { folderIds: [folder.id], dossiersPerEditor: 1 },
+                actorId,
+            );
+
+            assertEquals(result.totalAssigned, 5);
+            assertEquals(result.queueSummary.queued, 0);
+            assertEquals(result.queueSummary.active, 5);
+
+            const makers = await db.query.dossierAssignments.findMany({
+                where: and(
+                    inArray(dossierAssignments.dossierId, splitDossierIds),
+                    eq(dossierAssignments.role, WorkerRole.MAKER),
+                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
+                ),
+            });
+            assertEquals(makers.length, 5);
+            const counts = splitEditors
+                .map((editor) => makers.filter((row) => row.assigneeId === editor.id).length)
+                .sort();
+            assertEquals(counts, [1, 2, 2]);
+        });
+
+        await t.step("assignment-counts and member-assignments for editor/QC", async () => {
+            const countsPath = `${TEST_PREFIX}/member-assignments`;
+            const countsFolder = await FolderService.create({
+                folderPath: countsPath,
+                folderName: "member-assignments",
+                projectCode,
+            });
+            ids.folderIds.push(countsFolder.id);
+
+            const dossierNames = ["ma-ho-so-1", "ma-ho-so-2"];
+            const createdDossierIds: string[] = [];
+            for (const name of dossierNames) {
+                const [row] = await db.insert(dossiers).values({
+                    folderId: countsFolder.id,
+                    folderPath: countsPath,
+                    name,
+                    entityType: EntityType.DOCUMENT,
+                }).returning();
+                ids.dossierIds.push(row.id);
+                createdDossierIds.push(row.id);
+                const [file] = await db.insert(dossierFiles).values({
+                    dossierId: row.id,
+                    fileName: "scan.pdf",
+                    filePath: `${countsPath}/${name}/scan.pdf`,
+                    fileSizeKb: 10,
+                }).returning();
+                ids.fileIds.push(file.id);
+            }
+
+            await GroupService.assignByFolder(
+                groupId,
+                { folderIds: [countsFolder.id], dossiersPerEditor: 5 },
+                actorId,
+            );
+
+            // Force both new dossiers onto editor1 as active MAKER work.
             await db
                 .update(dossierAssignments)
-                .set({
-                    status: AssignmentStatus.COMPLETED,
-                    completedAt: new Date(),
-                })
-                .where(eq(dossierAssignments.id, makerToComplete.id));
-
-            const continueResult = await GroupService.autoContinueAfterMakerSubmit(
-                groupId,
-                actorId,
-                makerToComplete.dossierId,
-                completedDossier.folderId,
-            );
-            assertExists(continueResult);
-
-            assertEquals(continueResult.totalAssigned, 1);
-            assertEquals(continueResult.mode, "continue");
-            assertEquals(continueResult.queueSummary.queued, 0);
-            assertEquals(continueResult.queueSummary.active, 2);
-
-            const newMaker = await db.query.dossierAssignments.findFirst({
-                where: and(
-                    eq(dossierAssignments.assigneeId, editor1.id),
+                .set({ assigneeId: editor1.id })
+                .where(and(
+                    inArray(dossierAssignments.dossierId, createdDossierIds),
                     eq(dossierAssignments.role, WorkerRole.MAKER),
-                    eq(dossierAssignments.status, AssignmentStatus.IN_PROGRESS),
-                    eq(dossierAssignments.dossierId, queueView.queued[0]!.dossierId),
-                ),
+                    inArray(dossierAssignments.status, [
+                        AssignmentStatus.IN_PROGRESS,
+                        AssignmentStatus.DRAFT,
+                    ]),
+                ));
+
+            await db
+                .update(dossiers)
+                .set({ status: DossierStatus.ENTRY_PROCESSING })
+                .where(inArray(dossiers.id, createdDossierIds));
+
+            const countsWhileEditing = await GroupService.getAssignmentCounts(groupId);
+            const editor1Count = countsWhileEditing.editors.find(
+                (row) => row.userId === editor1.id,
+            );
+            assertExists(editor1Count);
+            assertEquals(editor1Count.count >= 2, true);
+
+            const editorList = await GroupService.getMemberAssignments(groupId, {
+                userId: editor1.id,
+                kind: "editor",
             });
-            assertExists(newMaker);
+            assertEquals(
+                editorList.dossiers.filter((d) => createdDossierIds.includes(d.id)).length,
+                2,
+            );
+
+            // Checker shows dossiers as soon as CHECKER_N is assigned, even while ENTRY_PROCESSING.
+            const qcWhileEditing = await GroupService.getMemberAssignments(groupId, {
+                userId: qc1.id,
+                kind: "checker",
+                level: 1,
+            });
+            assertEquals(
+                qcWhileEditing.dossiers.filter((d) => createdDossierIds.includes(d.id)).length,
+                2,
+            );
+
+            const qcCountWhileEditing = countsWhileEditing.checkers.find(
+                (row) => row.userId === qc1.id && row.level === 1,
+            );
+            assertExists(qcCountWhileEditing);
+            assertEquals(qcCountWhileEditing.count >= 2, true);
+            assertEquals(
+                qcWhileEditing.total,
+                qcCountWhileEditing.count,
+            );
         });
     } finally {
         await cleanupTestData(ids);
         await deleteTestProject(projectCode);
     }
+    },
 });

@@ -1,7 +1,9 @@
 import { httpError } from "@shared/common-lib";
-import { and, asc, count, eq, inArray, isNull, ne, notInArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, ne, notInArray, sql } from "drizzle-orm";
 import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
+import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
+import { dossiers } from "../../db/schemas/dossier.ts";
 import { groupMembers } from "../../db/schemas/group_members.ts";
 import type { GroupMemberRole } from "../../db/schemas/types.ts";
 import { groups } from "../../db/schemas/groups.ts";
@@ -9,6 +11,12 @@ import { projects } from "../../db/schemas/project.ts";
 import { folders } from "../../db/schemas/folder.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
+import {
+    QC_CHECKER_BY_STEP,
+    WORKABLE_ASSIGNMENT_STATUSES,
+    WorkerRole,
+    type WorkerRole as WorkerRoleType,
+} from "../../db/schemas/workflow-constants.ts";
 import { Permission } from "../auth/permission-catalog.ts";
 import { userRolesHaveDataEntryMakerOnly, userRolesHavePermission } from "../auth/permission-resolver.ts";
 import {
@@ -38,6 +46,7 @@ import {
 import {
     assignByFolderToGroupBodySchema,
     createGroupBodySchema,
+    memberAssignmentsQuerySchema,
     revokeByFolderFromGroupBodySchema,
     syncQcWorkflowBodySchema,
     updateGroupBodySchema,
@@ -673,6 +682,7 @@ async function runAssignByFolders(
 ) {
     const uniqueIds = uniqueFolderIds(folderIds);
     const results: FolderAssignResult[] = [];
+    let roundRobinOffset = 0;
 
     for (const folderId of uniqueIds) {
         const result = await DossierService.assignByFolderToGroup({
@@ -685,7 +695,9 @@ async function runAssignByFolders(
             qcPeersByStep,
             actorId,
             mode,
+            roundRobinOffset,
         });
+        roundRobinOffset = result.nextRoundRobinOffset ?? 0;
         results.push(result);
     }
 
@@ -1079,6 +1091,139 @@ async function syncGroupQcs(
     }
 
     await insertQcMembers(tx, groupId, qcLevels, leaderId);
+}
+
+const ASSIGNED_DOSSIER_LIST_COLUMNS = {
+    id: true,
+    folderId: true,
+    folderPath: true,
+    name: true,
+    entityType: true,
+    status: true,
+    requiredQcCount: true,
+    currentQcStep: true,
+    rejectCount: true,
+    lastRejectNotes: true,
+    ocrMetadataKey: true,
+    currentMetadataKey: true,
+    assignedGroupId: true,
+    projectCode: true,
+    fondId: true,
+    createdAt: true,
+    updatedAt: true,
+    deletedAt: true,
+} as const;
+
+function checkerRoleForLevel(level: number): WorkerRoleType {
+    const config = QC_CHECKER_BY_STEP.get(level);
+    if (!config) {
+        throw httpError.badRequest(`Invalid checker level: ${level}`);
+    }
+    return config.role;
+}
+
+function qcGroupRoleForLevel(level: number): GroupMemberRole {
+    const role = QC_GROUP_ROLES[level - 1];
+    if (!role) {
+        throw httpError.badRequest(`Invalid checker level: ${level}`);
+    }
+    return role;
+}
+
+function mapAssignedDossierRow(dossier: {
+    id: string;
+    folderId: string;
+    folderPath: string;
+    name: string;
+    entityType: string;
+    status: string;
+    requiredQcCount: number;
+    currentQcStep: number;
+    rejectCount: number;
+    lastRejectNotes: string | null;
+    ocrMetadataKey: string | null;
+    currentMetadataKey: string | null;
+    assignedGroupId: string | null;
+    projectCode: string | null;
+    fondId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    deletedAt: Date | null;
+}) {
+    return {
+        id: dossier.id,
+        folderId: dossier.folderId,
+        folderPath: dossier.folderPath,
+        name: dossier.name,
+        entityType: dossier.entityType,
+        status: dossier.status,
+        requiredQcCount: dossier.requiredQcCount,
+        currentQcStep: dossier.currentQcStep,
+        rejectCount: dossier.rejectCount,
+        lastRejectNotes: dossier.lastRejectNotes,
+        ocrMetadataKey: dossier.ocrMetadataKey,
+        currentMetadataKey: dossier.currentMetadataKey,
+        assignedGroupId: dossier.assignedGroupId,
+        projectCode: dossier.projectCode ?? "",
+        fondId: dossier.fondId,
+        createdAt: dossier.createdAt.toISOString(),
+        updatedAt: dossier.updatedAt.toISOString(),
+        deletedAt: dossier.deletedAt?.toISOString() ?? null,
+    };
+}
+
+async function listActiveMakerDossiersForUser(groupId: string, userId: string) {
+    const rows = await db.query.dossierAssignments.findMany({
+        where: and(
+            eq(dossierAssignments.assigneeId, userId),
+            eq(dossierAssignments.role, WorkerRole.MAKER),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
+        ),
+        with: {
+            dossier: {
+                columns: ASSIGNED_DOSSIER_LIST_COLUMNS,
+            },
+        },
+        orderBy: desc(dossierAssignments.assignedAt),
+    });
+
+    return rows
+        .filter((row) =>
+            row.dossier
+            && row.dossier.deletedAt === null
+            && row.dossier.assignedGroupId === groupId
+        )
+        .map((row) => mapAssignedDossierRow(row.dossier!));
+}
+
+async function listPendingCheckerDossiersForUser(
+    groupId: string,
+    userId: string,
+    level: number,
+) {
+    const role = checkerRoleForLevel(level);
+
+    const rows = await db.query.dossierAssignments.findMany({
+        where: and(
+            eq(dossierAssignments.assigneeId, userId),
+            eq(dossierAssignments.role, role),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
+        ),
+        with: {
+            dossier: {
+                columns: ASSIGNED_DOSSIER_LIST_COLUMNS,
+            },
+        },
+        orderBy: desc(dossierAssignments.assignedAt),
+    });
+
+    return rows
+        .filter((row) =>
+            row.dossier
+            && row.dossier.deletedAt === null
+            && row.dossier.assignedGroupId === groupId
+        )
+        .map((row) => mapAssignedDossierRow(row.dossier!));
 }
 
 export const GroupService = {
@@ -1723,6 +1868,144 @@ export const GroupService = {
             leafFolders,
             targets,
         });
+    },
+
+    async getAssignmentCounts(groupId: string) {
+        await getActiveGroupOrThrow(groupId);
+        const members = await getActiveMembersForGroup(groupId);
+        const editors = members.filter((member) => member.role === "editor");
+        const editorIds = editors.map((member) => member.userId);
+
+        const editorCountMap = new Map<string, number>();
+        for (const editor of editors) {
+            editorCountMap.set(editor.userId, 0);
+        }
+
+        if (editorIds.length > 0) {
+            const editorRows = await db
+                .select({
+                    assigneeId: dossierAssignments.assigneeId,
+                    count: count(),
+                })
+                .from(dossierAssignments)
+                .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
+                .where(and(
+                    eq(dossiers.assignedGroupId, groupId),
+                    isNull(dossiers.deletedAt),
+                    eq(dossierAssignments.role, WorkerRole.MAKER),
+                    inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
+                    inArray(dossierAssignments.assigneeId, editorIds),
+                ))
+                .groupBy(dossierAssignments.assigneeId);
+
+            for (const row of editorRows) {
+                editorCountMap.set(row.assigneeId, Number(row.count));
+            }
+        }
+
+        const checkers: Array<{ userId: string; level: number; count: number }> = [];
+        for (let level = 1; level <= QC_GROUP_ROLES.length; level += 1) {
+            const qcRole = qcGroupRoleForLevel(level);
+            const levelMembers = members.filter((member) => member.role === qcRole);
+            if (levelMembers.length === 0) continue;
+
+            const role = checkerRoleForLevel(level);
+            const levelUserIds = levelMembers.map((member) => member.userId);
+            const countMap = new Map(levelUserIds.map((userId) => [userId, 0]));
+
+            const checkerRows = await db
+                .select({
+                    assigneeId: dossierAssignments.assigneeId,
+                    count: count(),
+                })
+                .from(dossierAssignments)
+                .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
+                .where(and(
+                    eq(dossiers.assignedGroupId, groupId),
+                    isNull(dossiers.deletedAt),
+                    eq(dossierAssignments.role, role),
+                    inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
+                    inArray(dossierAssignments.assigneeId, levelUserIds),
+                ))
+                .groupBy(dossierAssignments.assigneeId);
+
+            for (const row of checkerRows) {
+                countMap.set(row.assigneeId, Number(row.count));
+            }
+
+            for (const userId of levelUserIds) {
+                checkers.push({
+                    userId,
+                    level,
+                    count: countMap.get(userId) ?? 0,
+                });
+            }
+        }
+
+        return {
+            editors: editors.map((editor) => ({
+                userId: editor.userId,
+                count: editorCountMap.get(editor.userId) ?? 0,
+            })),
+            checkers,
+        };
+    },
+
+    async getMemberAssignments(
+        groupId: string,
+        query: Static<typeof memberAssignmentsQuerySchema>,
+    ) {
+        await getActiveGroupOrThrow(groupId);
+        const members = await getActiveMembersForGroup(groupId);
+
+        if (query.kind === "editor") {
+            const isEditor = members.some(
+                (member) => member.role === "editor" && member.userId === query.userId,
+            );
+            if (!isEditor) {
+                throw httpError.badRequest("User is not an active editor in this group");
+            }
+
+            const dossiersForUser = await listActiveMakerDossiersForUser(
+                groupId,
+                query.userId,
+            );
+            return {
+                kind: "editor" as const,
+                userId: query.userId,
+                level: null,
+                dossiers: dossiersForUser,
+                total: dossiersForUser.length,
+            };
+        }
+
+        const level = query.level;
+        if (level == null) {
+            throw httpError.badRequest("level is required when kind=checker");
+        }
+
+        const qcRole = qcGroupRoleForLevel(level);
+        const isChecker = members.some(
+            (member) => member.role === qcRole && member.userId === query.userId,
+        );
+        if (!isChecker) {
+            throw httpError.badRequest(
+                `User is not an active QC member at level ${level} in this group`,
+            );
+        }
+
+        const dossiersForUser = await listPendingCheckerDossiersForUser(
+            groupId,
+            query.userId,
+            level,
+        );
+        return {
+            kind: "checker" as const,
+            userId: query.userId,
+            level,
+            dossiers: dossiersForUser,
+            total: dossiersForUser.length,
+        };
     },
 
     async bindMetadataPermissionConfig(groupId: string, permissionConfigId: string | null) {
