@@ -138,6 +138,34 @@ export function createFolderRouter(basePath: string = "/folders") {
   );
 
   app.get(
+    "/search-tree",
+    async ({ urlQuery, profile, query }) => {
+      authHelper.checkPermissionAny(profile, [
+        Permission.FOLDERS_BROWSE_ALL,
+        Permission.FOLDERS_BROWSE_ASSIGNED,
+      ]);
+      const scope = await resolveFolderBrowseScope(
+        profile,
+        urlQuery.projectCode,
+      );
+      if (!query.q) {
+        return await service.listAllParents(scope);
+      }
+      return await service.searchTree(query.q, scope);
+    },
+    {
+      query: t.Object({
+        q: t.Optional(t.String()),
+      }),
+      detail: {
+        tags,
+        summary: "Search and return partial tree",
+        description: "Returns a partial tree of folders, dossiers, and files matching the search query.",
+      },
+    },
+  );
+
+  app.get(
     "/dossiers/:dossierId/files",
     async ({ params, query, profile, request }) => {
       const { securityAccessHeadersFromRequest } =

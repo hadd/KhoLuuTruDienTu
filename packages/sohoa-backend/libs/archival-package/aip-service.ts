@@ -3,10 +3,14 @@ import {
   buildDipExportZipStream,
   type DipZipStreamResult,
 } from "./dip-hoso-builder.ts";
-import { resolveDipZipFileName } from "./aip-path-utils.ts";
 import { shouldSkipExistingAip } from "./aip-idempotent.ts";
 import { computeRelativeFolderPath } from "../../modules/dossier/dossier-path-utils.ts";
-import { resolveAipObjectKey, resolveHoSoId, resolveFolderLeafName } from "./aip-path-utils.ts";
+import {
+  resolveAipObjectKey,
+  resolveExportZipRelativePath,
+  resolveFolderLeafName,
+  resolveHoSoId,
+} from "./aip-path-utils.ts";
 import {
   collectPackagePdfFiles,
   countPackagePdfSources,
@@ -333,9 +337,10 @@ export async function exportDipHosoBatch(
         metadata,
         hoSoId,
         fondId: dossier.fondId,
+        folderPath: dossier.folderPath,
         files,
         pdfCount: countPackagePdfSources(metadata, files),
-        folderPath: relativeFolderPath,
+        relativeFolderPath,
         folderName: baseFolderName || undefined,
       };
     },
@@ -367,7 +372,8 @@ export async function exportDipHosoBatch(
         metadata: ctx.metadata,
         pdfFiles,
         hoSoId: ctx.hoSoId,
-        folderPath: ctx.folderPath,
+        zipFolderPath: resolveExportZipRelativePath(ctx.folderPath, ctx.hoSoId),
+        folderPath: ctx.relativeFolderPath,
         folderName: ctx.folderName,
       } satisfies PackageBuildInput;
     },

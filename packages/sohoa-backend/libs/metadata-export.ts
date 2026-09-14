@@ -2,6 +2,7 @@ import JSZip from "jszip";
 import type { DossierMetadata } from "./metadata-types.ts";
 import { expandTaiLieuDocuments } from "./metadata-normalize.ts";
 import { normalizeStorageKey, storageBasename } from "../modules/dossier/dossier-path-utils.ts";
+import { uniqueZipFolderPath } from "./archival-package/aip-path-utils.ts";
 import { sanitizeFolderPathForZip } from "./archival-package/zip-utils.ts";
 import { encryptedZipEntriesToReadableStream } from "./encrypted-zip-stream.ts";
 import {
@@ -97,7 +98,9 @@ export interface DossierMetadataExportBundle {
 // Deprecated flat structure export functions removed
 
 export interface FolderDossierPdfBundle {
+    /** Nested ZIP folder path preserving warehouse hierarchy (e.g. A/B/HoSo). */
     dossierFolderName: string;
+    zipFolderPath?: string;
     /** Đường dẫn thư mục tương đối từ baseFolderPath, dùng để tạo cấu trúc thư mục trong ZIP */
     relativeFolderPath?: string;
     /** Tên thư mục gốc (baseFolderName) mà user đã chọn xuất */
@@ -116,14 +119,19 @@ function collectFolderMetadataExportEntries(input: {
     ];
     const usedFolderNames = new Set<string>();
     for (const bundle of input.dossierPdfBundles) {
-        // Xây dựng đường dẫn thư mục: baseFolderName/relativePath/
         let folderPrefix: string;
         if (bundle.baseFolderName && bundle.relativeFolderPath !== undefined) {
             const cleanBase = sanitizeFolderPathForZip(bundle.baseFolderName);
             const cleanRel = sanitizeFolderPathForZip(bundle.relativeFolderPath);
-            folderPrefix = cleanRel ? `${cleanBase}/${cleanRel}` : cleanBase;
+            folderPrefix = uniqueZipFolderPath(
+                cleanRel ? `${cleanBase}/${cleanRel}` : cleanBase,
+                usedFolderNames,
+            );
         } else {
-            folderPrefix = uniqueZipEntryName(bundle.dossierFolderName, usedFolderNames);
+            folderPrefix = uniqueZipFolderPath(
+                bundle.zipFolderPath || bundle.dossierFolderName,
+                usedFolderNames,
+            );
         }
         const usedPdfNames = new Set<string>();
         for (const pdf of bundle.pdfFiles) {
