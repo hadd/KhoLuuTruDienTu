@@ -13,7 +13,11 @@ import { apiClient } from '@/lib/api/apiClient'
 import { appendListParams } from '@/lib/api/query-params'
 import type { PaginatedResponse, SingleResourceResponse } from '@/types/api'
 
-const EMPTY_RULES: RolePermissionRulesT = { permissions: [], restrictions: [] }
+const EMPTY_RULES: RolePermissionRulesT = {
+  permissions: [],
+  restrictions: [],
+  hidden: [],
+}
 
 export function parseRoleRules(rules: unknown): RolePermissionRulesT {
   if (typeof rules === 'string') {
@@ -21,7 +25,7 @@ export function parseRoleRules(rules: unknown): RolePermissionRulesT {
       const parsed: unknown = JSON.parse(rules)
       return parseRoleRules(parsed)
     } catch {
-      return EMPTY_RULES
+      return { ...EMPTY_RULES }
     }
   }
 
@@ -34,10 +38,11 @@ export function parseRoleRules(rules: unknown): RolePermissionRulesT {
       restrictions: Array.isArray(candidate.restrictions)
         ? candidate.restrictions
         : [],
+      hidden: Array.isArray(candidate.hidden) ? candidate.hidden : [],
     }
   }
 
-  return EMPTY_RULES
+  return { ...EMPTY_RULES }
 }
 
 function normalizeRolePermissionsRecord(

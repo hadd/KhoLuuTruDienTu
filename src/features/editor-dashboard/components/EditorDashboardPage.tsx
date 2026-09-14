@@ -45,6 +45,10 @@ import type {
   EditorDashboardPeriodT,
   EditorDashboardT,
 } from '@/features/editor-dashboard/types'
+import {
+  DASHBOARD_PERSONAL_SECTION_KEYS,
+  isDashboardSectionVisible,
+} from '@/features/permissions/lib/dashboardAccess'
 import { formatNumber } from '@/lib/utils/format'
 
 const COMPLETED_BAR_COLOR = '#22c55e'
@@ -66,14 +70,41 @@ const dashboardRouteApi = getRouteApi('/app/dashboard/')
 type EditorDashboardPageProps = {
   data: EditorDashboardT
   period: EditorDashboardPeriodT
+  permissions?: Array<string>
+  hidden?: Array<string>
+  embedInGroup?: boolean
 }
 
 export function EditorDashboardPage({
   data,
   period,
+  permissions = ['*'],
+  hidden = [],
+  embedInGroup = false,
 }: EditorDashboardPageProps) {
   const { t } = useTranslation('editor-dashboard')
   const navigate = dashboardRouteApi.useNavigate()
+
+  const canViewSummary = isDashboardSectionVisible(
+    permissions,
+    hidden,
+    DASHBOARD_PERSONAL_SECTION_KEYS.editorSummary,
+  )
+  const canViewAccuracy = isDashboardSectionVisible(
+    permissions,
+    hidden,
+    DASHBOARD_PERSONAL_SECTION_KEYS.editorAccuracy,
+  )
+  const canViewPerformance = isDashboardSectionVisible(
+    permissions,
+    hidden,
+    DASHBOARD_PERSONAL_SECTION_KEYS.editorPerformance,
+  )
+  const canViewCharts = isDashboardSectionVisible(
+    permissions,
+    hidden,
+    DASHBOARD_PERSONAL_SECTION_KEYS.editorCharts,
+  )
 
   const completedChartData = useMemo(() => {
     if (data.completedTrend.length > 0) {
@@ -122,11 +153,14 @@ export function EditorDashboardPage({
 
   return (
     <div className="flex min-w-0 w-full flex-1 flex-col gap-6 overflow-x-hidden">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+      {!embedInGroup ? (
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
+        </div>
+      ) : null}
 
+      {canViewSummary ? (
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-medium text-foreground">
@@ -178,7 +212,9 @@ export function EditorDashboardPage({
           />
         </div>
       </section>
+      ) : null}
 
+      {canViewAccuracy ? (
       <section className="space-y-4">
         <h2 className="text-lg font-medium text-foreground">
           {t('sections.accuracy.title')}
@@ -205,7 +241,9 @@ export function EditorDashboardPage({
           />
         </div>
       </section>
+      ) : null}
 
+      {canViewPerformance ? (
       <section className="space-y-4">
         <h2 className="text-lg font-medium text-foreground">
           {t('sections.performance.title')}
@@ -216,8 +254,9 @@ export function EditorDashboardPage({
           value={formatDurationSeconds(data.avgProcessingTimeSeconds)}
         />
       </section>
+      ) : null}
 
-      {hasCompletedChartData || hasAccuracyData ? (
+      {canViewCharts && (hasCompletedChartData || hasAccuracyData) ? (
         <section className="grid gap-4 xl:grid-cols-2">
           {hasCompletedChartData ? (
             <Card>
