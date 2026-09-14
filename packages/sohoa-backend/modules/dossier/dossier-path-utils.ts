@@ -262,3 +262,37 @@ export function isCanonicalOcrOutputKey(outputPath: string): boolean {
     }
     return normalized === expected;
 }
+
+export function computeRelativeFolderPath(
+  dossierPath: string | null | undefined,
+  basePath: string | undefined,
+  baseFolderName: string | undefined
+): string | undefined {
+  if (!dossierPath) return undefined;
+  if (!basePath) return undefined;
+
+  let rel = normalizeStorageKey(dossierPath);
+  let base = normalizeStorageKey(basePath);
+
+  const rawPrefix = resolveRawStoragePrefix();
+  if (rel.startsWith(`${rawPrefix}/`)) rel = rel.substring(rawPrefix.length + 1);
+  if (base.startsWith(`${rawPrefix}/`)) base = base.substring(rawPrefix.length + 1);
+
+  if (rel.startsWith(base)) {
+    rel = rel.substring(base.length);
+    if (rel.startsWith("/")) rel = rel.substring(1);
+    return rel;
+  }
+
+  if (baseFolderName) {
+    const idx = rel.indexOf(baseFolderName + "/");
+    if (idx >= 0) {
+      return rel.substring(idx + baseFolderName.length + 1);
+    }
+    if (rel.endsWith(baseFolderName)) {
+      return "";
+    }
+  }
+
+  return rel;
+}

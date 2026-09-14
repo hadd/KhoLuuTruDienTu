@@ -161,11 +161,14 @@ export function extractDossierFileItems(metadata: DossierMetadata): DossierFileI
     ];
 }
 
-export function sanitizeDatePart(val: string | null | undefined): string {
+export function sanitizeDatePart(val: string | null | undefined, padToTwoDigits = false): string {
     if (!val) return "";
-    const trimmed = val.trim();
+    let trimmed = val.trim();
     if (trimmed === "0" || trimmed === "00" || trimmed === "0000" || /^0+$/.test(trimmed)) {
         return "";
+    }
+    if (padToTwoDigits && /^\d$/.test(trimmed)) {
+        trimmed = `0${trimmed}`;
     }
     return trimmed;
 }
@@ -202,15 +205,15 @@ function parseDateParts(dateStr: string | null | undefined): { day: string; mont
     if (isoMatch) {
         return {
             year: sanitizeDatePart(isoMatch[1]),
-            month: sanitizeDatePart(String(Number(isoMatch[2]))),
-            day: sanitizeDatePart(String(Number(isoMatch[3]))),
+            month: sanitizeDatePart(String(Number(isoMatch[2])), true),
+            day: sanitizeDatePart(String(Number(isoMatch[3])), true),
         };
     }
     const vnMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(str);
     if (vnMatch) {
         return {
-            day: sanitizeDatePart(String(Number(vnMatch[1]))),
-            month: sanitizeDatePart(String(Number(vnMatch[2]))),
+            day: sanitizeDatePart(String(Number(vnMatch[1])), true),
+            month: sanitizeDatePart(String(Number(vnMatch[2])), true),
             year: sanitizeDatePart(vnMatch[3]),
         };
     }
@@ -279,6 +282,7 @@ export function resolveExportFieldValue(
     }
 
     const isDatePart = parsed.fieldName === "NGAY" || parsed.fieldName === "THANG" || parsed.fieldName === "NAM";
+    const padDatePart = parsed.fieldName === "NGAY" || parsed.fieldName === "THANG";
     const values: string[] = [];
     for (const group of metadata.metadata_groups) {
         if (group.group_code !== parsed.groupCode) {
@@ -290,7 +294,7 @@ export function resolveExportFieldValue(
             }
             const formatted = formatCellValue(field.value);
             if (formatted) {
-                const finalVal = isDatePart ? sanitizeDatePart(formatted) : formatted;
+                const finalVal = isDatePart ? sanitizeDatePart(formatted, padDatePart) : formatted;
                 if (finalVal) {
                     values.push(finalVal);
                 }
@@ -310,7 +314,7 @@ export function resolveExportFieldValue(
             }
             const formatted = formatCellValue(field.value);
             if (formatted) {
-                const finalVal = isDatePart ? sanitizeDatePart(formatted) : formatted;
+                const finalVal = isDatePart ? sanitizeDatePart(formatted, padDatePart) : formatted;
                 if (finalVal) {
                     values.push(finalVal);
                 }
@@ -369,15 +373,15 @@ export function resolveExportFieldValueForFileItem(
                     : "NAM";
             const direct = findFieldValueInGroups(fileItem.groups, fieldName);
             if (direct !== null) {
-                return sanitizeDatePart(direct);
+                return sanitizeDatePart(direct, fieldName === "NGAY" || fieldName === "THANG");
             }
             const dateStr =
                 findFieldValueInGroups(fileItem.groups, "NGAY_THANG_NAM_BAN_HANH") ??
                 findFieldValueInGroups(fileItem.groups, "NGAY_THANG_NAM_VAN_BAN") ??
                 findFieldValueInGroups(fileItem.groups, "NGAY_BAN_HANH_AN_QD");
             const parts = parseDateParts(dateStr);
-            if (fieldKey === "__date_day") return sanitizeDatePart(parts.day);
-            if (fieldKey === "__date_month") return sanitizeDatePart(parts.month);
+            if (fieldKey === "__date_day") return sanitizeDatePart(parts.day, true);
+            if (fieldKey === "__date_month") return sanitizeDatePart(parts.month, true);
             if (fieldKey === "__date_year") return sanitizeDatePart(parts.year);
         }
         return "";
@@ -388,7 +392,7 @@ export function resolveExportFieldValueForFileItem(
     if (fieldName === "NGAY" || fieldName === "THANG" || fieldName === "NAM") {
         const direct = findFieldValueInGroups(fileItem.groups, fieldName);
         if (direct !== null) {
-            return sanitizeDatePart(direct);
+            return sanitizeDatePart(direct, fieldName === "NGAY" || fieldName === "THANG");
         }
 
         const dateStr =
@@ -396,13 +400,14 @@ export function resolveExportFieldValueForFileItem(
             findFieldValueInGroups(fileItem.groups, "NGAY_THANG_NAM_VAN_BAN") ??
             findFieldValueInGroups(fileItem.groups, "NGAY_BAN_HANH_AN_QD");
         const parts = parseDateParts(dateStr);
-        if (fieldName === "NGAY") return sanitizeDatePart(parts.day);
-        if (fieldName === "THANG") return sanitizeDatePart(parts.month);
+        if (fieldName === "NGAY") return sanitizeDatePart(parts.day, true);
+        if (fieldName === "THANG") return sanitizeDatePart(parts.month, true);
         if (fieldName === "NAM") return sanitizeDatePart(parts.year);
         return "";
     }
 
     const isDatePart = fieldName === "NGAY" || fieldName === "THANG" || fieldName === "NAM";
+    const padDatePart = fieldName === "NGAY" || fieldName === "THANG";
     const values: string[] = [];
     for (const group of fileItem.groups) {
         if (group.group_code !== groupCode && groupCode !== "TAI_LIEU_LUU_TRU") {
@@ -414,7 +419,7 @@ export function resolveExportFieldValueForFileItem(
             }
             const formatted = formatCellValue(field.value);
             if (formatted) {
-                const finalVal = isDatePart ? sanitizeDatePart(formatted) : formatted;
+                const finalVal = isDatePart ? sanitizeDatePart(formatted, padDatePart) : formatted;
                 if (finalVal) {
                     values.push(finalVal);
                 }
@@ -431,7 +436,7 @@ export function resolveExportFieldValueForFileItem(
             if (fieldMatchesKey(field.name, fieldName)) {
                 const formatted = formatCellValue(field.value);
                 if (formatted) {
-                    const finalVal = isDatePart ? sanitizeDatePart(formatted) : formatted;
+                    const finalVal = isDatePart ? sanitizeDatePart(formatted, padDatePart) : formatted;
                     if (finalVal) {
                         values.push(finalVal);
                     }

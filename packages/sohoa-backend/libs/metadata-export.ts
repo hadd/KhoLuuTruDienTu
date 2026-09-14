@@ -3,6 +3,7 @@ import type { DossierMetadata } from "./metadata-types.ts";
 import { expandTaiLieuDocuments } from "./metadata-normalize.ts";
 import { normalizeStorageKey, storageBasename } from "../modules/dossier/dossier-path-utils.ts";
 import { uniqueZipFolderPath } from "./archival-package/aip-path-utils.ts";
+import { sanitizeFolderPathForZip } from "./archival-package/zip-utils.ts";
 import { encryptedZipEntriesToReadableStream } from "./encrypted-zip-stream.ts";
 import {
     jszipToReadableStream,
@@ -92,63 +93,18 @@ export interface DossierMetadataExportBundle {
     pdfFiles: MetadataExportPdfFile[];
 }
 
-function collectMetadataExportEntries(input: {
-    excelFileName: string;
-    excelBuffer: Uint8Array;
-    pdfFiles: MetadataExportPdfFile[];
-}): Array<{ name: string; data: Uint8Array }> {
-    const entries: Array<{ name: string; data: Uint8Array }> = [
-        { name: input.excelFileName, data: input.excelBuffer },
-    ];
-    const usedPdfNames = new Set<string>();
-    for (const pdf of input.pdfFiles) {
-        const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
-        entries.push({ name: `pdfs/${entryName}`, data: pdf.data });
-        pdf.data = new Uint8Array(0);
-    }
-    input.pdfFiles.length = 0;
-    return entries;
-}
+// collectMetadataExportEntries removed as we use folder layout for all
 
-function buildMetadataExportJsZip(input: {
-    excelFileName: string;
-    excelBuffer: Uint8Array;
-    pdfFiles: MetadataExportPdfFile[];
-}): JSZip {
-    const zip = new JSZip();
-    for (const entry of collectMetadataExportEntries(input)) {
-        zip.file(entry.name, entry.data);
-    }
-    return zip;
-}
-
-export async function buildMetadataExportZipStream(input: {
-    excelFileName: string;
-    excelBuffer: Uint8Array;
-    pdfFiles: MetadataExportPdfFile[];
-    password?: string;
-}): Promise<ReadableStream<Uint8Array>> {
-    if (input.password?.trim()) {
-        return await encryptedZipEntriesToReadableStream(
-            collectMetadataExportEntries(input),
-            input.password,
-        );
-    }
-    return jszipToReadableStream(buildMetadataExportJsZip(input));
-}
-
-export async function buildMetadataExportZip(input: {
-    excelFileName: string;
-    excelBuffer: Uint8Array;
-    pdfFiles: MetadataExportPdfFile[];
-    password?: string;
-}): Promise<Uint8Array> {
-    return await readableStreamToUint8Array(await buildMetadataExportZipStream(input));
-}
+// Deprecated flat structure export functions removed
 
 export interface FolderDossierPdfBundle {
     /** Nested ZIP folder path preserving warehouse hierarchy (e.g. A/B/HoSo). */
     dossierFolderName: string;
+    zipFolderPath?: string;
+    /** Đường dẫn thư mục tương đối từ baseFolderPath, dùng để tạo cấu trúc thư mục trong ZIP */
+    relativeFolderPath?: string;
+    /** Tên thư mục gốc (baseFolderName) mà user đã chọn xuất */
+    baseFolderName?: string;
     pdfFiles: MetadataExportPdfFile[];
 }
 
@@ -157,20 +113,31 @@ function collectFolderMetadataExportEntries(input: {
     excelBuffer: Uint8Array;
     dossierPdfBundles: FolderDossierPdfBundle[];
 }): Array<{ name: string; data: Uint8Array }> {
+    // Excel luôn ở root ZIP
     const entries: Array<{ name: string; data: Uint8Array }> = [
         { name: input.excelFileName, data: input.excelBuffer },
     ];
     const usedFolderNames = new Set<string>();
     for (const bundle of input.dossierPdfBundles) {
-        const folderName = uniqueZipFolderPath(
-            bundle.dossierFolderName,
-            usedFolderNames,
-        );
+        let folderPrefix: string;
+        if (bundle.baseFolderName && bundle.relativeFolderPath !== undefined) {
+            const cleanBase = sanitizeFolderPathForZip(bundle.baseFolderName);
+            const cleanRel = sanitizeFolderPathForZip(bundle.relativeFolderPath);
+            folderPrefix = uniqueZipFolderPath(
+                cleanRel ? `${cleanBase}/${cleanRel}` : cleanBase,
+                usedFolderNames,
+            );
+        } else {
+            folderPrefix = uniqueZipFolderPath(
+                bundle.zipFolderPath || bundle.dossierFolderName,
+                usedFolderNames,
+            );
+        }
         const usedPdfNames = new Set<string>();
         for (const pdf of bundle.pdfFiles) {
             const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
             entries.push({
-                name: `${folderName}/pdfs/${entryName}`,
+                name: `${folderPrefix}/${entryName}`,
                 data: pdf.data,
             });
             pdf.data = new Uint8Array(0);

@@ -26,8 +26,11 @@ import {
   submitMetadataBodySchema,
 } from "../data-entry/types.ts";
 import { isPermanentDeleteFlag } from "./dossier-delete-utils.ts";
-import { WorkerRole } from "../../db/schemas/workflow-constants.ts";
+import { WorkerRole, DossierStatus } from "../../db/schemas/workflow-constants.ts";
 import { zipStreamResponse } from "../../libs/zip-stream-response.ts";
+import { db } from "../../db/db-conn.ts";
+import { dossiers } from "../../db/schemas/dossier.ts";
+import { inArray } from "drizzle-orm";
 import { resolveExportZipPassword } from "../profile/resolve-export-zip-password.ts";
 import { resolveZipEncryptModeForDossiers } from "../security-level/security-enforcement.ts";
 import {
@@ -68,11 +71,13 @@ const multiDossierMetadataExportBodySchema = t.Object({
 });
 
 const multiDipExportBodySchema = t.Object({
-  dossierIds: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
+  dossierIds: t.Array(t.String({ format: "uuid" }), { minItems: 0, default: [] }),
+  folderIds: t.Optional(t.Array(t.String({ format: "uuid" }))),
   placementId: t.Optional(t.String({ format: "uuid" })),
   applyWatermark: t.Optional(t.Boolean()),
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
   checkOnly: t.Optional(t.Boolean()),
+  baseFolderId: t.Optional(t.String({ format: "uuid" })),
 });
 
 async function assertSecurityDownload(
@@ -331,17 +336,45 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.post(
     "/metadata/export",
     async ({ body, profile, request }) => {
-      authHelper.checkPermission(
-        profile,
-        Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
-      );
-      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
-        profile,
-        request,
-        body.dossierIds,
-      );
+      let bypassSecurity = false;
+      if (body.dossierIds.length > 0) {
+        const records = await db.select({ status: dossiers.status })
+          .from(dossiers)
+          .where(inArray(dossiers.id, body.dossierIds));
+        if (records.length > 0 && records.every(r => r.status === DossierStatus.APPROVED)) {
+          bypassSecurity = true;
+        }
+      }
+
+      if (!bypassSecurity) {
+        authHelper.checkPermission(
+          profile,
+          Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
+        );
+      }
+      
+      let applyWatermark = false;
+      let skippedFileIds = new Set<string>();
+
+      if (!bypassSecurity) {
+        const sec = await assertSecurityDownload(
+          profile,
+          request,
+          body.dossierIds,
+        );
+        applyWatermark = sec.applyWatermark;
+        skippedFileIds = sec.skippedFileIds;
+      }
 
       if (body.checkOnly) {
+        if (bypassSecurity) {
+          return {
+            needsDossierPassword: false,
+            needsZipPin: false,
+            needsSecurityLevelPassword: false,
+            applyWatermark: false
+          };
+        }
         const check = await checkExportZipRequirements(
           profile,
           body.dossierIds,
@@ -390,20 +423,60 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.post(
     "/dip/export",
     async ({ body, profile, request }) => {
-      authHelper.checkPermission(
-        profile,
-        Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
-      );
-      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
-        profile,
-        request,
-        body.dossierIds,
-      );
+      // Resolve folderIds into dossierIds before any security checks
+      const allInputIds = [
+        ...(body.dossierIds ?? []),
+        ...(body.folderIds ?? []),
+      ];
+      if (allInputIds.length === 0) {
+        throw httpError.badRequest("Cần ít nhất một hồ sơ hoặc thư mục.");
+      }
+
+      // Resolve folder IDs into actual dossier IDs (recursive subtree)
+      const resolvedDossierIds = await service.resolveInputIdsToDossierIds(allInputIds);
+
+      let bypassSecurity = false;
+      if (resolvedDossierIds.length > 0) {
+        const records = await db.select({ status: dossiers.status })
+          .from(dossiers)
+          .where(inArray(dossiers.id, resolvedDossierIds));
+        if (records.length > 0 && records.every(r => r.status === DossierStatus.APPROVED)) {
+          bypassSecurity = true;
+        }
+      }
+
+      if (!bypassSecurity) {
+        authHelper.checkPermission(
+          profile,
+          Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
+        );
+      }
+      
+      let applyWatermark = false;
+      let skippedFileIds = new Set<string>();
+
+      if (!bypassSecurity) {
+        const sec = await assertSecurityDownload(
+          profile,
+          request,
+          resolvedDossierIds,
+        );
+        applyWatermark = sec.applyWatermark;
+        skippedFileIds = sec.skippedFileIds;
+      }
 
       if (body.checkOnly) {
+        if (bypassSecurity) {
+          return {
+            needsDossierPassword: false,
+            needsZipPin: false,
+            needsSecurityLevelPassword: false,
+            applyWatermark: false
+          };
+        }
         const check = await checkExportZipRequirements(
           profile,
-          body.dossierIds,
+          resolvedDossierIds,
           body.dossierAccessPassword,
         );
         return { ...check, applyWatermark };
@@ -416,18 +489,19 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             userId: profile.id,
             exportType: "dip",
             scope: "batch",
-            resourceIds: { dossierIds: body.dossierIds },
+            resourceIds: { dossierIds: resolvedDossierIds },
             applyWatermark,
             placementId: body.placementId,
             ...meta,
           },
           () =>
-            service.exportDipHosoBatch(body.dossierIds, {
+            service.exportDipHosoBatch(resolvedDossierIds, {
               placementId: body.placementId,
               applyWatermark,
               userId: profile.id,
               dossierAccessPassword: body.dossierAccessPassword,
               skippedFileIds,
+              baseFolderId: body.baseFolderId,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {

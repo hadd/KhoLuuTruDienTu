@@ -12,6 +12,10 @@ export interface PackageBuildInput {
     hoSoId: string;
     /** Nested ZIP folder path preserving warehouse hierarchy; falls back to hoSoId. */
     zipFolderPath?: string;
+    /** Relative path from the clicked folder to the dossier folder. */
+    folderPath?: string;
+    /** Clicked folder name (baseFolderName), used as the ZIP sub-folder for folder exports. */
+    folderName?: string;
 }
 
 export interface PackageBuildResult {
