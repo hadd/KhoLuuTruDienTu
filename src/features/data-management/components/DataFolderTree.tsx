@@ -74,13 +74,16 @@ export function DataFolderTree({
     () => new Set([tree.id]),
   )
 
-  const prevTreeRef = useRef(tree)
+  // Keep expansion across lazy-load tree updates. Resetting on every new
+  // `tree` reference collapses open folders (e.g. raw/) while children load.
   useEffect(() => {
-    if (prevTreeRef.current !== tree) {
-      prevTreeRef.current = tree
-      setExpanded(new Set([tree.id]))
-    }
-  }, [tree])
+    setExpanded((prev) => {
+      if (prev.has(tree.id)) return prev
+      const next = new Set(prev)
+      next.add(tree.id)
+      return next
+    })
+  }, [tree.id])
 
   const prevSelectedIdRef = useRef<string | undefined>(undefined)
   const hasExpandedForSelectionRef = useRef<string | undefined>(undefined)
