@@ -33,6 +33,7 @@ export function DataFolderTree({
   multiSelect = false,
   multiSelectTarget = 'folder',
   isMultiSelectNode,
+  getMultiSelectCheckedState,
   onSelect,
   onContextMenuNode,
   collapsed = false,
@@ -51,6 +52,10 @@ export function DataFolderTree({
   multiSelectTarget?: 'folder' | 'record'
   /** When set, overrides multiSelectTarget for which nodes show a checkbox. */
   isMultiSelectNode?: (node: DataTreeNodeT) => boolean
+  /** When set, overrides boolean checked state (supports indeterminate). */
+  getMultiSelectCheckedState?: (
+    node: DataTreeNodeT,
+  ) => boolean | 'indeterminate'
   onSelect: (id: string) => void
   onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
   collapsed?: boolean
@@ -150,6 +155,7 @@ export function DataFolderTree({
           multiSelect={multiSelect}
           multiSelectTarget={multiSelectTarget}
           isMultiSelectNode={isMultiSelectNode}
+          getMultiSelectCheckedState={getMultiSelectCheckedState}
           onSelect={onSelect}
           onContextMenuNode={onContextMenuNode}
           collapsed={collapsed}
@@ -187,6 +193,7 @@ function TreeBranch({
   multiSelect,
   multiSelectTarget,
   isMultiSelectNode,
+  getMultiSelectCheckedState,
   onSelect,
   onContextMenuNode,
   collapsed,
@@ -202,6 +209,9 @@ function TreeBranch({
   multiSelect: boolean
   multiSelectTarget: 'folder' | 'record'
   isMultiSelectNode?: (node: DataTreeNodeT) => boolean
+  getMultiSelectCheckedState?: (
+    node: DataTreeNodeT,
+  ) => boolean | 'indeterminate'
   onSelect: (id: string) => void
   onContextMenuNode?: (node: DataTreeNodeT, x: number, y: number) => void
   collapsed: boolean
@@ -219,11 +229,14 @@ function TreeBranch({
       : (multiSelectTarget === 'folder' && isFolder) ||
         (multiSelectTarget === 'record' && isRecord))
   const isOpen = expanded.has(node.id)
-  // In multi-select mode, keep the normal navigation highlight for the
-  // currently viewed node, and additionally mark checked dossiers.
-  const isChecked = multiSelect && (selectedIds?.includes(node.id) ?? false)
+  const checkState = multiSelect
+    ? (getMultiSelectCheckedState?.(node) ??
+      (selectedIds?.includes(node.id) ? true : false))
+    : false
+  const isChecked = checkState === true
+  const isPartiallyChecked = checkState === 'indeterminate'
   const isSelected = multiSelect
-    ? isChecked || selectedId === node.id
+    ? isChecked || isPartiallyChecked || selectedId === node.id
     : selectedId === node.id
   const showAssigned = hasAssignedIndicator(node)
   const showProjectBadge =
@@ -265,9 +278,18 @@ function TreeBranch({
       <div
         className={cn(
           'flex min-w-0 items-start gap-1 rounded-md py-1 pr-2 text-sm',
-          isChecked && 'bg-accent text-accent-foreground',
-          !isChecked && isSelected && !multiSelect && 'bg-accent text-accent-foreground',
-          !isChecked && selectedId === node.id && multiSelect && 'ring-1 ring-inset ring-primary/40',
+          (isChecked || isPartiallyChecked) &&
+            'bg-accent text-accent-foreground',
+          !isChecked &&
+            !isPartiallyChecked &&
+            isSelected &&
+            !multiSelect &&
+            'bg-accent text-accent-foreground',
+          !isChecked &&
+            !isPartiallyChecked &&
+            selectedId === node.id &&
+            multiSelect &&
+            'ring-1 ring-inset ring-primary/40',
         )}
         style={{ paddingLeft: `${collapsed ? 6 : depth * 12 + 4}px` }}
         onContextMenu={onContextMenuNode ? handleContextMenu : undefined}
@@ -304,7 +326,7 @@ function TreeBranch({
           data-tree-node-id={node.id}
           className={cn(
             'flex min-w-0 flex-1 items-start gap-2 rounded-sm px-1 py-0.5 text-left transition-colors',
-            !isChecked && 'hover:bg-muted/80',
+            !isChecked && !isPartiallyChecked && 'hover:bg-muted/80',
             collapsed && 'justify-center',
           )}
           onClick={() => onSelect(node.id)}
@@ -312,7 +334,7 @@ function TreeBranch({
         >
           {showMultiSelectCheckbox ? (
             <Checkbox
-              checked={isChecked}
+              checked={checkState}
               className="pointer-events-none mt-0.5 shrink-0"
               aria-hidden
               tabIndex={-1}
@@ -407,6 +429,7 @@ function TreeBranch({
               multiSelect={multiSelect}
               multiSelectTarget={multiSelectTarget}
               isMultiSelectNode={isMultiSelectNode}
+              getMultiSelectCheckedState={getMultiSelectCheckedState}
               onSelect={onSelect}
               onContextMenuNode={onContextMenuNode}
               collapsed={collapsed}
