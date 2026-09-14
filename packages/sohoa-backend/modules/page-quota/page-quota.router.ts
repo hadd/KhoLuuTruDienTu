@@ -18,13 +18,16 @@ export function createPageQuotaRouter(basePath: string = "/page-quota") {
         .get(
             "",
             async ({ profile }) => {
-                authHelper.checkRoleAny(profile, [AuthRole.ADMIN]);
+                authHelper.checkRoleAny(profile, [
+                    AuthRole.ADMIN,
+                    AuthRole.QUANTRI,
+                ]);
                 return await getPageQuotaView();
             },
             {
                 detail: {
                     tags,
-                    summary: "Get extract page quota (admin only)",
+                    summary: "Get extract page quota (admin / quantri)",
                 },
             },
         )
@@ -47,7 +50,10 @@ export function createPageQuotaRouter(basePath: string = "/page-quota") {
         .post(
             "/license",
             async ({ body, profile }) => {
-                authHelper.checkRoleAny(profile, [AuthRole.ADMIN]);
+                authHelper.checkRoleAny(profile, [
+                    AuthRole.ADMIN,
+                    AuthRole.QUANTRI,
+                ]);
                 let raw: unknown;
                 try {
                     const buf = await body.file.arrayBuffer();
