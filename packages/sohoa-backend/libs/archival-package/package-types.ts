@@ -10,6 +10,8 @@ export interface PackageBuildInput {
     metadata: DossierMetadata;
     pdfFiles: PackagePdfFile[];
     hoSoId: string;
+    folderPath?: string;   // relative path từ baseFolderPath tới folder chứa hồ sơ
+    folderName?: string;   // tên của folder được click (baseFolderName), dùng làm sub-folder trong ZIP
 }
 
 export interface PackageBuildResult {

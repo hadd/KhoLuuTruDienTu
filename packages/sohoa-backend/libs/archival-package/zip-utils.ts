@@ -2,6 +2,11 @@ function sanitizeZipEntryName(name: string): string {
     return name.replace(/[\\/:*?"<>|]/g, "_").trim() || "document.pdf";
 }
 
+export function sanitizeFolderPathForZip(path: string): string {
+    const clean = path.replace(/^\/+|\/+$/g, "");
+    return clean.replace(/[\\:*?"<>|]/g, "_").trim();
+}
+
 async function computeSha256(data: Uint8Array): Promise<string> {
     const copy = new Uint8Array(data.byteLength);
     copy.set(data);

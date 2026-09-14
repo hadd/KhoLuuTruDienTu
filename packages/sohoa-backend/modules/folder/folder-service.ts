@@ -175,21 +175,21 @@ function assertFolderMatchesBrowseScope(
   }
 }
 
-async function loadDirectFileSizeKbByFolderId(scope: FolderBrowseScope) {
+async function loadDirectDossierStatsByFolderId(scope: FolderBrowseScope) {
   const rows = await db
     .select({
       folderId: dossiers.folderId,
       totalSizeKb:
-        sql<number>`coalesce(sum(${dossierFiles.fileSizeKb}), 0)`.mapWith(
-          Number,
-        ),
+        sql<number>`coalesce(sum(${dossierFiles.fileSizeKb}), 0)`.mapWith(Number),
+      fileCount: sql<number>`count(${dossierFiles.id})`.mapWith(Number),
+      pageCount: sql<number>`coalesce(sum(${dossierFiles.pageCount}), 0)`.mapWith(Number),
     })
     .from(dossiers)
     .innerJoin(dossierFiles, eq(dossierFiles.dossierId, dossiers.id))
     .where(activeDossierWhere(dossierBrowseWhere(scope)))
     .groupBy(dossiers.folderId);
 
-  return new Map(rows.map((row) => [row.folderId, row.totalSizeKb]));
+  return new Map(rows.map((row) => [row.folderId, row]));
 }
 
 function buildFolderChildrenByParentId(
@@ -210,78 +210,86 @@ function buildFolderChildrenByParentId(
   return childrenByParentId;
 }
 
-type FolderSizeIndex = {
+type FolderStatsIndex = {
   childrenByParentId: Map<string, string[]>;
-  directSizeByFolderId: Map<string, number>;
-  sizeCache: Map<string, number>;
+  directStatsByFolderId: Map<string, { totalSizeKb: number; fileCount: number; pageCount: number }>;
+  statsCache: Map<string, { totalSizeKb: number; fileCount: number; pageCount: number }>;
 };
 
-function getRecursiveFolderSizeKb(
+function getRecursiveFolderStats(
   folderId: string,
-  index: FolderSizeIndex,
-): number {
-  const cached = index.sizeCache.get(folderId);
+  index: FolderStatsIndex,
+): { totalSizeKb: number; fileCount: number; pageCount: number } {
+  const cached = index.statsCache.get(folderId);
   if (cached !== undefined) {
     return cached;
   }
 
-  let total = index.directSizeByFolderId.get(folderId) ?? 0;
+  const direct = index.directStatsByFolderId.get(folderId) ?? { totalSizeKb: 0, fileCount: 0, pageCount: 0 };
+  let totalSizeKb = direct.totalSizeKb;
+  let fileCount = direct.fileCount;
+  let pageCount = direct.pageCount;
+
   for (const childId of index.childrenByParentId.get(folderId) ?? []) {
-    total += getRecursiveFolderSizeKb(childId, index);
+    const childStats = getRecursiveFolderStats(childId, index);
+    totalSizeKb += childStats.totalSizeKb;
+    fileCount += childStats.fileCount;
+    pageCount += childStats.pageCount;
   }
 
-  index.sizeCache.set(folderId, total);
-  return total;
+  const result = { totalSizeKb, fileCount, pageCount };
+  index.statsCache.set(folderId, result);
+  return result;
 }
 
-async function sumRecursiveFileSizeKbByFolderIds(
+async function sumRecursiveFolderStatsByFolderIds(
   rootFolderIds: string[],
   scope: FolderBrowseScope,
 ) {
   if (rootFolderIds.length === 0) {
-    return new Map<string, number>();
+    return new Map<string, { totalSizeKb: number; fileCount: number; pageCount: number }>();
   }
 
-  const [allFolders, directSizeByFolderId] = await Promise.all([
+  const [allFolders, directStatsByFolderId] = await Promise.all([
     db.query.folders.findMany({
       where: activeFolderWhere(folderBrowseWhere(scope)),
       columns: { id: true, parentId: true },
     }),
-    loadDirectFileSizeKbByFolderId(scope),
+    loadDirectDossierStatsByFolderId(scope),
   ]);
 
-  const index: FolderSizeIndex = {
+  const index: FolderStatsIndex = {
     childrenByParentId: buildFolderChildrenByParentId(allFolders),
-    directSizeByFolderId,
-    sizeCache: new Map(),
+    directStatsByFolderId,
+    statsCache: new Map(),
   };
 
   return new Map(
     rootFolderIds.map((folderId) => [
       folderId,
-      getRecursiveFolderSizeKb(folderId, index),
+      getRecursiveFolderStats(folderId, index),
     ]),
   );
 }
 
-async function sumFileSizeKbByDossierIds(dossierIds: string[]) {
+async function sumDossierStatsByDossierIds(dossierIds: string[]) {
   if (dossierIds.length === 0) {
-    return new Map<string, number>();
+    return new Map<string, { totalSizeKb: number; fileCount: number; pageCount: number }>();
   }
 
   const rows = await db
     .select({
       dossierId: dossierFiles.dossierId,
       totalSizeKb:
-        sql<number>`coalesce(sum(${dossierFiles.fileSizeKb}), 0)`.mapWith(
-          Number,
-        ),
+        sql<number>`coalesce(sum(${dossierFiles.fileSizeKb}), 0)`.mapWith(Number),
+      fileCount: sql<number>`count(${dossierFiles.id})`.mapWith(Number),
+      pageCount: sql<number>`coalesce(sum(${dossierFiles.pageCount}), 0)`.mapWith(Number),
     })
     .from(dossierFiles)
     .where(inArray(dossierFiles.dossierId, dossierIds))
     .groupBy(dossierFiles.dossierId);
 
-  return new Map(rows.map((row) => [row.dossierId, row.totalSizeKb]));
+  return new Map(rows.map((row) => [row.dossierId, row]));
 }
 
 function isDossierAssigned(
@@ -402,7 +410,7 @@ async function listAllFirstSubfolders(
 
   if (subfolders.length > 0) {
     const subfolderIds = subfolders.map((folder) => folder.id);
-    const [allFolders, allDossiers, sizeKbByFolderId] = await Promise.all([
+    const [allFolders, allDossiers, statsByFolderId] = await Promise.all([
       db.query.folders.findMany({
         where: activeFolderWhere(folderBrowseWhere(scope)),
         columns: { id: true, parentId: true },
@@ -411,7 +419,7 @@ async function listAllFirstSubfolders(
         where: activeDossierWhere(dossierBrowseWhere(scope)),
         orderBy: asc(dossiers.name),
       }),
-      sumRecursiveFileSizeKbByFolderIds(subfolderIds, scope),
+      sumRecursiveFolderStatsByFolderIds(subfolderIds, scope),
     ]);
 
     const childrenByParentId = buildFolderChildrenByParentId(allFolders);
@@ -450,7 +458,7 @@ async function listAllFirstSubfolders(
 
     const children = subfolders
       .map((folder) => {
-        const totalSizeKb = sizeKbByFolderId.get(folder.id) ?? 0;
+        const stats = statsByFolderId.get(folder.id) ?? { totalSizeKb: 0, fileCount: 0, pageCount: 0 };
         const isAssigned = isFolderSubtreeFullyAssigned(
           folder.id,
           childrenByParentId,
@@ -461,7 +469,7 @@ async function listAllFirstSubfolders(
         const directDossier = directDossierByFolderId.get(folder.id);
 
         if (!directDossier) {
-          return { ...folder, totalSizeKb, isAssigned };
+          return { ...folder, ...stats, isAssigned };
         }
 
         // Hồ sơ đã lưu kho không còn hiện trên cây số hóa / quản lý dữ liệu
@@ -474,7 +482,7 @@ async function listAllFirstSubfolders(
           dossierId: directDossier.id,
           status: directDossier.status,
           isAssigned,
-          totalSizeKb,
+          ...stats,
         };
       })
       .filter((child): child is NonNullable<typeof child> => child != null);
@@ -484,6 +492,8 @@ async function listAllFirstSubfolders(
       parentId: folderId,
       projectCode: responseProjectCode,
       totalSizeKb: children.reduce((sum, child) => sum + child.totalSizeKb, 0),
+      fileCount: children.reduce((sum, child) => sum + child.fileCount, 0),
+      pageCount: children.reduce((sum, child) => sum + child.pageCount, 0),
       children,
     };
   }
@@ -498,27 +508,32 @@ async function listAllFirstSubfolders(
   });
 
   const dossierIds = folderDossiers.map((d) => d.id);
-  const [sizeKbByDossierId, dossierIdsWithAssignments] = await Promise.all([
-    sumFileSizeKbByDossierIds(dossierIds),
+  const [statsByDossierId, dossierIdsWithAssignments] = await Promise.all([
+    sumDossierStatsByDossierIds(dossierIds),
     loadDossierIdsWithAssignments(dossierIds),
   ]);
 
-  const children = folderDossiers.map((d) => ({
-    id: d.id,
-    folderId: d.folderId,
-    folderPath: d.folderPath,
-    name: d.name,
-    entityType: d.entityType,
-    status: d.status,
-    isAssigned: isDossierAssigned(d, dossierIdsWithAssignments),
-    totalSizeKb: sizeKbByDossierId.get(d.id) ?? 0,
-  }));
+  const children = folderDossiers.map((d) => {
+    const stats = statsByDossierId.get(d.id) ?? { totalSizeKb: 0, fileCount: 0, pageCount: 0 };
+    return {
+      id: d.id,
+      folderId: d.folderId,
+      folderPath: d.folderPath,
+      name: d.name,
+      entityType: d.entityType,
+      status: d.status,
+      isAssigned: isDossierAssigned(d, dossierIdsWithAssignments),
+      ...stats,
+    };
+  });
 
   return {
     nodeType: FolderBrowseNodeType.DOSSIER,
     parentId: folderId,
     projectCode: responseProjectCode,
     totalSizeKb: children.reduce((sum, child) => sum + child.totalSizeKb, 0),
+    fileCount: children.reduce((sum, child) => sum + child.fileCount, 0),
+    pageCount: children.reduce((sum, child) => sum + child.pageCount, 0),
     children,
   };
 }
