@@ -365,21 +365,133 @@ async function loadDossierIdsWithAssignments(dossierIds: string[]) {
   return new Set(rows.map((row) => row.dossierId));
 }
 
+const VN_SOURCE = "áàảãạăắằẳẵặâấầẩẫậéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđ";
+const VN_TARGET = "aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd";
+
+function removeVietnameseTones(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+}
+
+function buildFuzzyTextCondition(col: any, q: string) {
+  const trimmed = q.trim();
+  const unaccented = removeVietnameseTones(trimmed);
+  const cleanQ = unaccented.replace(/[^a-z0-9]/g, "");
+  const rawLike = `%${trimmed}%`;
+  const unaccentLike = `%${unaccented}%`;
+  const colUnaccent = sql`translate(lower(${col}), ${VN_SOURCE}, ${VN_TARGET})`;
+  const colClean = sql`regexp_replace(${colUnaccent}, '[^a-z0-9]', '', 'g')`;
+
+  const conditions: any[] = [
+    sql`${col} ILIKE ${rawLike}`,
+    sql`${colUnaccent} LIKE ${unaccentLike}`,
+  ];
+
+  if (cleanQ.length >= 2) {
+    conditions.push(sql`${colClean} LIKE ${`%${cleanQ}%`}`);
+  }
+
+  const tokens = unaccented.split(/[\s_\-\.]+/).filter(Boolean);
+  if (tokens.length > 1) {
+    const tokenConditions = tokens.map(t => sql`${colUnaccent} LIKE ${`%${t}%`}`);
+    conditions.push(and(...tokenConditions)!);
+  }
+
+  return or(...conditions)!;
+}
+
+function buildFuzzyFileCondition(q: string) {
+  const trimmed = q.trim();
+  const unaccented = removeVietnameseTones(trimmed);
+  const withoutExt = trimmed.replace(/\.pdf$/i, "").trim();
+  const withoutExtUnaccented = removeVietnameseTones(withoutExt);
+  const cleanQ = unaccented.replace(/[^a-z0-9]/g, "");
+  const cleanWithoutExt = withoutExtUnaccented.replace(/[^a-z0-9]/g, "");
+  const tokens = unaccented.split(/[\s_\-\.]+/).filter(Boolean);
+
+  const rawLike = `%${trimmed}%`;
+  const unaccentLike = `%${unaccented}%`;
+  const rawWithoutExtLike = `%${withoutExt}%`;
+  const unaccentWithoutExtLike = `%${withoutExtUnaccented}%`;
+
+  const colName = dossierFiles.fileName;
+  const colNameUnaccent = sql`translate(lower(${dossierFiles.fileName}), ${VN_SOURCE}, ${VN_TARGET})`;
+  const colNameClean = sql`regexp_replace(${colNameUnaccent}, '[^a-z0-9]', '', 'g')`;
+
+  // Only match the file basename from filePath (not the parent directory path!)
+  const colFileBase = sql`substring(${dossierFiles.filePath} from '[^/]+$')`;
+  const colFileBaseUnaccent = sql`translate(lower(substring(${dossierFiles.filePath} from '[^/]+$')), ${VN_SOURCE}, ${VN_TARGET})`;
+  const colFileBaseClean = sql`regexp_replace(${colFileBaseUnaccent}, '[^a-z0-9]', '', 'g')`;
+
+  const conditions: any[] = [
+    sql`${colName} ILIKE ${rawLike}`,
+    sql`${colName} ILIKE ${rawWithoutExtLike}`,
+    sql`${colNameUnaccent} LIKE ${unaccentLike}`,
+    sql`${colNameUnaccent} LIKE ${unaccentWithoutExtLike}`,
+    sql`${colFileBase} ILIKE ${rawLike}`,
+    sql`${colFileBase} ILIKE ${rawWithoutExtLike}`,
+    sql`${colFileBaseUnaccent} LIKE ${unaccentLike}`,
+    sql`${colFileBaseUnaccent} LIKE ${unaccentWithoutExtLike}`,
+  ];
+
+  if (cleanQ.length >= 2) {
+    const cleanQLike = `%${cleanQ}%`;
+    conditions.push(
+      sql`${colNameClean} LIKE ${cleanQLike}`,
+      sql`${colFileBaseClean} LIKE ${cleanQLike}`
+    );
+  }
+  if (cleanWithoutExt.length >= 2 && cleanWithoutExt !== cleanQ) {
+    const cleanWithoutExtLike = `%${cleanWithoutExt}%`;
+    conditions.push(
+      sql`${colNameClean} LIKE ${cleanWithoutExtLike}`,
+      sql`${colFileBaseClean} LIKE ${cleanWithoutExtLike}`
+    );
+  }
+
+  if (tokens.length > 1) {
+    const tokenConditions = tokens.map(t => {
+      const tLike = `%${t}%`;
+      return or(
+        sql`${colNameUnaccent} LIKE ${tLike}`,
+        sql`${colFileBaseUnaccent} LIKE ${tLike}`
+      )!;
+    });
+    conditions.push(and(...tokenConditions)!);
+  }
+
+  return or(...conditions)!;
+}
+
 async function searchTree(q: string, scope: FolderBrowseScope) {
-  const likeQuery = `%${q}%`;
-  
-  // 1. Find matched files
-  const matchedFiles = await db.query.dossierFiles.findMany({
-    where: sql`${dossierFiles.fileName} ILIKE ${likeQuery}`,
+  // 1. Find matched files (respecting dossier browse scope)
+  const matchedFileRows = await db.query.dossierFiles.findMany({
+    where: buildFuzzyFileCondition(q),
     columns: { id: true, dossierId: true, fileName: true, filePath: true, fileSizeKb: true, pageCount: true, createdAt: true },
-    with: { dossier: { columns: { folderPath: true } } }
+    with: {
+      dossier: {
+        columns: { id: true, folderPath: true, folderId: true, projectCode: true, deletedAt: true },
+      },
+    },
+  });
+
+  const matchedFiles = matchedFileRows.filter((f) => {
+    if (!f.dossier || f.dossier.deletedAt) return false;
+    if (scope.mode === "global") return true;
+    if (scope.mode === "single") return f.dossier.projectCode === scope.projectCode;
+    if (scope.projectCodes.length === 0) return false;
+    return f.dossier.projectCode && scope.projectCodes.includes(f.dossier.projectCode);
   });
 
   // 2. Find matched dossiers
   const matchedDossiers = await db.query.dossiers.findMany({
     where: and(
       activeDossierWhere(dossierBrowseWhere(scope)),
-      sql`${dossiers.name} ILIKE ${likeQuery}`
+      buildFuzzyTextCondition(dossiers.name, q)
     )
   });
 
@@ -387,7 +499,7 @@ async function searchTree(q: string, scope: FolderBrowseScope) {
   const matchedFolders = await db.query.folders.findMany({
     where: and(
       activeFolderWhere(folderBrowseWhere(scope)),
-      sql`${folders.folderName} ILIKE ${likeQuery}`
+      buildFuzzyTextCondition(folders.folderName, q)
     )
   });
 
@@ -508,9 +620,7 @@ async function searchTree(q: string, scope: FolderBrowseScope) {
     }
   }
 
-  // Fetch ALL files for every dossier in the result tree
-  // (matchedFiles only contains files matching the search query;
-  //  dossiers matched by name/folder would have empty children otherwise)
+  // Fetch ALL files for dossiers in the result tree
   const allDossierFiles = dossierIdsToFetch.size > 0
     ? await db.query.dossierFiles.findMany({
         where: inArray(dossierFiles.dossierId, Array.from(dossierIdsToFetch)),
@@ -519,9 +629,24 @@ async function searchTree(q: string, scope: FolderBrowseScope) {
       })
     : [];
 
-  // Map all files to their dossiers
+  const directlyMatchedDossierIds = new Set<string>([
+    ...matchedDossiers.map(d => d.id),
+    ...folderDossiers.map(d => d.id),
+  ]);
+  const matchedFileIds = new Set<string>(matchedFiles.map(f => f.id));
+
+  // Map files to their dossiers
   for (const file of allDossierFiles) {
     if (file.dossierId && dossierMap.has(file.dossierId)) {
+      const isDirectDossierMatch = directlyMatchedDossierIds.has(file.dossierId);
+      const isThisFileMatch = matchedFileIds.has(file.id);
+
+      // If the dossier only appeared because of specific matched files,
+      // include ONLY the file(s) that matched the query to keep the tree focused.
+      if (!isDirectDossierMatch && !isThisFileMatch) {
+        continue;
+      }
+
       const extensionMatch = file.filePath.match(/\.[^.]+$/);
       let nameWithExt = file.fileName;
       if (extensionMatch && !nameWithExt.includes('.')) {
@@ -538,7 +663,8 @@ async function searchTree(q: string, scope: FolderBrowseScope) {
         entityType: "DOCUMENT",
         totalSizeKb: file.fileSizeKb,
         pageCount: file.pageCount,
-        createdAt: file.createdAt
+        createdAt: file.createdAt,
+        isSearchMatch: isThisFileMatch,
       });
     }
   }
