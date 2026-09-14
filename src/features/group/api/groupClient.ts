@@ -7,6 +7,9 @@ import type {
   AvailableEditorsResponseT,
   CreateAdminGroupPayloadT,
   GroupAssignedDossierT,
+  GroupAssignmentCountsT,
+  GroupMemberAssignmentsQueryT,
+  GroupMemberAssignmentsResponseT,
   UpdateAdminGroupPayloadT,
 } from '@/features/group/types'
 import { apiClient } from '@/lib/api/apiClient'
@@ -115,4 +118,32 @@ export const getDossiersByAssignGroupId = async (
   }
 
   return items.filter((dossier) => dossier.assignedGroupId === groupId)
+}
+
+/** GET /api/v1/admin/groups/:id/assignment-counts */
+export const getGroupAssignmentCounts = async (
+  groupId: string,
+): Promise<GroupAssignmentCountsT> => {
+  const response = await apiClient.get<GroupAssignmentCountsT>(
+    `/api/v1/admin/groups/${encodeURIComponent(groupId)}/assignment-counts`,
+  )
+  return response.data
+}
+
+/** GET /api/v1/admin/groups/:id/member-assignments */
+export const getGroupMemberAssignments = async (
+  groupId: string,
+  query: GroupMemberAssignmentsQueryT,
+): Promise<GroupMemberAssignmentsResponseT> => {
+  const response = await apiClient.get<GroupMemberAssignmentsResponseT>(
+    `/api/v1/admin/groups/${encodeURIComponent(groupId)}/member-assignments`,
+    {
+      params: {
+        userId: query.userId,
+        kind: query.kind,
+        ...(query.level != null ? { level: query.level } : {}),
+      },
+    },
+  )
+  return response.data
 }

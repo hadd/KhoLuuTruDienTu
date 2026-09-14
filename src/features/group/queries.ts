@@ -15,6 +15,8 @@ import {
   createAdminGroup,
   getAvailableEditors,
   getDossiersByAssignGroupId,
+  getGroupAssignmentCounts,
+  getGroupMemberAssignments,
 } from './api/groupClient'
 import {
   getMetadataPermissionConfigs,
@@ -27,6 +29,7 @@ import type {
   AssignGroupByFolderPayloadT,
   CreateAdminGroupPayloadT,
   Group,
+  GroupMemberAssignmentsQueryT,
   Member,
   UpdateAdminGroupPayloadT,
   UpdateGroupPermissionAssignmentsPayloadT,
@@ -62,6 +65,22 @@ export const metadataPermissionConfigsQueryKey = [
 
 export const assignedGroupDossiersQueryKey = (groupId: string) =>
   ['group', 'assigned-dossiers', groupId] as const
+
+export const groupAssignmentCountsQueryKey = (groupId: string) =>
+  ['group', 'assignment-counts', groupId] as const
+
+export const groupMemberAssignmentsQueryKey = (
+  groupId: string,
+  query: GroupMemberAssignmentsQueryT,
+) =>
+  [
+    'group',
+    'member-assignments',
+    groupId,
+    query.kind,
+    query.userId,
+    query.level ?? null,
+  ] as const
 
 export const groupKeys = {
   all: ['groups'] as const,
@@ -200,6 +219,12 @@ export function useAssignGroupByFolderMutation() {
       void queryClient.invalidateQueries({
         queryKey: assignedGroupDossiersQueryKey(variables.groupId),
       })
+      void queryClient.invalidateQueries({
+        queryKey: groupAssignmentCountsQueryKey(variables.groupId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['group', 'member-assignments', variables.groupId],
+      })
     },
   })
 }
@@ -209,6 +234,41 @@ export const assignedGroupDossiersQueryOptions = (groupId: string) =>
     queryKey: assignedGroupDossiersQueryKey(groupId),
     queryFn: () => getDossiersByAssignGroupId(groupId),
     enabled: Boolean(groupId),
+  })
+
+export const groupAssignmentCountsQueryOptions = (groupId: string) =>
+  queryOptions({
+    queryKey: groupAssignmentCountsQueryKey(groupId),
+    queryFn: () => getGroupAssignmentCounts(groupId),
+    enabled: Boolean(groupId),
+    staleTime: 15_000,
+  })
+
+export const groupMemberAssignmentsQueryOptions = (
+  groupId: string,
+  query: GroupMemberAssignmentsQueryT | null,
+) =>
+  queryOptions({
+    queryKey: groupMemberAssignmentsQueryKey(
+      groupId,
+      query ?? { userId: '', kind: 'editor' },
+    ),
+    queryFn: () => {
+      if (!query) {
+        return Promise.resolve({
+          kind: 'editor' as const,
+          userId: '',
+          level: null,
+          dossiers: [],
+          total: 0,
+        })
+      }
+      return getGroupMemberAssignments(groupId, query)
+    },
+    enabled:
+      Boolean(groupId) &&
+      Boolean(query?.userId) &&
+      (query?.kind !== 'checker' || query.level != null),
   })
 
 export const metadataPermissionConfigsQueryOptions = () =>

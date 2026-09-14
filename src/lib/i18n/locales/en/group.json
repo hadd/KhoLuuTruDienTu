@@ -370,5 +370,17 @@
     "loadFailed": "Failed to load assigned dossiers",
     "retry": "Retry",
     "count": "{{count}} dossiers"
+  },
+  "memberDossiers": {
+    "editorTitle": "Assigned dossiers — {{name}}",
+    "editorDescription": "Dossiers currently assigned to {{name}}",
+    "checkerTitle": "Assigned for review — {{name}}",
+    "checkerDescription": "Dossiers assigned to {{name}} for approval (Level {{level}})",
+    "searchPlaceholder": "Search dossiers...",
+    "editorEmpty": "No dossiers currently assigned",
+    "checkerEmpty": "No dossiers assigned for review",
+    "loadFailed": "Failed to load dossiers",
+    "retry": "Retry",
+    "count": "{{count}} dossiers"
   }
 }

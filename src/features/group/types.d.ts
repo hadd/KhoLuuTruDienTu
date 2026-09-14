@@ -264,6 +264,34 @@ export interface GroupAssignedDossierT {
   deletedAt: string | null
 }
 
+export type GroupMemberAssignmentKindT = 'editor' | 'checker'
+
+export interface GroupAssignmentCountsT {
+  editors: Array<{ userId: string; count: number }>
+  checkers: Array<{ userId: string; level: number; count: number }>
+}
+
+export interface GroupMemberAssignmentsQueryT {
+  userId: string
+  kind: GroupMemberAssignmentKindT
+  level?: number
+}
+
+export interface GroupMemberAssignmentsResponseT {
+  kind: GroupMemberAssignmentKindT
+  userId: string
+  level: number | null
+  dossiers: Array<GroupAssignedDossierT>
+  total: number
+}
+
+export interface MemberDossiersTargetT {
+  kind: GroupMemberAssignmentKindT
+  userId: string
+  name: string
+  level?: number
+}
+
 export interface AssignGroupByFolderResponseT {
   mode: string
   group: {
