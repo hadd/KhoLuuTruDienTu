@@ -37,6 +37,10 @@ import {
   storageBasename,
   storageDirname,
   toSearchablePdfKey,
+  deriveFolderPathFromProcessedKey,
+  getMetadataOutputPrefix,
+  isCanonicalOcrOutputKey,
+  computeRelativeFolderPath,
 } from "./dossier-path-utils.ts";
 import { buildFileFullPath } from "./dossier-s3-utils.ts";
 import {
@@ -100,6 +104,7 @@ import {
   exportDipHosoBatch as buildDipHosoBatchExport,
   generateAndPersistAip,
   getAipStatus as queryAipStatus,
+  resolveIdsIntoDossierIds,
 } from "../../libs/archival-package/aip-service.ts";
 import {
   applyWatermarkConfigToPdfFiles,
@@ -123,8 +128,8 @@ import { buildMetadataExportPreview } from "../../libs/metadata-export-preview.t
 import { MetadataExportPresetService } from "../metadata-export-preset/metadata-export-preset-service.ts";
 import {
   buildFolderMetadataExportZipStream,
-  buildMetadataExportZipStream,
   collectMetadataPdfSources,
+  type FolderDossierPdfBundle,
 } from "../../libs/metadata-export.ts";
 import {
   type DossierMetadata,
@@ -1050,6 +1055,7 @@ type DossierWithFiles = {
   name: string;
   status: string;
   fondId: string | null;
+  folderPath: string;
   currentMetadataKey: string | null;
   files?: Array<{ fileName: string; filePath: string }>;
 };
@@ -1215,6 +1221,10 @@ async function buildApprovedMetadataExportZip(
     zipBaseName: string;
     /** dossier: 1 hồ sơ giữ layout pdfs/ phẳng; folder|multi: {hoso}/pdfs/ */
     layout: "dossier-single" | "folder";
+    /** Đường dẫn thư mục gốc mà user right-click, dùng để tính relative path */
+    baseFolderPath?: string;
+    /** Tên thư mục gốc mà user right-click */
+    baseFolderName?: string;
   },
 ) {
   // Early file-count check using metadata JSON only (no PDF download yet).
@@ -1270,6 +1280,17 @@ async function buildApprovedMetadataExportZip(
         watermarkConfig,
       );
       pdfBundle.pdfFiles = await convertBatchToPdfA(pdfBundle.pdfFiles, { title: metadata.ho_so_id || dossier.name });
+
+      // Tính relative folder path khi xuất từ folder
+      if (options.baseFolderPath && options.baseFolderName) {
+        pdfBundle.relativeFolderPath = computeRelativeFolderPath(
+          dossier.folderPath,
+          options.baseFolderPath,
+          options.baseFolderName
+        );
+        pdfBundle.baseFolderName = options.baseFolderName;
+      }
+
       return { metadata, pdfBundle };
     },
   );
@@ -1280,32 +1301,19 @@ async function buildApprovedMetadataExportZip(
       ? await MetadataExportPresetService.resolveExportConfig(input)
       : undefined;
 
-  if (options.layout === "dossier-single" && loaded.length === 1) {
-    const item = loaded[0]!;
-    const excelBuffer = await buildDynamicMetadataExcel([item.metadata], {
-      exportConfig,
-    });
-    const excelFileName = `${item.pdfBundle.dossierFolderName}-metadata.xlsx`;
-    const stream = await buildMetadataExportZipStream({
-      excelFileName,
-      excelBuffer,
-      pdfFiles: item.pdfBundle.pdfFiles,
-      password: zipPassword,
-    });
-    return {
-      stream,
-      filename: `${item.pdfBundle.dossierFolderName}-metadata-export.zip`,
-      contentType: "application/zip" as const,
-      exportedCount: 1,
-      zipPasswordSource: zipResolved.source,
-    };
-  }
-
   const excelBuffer = await buildDynamicMetadataExcel(metadataList, {
     exportConfig,
   });
-  const safeBaseName = sanitizeExportBaseName(options.zipBaseName);
-  const excelFileName = `${safeBaseName}-metadata-export.xlsx`;
+
+  const isSingleDossier = options.layout === "dossier-single" && loaded.length === 1;
+  const zipBaseName = isSingleDossier
+    ? loaded[0]!.pdfBundle.dossierFolderName
+    : sanitizeExportBaseName(options.zipBaseName);
+
+  const excelFileName = isSingleDossier
+    ? `${zipBaseName}-metadata.xlsx`
+    : `${zipBaseName}-metadata-export.xlsx`;
+
   const stream = await buildFolderMetadataExportZipStream({
     excelFileName,
     excelBuffer,
@@ -1315,9 +1323,9 @@ async function buildApprovedMetadataExportZip(
 
   return {
     stream,
-    filename: `${safeBaseName}-approved-metadata-export.zip`,
+    filename: `${zipBaseName}-metadata-export.zip`,
     contentType: "application/zip" as const,
-    exportedCount: metadataList.length,
+    exportedCount: loaded.length,
     zipPasswordSource: zipResolved.source,
   };
 }
@@ -1339,7 +1347,7 @@ async function loadDossierMetadataFromStorage(dossier: DossierWithFiles) {
 async function buildDossierPdfExportBundle(
   dossier: DossierWithFiles,
   metadata: DossierMetadata,
-) {
+): Promise<FolderDossierPdfBundle> {
   const baseName = metadata.ho_so_id || dossier.name || dossier.id;
   const dossierFolderName = sanitizeExportBaseName(baseName);
   const pdfSources = collectMetadataPdfSources(metadata, dossier.files ?? []);
@@ -3619,6 +3627,10 @@ export const DossierService = {
     });
   },
 
+  async resolveInputIdsToDossierIds(inputIds: string[]): Promise<string[]> {
+    return await resolveIdsIntoDossierIds(inputIds);
+  },
+
   async exportDipHosoBatch(
     dossierIds: string[],
     input?: {
@@ -3627,6 +3639,7 @@ export const DossierService = {
       userId?: string;
       dossierAccessPassword?: string;
       skippedFileIds?: Set<string>;
+      baseFolderId?: string;
     },
   ) {
     const applyWatermark = await resolveApplyWatermarkForDossiers(dossierIds);
@@ -3664,9 +3677,16 @@ export const DossierService = {
     const zipBaseName =
       rootFolders.length === 1 ? rootFolders[0]!.folderName : "multi-folders";
 
+    // Lấy baseFolderPath và baseFolderName từ rootFolder đầu tiên
+    const rootFolder = rootFolders.length === 1 ? rootFolders[0]! : undefined;
+    const baseFolderPath = rootFolder?.folderPath || "";
+    const baseFolderName = rootFolder?.folderName?.trim() || "";
+
     return await buildApprovedMetadataExportZip(allDossiers, input, {
       zipBaseName,
       layout: "folder",
+      baseFolderPath: baseFolderPath || undefined,
+      baseFolderName: baseFolderName || undefined,
     });
   },
 
