@@ -57,6 +57,7 @@ function ResizableHandle({
           <GripVerticalIcon className="size-2.5" />
         </div>
       )}
+      {props.children}
     </ResizablePrimitive.PanelResizeHandle>
   )
 }

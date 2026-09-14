@@ -228,6 +228,8 @@ export interface DataTreeNodeT {
   parentId: string | null
   children: Array<DataTreeNodeT>
   sizeBytes: number
+  fileCount?: number
+  pageCount?: number
   uploadedAt: string
   uploadedBy: string
   mimeType?: string

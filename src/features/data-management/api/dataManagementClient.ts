@@ -142,6 +142,8 @@ function createEmptyRoot(): DataTreeNodeT {
     parentId: null,
     children: [],
     sizeBytes: 0,
+    fileCount: 0,
+    pageCount: 0,
     uploadedAt: new Date().toISOString(),
     uploadedBy: 'System',
   }
@@ -332,6 +334,8 @@ async function assembleEditorTreeFromClaim(
     parentId: DATA_TREE_ROOT_ID,
     children,
     sizeBytes: children.reduce((sum, doc) => sum + doc.sizeBytes, 0),
+    fileCount: children.length,
+    pageCount: children.reduce((sum, doc) => sum + (doc.pageCount || 0), 0),
     uploadedAt: new Date().toISOString(),
     uploadedBy: 'System',
     dossierId,
@@ -501,6 +505,10 @@ function applyNodeSizeFromPayload(
   if (sizeBytes > 0) {
     node.sizeBytes = sizeBytes
   }
+  const fileCount = Number(source.fileCount ?? source.file_count ?? 0)
+  if (fileCount > 0) node.fileCount = fileCount
+  const pageCount = Number(source.pageCount ?? source.page_count ?? 0)
+  if (pageCount > 0) node.pageCount = pageCount
 }
 
 function sumChildrenSizeBytes(children: Array<DataTreeNodeT>): number {
@@ -547,6 +555,8 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
     parentId: child.parentId != null ? String(child.parentId) : null,
     children: [],
     sizeBytes: sizeKbToBytes(child.totalSizeKb ?? child.total_size_kb),
+    fileCount: Number(child.fileCount ?? child.file_count ?? 0),
+    pageCount: Number(child.pageCount ?? child.page_count ?? 0),
     uploadedAt: String(child.createdAt || new Date().toISOString()),
     uploadedBy: 'System',
     ...(entityType ? { entityType } : {}),
@@ -640,6 +650,11 @@ export async function refreshDossierContent(
   recordNode.fullDossierMetadata = fullMetadata
   recordNode.sizeBytes = recordContent.children.reduce(
     (sum, document) => sum + document.sizeBytes,
+    0,
+  )
+  recordNode.fileCount = recordContent.children.length
+  recordNode.pageCount = recordContent.children.reduce(
+    (sum, document) => sum + (document.pageCount || 0),
     0,
   )
   const refreshedStatus = parseDossierStatus(
@@ -770,6 +785,8 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
           parentId: currentParentId,
           children: [],
           sizeBytes: 0,
+          fileCount: 0,
+          pageCount: 0,
           uploadedAt: String(dossier.updatedAt || new Date().toISOString()),
           uploadedBy: 'System',
         }
@@ -795,6 +812,11 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
           newNode.fullDossierMetadata =
             recordContent.fullDossierMetadata ?? recordContent.dossierMetadata
           newNode.sizeBytes = sumChildrenSizeBytes(recordContent.children)
+          newNode.fileCount = recordContent.children.length
+          newNode.pageCount = recordContent.children.reduce(
+            (sum, document) => sum + (document.pageCount || 0),
+            0,
+          )
           loadedNodes.add(dossierId)
         }
 
@@ -1346,6 +1368,8 @@ export async function assignPdfDocument({
       parentId: parentNode.id,
       children: [],
       sizeBytes: file.size,
+      fileCount: 1,
+      pageCount: 1,
       uploadedAt: createdAt,
       uploadedBy: 'System',
       projectCode: oldNode.projectCode,
@@ -1432,6 +1456,8 @@ export async function addDataFolder(parentId: string): Promise<DataTreeNodeT> {
     parentId,
     children: [],
     sizeBytes: 0,
+    fileCount: 0,
+    pageCount: 0,
     uploadedAt: createdAt,
     uploadedBy: 'System',
   }

@@ -92,6 +92,18 @@ export function DataNodeDetailModal({
               </dd>
             </div>
             <div>
+              <dt className="text-sm text-muted-foreground">{t('detail.fileCount')}</dt>
+              <dd className="mt-1 font-semibold text-foreground">
+                {node.fileCount ?? 0}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">{t('detail.pageCount')}</dt>
+              <dd className="mt-1 font-semibold text-foreground">
+                {node.pageCount ?? 0}
+              </dd>
+            </div>
+            <div>
               <dt className="text-sm text-muted-foreground">{t('detail.uploadedAt')}</dt>
               <dd className="mt-1 font-semibold text-foreground">
                 {formattedDate}

@@ -101,6 +101,8 @@
     "title": "Chi tiết",
     "type": "Loại",
     "size": "Dung lượng",
+    "fileCount": "Số lượng file",
+    "pageCount": "Số lượng trang",
     "uploadedAt": "Ngày tải lên",
     "uploadedBy": "Người tải lên",
     "editor": "Người biên tập",
@@ -549,7 +551,8 @@
     "columns": {
       "name": "Tên",
       "status": "Trạng thái",
-      "size": "Dung lượng",
+      "fileCount": "Số lượng file",
+      "pageCount": "Số lượng trang",
       "uploadedAt": "Ngày tải lên"
     }
   },
