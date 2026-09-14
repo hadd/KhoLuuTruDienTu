@@ -1474,13 +1474,19 @@ export function filterTreeForSearch(
   const needle = q.trim().toLowerCase()
   if (!needle) return root
 
-  function filt(n: DataTreeNodeT): DataTreeNodeT | null {
-    const kids = n.children
+  function filt(node: DataTreeNodeT): DataTreeNodeT | null {
+    const selfMatch = node.name.toLowerCase().includes(needle)
+    if (selfMatch) {
+      return {
+        ...node,
+        children: node.children,
+      }
+    }
+    const kids = node.children
       .map(filt)
       .filter((x): x is DataTreeNodeT => x != null)
-    const selfMatch = n.name.toLowerCase().includes(needle)
-    if (selfMatch || kids.length > 0) {
-      return { ...n, children: kids }
+    if (kids.length > 0) {
+      return { ...node, children: kids }
     }
     return null
   }

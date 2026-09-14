@@ -69,6 +69,14 @@ export function DataFolderTree({
     () => new Set([tree.id]),
   )
 
+  const prevTreeRef = useRef(tree)
+  useEffect(() => {
+    if (prevTreeRef.current !== tree) {
+      prevTreeRef.current = tree
+      setExpanded(new Set([tree.id]))
+    }
+  }, [tree])
+
   const prevSelectedIdRef = useRef<string | undefined>(undefined)
   const hasExpandedForSelectionRef = useRef<string | undefined>(undefined)
 
