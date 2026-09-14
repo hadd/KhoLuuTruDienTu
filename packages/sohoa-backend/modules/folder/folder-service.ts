@@ -365,6 +365,235 @@ async function loadDossierIdsWithAssignments(dossierIds: string[]) {
   return new Set(rows.map((row) => row.dossierId));
 }
 
+async function searchTree(q: string, scope: FolderBrowseScope) {
+  const likeQuery = `%${q}%`;
+  
+  // 1. Find matched files
+  const matchedFiles = await db.query.dossierFiles.findMany({
+    where: sql`${dossierFiles.fileName} ILIKE ${likeQuery}`,
+    columns: { id: true, dossierId: true, fileName: true, filePath: true, fileSizeKb: true, pageCount: true, createdAt: true },
+    with: { dossier: { columns: { folderPath: true } } }
+  });
+
+  // 2. Find matched dossiers
+  const matchedDossiers = await db.query.dossiers.findMany({
+    where: and(
+      activeDossierWhere(dossierBrowseWhere(scope)),
+      sql`${dossiers.name} ILIKE ${likeQuery}`
+    )
+  });
+
+  // 3. Find matched folders
+  const matchedFolders = await db.query.folders.findMany({
+    where: and(
+      activeFolderWhere(folderBrowseWhere(scope)),
+      sql`${folders.folderName} ILIKE ${likeQuery}`
+    )
+  });
+
+  const dossierIdsToFetch = new Set<string>();
+  const folderPathsToFetch = new Set<string>();
+
+  for (const f of matchedFiles) {
+    if (f.dossierId) {
+      dossierIdsToFetch.add(f.dossierId);
+      if (f.dossier?.folderPath) folderPathsToFetch.add(f.dossier.folderPath);
+    }
+  }
+  for (const d of matchedDossiers) {
+    dossierIdsToFetch.add(d.id);
+    if (d.folderPath) folderPathsToFetch.add(d.folderPath);
+  }
+  for (const f of matchedFolders) {
+    if (f.folderPath) folderPathsToFetch.add(f.folderPath);
+  }
+
+  // For matched folders, also find all descendant folders and their dossiers
+  const descendantFolderConditions = matchedFolders
+    .filter(f => f.folderPath)
+    .map(f => sql`${folders.folderPath} LIKE ${f.folderPath + '/%'}`);
+
+  const descendantFolders = descendantFolderConditions.length > 0
+    ? await db.query.folders.findMany({
+        where: and(
+          activeFolderWhere(folderBrowseWhere(scope)),
+          or(...descendantFolderConditions)
+        ),
+        orderBy: asc(folders.folderName)
+      })
+    : [];
+
+  for (const df of descendantFolders) {
+    if (df.folderPath) folderPathsToFetch.add(df.folderPath);
+  }
+
+  // Collect all folder IDs where dossiers could live (matched folders + their descendant folders)
+  const allFolderIdsForDossiers = new Set<string>();
+  for (const f of matchedFolders) allFolderIdsForDossiers.add(f.id);
+  for (const df of descendantFolders) allFolderIdsForDossiers.add(df.id);
+
+  const folderDossiers = allFolderIdsForDossiers.size > 0
+    ? await db.query.dossiers.findMany({
+        where: and(
+          activeDossierWhere(dossierBrowseWhere(scope)),
+          inArray(dossiers.folderId, Array.from(allFolderIdsForDossiers))
+        ),
+        orderBy: asc(dossiers.name)
+      })
+    : [];
+
+  for (const d of folderDossiers) {
+    dossierIdsToFetch.add(d.id);
+    if (d.folderPath) folderPathsToFetch.add(d.folderPath);
+  }
+
+  // Generate ancestor folder paths
+  const ancestorPaths = new Set<string>();
+  for (const p of folderPathsToFetch) {
+    const parts = p.split("/").filter(Boolean);
+    for (let i = 0; i < parts.length; i++) {
+      ancestorPaths.add(parts.slice(0, i + 1).join("/"));
+    }
+  }
+
+  // Fetch all dossiers
+  const allDossiers = dossierIdsToFetch.size > 0 
+    ? await db.query.dossiers.findMany({
+        where: inArray(dossiers.id, Array.from(dossierIdsToFetch)),
+        orderBy: asc(dossiers.name)
+      })
+    : [];
+
+  // Fetch all ancestor folders
+  const allFolders = ancestorPaths.size > 0
+    ? await db.query.folders.findMany({
+        where: and(
+          activeFolderWhere(folderBrowseWhere(scope)),
+          inArray(folders.folderPath, Array.from(ancestorPaths))
+        ),
+        orderBy: asc(folders.folderName)
+      })
+    : [];
+
+  // Assemble the tree
+  const folderMap = new Map<string, any>();
+  const rootFolders: any[] = [];
+
+  for (const folder of allFolders) {
+    const folderNode = { ...folder, children: [] };
+    folderMap.set(folder.id, folderNode);
+  }
+
+  for (const folder of folderMap.values()) {
+    if (folder.parentId && folderMap.has(folder.parentId)) {
+      folderMap.get(folder.parentId).children.push(folder);
+    } else {
+      rootFolders.push(folder);
+    }
+  }
+
+  // Map dossiers to their folders
+  const dossierMap = new Map<string, any>();
+  for (const dossier of allDossiers) {
+    const dossierNode = {
+      ...dossier,
+      type: "record",
+      entityType: "DOCUMENT",
+      dossierId: dossier.id,
+      children: [],
+    };
+    dossierMap.set(dossier.id, dossierNode);
+    if (folderMap.has(dossier.folderId)) {
+      folderMap.get(dossier.folderId).children.push(dossierNode);
+    }
+  }
+
+  // Fetch ALL files for every dossier in the result tree
+  // (matchedFiles only contains files matching the search query;
+  //  dossiers matched by name/folder would have empty children otherwise)
+  const allDossierFiles = dossierIdsToFetch.size > 0
+    ? await db.query.dossierFiles.findMany({
+        where: inArray(dossierFiles.dossierId, Array.from(dossierIdsToFetch)),
+        columns: { id: true, dossierId: true, fileName: true, filePath: true, fileSizeKb: true, pageCount: true, createdAt: true },
+        orderBy: asc(dossierFiles.fileName),
+      })
+    : [];
+
+  // Map all files to their dossiers
+  for (const file of allDossierFiles) {
+    if (file.dossierId && dossierMap.has(file.dossierId)) {
+      const extensionMatch = file.filePath.match(/\.[^.]+$/);
+      let nameWithExt = file.fileName;
+      if (extensionMatch && !nameWithExt.includes('.')) {
+        nameWithExt = nameWithExt + extensionMatch[0];
+      }
+
+      dossierMap.get(file.dossierId).children.push({
+        id: file.id,
+        dossierId: file.dossierId,
+        parentId: file.dossierId,
+        name: nameWithExt,
+        filePath: file.filePath,
+        type: "document",
+        entityType: "DOCUMENT",
+        totalSizeKb: file.fileSizeKb,
+        pageCount: file.pageCount,
+        createdAt: file.createdAt
+      });
+    }
+  }
+
+  // Back-fill fileCount and totalSizeKb / pageCount on each dossier node
+  for (const dossierNode of dossierMap.values()) {
+    dossierNode.fileCount = dossierNode.children.length;
+    dossierNode.totalSizeKb = dossierNode.children.reduce(
+      (s: number, f: any) => s + (f.totalSizeKb ?? 0), 0
+    );
+    dossierNode.pageCount = dossierNode.children.reduce(
+      (s: number, f: any) => s + (f.pageCount ?? 0), 0
+    );
+  }
+
+  // Recursively compute folder stats bottom-up
+  function computeFolderStats(node: any): { fileCount: number; pageCount: number; totalSizeKb: number } {
+    let fileCount = 0;
+    let pageCount = 0;
+    let totalSizeKb = 0;
+
+    for (const child of node.children) {
+      if (child.type === 'document') {
+        fileCount += 1;
+        pageCount += child.pageCount ?? 0;
+        totalSizeKb += child.totalSizeKb ?? 0;
+      } else if (child.children && child.children.length > 0) {
+        const childStats = computeFolderStats(child);
+        fileCount += childStats.fileCount;
+        pageCount += childStats.pageCount;
+        totalSizeKb += childStats.totalSizeKb;
+      } else {
+        fileCount += child.fileCount ?? 0;
+        pageCount += child.pageCount ?? 0;
+        totalSizeKb += child.totalSizeKb ?? 0;
+      }
+    }
+
+    node.fileCount = fileCount;
+    node.pageCount = pageCount;
+    node.totalSizeKb = totalSizeKb;
+    return { fileCount, pageCount, totalSizeKb };
+  }
+
+  for (const root of rootFolders) {
+    computeFolderStats(root);
+  }
+
+  return {
+    nodeType: FolderBrowseNodeType.FOLDER,
+    projectCode: scopeResponseProjectCode(scope),
+    children: rootFolders,
+  };
+}
+
 async function listAllParents(scope: FolderBrowseScope) {
   const children = await db.query.folders.findMany({
     where: activeFolderWhere(
@@ -880,4 +1109,5 @@ export const FolderService = {
   listAllParents,
   listAllFirstSubfolders,
   listDossierFiles,
+  searchTree,
 };
