@@ -939,6 +939,82 @@ Deno.test({
                 qcWhileEditing.total,
                 qcCountWhileEditing.count,
             );
+
+            const assignedList = await GroupService.getAssignedDossiers(groupId);
+            const assignedCreated = assignedList.dossiers.filter((d) =>
+                createdDossierIds.includes(d.id)
+            );
+            assertEquals(assignedCreated.length, 2);
+            for (const dossier of assignedCreated) {
+                assertEquals(dossier.editors.length >= 1, true);
+                assertEquals(
+                    dossier.editors.some((editor) => editor.userId === editor1.id),
+                    true,
+                );
+            }
+        });
+
+        await t.step("assigned-dossiers includes makers and empty editors for queued", async () => {
+            const listEditor = await createTestUser({
+                email: `${TEST_PREFIX}-list-editor@test.local`,
+                fullName: "List Editor",
+                roleId: AuthRole.EDITOR,
+            });
+            ids.userIds.push(listEditor.id);
+
+            const { record: listGroup } = await GroupService.create({
+                name: `List Assigned ${TEST_PREFIX}`,
+                projectCode,
+                roundNumber: 1,
+                editorIds: [listEditor.id],
+                qcLevels: [{ userIds: [qc1.id] }],
+            });
+            ids.groupIds.push(listGroup.id);
+
+            const listPath = `${TEST_PREFIX}/assigned-dossiers-list`;
+            const listFolder = await FolderService.create({
+                folderPath: listPath,
+                folderName: "assigned-dossiers-list",
+                projectCode,
+            });
+            ids.folderIds.push(listFolder.id);
+
+            const [activeDossier] = await db.insert(dossiers).values({
+                folderId: listFolder.id,
+                folderPath: listPath,
+                name: "list-active",
+                entityType: EntityType.DOCUMENT,
+                assignedGroupId: listGroup.id,
+            }).returning();
+            ids.dossierIds.push(activeDossier.id);
+
+            const [queuedDossier] = await db.insert(dossiers).values({
+                folderId: listFolder.id,
+                folderPath: listPath,
+                name: "list-queued",
+                entityType: EntityType.DOCUMENT,
+                assignedGroupId: listGroup.id,
+            }).returning();
+            ids.dossierIds.push(queuedDossier.id);
+
+            await db.insert(dossierAssignments).values({
+                dossierId: activeDossier.id,
+                assigneeId: listEditor.id,
+                role: WorkerRole.MAKER,
+                status: AssignmentStatus.IN_PROGRESS,
+            });
+
+            const assignedList = await GroupService.getAssignedDossiers(listGroup.id);
+            assertEquals(assignedList.total, 2);
+
+            const activeRow = assignedList.dossiers.find((d) => d.id === activeDossier.id);
+            const queuedRow = assignedList.dossiers.find((d) => d.id === queuedDossier.id);
+            assertExists(activeRow);
+            assertExists(queuedRow);
+            assertEquals(activeRow.editors.length, 1);
+            assertEquals(activeRow.editors[0]?.userId, listEditor.id);
+            assertEquals(activeRow.editors[0]?.fullName, "List Editor");
+            assertEquals(queuedRow.editors.length, 0);
         });
     } finally {
         await cleanupTestData(ids);

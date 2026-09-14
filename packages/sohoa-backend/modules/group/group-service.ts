@@ -12,6 +12,7 @@ import { folders } from "../../db/schemas/folder.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import { userRoles } from "../../db/schemas/user_role.ts";
 import {
+    AssignmentStatus,
     QC_CHECKER_BY_STEP,
     WORKABLE_ASSIGNMENT_STATUSES,
     WorkerRole,
@@ -1226,6 +1227,55 @@ async function listPendingCheckerDossiersForUser(
         .map((row) => mapAssignedDossierRow(row.dossier!));
 }
 
+/** List all dossiers assigned to a group, with current MAKER editors (excl. TRANSFERRED). */
+async function listAssignedDossiersWithEditors(groupId: string) {
+    const dossierRows = await db.query.dossiers.findMany({
+        where: and(
+            eq(dossiers.assignedGroupId, groupId),
+            isNull(dossiers.deletedAt),
+        ),
+        columns: ASSIGNED_DOSSIER_LIST_COLUMNS,
+        orderBy: [asc(dossiers.folderPath), asc(dossiers.name)],
+    });
+
+    if (dossierRows.length === 0) {
+        return [];
+    }
+
+    const dossierIds = dossierRows.map((row) => row.id);
+    const assignmentRows = await db
+        .select({
+            dossierId: dossierAssignments.dossierId,
+            userId: dossierAssignments.assigneeId,
+            fullName: userProfiles.fullName,
+        })
+        .from(dossierAssignments)
+        .innerJoin(userProfiles, eq(dossierAssignments.assigneeId, userProfiles.id))
+        .where(and(
+            inArray(dossierAssignments.dossierId, dossierIds),
+            eq(dossierAssignments.role, WorkerRole.MAKER),
+            ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
+        ))
+        .orderBy(asc(userProfiles.fullName));
+
+    const editorsByDossierId = new Map<
+        string,
+        Array<{ userId: string; fullName: string | null }>
+    >();
+
+    for (const row of assignmentRows) {
+        const list = editorsByDossierId.get(row.dossierId) ?? [];
+        if (list.some((editor) => editor.userId === row.userId)) continue;
+        list.push({ userId: row.userId, fullName: row.fullName });
+        editorsByDossierId.set(row.dossierId, list);
+    }
+
+    return dossierRows.map((dossier) => ({
+        ...mapAssignedDossierRow(dossier),
+        editors: editorsByDossierId.get(dossier.id) ?? [],
+    }));
+}
+
 export const GroupService = {
     async create(input: Static<typeof createGroupBodySchema>) {
         const normalized = normalizeGroupQcInput(input);
@@ -1868,6 +1918,15 @@ export const GroupService = {
             leafFolders,
             targets,
         });
+    },
+
+    async getAssignedDossiers(groupId: string) {
+        await getActiveGroupOrThrow(groupId);
+        const dossiersWithEditors = await listAssignedDossiersWithEditors(groupId);
+        return {
+            dossiers: dossiersWithEditors,
+            total: dossiersWithEditors.length,
+        };
     },
 
     async getAssignmentCounts(groupId: string) {

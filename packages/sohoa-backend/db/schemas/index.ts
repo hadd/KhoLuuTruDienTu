@@ -82,6 +82,18 @@ export type {
     NewMetadataExtractSettings,
 } from "./metadata-extract-settings.ts";
 export {
+    pageQuota,
+    pageQuotaCharges,
+    pageQuotaRelations,
+    pageQuotaChargesRelations,
+} from "./page-quota.ts";
+export type {
+    PageQuota,
+    NewPageQuota,
+    PageQuotaCharge,
+    NewPageQuotaCharge,
+} from "./page-quota.ts";
+export {
     metadataHiddenFields,
     type MetadataHiddenField,
     type NewMetadataHiddenField,

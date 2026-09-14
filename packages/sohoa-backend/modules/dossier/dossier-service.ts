@@ -1,12 +1,24 @@
 import { createCrudService } from "@shared/base-crud";
 import { httpError } from "@shared/common-lib";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, like, ne, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  like,
+  ne,
+  or,
+} from "drizzle-orm";
 import type { Static } from "elysia";
 import { db } from "../../db/db-conn.ts";
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossierFiles } from "../../db/schemas/dossier-file.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { getPdfPageCount } from "../../libs/pdf-page-counter.ts";
+import { assertUploadFitsRemaining } from "../page-quota/page-quota-service.ts";
 import { folders } from "../../db/schemas/folder.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import {
@@ -1251,14 +1263,12 @@ async function buildApprovedMetadataExportZip(
 
   const dossierIds = allDossiers.map((d) => d.id);
   // Hồ sơ ở trạng thái Đã duyệt: Không áp dụng watermark trừ khi người dùng chủ động bật (applyWatermark === true)
-  const applyWatermark = input?.applyWatermark === true
-    ? await resolveApplyWatermarkForDossiers(dossierIds)
-    : false;
+  const applyWatermark =
+    input?.applyWatermark === true
+      ? await resolveApplyWatermarkForDossiers(dossierIds)
+      : false;
   const watermarkConfig = applyWatermark
-    ? await resolveWatermarkApplyConfig(
-        input?.placementId,
-        true,
-      )
+    ? await resolveWatermarkApplyConfig(input?.placementId, true)
     : null;
 
   const zipResolved = input?.userId
@@ -1279,14 +1289,16 @@ async function buildApprovedMetadataExportZip(
         pdfBundle.pdfFiles,
         watermarkConfig,
       );
-      pdfBundle.pdfFiles = await convertBatchToPdfA(pdfBundle.pdfFiles, { title: metadata.ho_so_id || dossier.name });
+      pdfBundle.pdfFiles = await convertBatchToPdfA(pdfBundle.pdfFiles, {
+        title: metadata.ho_so_id || dossier.name,
+      });
 
       // Tính relative folder path khi xuất từ folder
       if (options.baseFolderPath && options.baseFolderName) {
         pdfBundle.relativeFolderPath = computeRelativeFolderPath(
           dossier.folderPath,
           options.baseFolderPath,
-          options.baseFolderName
+          options.baseFolderName,
         );
         pdfBundle.baseFolderName = options.baseFolderName;
       }
@@ -1305,7 +1317,8 @@ async function buildApprovedMetadataExportZip(
     exportConfig,
   });
 
-  const isSingleDossier = options.layout === "dossier-single" && loaded.length === 1;
+  const isSingleDossier =
+    options.layout === "dossier-single" && loaded.length === 1;
   const zipBaseName = isSingleDossier
     ? loaded[0]!.pdfBundle.dossierFolderName
     : sanitizeExportBaseName(options.zipBaseName);
@@ -2204,7 +2217,9 @@ export const DossierService = {
     });
 
     if (rows.length === 0) {
-      throw httpError.notFound("No soft-deleted dossiers found for the given IDs");
+      throw httpError.notFound(
+        "No soft-deleted dossiers found for the given IDs",
+      );
     }
 
     const restoredIds = rows.map((r) => r.id);
@@ -2213,7 +2228,11 @@ export const DossierService = {
     await db.transaction(async (tx) => {
       await tx
         .update(dossiers)
-        .set({ deletedAt: null, status: DossierStatus.ARCHIVED, updatedAt: new Date() })
+        .set({
+          deletedAt: null,
+          status: DossierStatus.ARCHIVED,
+          updatedAt: new Date(),
+        })
         .where(inArray(dossiers.id, restoredIds));
 
       for (const folderId of folderIds) {
@@ -2245,7 +2264,6 @@ export const DossierService = {
     return { restoredIds };
   },
 
-
   /** Permanently delete multiple soft-deleted dossiers in one batch. */
   async permanentDeleteBatch(ids: string[]) {
     if (ids.length === 0) return { deletedIds: [], deletedObjectCount: 0 };
@@ -2256,7 +2274,9 @@ export const DossierService = {
     });
 
     if (rows.length === 0) {
-      throw httpError.notFound("No soft-deleted dossiers found for the given IDs");
+      throw httpError.notFound(
+        "No soft-deleted dossiers found for the given IDs",
+      );
     }
 
     let deletedObjectCount = 0;
@@ -2270,11 +2290,18 @@ export const DossierService = {
         .from(metadataHistory)
         .where(eq(metadataHistory.dossierId, dossier.id));
 
-      const storageKeys = collectDossierStorageKeys(dossier, dossier.files ?? [], assignments);
+      const storageKeys = collectDossierStorageKeys(
+        dossier,
+        dossier.files ?? [],
+        assignments,
+      );
       for (const { s3Key } of historyRows) {
         if (s3Key) storageKeys.add(s3Key);
       }
-      deletedObjectCount += await purgeDossierFromMinIO(storageKeys, dossier.folderPath);
+      deletedObjectCount += await purgeDossierFromMinIO(
+        storageKeys,
+        dossier.folderPath,
+      );
     }
 
     const deletedIds = rows.map((r) => r.id);
@@ -2577,6 +2604,18 @@ export const DossierService = {
 
     const runMode = input.runMode ?? "auto";
 
+    const existingFile = await db.query.dossierFiles.findFirst({
+      where: eq(dossierFiles.filePath, filePath),
+    });
+
+    let pageCountInput: number | undefined;
+    if (!existingFile) {
+      pageCountInput = fileName.toLowerCase().endsWith(".pdf")
+        ? await getPdfPageCount(filePath)
+        : 1;
+      await assertUploadFitsRemaining(pageCountInput);
+    }
+
     const result = await db.transaction(async (tx) => {
       const folderId = await ensureFolderTree(tx, folderPath, projectCode);
       const dossier = await findOrCreateDossier(
@@ -2593,6 +2632,7 @@ export const DossierService = {
         filePath,
         fileSizeKb,
         runMode,
+        pageCountInput,
       );
 
       return { dossier, file, created };
@@ -3074,13 +3114,14 @@ export const DossierService = {
         nextRequiredQcCount: dossier.requiredQcCount,
       })
     ) {
-      const reconciled = await db.transaction(async (tx) =>
-        await reconcileDossierRequiredQcCount(tx, {
-          dossierId: dossier.id,
-          status: dossier.status,
-          currentQcStep: dossier.currentQcStep,
-          nextRequiredQcCount: dossier.requiredQcCount,
-        }),
+      const reconciled = await db.transaction(
+        async (tx) =>
+          await reconcileDossierRequiredQcCount(tx, {
+            dossierId: dossier.id,
+            status: dossier.status,
+            currentQcStep: dossier.currentQcStep,
+            nextRequiredQcCount: dossier.requiredQcCount,
+          }),
       );
       dossier.status = reconciled.status as typeof dossier.status;
       dossier.currentQcStep = reconciled.currentQcStep;

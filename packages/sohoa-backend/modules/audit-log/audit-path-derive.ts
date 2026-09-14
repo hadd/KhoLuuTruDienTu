@@ -263,6 +263,8 @@ const RESOURCE_LABELS: Record<string, string> = {
     // MODULE: METADATA EXTRACT
     // ═══════════════════════════════════════════
     "extract-settings": "cấu hình trích xuất ",  // [MỚI]
+    "page-quota": "hạn mức số trang ",
+    license: "license hạn mức trang ",
     extract: "trích xuất metadata ",             // [MỚI]
   
     // ═══════════════════════════════════════════
@@ -741,7 +743,8 @@ const PATH_LABEL_RULES: PathLabelRule[] = [
     // ═══════════════════════════════════════════════════════════
     { method: "GET", pattern: "/metadata/extract-settings", module: "metadata-extract", eventType: "view", summary: "Xem cấu hình trích xuất metadata" }, // [MỚI]
     { method: "PUT", pattern: "/metadata/extract-settings", module: "metadata-extract", eventType: "edit", summary: "Cập nhật chế độ trích xuất metadata" }, // [MỚI]
-    { method: "POST", pattern: "/metadata/extract", module: "metadata-extract", eventType: "trigger", summary: "Kích hoạt trích xuất metadata" }, // [MỚI]
+    { method: "GET", pattern: "/page-quota", module: "page-quota", eventType: "view", summary: "Xem hạn mức số trang bóc tách" },
+    { method: "POST", pattern: "/page-quota/license", module: "page-quota", eventType: "edit", summary: "Nạp file license hạn mức số trang" },
   
     // ═══════════════════════════════════════════════════════════
     // MODULE: PROJECT PLANS

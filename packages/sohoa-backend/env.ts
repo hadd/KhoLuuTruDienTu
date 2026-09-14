@@ -241,6 +241,17 @@ function createEnvObject() {
         AUDIT_LOG_COLD_SOURCE: Deno.env.get("AUDIT_LOG_COLD_SOURCE") ?? "postgres_projection",
         /** NiFi HandleHttpRequest endpoint dùng để giải phóng file đang chờ ở processor Wait (chế độ OCR manual). */
         NIFI_TRIGGER_URL: Deno.env.get("NIFI_TRIGGER_URL") ?? "",
+        /**
+         * When true, Kafka extract routing stops without a valid license or when usedPages >= pageLimit.
+         * Default: false in local/development, true otherwise.
+         */
+        PAGE_QUOTA_ENFORCE: (() => {
+            const raw = Deno.env.get("PAGE_QUOTA_ENFORCE");
+            if (raw !== undefined && raw !== null && raw.trim() !== "") {
+                return getBooleanEnv("PAGE_QUOTA_ENFORCE", false);
+            }
+            return nodeEnv !== "local" && nodeEnv !== "development";
+        })(),
     } as const;
 }
 

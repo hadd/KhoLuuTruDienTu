@@ -149,6 +149,7 @@ dist
 # misc
 .DS_Store
 *.pem
+secrets/
 
 # debug
 npm-debug.log*

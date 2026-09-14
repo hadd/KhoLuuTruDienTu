@@ -331,6 +331,24 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
     );
 
     app.get(
+        "/:id/assigned-dossiers",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.GROUPS_READ);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
+            return await service.getAssignedDossiers(params.id);
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }) }),
+            detail: {
+                tags,
+                summary: "List dossiers assigned to a group with maker editors",
+                description:
+                    "Returns all dossiers with assignedGroupId matching the group. Each dossier includes editors (MAKER assignments excluding TRANSFERRED). Queued dossiers (no maker yet) have an empty editors array.",
+            },
+        },
+    );
+
+    app.get(
         "/:id/assignment-counts",
         async ({ params, profile }) => {
             authHelper.checkPermission(profile, Permission.GROUPS_READ);

@@ -20,6 +20,7 @@ import {
     toProcessedMetadataKey,
 } from "../dossier/dossier-path-utils.ts";
 import { getMetadataExtractMode } from "./metadata-extract-settings-service.ts";
+import { assertExtractRoutingAllowed } from "../page-quota/page-quota-service.ts";
 
 /**
  * Feature flag: Event Router (merge-finished-wait) + POST /metadata/extract.
@@ -180,7 +181,20 @@ export async function routeMetadataExtract(
     const mode: MetadataExtractTriggerModeType | MetadataExtractModeType =
         input.mode ?? (await getMetadataExtractMode());
 
-    const topics = resolvePublishTopics(mode);
+    let topics = resolvePublishTopics(mode);
+    const isOffMode = mode === MetadataExtractMode.OFF;
+    let quotaBlocked = false;
+
+    if (!isOffMode && topics.length > 0) {
+        const gate = await assertExtractRoutingAllowed();
+        if (!gate.allowed) {
+            quotaBlocked = true;
+            console.warn(
+                `[MetadataExtract] ${gate.reason} used=${gate.usedPages} limit=${gate.pageLimit} — skip Kafka for ho_so_id=${hoSoId}`,
+            );
+            topics = [];
+        }
+    }
 
     console.info(
         `[MetadataExtract] ho_so_id=${hoSoId} | mode=${mode} | json_path=${jsonPath} | topics=[${topics.join(",") || "(none)"}]`,
@@ -193,7 +207,6 @@ export async function routeMetadataExtract(
         fromStatus === DossierStatus.OCR_PROCESSING;
     const nextStatus = shouldAdvance ? DossierStatus.OCR_PROCESSING : fromStatus;
 
-    const isOffMode = mode === MetadataExtractMode.OFF;
     const kafkaPublished = !isOffMode && topics.length > 0;
 
     if (kafkaPublished) {
@@ -217,13 +230,19 @@ export async function routeMetadataExtract(
         }
     } else if (isOffMode) {
         console.info(`[MetadataExtract] mode=off — không publish Kafka. Chờ manual trigger.`);
+    } else if (quotaBlocked) {
+        console.info(`[MetadataExtract] page quota blocked — không publish Kafka.`);
     }
 
     const action = isOffMode
         ? "MERGE_FINISHED_WAIT"
+        : quotaBlocked
+        ? "PAGE_QUOTA_EXCEEDED"
         : "METADATA_EXTRACT_TRIGGERED";
     const notes = isOffMode
         ? `Merge finished; extract mode off. Waiting for manual trigger. json_path=${jsonPath}`
+        : quotaBlocked
+        ? `Page quota exceeded or license invalid. Kafka extract routing skipped. json_path=${jsonPath}`
         : `Metadata extract triggered (mode=${mode}) topics=${topics.join(",")}`;
 
     await db.transaction(async (tx) => {
