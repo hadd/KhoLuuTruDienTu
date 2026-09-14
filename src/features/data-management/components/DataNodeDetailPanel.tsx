@@ -50,27 +50,18 @@ function FolderDetailCard({
   const exportContext = showExport ? resolveExportContext(node) : null
 
   useEffect(() => {
-    if (!dialogOpen || !exportContext) {
-      setCanExportDip(Boolean(exportContext?.dossierId))
+    if (!exportContext) {
+      setCanExportDip(false)
       return
     }
-
-    let cancelled = false
-    async function resolveDip() {
-      if (!exportContext) return
-      const dossierId = await resolveDossierIdForDip(exportContext)
-      if (!cancelled) {
-        setCanExportDip(Boolean(dossierId))
-        if (dossierId && !exportContext.dossierId) {
-          exportContext.dossierId = dossierId
-        }
-      }
-    }
-    void resolveDip()
-    return () => {
-      cancelled = true
-    }
-  }, [dialogOpen, exportContext])
+    setCanExportDip(
+      Boolean(
+        exportContext.dossierId ||
+        exportContext.folderId ||
+        exportContext.kind === 'multi_dossiers'
+      )
+    )
+  }, [exportContext])
 
   const handleExport = useCallback(
     async (mode: ExportMode, options?: { presetId?: string }) => {
@@ -79,15 +70,11 @@ function FolderDetailCard({
       setIsExporting(true)
       setExportingMode(mode)
       try {
-        let dossierId = exportContext.dossierId
-        if (mode === 'dip' && !dossierId) {
-          dossierId = await resolveDossierIdForDip(exportContext)
-        }
         await runExport({
           kind: exportContext.kind,
           mode,
           folderId: exportContext.folderId,
-          dossierId,
+          dossierId: exportContext.dossierId,
           downloadName: exportContext.downloadName,
           metadataExportConfig: options?.presetId
             ? { presetId: options.presetId }

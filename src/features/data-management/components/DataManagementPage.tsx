@@ -679,17 +679,12 @@ export function DataManagementPage({
     if (!ctx) return
 
     setExportContext(ctx)
-    setCanExportDip(Boolean(ctx.dossierId))
-    setExportDialogOpen(true)
-
-    if (!ctx.dossierId && ctx.kind === 'folder' && ctx.folderId) {
-      void resolveDossierIdForDip(ctx).then((dossierId) => {
-        if (dossierId) {
-          setCanExportDip(true)
-          setExportContext((prev) => (prev ? { ...prev, dossierId } : prev))
-        }
-      })
+    if (ctx.kind === 'folder' || ctx.kind === 'multi_dossiers' || ctx.dossierId) {
+      setCanExportDip(true)
+    } else {
+      setCanExportDip(false)
     }
+    setExportDialogOpen(true)
   }
 
   async function handleSubmitArchive(node: DataTreeNodeT) {
@@ -719,7 +714,7 @@ export function DataManagementPage({
       setExportingMode(mode)
       try {
         let dossierId = exportContext.dossierId
-        if (mode === 'dip' && !dossierId) {
+        if (mode === 'dip' && !dossierId && exportContext.kind !== 'folder') {
           dossierId = await resolveDossierIdForDip(exportContext)
         }
         await runExport({
