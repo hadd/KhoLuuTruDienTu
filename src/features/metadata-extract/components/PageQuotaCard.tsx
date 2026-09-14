@@ -12,12 +12,14 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { getPrimaryAppRoleFromProfile } from '@/features/auth/lib/permission-access'
+import { getUserRoleIdsFromProfile } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
 import {
   pageQuotaQueryOptions,
   useUploadPageQuotaLicenseMutation,
 } from '@/features/metadata-extract/queries'
+
+const PAGE_QUOTA_MANAGE_ROLE_IDS = new Set(['admin', 'quantri'])
 
 function formatPages(value: number | null | undefined): string {
   if (value == null) return '—'
@@ -27,18 +29,19 @@ function formatPages(value: number | null | undefined): string {
 export function PageQuotaCard() {
   const { t } = useTranslation('metadata-extract-settings')
   const { data: user } = useQuery(profileQueryOptions)
-  const role = getPrimaryAppRoleFromProfile(user)
-  const isAdmin = role === 'admin'
+  const canManageQuota = getUserRoleIdsFromProfile(user).some((roleId) =>
+    PAGE_QUOTA_MANAGE_ROLE_IDS.has(roleId),
+  )
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { data, error, isLoading, refetch, isFetching } = useQuery({
     ...pageQuotaQueryOptions(),
-    enabled: isAdmin,
+    enabled: canManageQuota,
   })
   const uploadMutation = useUploadPageQuotaLicenseMutation()
 
-  if (!isAdmin) return null
+  if (!canManageQuota) return null
 
   const limit = data?.pageLimit ?? null
   const used = data?.usedPages ?? 0
