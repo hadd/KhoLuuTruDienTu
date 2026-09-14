@@ -13,6 +13,11 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/components/ui/resizable'
+import {
   clearLoadedNodeCache,
   fetchDossierIdByFolderId,
   isNodeChildrenCached,
@@ -1165,7 +1170,10 @@ export function DataManagementPage({
 
   const content = (
     <>
-      <div className="relative flex h-0 min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg border border-border">
+      <ResizablePanelGroup
+        direction="horizontal"
+        className="relative flex h-0 min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg border border-border"
+      >
         {isResolvingDossierDeepLink ? (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80">
             <p className="text-sm text-muted-foreground">
@@ -1173,35 +1181,27 @@ export function DataManagementPage({
             </p>
           </div>
         ) : null}
-        <button
-          type="button"
-          onClick={() => setTreeCollapsed((prev) => !prev)}
-          aria-label={treeCollapsed ? t('tree.expand') : t('tree.collapse')}
-          className={cn(
-            'absolute top-3 z-10 flex size-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-[left,transform] duration-300 ease-in-out hover:bg-accent hover:text-foreground',
-            treeCollapsed ? 'left-3' : 'left-72 -translate-x-1/2',
-          )}
-        >
-          {treeCollapsed ? (
-            <ArrowRightFromLine className="size-3.5" />
-          ) : (
-            <ArrowLeftToLine className="size-3.5" />
-          )}
-        </button>
-        <div
-          className={cn(
-            'flex min-h-0 shrink-0 flex-col overflow-hidden border-r border-border bg-card transition-[width,opacity] duration-300 ease-in-out',
-            treeCollapsed
-              ? 'w-0 min-w-0 opacity-0'
-              : 'w-72 min-w-[18rem] opacity-100',
-          )}
-        >
-          <div
-            className={cn(
-              'flex min-h-0 flex-1 flex-col overflow-hidden',
-              treeCollapsed && 'pointer-events-none',
-            )}
+        
+        {treeCollapsed && (
+          <button
+            type="button"
+            onClick={() => setTreeCollapsed(false)}
+            aria-label={t('tree.expand')}
+            className="absolute left-3 top-3 z-10 flex size-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:bg-accent hover:text-foreground"
           >
+            <ArrowRightFromLine className="size-3.5" />
+          </button>
+        )}
+
+        {!treeCollapsed && (
+          <>
+            <ResizablePanel
+              defaultSize={25}
+              minSize={15}
+              maxSize={40}
+              className="flex min-h-0 shrink-0 flex-col overflow-hidden bg-card"
+            >
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {showSearch || (isProjectScoped && permissions.canReadProjects) ? (
               <div className="shrink-0 space-y-1.5 border-b border-border px-2.5 py-1.5">
                 {isProjectScoped && permissions.canReadProjects ? (
@@ -1270,9 +1270,25 @@ export function DataManagementPage({
                 }}
               />
             ) : null}
-          </div>
-        </div>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              </div>
+            </ResizablePanel>
+            <ResizableHandle className="relative w-px bg-border">
+              <button
+                type="button"
+                onClick={() => setTreeCollapsed(true)}
+                aria-label={t('tree.collapse')}
+                className="absolute top-3 z-10 flex size-7 -translate-x-1/2 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:bg-accent hover:text-foreground"
+              >
+                <ArrowLeftToLine className="size-3.5" />
+              </button>
+            </ResizableHandle>
+          </>
+        )}
+
+        <ResizablePanel
+          defaultSize={treeCollapsed ? 100 : 75}
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+        >
           <div className="flex shrink-0 items-center gap-1.5 border-b border-border px-2.5 py-1.5">
             <div
               className={cn('min-w-0 flex-1', treeCollapsed ? 'pl-8' : 'pl-5')}
@@ -1417,8 +1433,8 @@ export function DataManagementPage({
               onDigitalSignCompleted={handleDigitalSignCompleted}
             />
           </div>
-        </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
       <FolderUploadDialog
         open={uploadOpen}
