@@ -225,8 +225,8 @@ Deno.test("buildDynamicMetadataExcel expands multi-file dossier into rows with m
     assertEquals(yearFile2, "2024");
 
     // Check file path column (Col 32 / AF)
-    assertEquals(sheet!.getCell(2, 32).value, "raw/doc_1.pdf");
-    assertEquals(sheet!.getCell(3, 32).value, "raw/doc_2.pdf");
+    assertEquals(sheet!.getCell(2, 32).value, "doc_1.pdf");
+    assertEquals(sheet!.getCell(3, 32).value, "doc_2.pdf");
 });
 
 Deno.test("buildDynamicMetadataExcel exports PVEP sample metadata with file_name MA_DINH_DANH_VAN_BAN", async () => {
@@ -269,8 +269,8 @@ Deno.test("buildDynamicMetadataExcel exports PVEP sample metadata with file_name
     assertEquals(sheet!.getCell(2, tinhTrangVatLyColIdx).value, "Bình thường");
     assertEquals(
         sheet!.getCell(2, 32).value,
-        "raw/1.DL PDF/LAN 1/CSDL_SOHOA_PVEP/ALG/VV/358/0964/PVEP.2002.0964.001.pdf",
-    ); // Đường dẫn file
+        "1.DL PDF/LAN 1/CSDL_SOHOA_PVEP/ALG/VV/358/0964/PVEP.2002.0964.001.pdf",
+    ); // Đường dẫn file (stripped raw/)
 
     // Check that standard TT05 columns count is exactly 32 and no extra fields are appended
     assertEquals(columns.length, 32);
@@ -326,5 +326,101 @@ Deno.test("buildDynamicMetadataExcel formats dates to dd/mm/yyyy and omits 0 val
     assertEquals(yearVal, "2024");
     assertEquals(fullDateVal, "05/08/2024");
 });
+
+Deno.test("buildDynamicMetadataExcel sets Times New Roman size 14 and numFmt dd/mm/yyyy", async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const buffer = await buildDynamicMetadataExcel([sampleMetadata]);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer.buffer as ArrayBuffer);
+    const sheet = workbook.getWorksheet("Metadata")!;
+
+    // Verify header cell font
+    const headerCell = sheet.getCell(1, 1);
+    assertEquals(headerCell.font?.name, "Times New Roman");
+    assertEquals(headerCell.font?.size, 14);
+    assertEquals(headerCell.font?.bold, true);
+
+    // Verify data cell font
+    const dataCell = sheet.getCell(2, 1);
+    assertEquals(dataCell.font?.name, "Times New Roman");
+    assertEquals(dataCell.font?.size, 14);
+
+    // Test with date column
+    const dateMetadata: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "HO_SO_LUU_TRU",
+                group_name: "Hồ sơ",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    { name: "NGAY_TAO", display: "Ngày tạo", type: "date", value: "14/09/2026", page: null, bbox: null },
+                ],
+            },
+        ],
+    };
+    const dateBuffer = await buildDynamicMetadataExcel([dateMetadata], {
+        exportConfig: {
+            columns: [
+                { header: "STT", fieldKeys: [], separator: "" },
+                { header: "Ngày tạo", fieldKeys: ["HO_SO_LUU_TRU.NGAY_TAO"], separator: "" },
+            ],
+        },
+    });
+    const dateWb = new ExcelJS.Workbook();
+    await dateWb.xlsx.load(dateBuffer.buffer as ArrayBuffer);
+    const dateSheet = dateWb.getWorksheet("Metadata")!;
+
+    // Find date column index: Column 2 is Ngày tạo
+    const dateDataCell = dateSheet.getCell(2, 2);
+    assertEquals(dateDataCell.font?.name, "Times New Roman");
+    assertEquals(dateDataCell.font?.size, 14);
+    assertEquals(dateDataCell.numFmt, "dd/mm/yyyy");
+});
+
+Deno.test("generateHsCode produces zero-padded HS codes", async () => {
+    const { generateHsCode } = await import("../libs/metadata-export.ts");
+    assertEquals(generateHsCode(0), "HS_01");
+    assertEquals(generateHsCode(1), "HS_02");
+    assertEquals(generateHsCode(8), "HS_09");
+    assertEquals(generateHsCode(9), "HS_10");
+    assertEquals(generateHsCode(99), "HS_100");
+});
+
+Deno.test("collectFolderMetadataExportEntries formats folders as HS_01, HS_02 with pdfs/", async () => {
+    const { collectFolderMetadataExportEntries } = await import("../libs/metadata-export.ts");
+    const entries = collectFolderMetadataExportEntries({
+        excelFileName: "metadata.xlsx",
+        excelBuffer: new Uint8Array([1, 2, 3]),
+        dossierPdfBundles: [
+            {
+                dossierFolderName: "Dossier_Alpha",
+                pdfFiles: [
+                    { fileName: "doc1.pdf", data: new Uint8Array([10]) },
+                    { fileName: "doc2.pdf", data: new Uint8Array([20]) },
+                ],
+            },
+            {
+                dossierFolderName: "Dossier_Beta",
+                pdfFiles: [
+                    { fileName: "report.pdf", data: new Uint8Array([30]) },
+                ],
+            },
+            {
+                dossierFolderName: "Dossier_Gamma",
+                pdfFiles: [
+                    { fileName: "contract.pdf", data: new Uint8Array([40]) },
+                ],
+            },
+        ],
+    });
+
+    assertEquals(entries.length, 5);
+    assertEquals(entries[0]!.name, "metadata.xlsx");
+    assertEquals(entries[1]!.name, "HS_01/pdfs/doc1.pdf");
+    assertEquals(entries[2]!.name, "HS_01/pdfs/doc2.pdf");
+    assertEquals(entries[3]!.name, "HS_02/pdfs/report.pdf");
+    assertEquals(entries[4]!.name, "HS_03/pdfs/contract.pdf");
+});
+
 
 

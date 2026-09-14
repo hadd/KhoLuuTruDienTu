@@ -16,7 +16,7 @@ function writeHeaders(sheet: ExcelJS.Worksheet, columns: MetadataExportColumnCon
     columns.forEach((column, index) => {
         const cell = sheet.getCell(HEADER_ROW, index + 1);
         cell.value = column.header;
-        cell.font = { bold: true, name: "Times New Roman", size: 11 };
+        cell.font = { bold: true, name: "Times New Roman", size: 14 }; // ← Update font size to 14
         cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
 
         let fgColor = column.headerColor;
@@ -47,8 +47,38 @@ function writeHeaders(sheet: ExcelJS.Worksheet, columns: MetadataExportColumnCon
     });
 }
 
-function applyDataCellStyle(cell: ExcelJS.Cell, options: { isDossierCol: boolean }) {
-    cell.font = { name: "Times New Roman", size: 11 };
+export function isDateField(column: MetadataExportColumnConfig): boolean {
+    const colAny = column as { type?: string; fieldName?: string };
+    const typeStr = colAny.type?.toLowerCase();
+    if (typeStr === "date" || typeStr === "datetime") {
+        return true;
+    }
+    const header = column.header?.toLowerCase() ?? "";
+    if (header.includes("ngày") || header.includes("date") || header.includes("thời gian")) {
+        return true;
+    }
+    if (colAny.fieldName?.toLowerCase().includes("date") || colAny.fieldName?.toLowerCase().includes("ngay")) {
+        return true;
+    }
+    if (
+        column.fieldKeys?.some((k) => {
+            const lower = k.toLowerCase();
+            return lower.includes("ngay") || lower.includes("date");
+        })
+    ) {
+        return true;
+    }
+    return false;
+}
+
+function applyDataCellStyle(
+    cell: ExcelJS.Cell,
+    options: { isDossierCol: boolean; isDateColumn?: boolean },
+) {
+    cell.font = { name: "Times New Roman", size: 14 }; // ← Update font size to 14
+    if (options.isDateColumn) {
+        cell.numFmt = "dd/mm/yyyy"; // ← Add date format for DD/MM/YYYY
+    }
     cell.border = {
         top: { style: "thin", color: { argb: "D9D9D9" } },
         left: { style: "thin", color: { argb: "D9D9D9" } },
@@ -97,6 +127,7 @@ export async function buildDynamicMetadataExcel(
         columns.forEach((column, colIdx) => {
             const colNum = colIdx + 1;
             const isDossierCol = isDossierColumn(column);
+            const isDateColumn = isDateField(column);
 
             if (isDossierCol) {
                 const value = resolveExportColumnValueForFile(
@@ -107,12 +138,12 @@ export async function buildDynamicMetadataExcel(
                 );
                 const cell = sheet.getCell(startRow, colNum);
                 cell.value = value;
-                applyDataCellStyle(cell, { isDossierCol: true });
+                applyDataCellStyle(cell, { isDossierCol: true, isDateColumn });
 
                 if (dossierRowCount > 1) {
                     sheet.mergeCells(startRow, colNum, endRow, colNum);
                     for (let r = startRow + 1; r <= endRow; r++) {
-                        applyDataCellStyle(sheet.getCell(r, colNum), { isDossierCol: true });
+                        applyDataCellStyle(sheet.getCell(r, colNum), { isDossierCol: true, isDateColumn });
                     }
                 }
             } else {
@@ -127,7 +158,7 @@ export async function buildDynamicMetadataExcel(
                     );
                     const cell = sheet.getCell(r, colNum);
                     cell.value = value;
-                    applyDataCellStyle(cell, { isDossierCol: false });
+                    applyDataCellStyle(cell, { isDossierCol: false, isDateColumn });
                 }
             }
         });

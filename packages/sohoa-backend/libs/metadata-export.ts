@@ -76,7 +76,7 @@ export function collectMetadataPdfSources(
         if (dossierFiles.length > 0 && !allowedStorageKeys.has(storageKey)) {
             continue;
         }
-        
+
         const fileName = group.source_document?.file_name ?? storageBasename(filePath);
         sources.set(storageKey, fileName);
     }
@@ -150,7 +150,11 @@ export interface FolderDossierPdfBundle {
     pdfFiles: MetadataExportPdfFile[];
 }
 
-function collectFolderMetadataExportEntries(input: {
+export function generateHsCode(index: number): string {
+    return `HS_${(index + 1).toString().padStart(2, "0")}`;
+}
+
+export function collectFolderMetadataExportEntries(input: {
     excelFileName: string;
     excelBuffer: Uint8Array;
     dossierPdfBundles: FolderDossierPdfBundle[];
@@ -158,14 +162,14 @@ function collectFolderMetadataExportEntries(input: {
     const entries: Array<{ name: string; data: Uint8Array }> = [
         { name: input.excelFileName, data: input.excelBuffer },
     ];
-    const usedFolderNames = new Set<string>();
-    for (const bundle of input.dossierPdfBundles) {
-        const folderName = uniqueZipEntryName(bundle.dossierFolderName, usedFolderNames);
+    for (let dossierIndex = 0; dossierIndex < input.dossierPdfBundles.length; dossierIndex++) {
+        const bundle = input.dossierPdfBundles[dossierIndex]!;
+        const hsCode = generateHsCode(dossierIndex); // ← HS_01, HS_02, ...
         const usedPdfNames = new Set<string>();
         for (const pdf of bundle.pdfFiles) {
             const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
             entries.push({
-                name: `${folderName}/pdfs/${entryName}`,
+                name: `${hsCode}/pdfs/${entryName}`, // ← Use HS_xx instead of dossierFolderName
                 data: pdf.data,
             });
             pdf.data = new Uint8Array(0);
