@@ -20,8 +20,24 @@ import {
 } from '@/features/security-level/lib/securityAccessTokenStore'
 import { env } from '@/lib/utils/env'
 
-// Custom error class for authentication failures
-// This allows error components to detect auth errors and redirect to login
+function coerceApiErrorMessage(
+  responseData: { message?: unknown; error?: unknown } | undefined,
+): string | undefined {
+  if (!responseData) return undefined
+  const err = responseData.error
+  if (typeof err === 'string' && err.trim()) return err.trim()
+  if (err && typeof err === 'object') {
+    const rec = err as { message?: unknown }
+    if (typeof rec.message === 'string' && rec.message.trim()) {
+      return rec.message.trim()
+    }
+  }
+  if (typeof responseData.message === 'string' && responseData.message.trim()) {
+    return responseData.message.trim()
+  }
+  return undefined
+}
+
 export class AuthenticationError extends Error {
   constructor(message: string) {
     super(message)
@@ -29,7 +45,9 @@ export class AuthenticationError extends Error {
   }
 }
 
-// Raw instance for auth calls and base config
+// Custom error class for authentication failures
+// This allows error components to detect auth errors and redirect to login
+
 const axiosInstance = axios.create({
   baseURL: env.API_URL,
   timeout: env.API_TIMEOUT_MS,
@@ -279,9 +297,7 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
         responseData = undefined
       }
     }
-    const apiErrorMessage =
-      normalizeApiErrorMessage(responseData?.error) ??
-      normalizeApiErrorMessage(responseData?.message)
+    const apiErrorMessage = coerceApiErrorMessage(responseData)
 
     // Handle 403 - Access Denied (skip toast for password gates / wrong password — caller shows unlock UI)
     if (status === 403) {

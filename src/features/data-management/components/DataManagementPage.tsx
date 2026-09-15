@@ -4,7 +4,10 @@ import {
   ArrowLeftToLine,
   ArrowRightFromLine,
   FolderUp,
+  Loader2,
   PenLine,
+  Search,
+  X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -20,6 +23,7 @@ import {
 import {
   clearLoadedNodeCache,
   fetchDossierIdByFolderId,
+  getSearchTree,
   isNodeChildrenCached,
   removeNodeFromTree,
 } from '@/features/data-management/api/dataManagementClient'
@@ -46,7 +50,10 @@ import {
   type DataManagementRole,
 } from '@/features/data-management/config/roleConfig'
 import { useDataManagementResolvedPermissions } from '@/features/data-management/hooks/useDataManagementRole'
-import { ALL_PROJECTS_CODE } from '@/features/data-management/lib/constants'
+import {
+  ALL_PROJECTS_CODE,
+  DATA_TREE_ROOT_ID,
+} from '@/features/data-management/lib/constants'
 import type { OcrTerminalCompletePayloadT } from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { useDataManagementOcrSocket } from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { useDataManagementProjectSelection } from '@/features/data-management/hooks/useDataManagementProjectSelection'
@@ -68,14 +75,18 @@ import {
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import {
   collectOcrRoomIdsFromTree,
+  collectBatchExportSelectableIds,
   filterTreeExcludeArchived,
   filterTreeForSearch,
   findDescendantDossierTarget,
   findNodeByDossierId,
   findNodeById,
   findRecordParentForDocument,
+  getBatchExportCheckState,
   getPathToNode,
+  matchesFuzzyFileName,
   isBatchSignSelectableNode,
+  isBatchExportDossierLeafNode,
   isBatchExportSelectableNode,
   isDossierWorkflowNode,
   isNodeForDossier,
@@ -207,6 +218,11 @@ export function DataManagementPage({
   const isAllProjects = projectCode === ALL_PROJECTS_CODE
 
   const q = typeof search.q === 'string' ? search.q : ''
+  const [localSearchQuery, setLocalSearchQuery] = useState(q)
+  
+  useEffect(() => {
+    setLocalSearchQuery(q)
+  }, [q])
   const dossierId =
     typeof search.dossierId === 'string' ? search.dossierId : undefined
   const nodeId = typeof search.nodeId === 'string' ? search.nodeId : undefined
@@ -235,25 +251,116 @@ export function DataManagementPage({
   })
 
   const {
-    data: tree,
-    isPending,
-    isError,
-    error,
+    data: baseTree,
+    isPending: isBasePending,
+    isError: isBaseError,
+    error: baseError,
     refetch,
     isRefetching,
   } = useQuery(
     dataManagementTreeQueryOptions(role, projectCode, treeQueryDossierId),
   )
 
+  const {
+    data: searchTree,
+    isPending: isSearchPending,
+    isFetching: isSearchFetching,
+    isError: isSearchError,
+    error: searchError,
+  } = useQuery({
+    queryKey: ['data-management', 'search-tree', role, projectCode, q] as const,
+    queryFn: () => getSearchTree(role, { projectCode, q }),
+    staleTime: 30_000,
+    enabled: Boolean(q.trim()) && (!isProjectScopedDataRole(role) || Boolean(projectCode?.trim())),
+  })
+
+  const isSearching = Boolean(q.trim())
+
+  const tree = isSearching
+    ? (searchTree ?? null)
+    : baseTree
+
+  const isPending = isSearching ? isSearchPending || isBasePending : isBasePending
+  const isError = isSearching ? isSearchError : isBaseError
+  const error = isSearching ? searchError : baseError
+
+  const displayTree = useMemo(() => {
+    if (!tree) return null
+
+    if (isSearching) {
+      if (!searchTree) return null
+      // Search returned 0 results: do NOT merge baseTree, keep search result completely empty
+      if (searchTree.children.length === 0) {
+        return { ...searchTree, children: [] }
+      }
+
+      let currentTree = searchTree
+      if (baseTree) {
+        function mergeChildren(node: DataTreeNodeT, bt: DataTreeNodeT): DataTreeNodeT {
+          const mergedNode = { ...node }
+          // Never merge baseTree into root:
+          if (mergedNode.id === DATA_TREE_ROOT_ID) {
+            mergedNode.children = mergedNode.children.map((child) =>
+              mergeChildren(child, bt),
+            )
+            return mergedNode
+          }
+
+          const baseNode = findNodeById(bt, mergedNode.id)
+          if (baseNode) {
+            if (mergedNode.children.length === 0 && baseNode.children.length > 0) {
+              mergedNode.children = baseNode.children
+            } else if (mergedNode.children.length > 0) {
+              mergedNode.children = mergedNode.children.map((child) =>
+                mergeChildren(child, bt),
+              )
+            }
+
+            if (baseNode.dossierMetadata && !mergedNode.dossierMetadata) {
+              mergedNode.dossierMetadata = baseNode.dossierMetadata
+            }
+            if (mergedNode.type === 'record') {
+              mergedNode.fileCount = baseNode.fileCount || mergedNode.fileCount
+              mergedNode.pageCount = baseNode.pageCount || mergedNode.pageCount
+              mergedNode.sizeBytes = baseNode.sizeBytes || mergedNode.sizeBytes
+              mergedNode.dossierStatus = baseNode.dossierStatus || mergedNode.dossierStatus
+            }
+          } else if (mergedNode.children.length > 0) {
+            mergedNode.children = mergedNode.children.map((child) =>
+              mergeChildren(child, bt),
+            )
+          }
+
+          return mergedNode
+        }
+        currentTree = mergeChildren(currentTree, baseTree)
+      }
+
+      return filterTreeExcludeArchived(currentTree)
+    }
+
+    const afterArchived = filterTreeExcludeArchived(tree)
+    return filterTreeForSearch(afterArchived, q)
+  }, [tree, q, isSearching, baseTree, searchTree])
+
+  const isSearchEmpty =
+    isSearching &&
+    !isSearchPending &&
+    !isSearchError &&
+    displayTree !== null &&
+    displayTree.children.length === 0
+
+  const effectiveTree = displayTree ?? tree
+
   const pendingErrorReportDossierIds = useMemo(
-    () => collectDossierIdsWithPendingIssueReports(tree, { role }),
-    [tree, role],
+    () => collectDossierIdsWithPendingIssueReports(effectiveTree, { role }),
+    [effectiveTree, role],
   )
 
   useEffect(() => {
-    if (role !== 'qc' || !tree) return
-    syncQcIssueReportsFromTree(queryClient, tree)
-  }, [role, tree, queryClient])
+    if (role !== 'qc' || !effectiveTree) return
+    syncQcIssueReportsFromTree(queryClient, effectiveTree)
+  }, [role, effectiveTree, queryClient])
 
   const loadChildrenMutation = useLoadNodeChildrenMutation(role, projectCode)
   const loadChildrenMutationRef = useRef(loadChildrenMutation)
@@ -286,18 +393,18 @@ export function DataManagementPage({
   const showSearch = true
 
   const selectedDossierIds = useMemo(() => {
-    if (!tree) return [] as Array<string>
-    return selectedRecordIds
-      .map((id) => findNodeById(tree, id))
-      .filter(
-        (node): node is DataTreeNodeT =>
-          Boolean(node) &&
-          (batchSignMode
-            ? isBatchSignSelectableNode(node)
-            : isBatchExportSelectableNode(node)),
-      )
+    if (!effectiveTree) return [] as Array<string>
+    const ids = selectedRecordIds
+      .map((id) => findNodeById(effectiveTree, id))
+      .filter((node): node is DataTreeNodeT => {
+        if (!node) return false
+        if (batchSignMode) return isBatchSignSelectableNode(node)
+        if (batchExportMode) return isBatchExportDossierLeafNode(node)
+        return false
+      })
       .map((node) => node.dossierId ?? node.id)
-  }, [selectedRecordIds, tree, batchSignMode, batchExportMode])
+    return [...new Set(ids)]
+  }, [selectedRecordIds, effectiveTree, batchSignMode, batchExportMode])
 
   const handleOcrTerminalComplete = useCallback(
     (payload: OcrTerminalCompletePayloadT) => {
@@ -312,7 +419,7 @@ export function DataManagementPage({
   )
 
   useEffect(() => {
-    if (!tree) return
+    if (!effectiveTree) return
 
     const shouldDeferToDossierDeepLink =
       Boolean(dossierId?.trim()) && (isProjectScoped || role === 'qc')
@@ -321,7 +428,7 @@ export function DataManagementPage({
     }
 
     const resolved = resolveDataManagementSelection(
-      tree,
+      effectiveTree,
       { nodeId, focusDocumentId, focusGroupIndex },
       role,
       { isNodeChildrenCached },
@@ -345,7 +452,7 @@ export function DataManagementPage({
       replace: true,
     })
   }, [
-    tree,
+    effectiveTree,
     nodeId,
     focusDocumentId,
     focusGroupIndex,
@@ -503,7 +610,7 @@ export function DataManagementPage({
   ])
 
   useEffect(() => {
-    if (!tree || !nodeId) return
+    if (!tree || !nodeId || q.trim()) return
     if (isNodeChildrenCached(nodeId)) return
     const node = findNodeById(tree, nodeId)
     if (!node) return
@@ -515,7 +622,7 @@ export function DataManagementPage({
 
     if (!needsLoad) return
     loadChildrenMutationRef.current.mutate(nodeId)
-  }, [tree, nodeId, role])
+  }, [tree, nodeId, role, q])
 
   function loadNodeTree(
     loadNodeId: string,
@@ -525,6 +632,52 @@ export function DataManagementPage({
       ? { nodeId: loadNodeId, refresh: true }
       : loadNodeId
     return loadChildrenMutation.mutateAsync(input).then((result) => result.tree)
+  }
+
+  async function ensureBatchExportSubtreeLoaded(
+    rootId: string,
+    startTree: DataTreeNodeT,
+  ): Promise<DataTreeNodeT> {
+    let currentTree = startTree
+    const queue = [rootId]
+    const visited = new Set<string>()
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!
+      if (visited.has(currentId)) continue
+      visited.add(currentId)
+
+      const node = findNodeById(currentTree, currentId)
+      if (!node || node.type === 'document') continue
+
+      const needsLoad =
+        !isNodeChildrenCached(currentId) ||
+        (node.type === 'folder' &&
+          isDossierWorkflowNode(node) &&
+          node.children.length === 0) ||
+        (node.type === 'record' && !node.dossierMetadata)
+
+      if (needsLoad) {
+        currentTree = await loadNodeTree(
+          currentId,
+          node.type === 'folder' &&
+            isDossierWorkflowNode(node) &&
+            node.children.length === 0
+            ? { refresh: true }
+            : undefined,
+        )
+      }
+
+      const updated = findNodeById(currentTree, currentId)
+      if (!updated) continue
+      for (const child of updated.children) {
+        if (child.type !== 'document') {
+          queue.push(child.id)
+        }
+      }
+    }
+
+    return currentTree
   }
 
   function handleSearchInput(raw: string) {
@@ -538,21 +691,56 @@ export function DataManagementPage({
     })
   }
 
-  const displayTree = useMemo(() => {
-    if (!tree) return null
-    return filterTreeForSearch(filterTreeExcludeArchived(tree), q)
-  }, [tree, q])
+  // Khi có kết quả tìm kiếm, chỉ mở các cấp cha đến node khớp (để node khớp hiển thị trên cây),
+  // KHÔNG tự mở các cấp con bên trong node khớp đó (người dùng tự click nút xổ xuống nếu muốn xem tiếp).
+  useEffect(() => {
+    if (!q.trim() || !searchTree) return
+
+    const trimmedQ = q.trim()
+    const expandIds = new Set<string>()
+
+    function checkNode(node: DataTreeNodeT): boolean {
+      const isDirectMatch =
+        Boolean(node.isSearchMatch) || matchesFuzzyFileName(node.name, trimmedQ)
+      let hasMatchingDescendant = false
+
+      for (const child of node.children) {
+        if (checkNode(child)) {
+          hasMatchingDescendant = true
+        }
+      }
+
+      if (hasMatchingDescendant) {
+        expandIds.add(node.id)
+      }
+
+      return isDirectMatch || hasMatchingDescendant
+    }
+
+    for (const child of searchTree.children) {
+      checkNode(child)
+    }
+
+    setTreeExpandToNodeIds(Array.from(expandIds))
+  }, [searchTree, q])
 
   const selectedNode = useMemo(() => {
-    if (!tree || !nodeId) return null
-    return findNodeById(tree, nodeId)
-  }, [tree, nodeId])
+    if (!effectiveTree || !nodeId) return null
+    const node = findNodeById(effectiveTree, nodeId)
+    // In search mode the searchTree node lacks dossierMetadata/children loaded by
+    // loadChildrenMutation. Prefer the baseTree version if it has richer data.
+    if (q.trim() && baseTree && node && !node.dossierMetadata) {
+      const baseNode = findNodeById(baseTree, nodeId)
+      if (baseNode?.dossierMetadata) return baseNode
+    }
+    return node
+  }, [effectiveTree, nodeId, q, baseTree])
 
   const detailContext = useMemo(() => {
-    if (!tree || !selectedNode) return null
+    if (!effectiveTree || !selectedNode) return null
 
     if (selectedNode.type === 'document') {
-      const parent = findRecordParentForDocument(tree, selectedNode.id)
+      const parent = findRecordParentForDocument(effectiveTree, selectedNode.id)
       if (parent?.type === 'record') {
         return {
           node: parent,
@@ -881,7 +1069,7 @@ export function DataManagementPage({
   }
 
   function navigateToNode(id: string, treeOverride?: DataTreeNodeT) {
-    const activeTree = treeOverride ?? tree
+    const activeTree = treeOverride ?? effectiveTree
 
     if (!activeTree) {
       void navigate({
@@ -929,7 +1117,8 @@ export function DataManagementPage({
   }
 
   async function handleSelectNode(id: string) {
-    let workingTree = tree
+    const isSearching = Boolean(q.trim())
+    let workingTree = effectiveTree
 
     try {
       if (workingTree) {
@@ -942,6 +1131,32 @@ export function DataManagementPage({
             ? isBatchSignSelectableNode(targetNode)
             : isBatchExportSelectableNode(targetNode))
         ) {
+          if (batchExportMode) {
+            workingTree = await ensureBatchExportSubtreeLoaded(
+              id,
+              workingTree,
+            )
+            const loadedNode = findNodeById(workingTree, id)
+            if (!loadedNode || !isBatchExportSelectableNode(loadedNode)) {
+              return
+            }
+            const cascadeIds = collectBatchExportSelectableIds(loadedNode)
+            if (cascadeIds.length === 0) return
+            setSelectedRecordIds((prev) => {
+              const selectedSet = new Set(prev)
+              const allSelected = cascadeIds.every((cascadeId) =>
+                selectedSet.has(cascadeId),
+              )
+              if (allSelected) {
+                return prev.filter(
+                  (recordId) => !cascadeIds.includes(recordId),
+                )
+              }
+              return [...new Set([...prev, ...cascadeIds])]
+            })
+            return
+          }
+
           setSelectedRecordIds((prev) =>
             prev.includes(id)
               ? prev.filter((recordId) => recordId !== id)
@@ -971,7 +1186,8 @@ export function DataManagementPage({
               parentNode.type !== 'record' ||
               !parentNode.dossierMetadata
             ) {
-              workingTree = await loadNodeTree(loadId)
+              const loaded = await loadNodeTree(loadId)
+              if (!isSearching) workingTree = loaded
             }
           }
         } else if (targetNode?.type === 'folder' && isProjectScoped) {
@@ -981,16 +1197,19 @@ export function DataManagementPage({
             isNodeChildrenCached(id)
 
           if (isStaleDossierFolder || !isNodeChildrenCached(id)) {
-            workingTree = await loadNodeTree(
+            const loaded = await loadNodeTree(
               id,
               isStaleDossierFolder ? { refresh: true } : undefined,
             )
+            if (!isSearching) workingTree = loaded
           }
-        } else if (
-          targetNode?.type === 'record' &&
-          (!isNodeChildrenCached(id) || !targetNode.dossierMetadata)
-        ) {
-          loadChildrenMutation.mutate(id)
+        } else if (targetNode?.type === 'record') {
+          if (!targetNode.dossierMetadata) {
+            const loaded = await loadChildrenMutation
+              .mutateAsync(id)
+              .then((r) => r.tree)
+            if (!isSearching) workingTree = loaded
+          }
         } else if (!isNodeChildrenCached(id)) {
           loadChildrenMutation.mutate(id)
         }
@@ -1000,7 +1219,7 @@ export function DataManagementPage({
       return
     }
 
-    navigateToNode(id, workingTree ?? undefined)
+    navigateToNode(id, isSearching ? undefined : (workingTree ?? undefined))
   }
 
   async function handleDeleteSuccess({
@@ -1324,18 +1543,73 @@ export function DataManagementPage({
                   />
                 ) : null}
                 {showSearch ? (
-                  <Input
-                    className="h-8 border-input bg-background text-xs"
-                    placeholder={t('search.placeholder')}
-                    value={q}
-                    onChange={(e) => handleSearchInput(e.target.value)}
-                    aria-label={t('search.placeholder')}
-                  />
+                  <div className="relative flex items-center">
+                    <Search className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder={t('search.placeholder')}
+                      className="w-full bg-background pl-8 pr-8"
+                      value={localSearchQuery}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setLocalSearchQuery(val)
+                        if (!val.trim() && q) {
+                          handleSearchInput('')
+                        }
+                      }}
+                      onSearch={(e) => {
+                        const target = e.target as HTMLInputElement
+                        setLocalSearchQuery(target.value)
+                        handleSearchInput(target.value)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleSearchInput(localSearchQuery)
+                        }
+                      }}
+                      aria-label={t('search.placeholder')}
+                    />
+                    {localSearchQuery ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLocalSearchQuery('')
+                          handleSearchInput('')
+                        }}
+                        className="absolute right-2 flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
+                        title="Xóa tìm kiếm"
+                        aria-label="Xóa tìm kiếm"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
             ) : null}
-            {displayTree ? (
+            {isSearching && (isSearchFetching || !searchTree) ? (
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                <Loader2 className="mb-2 size-6 animate-spin text-muted-foreground/60" />
+                <p>{t('search.searching', 'Đang tìm kiếm...')}</p>
+              </div>
+            ) : isSearchEmpty ? (
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                <Search className="mb-2 size-8 text-muted-foreground/40" />
+                <p className="font-medium text-foreground">
+                  {t('search.noResults', 'Không tìm thấy kết quả')}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t(
+                    'search.noResultsDesc',
+                    'Không có thư mục hoặc tài liệu nào phù hợp với "{{query}}"',
+                    { query: q },
+                  )}
+                </p>
+              </div>
+            ) : displayTree ? (
               <DataFolderTree
+                key={`tree-${projectCode ?? 'all'}-${isSearching ? `search-${q.trim()}` : 'browse'}`}
                 tree={displayTree}
                 selectedId={focusDocumentId ?? nodeId}
                 selectedIds={selectedRecordIds}
@@ -1347,6 +1621,12 @@ export function DataManagementPage({
                     : batchExportMode
                       ? isBatchExportSelectableNode
                       : undefined
+                }
+                getMultiSelectCheckedState={
+                  batchExportMode
+                    ? (node) =>
+                        getBatchExportCheckState(node, selectedRecordIds)
+                    : undefined
                 }
                 expandPathToNodeIds={treeExpandToNodeIds}
                 onExpandPathApplied={() => setTreeExpandToNodeIds([])}
@@ -1405,7 +1685,11 @@ export function DataManagementPage({
             <div
               className={cn('min-w-0 flex-1', treeCollapsed ? 'pl-8' : 'pl-5')}
             >
-              <DataTreeBreadcrumb tree={tree} nodeId={nodeId} role={role} />
+              <DataTreeBreadcrumb
+                tree={effectiveTree ?? tree}
+                nodeId={nodeId}
+                role={role}
+              />
             </div>
             {permissions.canDigitalSign ? (
               <>

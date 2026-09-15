@@ -24,6 +24,7 @@ import {
   fetchDossierMetadataHistory,
   fetchDossierWorkflowAssignments,
   getDataTree,
+  getSearchTree,
   loadNodeChildren,
   refreshDossierContent,
   renameDataNode,
@@ -849,3 +850,21 @@ export function useSubmitEditorErrorReportMutation(
     },
   })
 }
+
+export const dataManagementSearchTreeQueryKey = (
+  role: DataManagementRole,
+  projectCode?: string,
+  q?: string
+) => ['data-management', 'search-tree', role, projectCode, q] as const
+
+export const dataManagementSearchTreeQueryOptions = (
+  role: DataManagementRole,
+  projectCode: string | undefined,
+  q: string
+) =>
+  queryOptions({
+    queryKey: dataManagementSearchTreeQueryKey(role, projectCode, q),
+    queryFn: () => getSearchTree(role, { projectCode, q }),
+    staleTime: 30_000,
+    enabled: Boolean(q.trim()) && (!isProjectScopedDataRole(role) || Boolean(projectCode?.trim())),
+  })

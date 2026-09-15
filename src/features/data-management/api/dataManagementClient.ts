@@ -411,6 +411,7 @@ const DOSSIER_STATUSES = new Set<DataDossierStatus>([
   'OCR_PROCESSING',
   'OCR_FAILED',
   'READY_FOR_ENTRY',
+  'ENTRY_DRAFT',
   'ENTRY_PROCESSING',
   'WAITING_CHECKER_1',
   'CHECKER_1_PROCESSING',
@@ -446,6 +447,7 @@ function parseDossierStatus(value: unknown): DataDossierStatus | undefined {
 }
 
 function isDossierFolderChild(child: Record<string, unknown>): boolean {
+  if (child.type === 'record' || child.dossierId != null) return true
   return parseDossierStatus(child.status) != null
 }
 
@@ -532,8 +534,15 @@ function applyDossierFields(
   if (projectCode) node.projectCode = projectCode
   const fondId = extractFondId(source)
   if (fondId) node.fondId = fondId
-  if (source.name != null && String(source.name).trim()) {
-    node.name = String(source.name)
+  // Keep listing label (folderName). Dossier.name can differ / match a parent
+  // segment; overwriting here causes the tree rename-on-select bug.
+  const folderName =
+    source.folderName != null ? String(source.folderName).trim() : ''
+  const dossierName = source.name != null ? String(source.name).trim() : ''
+  if (folderName) {
+    node.name = folderName
+  } else if (dossierName && !String(node.name ?? '').trim()) {
+    node.name = dossierName
   }
   applyCheckerAssignmentsToNode(node, source)
 }
@@ -1755,4 +1764,107 @@ export function getRecordAssignmentTarget(
   if (status === 'pendingApproval' || status === 'approved1') return 'reviewer2'
   if (status === 'approved2' || status === 'final') return 'reviewer3'
   return null
+}
+
+export async function getSearchTree(
+  role: DataManagementRole,
+  options: { projectCode?: string; q: string },
+): Promise<DataTreeNodeT> {
+  const scopedProjectCode = toScopedProjectCode(options.projectCode)
+  const params = scopedProjectCode
+    ? { projectCode: scopedProjectCode, q: options.q }
+    : { q: options.q }
+
+  const response = await apiClient.get<Record<string, unknown>>(
+    `/api/v1/folders/search-tree`,
+    { params },
+  )
+
+  const data = response.data
+  const rootNode = createEmptyRoot()
+  const children = Array.isArray(data.children) ? data.children : []
+  rootNode.children = children.map((c) =>
+    mapSearchTreeChild(c as Record<string, unknown>),
+  )
+  rootNode.sizeBytes = rootNode.children.reduce((acc, c) => acc + c.sizeBytes, 0)
+  rootNode.fileCount = rootNode.children.reduce((acc, c) => acc + c.fileCount, 0)
+  rootNode.pageCount = rootNode.children.reduce(
+    (acc, c) => acc + (c.pageCount || 0),
+    0,
+  )
+  return rootNode
+}
+
+function mapSearchTreeChild(child: Record<string, unknown>): DataTreeNodeT {
+  // Document/file node — backend sets type: 'document' explicitly
+  if (child.type === 'document') {
+    const parentId = child.dossierId
+      ? String(child.dossierId)
+      : child.parentId
+        ? String(child.parentId)
+        : DATA_TREE_ROOT_ID
+    return {
+      id: String(child.id),
+      name: String(child.name),
+      type: 'document',
+      parentId,
+      children: [],
+      sizeBytes: sizeKbToBytes(Number(child.totalSizeKb || 0)),
+      pageCount: Number(child.pageCount || 0),
+      fileCount: 0,
+      uploadedAt: String(child.createdAt || new Date().toISOString()),
+      uploadedBy: 'System',
+      filePath: child.filePath ? String(child.filePath) : undefined,
+      isSearchMatch: Boolean(child.isSearchMatch),
+    }
+  }
+
+  // Dossier/record node — has a workflow status field or explicit type/dossierId
+  if (child.type === 'record' || isDossierFolderChild(child)) {
+    const dossierId = String(child.dossierId || child.id)
+    const dossierStatus = parseDossierStatus(child.status)
+    const projectCode = extractProjectCode(child)
+    const fondId = extractFondId(child)
+    const folderId = extractDossierFolderId(child)
+    const mappedChildren = Array.isArray(child.children)
+      ? child.children.map((c) =>
+          mapSearchTreeChild(c as Record<string, unknown>),
+        )
+      : []
+    return {
+      id: dossierId,
+      name: String(child.name),
+      type: 'record',
+      parentId: folderId ?? DATA_TREE_ROOT_ID,
+      children: mappedChildren,
+      sizeBytes: mappedChildren.reduce((acc, c) => acc + c.sizeBytes, 0),
+      fileCount: mappedChildren.length,
+      pageCount: mappedChildren.reduce((acc, c) => acc + (c.pageCount || 0), 0),
+      uploadedAt: String(child.createdAt || new Date().toISOString()),
+      uploadedBy: 'System',
+      dossierId,
+      entityType: 'DOCUMENT',
+      ...(dossierStatus ? { dossierStatus } : {}),
+      ...(projectCode ? { projectCode } : {}),
+      ...(fondId ? { fondId } : {}),
+      ...(folderId ? { folderId } : {}),
+      isAssigned: parseIsAssigned(child),
+      isSearchMatch: Boolean(child.isSearchMatch),
+    }
+  }
+
+  // Folder node
+  const node = mapFolderChild(child)
+  if (Array.isArray(child.children)) {
+    node.children = child.children.map((c) =>
+      mapSearchTreeChild(c as Record<string, unknown>),
+    )
+    node.sizeBytes = node.children.reduce((acc, c) => acc + c.sizeBytes, 0)
+    node.fileCount = node.children.reduce(
+      (acc, c) => acc + (c.type === 'document' ? 1 : c.fileCount),
+      0,
+    )
+    node.pageCount = node.children.reduce((acc, c) => acc + (c.pageCount || 0), 0)
+  }
+  return node
 }

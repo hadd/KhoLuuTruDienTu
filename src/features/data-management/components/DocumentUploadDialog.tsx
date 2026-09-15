@@ -33,6 +33,10 @@ import { resolveRecordStoragePrefix } from '@/features/data-management/lib/uploa
 import { useUploadDataDocumentsMutation } from '@/features/data-management/queries'
 import type { DataTreeNodeT } from '@/features/data-management/types'
 import { env } from '@/lib/utils/env'
+import {
+  isPageQuotaUploadExceededMessage,
+  translateError,
+} from '@/lib/utils/translate-error'
 
 type DialogPhase =
   | 'idle'
@@ -184,6 +188,12 @@ export function DocumentUploadDialog({
       const skipped = result.results.filter((r) => r.status === 'skipped')
 
       if (failed.length > 0) {
+        const quotaError = failed.find((item) =>
+          isPageQuotaUploadExceededMessage(item.error ?? ''),
+        )
+        if (quotaError?.error) {
+          toast.error(translateError(quotaError.error))
+        }
         setState({ phase: 'partial_error', results: result.results })
         return
       }
@@ -467,12 +477,12 @@ export function DocumentUploadDialog({
                       className="flex items-start gap-2 text-xs text-foreground"
                     >
                       <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">
+                      <span className="min-w-0 break-words">
+                        <span className="block break-all font-medium whitespace-normal">
                           {r.relativePath.split('/').pop() ?? r.relativePath}
                         </span>
                         {r.error && (
-                          <span className="block truncate text-muted-foreground">
+                          <span className="block break-words whitespace-normal text-muted-foreground">
                             {r.error}
                           </span>
                         )}

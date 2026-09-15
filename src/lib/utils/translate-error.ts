@@ -225,6 +225,32 @@ function translateDataConfigApiError(message: string): string | null {
   return translateDataConfigApiPart(message)
 }
 
+export function isPageQuotaUploadExceededMessage(message: string): boolean {
+  return (
+    /PAGE_QUOTA_UPLOAD_EXCEEDED/i.test(message) ||
+    /Không đủ hạn mức bóc tách/i.test(message) ||
+    /Hết hạn mức trang/i.test(message) ||
+    /not enough extract page quota/i.test(message)
+  )
+}
+
+function extractPageQuotaUploadMessage(rawMessage: string): string | null {
+  if (!isPageQuotaUploadExceededMessage(rawMessage)) return null
+  const match = rawMessage.match(
+    /(?:lượt tải|file) có (\d+) trang, chỉ còn (\d+) trang/i,
+  )
+  if (match) {
+    return i18n.t('quota.uploadExceeded', {
+      ns: 'metadata-extract-settings',
+      pages: match[1],
+      remaining: match[2],
+    })
+  }
+  return i18n.t('quota.uploadExceededGeneric', {
+    ns: 'metadata-extract-settings',
+  })
+}
+
 /**
  * Translates common error messages that may come from loaders or API calls.
  * If the error message matches a known pattern, returns the translated version.
@@ -239,6 +265,14 @@ export function translateError(error: unknown): string {
     if (data && typeof data === 'object') {
       if ('error' in data && typeof data.error === 'string') {
         rawMessage = data.error
+      } else if (
+        'error' in data &&
+        data.error &&
+        typeof data.error === 'object' &&
+        'message' in data.error &&
+        typeof (data.error as { message?: unknown }).message === 'string'
+      ) {
+        rawMessage = String((data.error as { message: string }).message)
       } else if ('message' in data && typeof data.message === 'string') {
         rawMessage = data.message
       } else if ('detail' in data && typeof data.detail === 'string') {
@@ -259,6 +293,9 @@ export function translateError(error: unknown): string {
   if (!rawMessage) {
     return i18n.t('errors.defaultDescription', { ns: 'common' })
   }
+
+  const quotaMessage = extractPageQuotaUploadMessage(rawMessage)
+  if (quotaMessage) return quotaMessage
 
   // ==================== THÊM PHẦN 1: XỬ LÝ LỖI ĐỘNG (REGEX) ====================
   // Bắt cấu trúc câu chứa email động từ backend (Không phân biệt hoa thường /i)
