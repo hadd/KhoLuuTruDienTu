@@ -211,6 +211,12 @@ function createEnvObject() {
             Deno.env.get("KAFKA_START_METADATA_PVEP_TOPIC") ?? "start-metadata-pvep",
         KAFKA_PVEP_METADATA_TOPIC:
             Deno.env.get("KAFKA_PVEP_METADATA_TOPIC") ?? "pvep-metadata-completed",
+        KAFKA_START_METADATA_TUYEN_QUANG_TOPIC:
+            Deno.env.get("KAFKA_START_METADATA_TUYEN_QUANG_TOPIC") ??
+            "start-metadata-tuyen-quang",
+        KAFKA_TUYEN_QUANG_METADATA_TOPIC:
+            Deno.env.get("KAFKA_TUYEN_QUANG_METADATA_TOPIC") ??
+            "tuyen-quang-metadata-completed",
         SCANNER_ENABLED: getBooleanEnv("SCANNER_ENABLED", false),
         SCANNER_INTERVAL_MS: getPositiveIntEnv("SCANNER_INTERVAL_MS", 10_000),
         SOCKET_ENABLED: getBooleanEnv("SOCKET_ENABLED", true),

@@ -7,10 +7,13 @@ export const PROCESSED_STORAGE_PREFIX = "processed";
 export const TT05_METADATA_STORAGE_PREFIX = "tt05_metadata";
 /** PVEP metadata worker output root (parallel to processed/). */
 export const PVEP_METADATA_STORAGE_PREFIX = "pvep_metadata";
+/** Tuyên Quang metadata worker output root (parallel to processed/). */
+export const TUYEN_QUANG_METADATA_STORAGE_PREFIX = "tuyen_quang_metadata";
 export const METADATA_OUTPUT_STORAGE_PREFIXES = [
     PROCESSED_STORAGE_PREFIX,
     TT05_METADATA_STORAGE_PREFIX,
     PVEP_METADATA_STORAGE_PREFIX,
+    TUYEN_QUANG_METADATA_STORAGE_PREFIX,
 ] as const;
 export type MetadataOutputStoragePrefix =
     (typeof METADATA_OUTPUT_STORAGE_PREFIXES)[number];
@@ -223,6 +226,14 @@ export function toTt05MetadataKey(folderPath: string): string | null {
  */
 export function toPvepMetadataKey(folderPath: string): string | null {
     return toMetadataOutputKey(folderPath, PVEP_METADATA_STORAGE_PREFIX);
+}
+
+/**
+ * Mirror a raw/ folder path to Tuyên Quang metadata key.
+ * raw/<root>/<ho_so_id> -> tuyen_quang_metadata/<root>/<ho_so_id>/<ho_so_id>.json
+ */
+export function toTuyenQuangMetadataKey(folderPath: string): string | null {
+    return toMetadataOutputKey(folderPath, TUYEN_QUANG_METADATA_STORAGE_PREFIX);
 }
 
 /**

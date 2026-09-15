@@ -121,6 +121,7 @@ function resolvePublishTopics(
             env.KAFKA_MERGE_COMPLETED_TOPIC,
             env.KAFKA_START_METADATA_TT05_TOPIC,
             env.KAFKA_START_METADATA_PVEP_TOPIC,
+            env.KAFKA_START_METADATA_TUYEN_QUANG_TOPIC,
         ];
     }
     if (mode === MetadataExtractMode.OLD) {
@@ -131,6 +132,9 @@ function resolvePublishTopics(
     }
     if (mode === MetadataExtractMode.PVEP) {
         return [env.KAFKA_START_METADATA_PVEP_TOPIC];
+    }
+    if (mode === MetadataExtractMode.TUYEN_QUANG) {
+        return [env.KAFKA_START_METADATA_TUYEN_QUANG_TOPIC];
     }
     // off
     return [];
