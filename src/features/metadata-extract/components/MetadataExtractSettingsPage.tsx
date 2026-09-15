@@ -27,7 +27,7 @@ import {
 
 import { MetadataHiddenFieldsSection } from '@/features/metadata-extract/components/MetadataHiddenFieldsSection'
 
-const MODE_OPTIONS: MetadataExtractMode[] = ['old', 'tt05', 'pvep']
+const MODE_OPTIONS: MetadataExtractMode[] = ['old', 'tt05', 'pvep', 'tuyen-quang']
 
 export function MetadataExtractSettingsPage() {
   const { t } = useTranslation('metadata-extract-settings')

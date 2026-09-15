@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api/apiClient'
 
-export type MetadataExtractMode = 'old' | 'tt05' | 'pvep' | 'off'
+export type MetadataExtractMode = 'old' | 'tt05' | 'pvep' | 'tuyen-quang' | 'off'
 
 export type MetadataExtractSettingsT = {
   id: string
