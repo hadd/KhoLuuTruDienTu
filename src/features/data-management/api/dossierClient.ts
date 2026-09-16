@@ -62,6 +62,7 @@ export interface UploadFolderOptions {
 
 const UPLOAD_EXPIRY_MIN_SECONDS = 60
 const CONFLICT_CHECK_CONCURRENCY = 10
+const OCR_UPLOAD_TIMEOUT_MS = 300_000
 
 export interface UploadPathConflict {
   relativePath: string
@@ -220,7 +221,7 @@ async function createDocumentFromStorage(
   const response = await apiClient.post<Record<string, unknown>>(
     '/api/v1/dossiers/create-document-from-storage',
     body,
-    { _skipGlobalErrorToast: true },
+    { _skipGlobalErrorToast: true, timeout: OCR_UPLOAD_TIMEOUT_MS },
   )
 
   const data = unwrapApiRecord<Record<string, unknown>>(response.data)
@@ -277,6 +278,7 @@ async function uploadFileToMinIO(
   const response = await fetch(uploadPoint.postURL, {
     method: 'POST',
     body: form,
+    signal: AbortSignal.timeout(OCR_UPLOAD_TIMEOUT_MS),
   })
 
   if (!response.ok) {
