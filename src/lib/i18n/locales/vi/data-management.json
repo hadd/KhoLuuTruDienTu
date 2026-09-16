@@ -198,7 +198,7 @@
       "fileNamingConfig": "Theo cấu hình tên tài liệu",
       "fileNamingOriginalHint": "Giữ tên file PDF như đang lưu trong hệ thống (TIFF dùng cùng phần tên).",
       "fileNamingConfigHint": "Đặt tên PDF theo cấu hình tên tài liệu của hồ sơ; file TIFF dùng cùng phần tên (nếu chưa cấu hình sẽ dùng tên gốc).",
-      "pdfaNotice": "ZIP xuất ra gồm file PDF/A trong thư mục PDF/ và file TIFF multipage đã chuyển đổi trong thư mục TIFF/, giữ nguyên cùng cây thư mục.",
+      "pdfaNotice": "ZIP xuất ra gồm file PDF/A trong thư mục PDF/ và TIFF multipage trong TIFF/ (cùng cây thư mục). File đã ký số được xuất nguyên bản để giữ chữ ký hợp lệ.",
       "cancel": "Hủy"
     },
     "exportConfigDialog": {

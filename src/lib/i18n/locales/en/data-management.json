@@ -181,7 +181,7 @@
       "fileNamingConfig": "Document naming configuration",
       "fileNamingOriginalHint": "Keep PDF names as stored in the system (TIFF uses the same stem).",
       "fileNamingConfigHint": "Rename PDFs using the dossier document naming config; TIFF files use the same stem (falls back to original names if not configured).",
-      "pdfaNotice": "Exported ZIP includes PDF/A files under PDF/ and converted multipage TIFF files under TIFF/, preserving the same folder tree.",
+      "pdfaNotice": "Exported ZIP includes PDF/A files under PDF/ and converted multipage TIFF under TIFF/ (same folder tree). Digitally signed PDFs are exported as original bytes so signatures stay valid.",
       "cancel": "Cancel"
     },
     "exportConfigDialog": {
