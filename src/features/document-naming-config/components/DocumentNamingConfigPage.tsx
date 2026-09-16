@@ -54,7 +54,11 @@ export function DocumentNamingConfigPage() {
   >([])
 
   const fondsQuery = useQuery(activeArchiveFondsQueryOptions())
-  const fieldCatalogQuery = useQuery(documentNamingFieldCatalogQueryOptions())
+  const fieldCatalogQuery = useQuery(
+    documentNamingFieldCatalogQueryOptions(
+      dossierId ? { dossierId } : null,
+    ),
+  )
   const dossierConfigQuery = useQuery(
     documentNamingConfigQueryOptions(
       fondId
@@ -83,6 +87,7 @@ export function DocumentNamingConfigPage() {
     fond: [],
     dossier: [],
     file: [],
+    metadata: [],
   }
   const dossierOptions = dossierOptionsQuery.data ?? []
 

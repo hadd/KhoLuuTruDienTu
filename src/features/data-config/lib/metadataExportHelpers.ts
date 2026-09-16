@@ -223,10 +223,7 @@ export function isExportColumnsReady(
 ): boolean {
   return (
     columns.length > 0 &&
-    columns.every(
-      (column) =>
-        column.header.trim().length > 0 && column.fieldKeys.length > 0,
-    )
+    columns.every((column) => column.header.trim().length > 0)
   )
 }
 
@@ -253,7 +250,7 @@ export interface MetadataExportValidationResult {
 
 export function validateExportColumnsConfig(
   columns: Array<MetadataExportColumnConfigT>,
-  options: { requireFields?: boolean } = { requireFields: true },
+  options: { requireFields?: boolean } = { requireFields: false },
 ): MetadataExportValidationResult {
   const issues: Array<MetadataExportValidationIssue> = []
   const columnErrors: MetadataExportColumnErrors = {}

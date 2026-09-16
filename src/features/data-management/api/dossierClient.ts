@@ -309,12 +309,14 @@ async function downloadMetadataExport(
   path: string,
   fallbackName: string,
   dossierId?: string,
+  params?: Record<string, string | boolean | undefined>,
 ): Promise<void> {
   const response = await apiClient.get<Blob>(path, {
     responseType: 'blob',
     timeout: EXPORT_TIMEOUT_MS,
     _skipGlobalErrorToast: true,
     dossierId: dossierId ?? null,
+    params,
   })
 
   await saveMetadataExportBlob(
@@ -374,6 +376,7 @@ export interface MetadataExportColumnRequestT {
 export interface MetadataExportRequestT {
   presetId?: string
   columns?: Array<MetadataExportColumnRequestT>
+  useDocumentNaming?: boolean
 }
 
 export interface MetadataExportPreviewRowT {
@@ -446,7 +449,7 @@ export async function exportDossierMetadataExcel(
     : `dossier-${dossierId}.zip`
   const path = `/api/v1/dossiers/${encodeURIComponent(dossierId)}/metadata/export`
 
-  if (config?.presetId || config?.columns) {
+  if (config?.presetId || config?.columns || config?.useDocumentNaming) {
     await downloadConfiguredMetadataExport(
       path,
       fallbackName,
@@ -485,7 +488,7 @@ export async function exportFolderMetadataExcel(
     : `folder-${folderId}.zip`
   const path = `/api/v1/folders/${encodeURIComponent(folderId)}/metadata/export`
 
-  if (config?.presetId || config?.columns) {
+  if (config?.presetId || config?.columns || config?.useDocumentNaming) {
     await downloadConfiguredMetadataExport(path, fallbackName, config)
     return
   }
@@ -493,9 +496,14 @@ export async function exportFolderMetadataExcel(
   await downloadMetadataExport(path, fallbackName)
 }
 
+export type DipExportOptionsT = {
+  useDocumentNaming?: boolean
+}
+
 export async function exportDossierDip(
   dossierId: string,
   downloadName?: string,
+  options?: DipExportOptionsT,
 ): Promise<void> {
   const fallbackName = downloadName?.trim()
     ? `${downloadName.trim()}-dip.zip`
@@ -504,6 +512,9 @@ export async function exportDossierDip(
     `/api/v1/dossiers/${encodeURIComponent(dossierId)}/dip/export`,
     fallbackName,
     dossierId,
+    options?.useDocumentNaming === true
+      ? { useDocumentNaming: true }
+      : undefined,
   )
 }
 
@@ -511,6 +522,7 @@ export async function exportMultiDossiersDip(
   dossierIds: string[],
   downloadName?: string,
   baseFolderId?: string,
+  options?: DipExportOptionsT,
 ): Promise<void> {
   const fallbackName = downloadName?.trim()
     ? `${downloadName.trim()}-dip.zip`
@@ -518,13 +530,23 @@ export async function exportMultiDossiersDip(
   await downloadConfiguredMetadataExport(
     `/api/v1/dossiers/dip/export`,
     fallbackName,
-    { dossierIds, baseFolderId } as any,
+    {
+      dossierIds,
+      baseFolderId,
+      ...(options?.useDocumentNaming === true
+        ? { useDocumentNaming: true }
+        : {}),
+    } as MetadataExportRequestT & {
+      dossierIds: string[]
+      baseFolderId?: string
+    },
   )
 }
 
 export async function exportFolderDip(
   folderId: string,
   downloadName?: string,
+  options?: DipExportOptionsT,
 ): Promise<void> {
   const fallbackName = downloadName?.trim()
     ? `${downloadName.trim()}-dip.zip`
@@ -532,7 +554,18 @@ export async function exportFolderDip(
   await downloadConfiguredMetadataExport(
     `/api/v1/dossiers/dip/export`,
     fallbackName,
-    { dossierIds: [], folderIds: [folderId], baseFolderId: folderId } as any,
+    {
+      dossierIds: [],
+      folderIds: [folderId],
+      baseFolderId: folderId,
+      ...(options?.useDocumentNaming === true
+        ? { useDocumentNaming: true }
+        : {}),
+    } as MetadataExportRequestT & {
+      dossierIds: string[]
+      folderIds: string[]
+      baseFolderId: string
+    },
   )
 }
 

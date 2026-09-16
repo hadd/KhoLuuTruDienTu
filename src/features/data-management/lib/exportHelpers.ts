@@ -25,12 +25,14 @@ export type ExportMode = 'metadata' | 'dip'
 
 export interface ExportOptions {
   presetId?: string
+  useDocumentNaming?: boolean
 }
 
 export interface ExportContext {
   kind: ExportKind
   folderId: string | null
   dossierId: string | null
+  dossierIds?: string[]
   downloadName: string
 }
 
@@ -119,6 +121,7 @@ export interface RunExportParams {
   dossierIds?: string[]
   downloadName: string
   metadataExportConfig?: MetadataExportRequestT
+  useDocumentNaming?: boolean
 }
 
 export async function runExport({
@@ -129,18 +132,27 @@ export async function runExport({
   dossierIds,
   downloadName,
   metadataExportConfig,
+  useDocumentNaming,
 }: RunExportParams): Promise<void> {
+  const namingFlag = useDocumentNaming === true
+    ? { useDocumentNaming: true as const }
+    : undefined
+  const metadataConfig =
+    metadataExportConfig || namingFlag
+      ? { ...metadataExportConfig, ...namingFlag }
+      : undefined
+
   if (mode === 'metadata') {
     if (kind === 'multi_dossiers' && dossierIds && dossierIds.length > 0) {
-      await exportMultiDossiersMetadataExcel(dossierIds, downloadName, metadataExportConfig)
+      await exportMultiDossiersMetadataExcel(dossierIds, downloadName, metadataConfig)
       return
     }
     if (kind === 'folder' && folderId) {
-      await exportFolderMetadataExcel(folderId, downloadName, metadataExportConfig)
+      await exportFolderMetadataExcel(folderId, downloadName, metadataConfig)
       return
     }
     if (kind === 'dossier' && dossierId) {
-      await exportDossierMetadataExcel(dossierId, downloadName, metadataExportConfig)
+      await exportDossierMetadataExcel(dossierId, downloadName, metadataConfig)
       return
     }
     throw new Error('Missing required IDs for metadata export')
@@ -148,17 +160,17 @@ export async function runExport({
 
   if (mode === 'dip') {
     if (kind === 'multi_dossiers' && dossierIds && dossierIds.length > 0) {
-      await exportMultiDossiersDip(dossierIds, downloadName)
+      await exportMultiDossiersDip(dossierIds, downloadName, undefined, namingFlag)
       return
     }
     if (kind === 'folder' && folderId) {
-      await exportFolderDip(folderId, downloadName)
+      await exportFolderDip(folderId, downloadName, namingFlag)
       return
     }
     if (!dossierId) {
       throw new Error('DIP export requires dossierId')
     }
-    await exportDossierDip(dossierId, downloadName)
+    await exportDossierDip(dossierId, downloadName, namingFlag)
     return
   }
 

@@ -9,6 +9,7 @@ export interface ArchiveWarehouseMetadataExportConfigT {
   dossierAccessPassword?: string
   /** Per-dossier passwords for multi export (overrides single dossierAccessPassword). */
   dossierAccessPasswords?: Record<string, string>
+  useDocumentNaming?: boolean
   onProgress?: (progress: { completed: number; total: number; dossierId: string }) => void
   onItemError?: (dossierId: string, error: Error) => void
 }
@@ -17,6 +18,7 @@ export interface ArchiveWarehouseDipExportConfigT {
   applyWatermark?: boolean
   dossierAccessPassword?: string
   dossierAccessPasswords?: Record<string, string>
+  useDocumentNaming?: boolean
   onProgress?: (progress: { completed: number; total: number; dossierId: string }) => void
   onItemError?: (dossierId: string, error: Error) => void
 }
@@ -161,6 +163,7 @@ export async function exportDossiersMetadataByIds(
     const body: Record<string, unknown> = { dossierIds: [id] }
     if (config?.presetId) body.presetId = config.presetId
     if (config?.applyWatermark) body.applyWatermark = true
+    if (config?.useDocumentNaming) body.useDocumentNaming = true
     const password = resolvePasswordForDossier(id, config)
     if (password) body.dossierAccessPassword = password
 
@@ -200,6 +203,7 @@ export async function exportDossiersDipByIds(
 
     const body: Record<string, unknown> = { dossierIds: [id] }
     if (config?.applyWatermark) body.applyWatermark = true
+    if (config?.useDocumentNaming) body.useDocumentNaming = true
     const password = resolvePasswordForDossier(id, config)
     if (password) body.dossierAccessPassword = password
 
@@ -237,6 +241,7 @@ export async function exportFoldersMetadataByIds(
   const body: Record<string, unknown> = { folderIds }
   if (config?.presetId) body.presetId = config.presetId
   if (config?.applyWatermark) body.applyWatermark = true
+  if (config?.useDocumentNaming) body.useDocumentNaming = true
   if (config?.dossierAccessPassword?.trim()) {
     body.dossierAccessPassword = config.dossierAccessPassword.trim()
   }

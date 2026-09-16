@@ -9,6 +9,7 @@ export type DocumentNamingSegmentSourceT =
   | 'fond_field'
   | 'dossier_field'
   | 'file_field'
+  | 'metadata_field'
 
 export type DocumentNamingSegmentT = {
   length: number
@@ -38,6 +39,7 @@ export type DocumentNamingFieldCatalogT = {
   fond: Array<DocumentNamingFieldOptionT>
   dossier: Array<DocumentNamingFieldOptionT>
   file: Array<DocumentNamingFieldOptionT>
+  metadata: Array<DocumentNamingFieldOptionT>
 }
 
 export type DocumentNamingDossierOptionT = {

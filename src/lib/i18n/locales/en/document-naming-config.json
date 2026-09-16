@@ -54,7 +54,8 @@
       "day": "Day",
       "fond_field": "Fond info",
       "dossier_field": "Dossier info",
-      "file_field": "File info"
+      "file_field": "File info",
+      "metadata_field": "Dossier/file metadata"
     },
     "validation": {
       "segmentsRequired": "Add at least one segment",

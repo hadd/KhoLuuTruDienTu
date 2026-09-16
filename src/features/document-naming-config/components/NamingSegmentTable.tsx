@@ -58,7 +58,8 @@ function needsFieldKey(source: DocumentNamingSegmentSourceT): boolean {
   return (
     source === 'fond_field' ||
     source === 'dossier_field' ||
-    source === 'file_field'
+    source === 'file_field' ||
+    source === 'metadata_field'
   )
 }
 
@@ -77,6 +78,7 @@ function getFieldOptions(
   if (source === 'fond_field') return fieldCatalog.fond
   if (source === 'dossier_field') return fieldCatalog.dossier
   if (source === 'file_field') return fieldCatalog.file
+  if (source === 'metadata_field') return fieldCatalog.metadata ?? []
   return []
 }
 

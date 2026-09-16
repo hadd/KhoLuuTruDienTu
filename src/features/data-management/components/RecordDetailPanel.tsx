@@ -45,6 +45,7 @@ import {
 import type {
   ExportContext,
   ExportMode,
+  ExportOptions,
 } from '@/features/data-management/lib/exportHelpers'
 import { runExport } from '@/features/data-management/lib/exportHelpers'
 import { mapMetadataHistoryToBatches } from '@/features/data-management/lib/metadataEditHistoryMapper'
@@ -1123,7 +1124,7 @@ export function RecordDetailPanel({
   }, [canExport, dossierId, activeMetadata?.ho_so_id, node.name])
 
   const handleExport = useCallback(
-    async (mode: ExportMode, options?: { presetId?: string }) => {
+    async (mode: ExportMode, options?: ExportOptions) => {
       if (!exportContext || isExporting) return
 
       setIsExporting(true)
@@ -1138,6 +1139,7 @@ export function RecordDetailPanel({
           metadataExportConfig: options?.presetId
             ? { presetId: options.presetId }
             : undefined,
+          useDocumentNaming: options?.useDocumentNaming === true,
         })
         toast.success(t('recordDetail.exportExcelSuccess'))
         setExportDialogOpen(false)

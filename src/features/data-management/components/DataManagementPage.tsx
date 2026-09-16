@@ -66,6 +66,7 @@ import { collectDossierIdsWithPendingIssueReports } from '@/features/data-manage
 import type {
   ExportContext,
   ExportMode,
+  ExportOptions,
 } from '@/features/data-management/lib/exportHelpers'
 import {
   resolveDossierIdForDip,
@@ -950,7 +951,7 @@ export function DataManagementPage({
   }
 
   const handleExport = useCallback(
-    async (mode: ExportMode, options?: { presetId?: string }) => {
+    async (mode: ExportMode, options?: ExportOptions) => {
       if (!exportContext || isExporting) return
 
       setIsExporting(true)
@@ -969,6 +970,7 @@ export function DataManagementPage({
           metadataExportConfig: options?.presetId
             ? { presetId: options.presetId }
             : undefined,
+          useDocumentNaming: options?.useDocumentNaming === true,
         })
         toast.success(t('recordDetail.exportExcelSuccess'))
         setExportDialogOpen(false)
@@ -1000,7 +1002,7 @@ export function DataManagementPage({
   }, [selectedDossierIds])
 
   const handleBatchExport = useCallback(
-    async (mode: ExportMode, options?: { presetId?: string }) => {
+    async (mode: ExportMode, options?: ExportOptions) => {
       if (!batchExportContext || isExporting) return
 
       setIsExporting(true)
@@ -1016,6 +1018,7 @@ export function DataManagementPage({
           metadataExportConfig: options?.presetId
             ? { presetId: options.presetId }
             : undefined,
+          useDocumentNaming: options?.useDocumentNaming === true,
         })
         toast.success(
           mode === 'metadata'

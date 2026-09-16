@@ -54,7 +54,8 @@
       "day": "Ngày",
       "fond_field": "Thông tin phông",
       "dossier_field": "Thông tin hồ sơ",
-      "file_field": "Thông tin file"
+      "file_field": "Thông tin file",
+      "metadata_field": "Metadata hồ sơ/tài liệu"
     },
     "validation": {
       "segmentsRequired": "Hãy thêm ít nhất một đoạn mã",
