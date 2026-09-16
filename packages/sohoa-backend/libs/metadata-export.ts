@@ -13,11 +13,16 @@ import {
 export interface MetadataPdfSource {
     storageKey: string;
     fileName: string;
+    /** When set, download this key instead of storageKey (signed PDF bytes). */
+    downloadKey?: string;
+    /** Skip watermark / PDF/A so embedded digital signatures stay valid. */
+    preserveSignature?: boolean;
 }
 
 export interface MetadataExportPdfFile {
     fileName: string;
     data: Uint8Array;
+    preserveSignature?: boolean;
 }
 
 function isPdfPath(path: string): boolean {
@@ -49,23 +54,45 @@ function uniqueZipEntryName(fileName: string, usedNames: Set<string>): string {
     return uniqueName;
 }
 
+type DossierFilePdfSourceInput = {
+    fileName: string;
+    filePath: string;
+    signedFilePath?: string | null;
+};
+
 export function collectMetadataPdfSources(
     metadata: DossierMetadata,
-    dossierFiles: Array<{ fileName: string; filePath: string }> = [],
+    dossierFiles: DossierFilePdfSourceInput[] = [],
 ): MetadataPdfSource[] {
-    const sources = new Map<string, string>();
+    const sources = new Map<string, MetadataPdfSource>();
+    const signedByPath = new Map<string, string>();
     const expanded = expandTaiLieuDocuments(metadata);
+
+    for (const file of dossierFiles) {
+        const pathKey = normalizeStorageKey(file.filePath);
+        if (file.signedFilePath) {
+            signedByPath.set(pathKey, normalizeStorageKey(file.signedFilePath));
+        }
+    }
 
     for (const file of dossierFiles) {
         if (!isPdfPath(file.filePath) && !isPdfPath(file.fileName)) {
             continue;
         }
 
-        sources.set(normalizeStorageKey(file.filePath), file.fileName);
+        const storageKey = normalizeStorageKey(file.filePath);
+        const downloadKey = signedByPath.get(storageKey);
+        sources.set(storageKey, {
+            storageKey,
+            fileName: file.fileName,
+            ...(downloadKey
+                ? { downloadKey, preserveSignature: true as const }
+                : {}),
+        });
     }
 
     const allowedStorageKeys = new Set(
-        dossierFiles.map(f => normalizeStorageKey(f.filePath))
+        dossierFiles.map((f) => normalizeStorageKey(f.filePath)),
     );
 
     for (const group of expanded.metadata_groups) {
@@ -78,12 +105,26 @@ export function collectMetadataPdfSources(
         if (dossierFiles.length > 0 && !allowedStorageKeys.has(storageKey)) {
             continue;
         }
-        
-        const fileName = group.source_document?.file_name ?? storageBasename(filePath);
-        sources.set(storageKey, fileName);
+
+        const fileName =
+            group.source_document?.file_name ?? storageBasename(filePath);
+        const downloadKey = signedByPath.get(storageKey);
+        const existing = sources.get(storageKey);
+        sources.set(storageKey, {
+            storageKey,
+            fileName: existing?.fileName ?? fileName,
+            ...(downloadKey
+                ? { downloadKey, preserveSignature: true as const }
+                : existing?.preserveSignature
+                ? {
+                    downloadKey: existing.downloadKey,
+                    preserveSignature: true as const,
+                }
+                : {}),
+        });
     }
 
-    return [...sources.entries()].map(([storageKey, fileName]) => ({ storageKey, fileName }));
+    return [...sources.values()];
 }
 
 export interface DossierMetadataExportBundle {

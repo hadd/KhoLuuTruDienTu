@@ -99,7 +99,7 @@ import {
   buildEditorMergedMetadataKey,
   buildLinkGet,
   buildSummaryMetadataUpdateKey,
-  downloadExportPdf,
+  downloadExportPdfSource,
   downloadJsonFromStorage,
   resolveMetadataJsonKey,
   uploadJsonToStorage,
@@ -1082,6 +1082,7 @@ type DossierWithFiles = {
     fileName: string;
     filePath: string;
     documentTypeId?: string | null;
+    signedFilePath?: string | null;
   }>;
 };
 
@@ -1432,10 +1433,16 @@ async function buildDossierPdfExportBundle(
   const pdfFiles = await mapWithConcurrency(
     pdfSources,
     EXPORT_DOWNLOAD_CONCURRENCY,
-    async (source, index) => ({
-      fileName: resolvedNames[index] ?? source.fileName,
-      data: await downloadExportPdf(source.storageKey),
-    }),
+    async (source, index) => {
+      const downloaded = await downloadExportPdfSource(source);
+      return {
+        fileName: resolvedNames[index] ?? source.fileName,
+        data: downloaded.data,
+        ...(downloaded.preserveSignature
+          ? { preserveSignature: true as const }
+          : {}),
+      };
+    },
   );
 
   return { dossierFolderName, zipFolderPath, pdfFiles };

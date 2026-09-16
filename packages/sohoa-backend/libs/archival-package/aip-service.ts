@@ -67,6 +67,7 @@ type DossierRow = {
     fileName: string;
     filePath: string;
     documentTypeId?: string | null;
+    signedFilePath?: string | null;
   }>;
 };
 
