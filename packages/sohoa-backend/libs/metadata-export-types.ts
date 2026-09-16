@@ -67,9 +67,5 @@ export function validateExportColumns(columns: MetadataExportColumnConfig[]): vo
 
 export function validateExportColumnsForExport(columns: MetadataExportColumnConfig[]): void {
     validateExportColumns(columns);
-    for (const column of columns) {
-        if (column.fieldKeys.length === 0 && !isExportSttColumn(column)) {
-            throw new Error(`Column "${column.header}" must include at least one field`);
-        }
-    }
 }
+

@@ -123,6 +123,7 @@ import {
   resolveWatermarkApplyConfig,
 } from "../../libs/watermark/maybe-watermark-pdf-files.ts";
 import { convertBatchToPdfA } from "../../libs/pdf-a/pdf-a-converter.ts";
+import { convertBatchPdfToTiff } from "../../libs/pdf-tiff/pdf-to-tiff-converter.ts";
 import { resolveExportZipPassword } from "../profile/resolve-export-zip-password.ts";
 import { assertExportFileLimit } from "../../libs/export-file-limit.ts";
 import {
@@ -143,6 +144,10 @@ import {
   collectMetadataPdfSources,
   type FolderDossierPdfBundle,
 } from "../../libs/metadata-export.ts";
+import {
+  resolveNamedPdfFileName,
+} from "../../libs/document-naming-export.ts";
+import { DocumentNamingConfigService } from "../document-naming-config/document-naming-config-service.ts";
 import { resolveExportZipRelativePath } from "../../libs/archival-package/aip-path-utils.ts";
 import {
   type DossierMetadata,
@@ -1069,8 +1074,15 @@ type DossierWithFiles = {
   status: string;
   fondId: string | null;
   folderPath: string;
+  projectCode: string | null;
+  dossierTypeId: string | null;
   currentMetadataKey: string | null;
-  files?: Array<{ fileName: string; filePath: string }>;
+  files?: Array<{
+    id?: string;
+    fileName: string;
+    filePath: string;
+    documentTypeId?: string | null;
+  }>;
 };
 
 async function findDossiersInFolderSubtree(folderId: string) {
@@ -1225,6 +1237,8 @@ type MetadataExportInput = {
   dossierAccessPassword?: string;
   /** Set of dossier file IDs to skip from the export (due to missing download permissions) */
   skippedFileIds?: Set<string>;
+  /** When true, rename PDFs inside ZIP using document naming config. */
+  useDocumentNaming?: boolean;
 };
 
 async function buildApprovedMetadataExportZip(
@@ -1284,8 +1298,11 @@ async function buildApprovedMetadataExportZip(
   const loaded = await mapInBatches(
     metadataForCount,
     EXPORT_DOSSIER_CONCURRENCY,
-    async ({ dossier, metadata }) => {
-      const pdfBundle = await buildDossierPdfExportBundle(dossier, metadata);
+    async ({ dossier, metadata }, dossierIndex) => {
+      const pdfBundle = await buildDossierPdfExportBundle(dossier, metadata, {
+        useDocumentNaming: input?.useDocumentNaming === true,
+        dossierIndex,
+      });
       pdfBundle.pdfFiles = await applyWatermarkConfigToPdfFiles(
         pdfBundle.pdfFiles,
         watermarkConfig,
@@ -1293,6 +1310,7 @@ async function buildApprovedMetadataExportZip(
       pdfBundle.pdfFiles = await convertBatchToPdfA(pdfBundle.pdfFiles, {
         title: metadata.ho_so_id || dossier.name,
       });
+      pdfBundle.tiffFiles = await convertBatchPdfToTiff(pdfBundle.pdfFiles);
 
       // Tính relative folder path khi xuất từ folder
       if (options.baseFolderPath && options.baseFolderName) {
@@ -1336,6 +1354,7 @@ async function buildApprovedMetadataExportZip(
       relativeFolderPath: item.pdfBundle.relativeFolderPath,
       baseFolderName: item.pdfBundle.baseFolderName,
       pdfFiles: item.pdfBundle.pdfFiles,
+      tiffFiles: item.pdfBundle.tiffFiles,
     })),
     password: zipPassword,
   });
@@ -1366,6 +1385,10 @@ async function loadDossierMetadataFromStorage(dossier: DossierWithFiles) {
 async function buildDossierPdfExportBundle(
   dossier: DossierWithFiles,
   metadata: DossierMetadata,
+  options?: {
+    useDocumentNaming?: boolean;
+    dossierIndex?: number;
+  },
 ): Promise<FolderDossierPdfBundle> {
   const baseName = metadata.ho_so_id || dossier.name || dossier.id;
   const dossierFolderName = sanitizeExportBaseName(baseName);
@@ -1374,11 +1397,43 @@ async function buildDossierPdfExportBundle(
     dossierFolderName,
   );
   const pdfSources = collectMetadataPdfSources(metadata, dossier.files ?? []);
+
+  let namingContext: Awaited<
+    ReturnType<typeof DocumentNamingConfigService.loadFileNamingExportContext>
+  > = null;
+  if (options?.useDocumentNaming) {
+    namingContext = await DocumentNamingConfigService.loadFileNamingExportContext({
+      fondId: dossier.fondId,
+      dossierId: dossier.id,
+      dossier: {
+        name: dossier.name,
+        folderPath: dossier.folderPath,
+        projectCode: dossier.projectCode,
+        dossierTypeId: dossier.dossierTypeId,
+      },
+    });
+  }
+
+  const usedNames = new Set<string>();
+  const resolvedNames = pdfSources.map((source, sourceIndex) => {
+    if (!namingContext) return source.fileName;
+    return resolveNamedPdfFileName({
+      context: namingContext,
+      metadata,
+      originalFileName: source.fileName,
+      storageKey: source.storageKey,
+      sourceIndex,
+      dossierFiles: dossier.files,
+      dossierIndex: options?.dossierIndex ?? 0,
+      usedNames,
+    });
+  });
+
   const pdfFiles = await mapWithConcurrency(
     pdfSources,
     EXPORT_DOWNLOAD_CONCURRENCY,
-    async (source) => ({
-      fileName: source.fileName,
+    async (source, index) => ({
+      fileName: resolvedNames[index] ?? source.fileName,
       data: await downloadExportPdf(source.storageKey),
     }),
   );
@@ -3673,6 +3728,7 @@ export const DossierService = {
       userId?: string;
       dossierAccessPassword?: string;
       skippedFileIds?: Set<string>;
+      useDocumentNaming?: boolean;
     },
   ) {
     const applyWatermark = await resolveApplyWatermarkForDossiers([dossierId]);
@@ -3695,6 +3751,7 @@ export const DossierService = {
       dossierAccessPassword?: string;
       skippedFileIds?: Set<string>;
       baseFolderId?: string;
+      useDocumentNaming?: boolean;
     },
   ) {
     const applyWatermark = await resolveApplyWatermarkForDossiers(dossierIds);

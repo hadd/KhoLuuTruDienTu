@@ -12,7 +12,7 @@ const namingSegmentSchema = t.Object({
     length: t.Integer({ minimum: 1, maximum: 64 }),
     source: t.Union(DOCUMENT_NAMING_SEGMENT_SOURCES.map((value) => t.Literal(value))),
     value: t.Optional(t.Nullable(t.String({ maxLength: 255 }))),
-    fieldKey: t.Optional(t.Nullable(t.String({ maxLength: 100 }))),
+    fieldKey: t.Optional(t.Nullable(t.String({ maxLength: 255 }))),
     padChar: t.Optional(t.Nullable(t.String({ maxLength: 1 }))),
 });
 
@@ -28,14 +28,20 @@ export function createDocumentNamingConfigAdminRouter(
 
     app.get(
         "/field-catalog",
-        async ({ profile }) => {
+        async ({ query, profile }) => {
             authHelper.checkPermission(profile, Permission.METADATA_NAMING_MANAGE);
+            if (query.dossierId) {
+                return await service.getFieldCatalogForDossier(query.dossierId);
+            }
             return service.getFieldCatalog();
         },
         {
+            query: t.Object({
+                dossierId: t.Optional(t.String({ format: "uuid" })),
+            }),
             detail: {
                 tags,
-                summary: "List available fond/dossier/file fields for naming segments",
+                summary: "List available fond/dossier/file/metadata fields for naming segments",
             },
         },
     );

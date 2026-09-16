@@ -57,6 +57,7 @@ const metadataExportBodySchema = t.Object({
   placementId: t.Optional(t.String({ format: "uuid" })),
   applyWatermark: t.Optional(t.Boolean()),
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
+  useDocumentNaming: t.Optional(t.Boolean()),
 });
 
 const multiDossierMetadataExportBodySchema = t.Object({
@@ -68,6 +69,7 @@ const multiDossierMetadataExportBodySchema = t.Object({
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
   /** When true, only validate access + ZIP password requirements (no ZIP body). */
   checkOnly: t.Optional(t.Boolean()),
+  useDocumentNaming: t.Optional(t.Boolean()),
 });
 
 const multiDipExportBodySchema = t.Object({
@@ -78,6 +80,7 @@ const multiDipExportBodySchema = t.Object({
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
   checkOnly: t.Optional(t.Boolean()),
   baseFolderId: t.Optional(t.String({ format: "uuid" })),
+  useDocumentNaming: t.Optional(t.Boolean()),
 });
 
 async function assertSecurityDownload(
@@ -502,6 +505,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
               dossierAccessPassword: body.dossierAccessPassword,
               skippedFileIds,
               baseFolderId: body.baseFolderId,
+              useDocumentNaming: body.useDocumentNaming === true,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {
@@ -735,6 +739,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
               userId: profile.id,
               dossierAccessPassword: query.dossierAccessPassword,
               skippedFileIds,
+              useDocumentNaming: query.useDocumentNaming === true,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {
@@ -749,6 +754,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         dossierAccessPassword: t.Optional(
           t.String({ minLength: 1, maxLength: 128 }),
         ),
+        useDocumentNaming: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,
@@ -895,6 +901,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
+              useDocumentNaming: query.useDocumentNaming === true,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {
@@ -906,6 +913,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
       query: t.Object({
         placementId: t.Optional(t.String({ format: "uuid" })),
         applyWatermark: t.Optional(t.Boolean()),
+        useDocumentNaming: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,

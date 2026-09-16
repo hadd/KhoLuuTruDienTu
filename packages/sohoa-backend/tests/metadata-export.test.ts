@@ -6,6 +6,7 @@ import {
     resolveExportFieldValue,
 } from "../libs/metadata-export-field-resolver.ts";
 import { buildDynamicMetadataExcel } from "../libs/metadata-excel-export.ts";
+import { collectFolderMetadataExportEntries } from "../libs/metadata-export.ts";
 import { buildMetadataExportPreview } from "../libs/metadata-export-preview.ts";
 import type { DossierMetadata } from "../libs/metadata-types.ts";
 
@@ -214,19 +215,19 @@ Deno.test("buildDynamicMetadataExcel expands multi-file dossier into rows with m
     const monthFile1 = sheet!.getCell(2, 20).value;
     const yearFile1 = sheet!.getCell(2, 21).value;
     assertEquals(dayFile1, "10");
-    assertEquals(monthFile1, "5");
+    assertEquals(monthFile1, "05");
     assertEquals(yearFile1, "2024");
 
     const dayFile2 = sheet!.getCell(3, 19).value;
     const monthFile2 = sheet!.getCell(3, 20).value;
     const yearFile2 = sheet!.getCell(3, 21).value;
     assertEquals(dayFile2, "11");
-    assertEquals(monthFile2, "5");
+    assertEquals(monthFile2, "05");
     assertEquals(yearFile2, "2024");
 
     // Check file path column (Col 32 / AF)
-    assertEquals(sheet!.getCell(2, 32).value, "raw/doc_1.pdf");
-    assertEquals(sheet!.getCell(3, 32).value, "raw/doc_2.pdf");
+    assertEquals(sheet!.getCell(2, 32).value, "doc_1.pdf");
+    assertEquals(sheet!.getCell(3, 32).value, "doc_2.pdf");
 });
 
 Deno.test("buildDynamicMetadataExcel exports PVEP sample metadata with file_name MA_DINH_DANH_VAN_BAN", async () => {
@@ -258,9 +259,10 @@ Deno.test("buildDynamicMetadataExcel exports PVEP sample metadata with file_name
     // Check document-level metadata
     assertEquals(sheet!.getCell(2, 17).value, "1330"); // Số của văn bản
     assertEquals(sheet!.getCell(2, 19).value, "14"); // Ngày
-    assertEquals(sheet!.getCell(2, 20).value, "1"); // Tháng
+    assertEquals(sheet!.getCell(2, 20).value, "01"); // Tháng
     assertEquals(sheet!.getCell(2, 21).value, "2002"); // Năm
     assertEquals(sheet!.getCell(2, 22).value, "14/01/2002"); // Ngày, tháng, năm văn bản (formatted dd/mm/yyyy)
+
 
     // Find column index for "Số lượng trang của văn bản" & "Tình trạng vật lý"
     const soLuongTrangColIdx = columns.findIndex((c) => c.header === "Số lượng trang của văn bản") + 1;
@@ -269,7 +271,7 @@ Deno.test("buildDynamicMetadataExcel exports PVEP sample metadata with file_name
     assertEquals(sheet!.getCell(2, tinhTrangVatLyColIdx).value, "Bình thường");
     assertEquals(
         sheet!.getCell(2, 32).value,
-        "raw/1.DL PDF/LAN 1/CSDL_SOHOA_PVEP/ALG/VV/358/0964/PVEP.2002.0964.001.pdf",
+        "1.DL PDF/LAN 1/CSDL_SOHOA_PVEP/ALG/VV/358/0964/PVEP.2002.0964.001.pdf",
     ); // Đường dẫn file
 
     // Check that standard TT05 columns count is exactly 32 and no extra fields are appended
@@ -326,5 +328,53 @@ Deno.test("buildDynamicMetadataExcel formats dates to dd/mm/yyyy and omits 0 val
     assertEquals(yearVal, "2024");
     assertEquals(fullDateVal, "05/08/2024");
 });
+
+Deno.test("buildDynamicMetadataExcel supports empty columns with no fieldKeys", async () => {
+    const columns = [
+        { header: "STT", fieldKeys: [], separator: "" },
+        { header: "Ghi chú (Cột trống)", fieldKeys: [], separator: "" },
+    ];
+    const buffer = await buildDynamicMetadataExcel([sampleMetadata], { exportConfig: { columns } });
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer.buffer as ArrayBuffer);
+    const sheet = workbook.getWorksheet("Metadata");
+    assertEquals(sheet != null, true);
+
+    const emptyHeader = sheet!.getCell(1, 2).value;
+    const emptyCellValue = sheet!.getCell(2, 2).value;
+
+    assertEquals(emptyHeader, "Ghi chú (Cột trống)");
+    assertEquals(emptyCellValue ?? "", "");
+});
+
+Deno.test("collectFolderMetadataExportEntries splits PDF and TIFF trees under shared folderPrefix", () => {
+    const excelBuffer = new Uint8Array([1, 2, 3]);
+    const pdfData = new Uint8Array([10, 11]);
+    const tiffData = new Uint8Array([20, 21, 22]);
+
+    const entries = collectFolderMetadataExportEntries({
+        excelFileName: "export-metadata-export.xlsx",
+        excelBuffer,
+        dossierPdfBundles: [
+            {
+                dossierFolderName: "HoSo",
+                baseFolderName: "PVEP",
+                relativeFolderPath: "01/20",
+                pdfFiles: [{ fileName: "1.PDF", data: pdfData }],
+                tiffFiles: [{ fileName: "1.TIFF", data: tiffData }],
+            },
+        ],
+    });
+
+    assertEquals(entries.map((e) => e.name), [
+        "export-metadata-export.xlsx",
+        "PDF/PVEP/01/20/1.PDF",
+        "TIFF/PVEP/01/20/1.TIFF",
+    ]);
+    assertEquals(entries[1]?.data, pdfData);
+    assertEquals(entries[2]?.data, tiffData);
+});
+
 
 

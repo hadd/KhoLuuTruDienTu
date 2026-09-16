@@ -44,6 +44,7 @@ const metadataExportBodySchema = t.Object({
   placementId: t.Optional(t.String({ format: "uuid" })),
   applyWatermark: t.Optional(t.Boolean()),
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
+  useDocumentNaming: t.Optional(t.Boolean()),
 });
 
 const multiFolderMetadataExportBodySchema = t.Object({
@@ -53,6 +54,7 @@ const multiFolderMetadataExportBodySchema = t.Object({
   placementId: t.Optional(t.String({ format: "uuid" })),
   applyWatermark: t.Optional(t.Boolean()),
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
+  useDocumentNaming: t.Optional(t.Boolean()),
 });
 
 async function assertSecurityDownloadForFolders(
@@ -424,6 +426,7 @@ export function createFolderRouter(basePath: string = "/folders") {
               userId: profile.id,
               dossierAccessPassword: query.dossierAccessPassword,
               skippedFileIds,
+              useDocumentNaming: query.useDocumentNaming === true,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {
@@ -438,6 +441,7 @@ export function createFolderRouter(basePath: string = "/folders") {
         dossierAccessPassword: t.Optional(
           t.String({ minLength: 1, maxLength: 128 }),
         ),
+        useDocumentNaming: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,

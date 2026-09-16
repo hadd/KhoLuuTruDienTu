@@ -8,6 +8,10 @@ import {
     EXPORT_DOWNLOAD_CONCURRENCY,
     mapWithConcurrency,
 } from "../export-concurrency.ts";
+import {
+    resolveNamedPdfFileName,
+    type DocumentNamingExportContext,
+} from "../document-naming-export.ts";
 
 export function countPackagePdfSources(
     metadata: DossierMetadata,
@@ -18,7 +22,15 @@ export function countPackagePdfSources(
 
 export async function collectPackagePdfFiles(
     metadata: DossierMetadata,
-    dossierFiles: Array<{ fileName: string; filePath: string }> = [],
+    dossierFiles: Array<{
+        fileName: string;
+        filePath: string;
+        documentTypeId?: string | null;
+    }> = [],
+    options?: {
+        namingContext?: DocumentNamingExportContext | null;
+        dossierIndex?: number;
+    },
 ): Promise<PackagePdfFile[]> {
     const sources = collectMetadataPdfSources(metadata, dossierFiles);
     const groupByPath = new Map<string, string>();
@@ -31,11 +43,26 @@ export async function collectPackagePdfFiles(
         }
     }
 
+    const usedNames = new Set<string>();
+    const resolvedNames = sources.map((source, sourceIndex) => {
+        if (!options?.namingContext) return source.fileName;
+        return resolveNamedPdfFileName({
+            context: options.namingContext,
+            metadata,
+            originalFileName: source.fileName,
+            storageKey: source.storageKey,
+            sourceIndex,
+            dossierFiles,
+            dossierIndex: options.dossierIndex ?? 0,
+            usedNames,
+        });
+    });
+
     return await mapWithConcurrency(
         sources,
         EXPORT_DOWNLOAD_CONCURRENCY,
-        async (source) => ({
-            fileName: source.fileName,
+        async (source, index) => ({
+            fileName: resolvedNames[index] ?? source.fileName,
             data: await downloadExportPdf(source.storageKey),
             groupCode: groupByPath.get(normalizeStorageKey(source.storageKey)),
         }),

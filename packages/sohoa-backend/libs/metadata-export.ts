@@ -106,14 +106,15 @@ export interface FolderDossierPdfBundle {
     /** Tên thư mục gốc (baseFolderName) mà user đã chọn xuất */
     baseFolderName?: string;
     pdfFiles: MetadataExportPdfFile[];
+    /** Parallel to pdfFiles: same stem, `.TIFF` extension. */
+    tiffFiles?: MetadataExportPdfFile[];
 }
 
-function collectFolderMetadataExportEntries(input: {
+export function collectFolderMetadataExportEntries(input: {
     excelFileName: string;
     excelBuffer: Uint8Array;
     dossierPdfBundles: FolderDossierPdfBundle[];
 }): Array<{ name: string; data: Uint8Array }> {
-    // Excel luôn ở root ZIP
     const entries: Array<{ name: string; data: Uint8Array }> = [
         { name: input.excelFileName, data: input.excelBuffer },
     ];
@@ -134,15 +135,30 @@ function collectFolderMetadataExportEntries(input: {
             );
         }
         const usedPdfNames = new Set<string>();
-        for (const pdf of bundle.pdfFiles) {
+        const tiffFiles = bundle.tiffFiles ?? [];
+        for (let i = 0; i < bundle.pdfFiles.length; i++) {
+            const pdf = bundle.pdfFiles[i]!;
             const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
             entries.push({
-                name: `${folderPrefix}/${entryName}`,
+                name: `PDF/${folderPrefix}/${entryName}`,
                 data: pdf.data,
             });
             pdf.data = new Uint8Array(0);
+
+            const tiff = tiffFiles[i];
+            if (tiff) {
+                const tiffEntryName = entryName.replace(/\.pdf$/i, ".TIFF");
+                entries.push({
+                    name: `TIFF/${folderPrefix}/${tiffEntryName}`,
+                    data: tiff.data,
+                });
+                tiff.data = new Uint8Array(0);
+            }
         }
         bundle.pdfFiles.length = 0;
+        if (bundle.tiffFiles) {
+            bundle.tiffFiles.length = 0;
+        }
     }
     return entries;
 }
@@ -159,7 +175,7 @@ function buildFolderMetadataExportJsZip(input: {
     return zip;
 }
 
-/** ZIP gồm một Excel tổng hợp ở gốc và PDF theo từng thư mục hồ sơ. */
+/** ZIP: Excel at root + parallel PDF/ and TIFF/ trees preserving folder hierarchy. */
 export async function buildFolderMetadataExportZipStream(input: {
     excelFileName: string;
     excelBuffer: Uint8Array;

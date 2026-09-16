@@ -15,6 +15,7 @@ import {
   collectPackagePdfFiles,
   countPackagePdfSources,
 } from "./collect-package-sources.ts";
+import { DocumentNamingConfigService } from "../../modules/document-naming-config/document-naming-config-service.ts";
 import {
   applyWatermarkConfigToPdfFiles,
   resolveWatermarkApplyConfig,
@@ -59,7 +60,14 @@ type DossierRow = {
   status: string;
   currentMetadataKey: string | null;
   fondId: string | null;
-  files?: Array<{ fileName: string; filePath: string }>;
+  projectCode: string | null;
+  dossierTypeId: string | null;
+  files?: Array<{
+    id: string;
+    fileName: string;
+    filePath: string;
+    documentTypeId?: string | null;
+  }>;
 };
 
 type DipExportOptions = {
@@ -72,6 +80,8 @@ type DipExportOptions = {
   /** Set of dossier file IDs to skip from the export (due to missing download permissions) */
   skippedFileIds?: Set<string>;
   baseFolderId?: string;
+  /** When true, rename PDFs inside ZIP using document naming config. */
+  useDocumentNaming?: boolean;
 };
 
 async function loadApprovedDossierContext(dossierId: string): Promise<{
@@ -334,6 +344,10 @@ export async function exportDipHosoBatch(
       }
 
       return {
+        dossierId: dossier.id,
+        dossierName: dossier.name,
+        projectCode: dossier.projectCode,
+        dossierTypeId: dossier.dossierTypeId,
         metadata,
         hoSoId,
         fondId: dossier.fondId,
@@ -361,8 +375,24 @@ export async function exportDipHosoBatch(
   const packages = await mapInBatches(
     contexts,
     EXPORT_DOSSIER_CONCURRENCY,
-    async (ctx) => {
-      let pdfFiles = await collectPackagePdfFiles(ctx.metadata, ctx.files);
+    async (ctx, dossierIndex) => {
+      const namingContext = options?.useDocumentNaming === true
+        ? await DocumentNamingConfigService.loadFileNamingExportContext({
+          fondId: ctx.fondId,
+          dossierId: ctx.dossierId,
+          dossier: {
+            name: ctx.dossierName,
+            folderPath: ctx.folderPath,
+            projectCode: ctx.projectCode,
+            dossierTypeId: ctx.dossierTypeId,
+          },
+        })
+        : null;
+
+      let pdfFiles = await collectPackagePdfFiles(ctx.metadata, ctx.files, {
+        namingContext,
+        dossierIndex,
+      });
       pdfFiles = await applyWatermarkConfigToPdfFiles(
         pdfFiles,
         watermarkConfig,

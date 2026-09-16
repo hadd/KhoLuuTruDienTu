@@ -5,12 +5,26 @@ import { documentNamingConfigs } from "../../db/schemas/document-naming-config.t
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { fonds } from "../../db/schemas/fond.ts";
 import {
+    buildStaticMetadataNamingFieldOptions,
+    mergeMetadataNamingFieldOptions,
+} from "../../libs/document-naming-export.ts";
+import {
     buildDocumentNamePreviewSamples,
     DOCUMENT_NAMING_FIELD_CATALOG,
     validateDocumentNamingSegments,
     type DocumentNamingSegment,
     type DocumentNamingTargetType,
 } from "../../libs/document-naming-types.ts";
+import {
+    buildUnionExportFieldCatalog,
+    extractDossierFileItems,
+    resolveExportColumnValueForFile,
+} from "../../libs/metadata-export-field-resolver.ts";
+import { isDossierMetadata } from "../../libs/metadata-types.ts";
+import {
+    downloadJsonFromStorage,
+    resolveMetadataJsonKey,
+} from "../data-entry/data-entry-s3-utils.ts";
 
 function mapConfig(row: {
     id: string;
@@ -43,7 +57,35 @@ function parseAutoIncrementStart(segments: DocumentNamingSegment[]): number {
 
 export const DocumentNamingConfigService = {
     getFieldCatalog() {
-        return DOCUMENT_NAMING_FIELD_CATALOG;
+        return {
+            ...DOCUMENT_NAMING_FIELD_CATALOG,
+            metadata: buildStaticMetadataNamingFieldOptions(),
+        };
+    },
+
+    async getFieldCatalogForDossier(dossierId: string) {
+        const dossier = await db.query.dossiers.findFirst({
+            where: and(eq(dossiers.id, dossierId), isNull(dossiers.deletedAt)),
+            columns: { id: true, currentMetadataKey: true },
+        });
+        if (!dossier?.currentMetadataKey) {
+            return this.getFieldCatalog();
+        }
+
+        try {
+            const key = resolveMetadataJsonKey(dossier.currentMetadataKey);
+            const raw = await downloadJsonFromStorage(key);
+            if (!isDossierMetadata(raw)) {
+                return this.getFieldCatalog();
+            }
+            const live = buildUnionExportFieldCatalog([raw]);
+            return {
+                ...DOCUMENT_NAMING_FIELD_CATALOG,
+                metadata: mergeMetadataNamingFieldOptions(live),
+            };
+        } catch {
+            return this.getFieldCatalog();
+        }
     },
 
     async listDossierOptions(input: {
@@ -211,6 +253,11 @@ export const DocumentNamingConfigService = {
         }
 
         const autoIncrementStart = parseAutoIncrementStart(input.segments);
+        const metadataValues = await this.resolvePreviewMetadataValues(
+            dossier,
+            input.segments,
+        );
+
         const previews = buildDocumentNamePreviewSamples({
             segments: input.segments,
             fond: {
@@ -231,10 +278,53 @@ export const DocumentNamingConfigService = {
                 fileName: "sample.pdf",
                 documentTypeId: "sample-type",
             },
+            metadataValues,
             autoIncrementStart,
         });
 
         return { previews };
+    },
+
+    async resolvePreviewMetadataValues(
+        dossier: typeof dossiers.$inferSelect | null,
+        segments: DocumentNamingSegment[],
+    ): Promise<Record<string, string>> {
+        const metadataKeys = segments
+            .filter((segment) => segment.source === "metadata_field" && segment.fieldKey)
+            .map((segment) => segment.fieldKey!);
+        if (metadataKeys.length === 0 || !dossier?.currentMetadataKey) {
+            return Object.fromEntries(metadataKeys.map((key) => [key, ""]));
+        }
+
+        try {
+            const key = resolveMetadataJsonKey(dossier.currentMetadataKey);
+            const raw = await downloadJsonFromStorage(key);
+            if (!isDossierMetadata(raw)) {
+                return Object.fromEntries(metadataKeys.map((k) => [k, ""]));
+            }
+            const fileItems = extractDossierFileItems(raw);
+            const fileItem = fileItems[0] ?? {
+                fileIndex: 1,
+                sourceDocument: { file_name: null, file_path: null },
+                groups: [],
+            };
+            const values: Record<string, string> = {};
+            for (const fieldKey of metadataKeys) {
+                values[fieldKey] = resolveExportColumnValueForFile(
+                    raw,
+                    fileItem,
+                    { header: fieldKey, fieldKeys: [fieldKey], separator: "" },
+                    {
+                        dossierIndex: 0,
+                        fileIndex: fileItem.fileIndex,
+                        fileCount: fileItems.length,
+                    },
+                );
+            }
+            return values;
+        } catch {
+            return Object.fromEntries(metadataKeys.map((k) => [k, ""]));
+        }
     },
 
     async assertFondExists(fondId: string) {
@@ -259,5 +349,54 @@ export const DocumentNamingConfigService = {
         if (!dossier) {
             throw httpError.notFound("Dossier not found in fond");
         }
+    },
+
+    async loadFileNamingExportContext(input: {
+        fondId: string | null | undefined;
+        dossierId: string;
+        dossier: {
+            name: string;
+            folderPath: string;
+            projectCode: string | null;
+            dossierTypeId: string | null;
+        };
+    }) {
+        if (!input.fondId) return null;
+
+        const config = await this.getConfig({
+            fondId: input.fondId,
+            targetType: "file",
+            dossierId: input.dossierId,
+        });
+        if (config.segments.length === 0) return null;
+
+        const fond = await db.query.fonds.findFirst({
+            where: and(eq(fonds.id, input.fondId), isNull(fonds.deletedAt)),
+            columns: {
+                id: true,
+                fondName: true,
+                archiveAgency: true,
+                fondType: true,
+            },
+        });
+
+        return {
+            segments: config.segments,
+            autoIncrementCounter: config.autoIncrementCounter,
+            fond: fond
+                ? {
+                    id: fond.id,
+                    fondName: fond.fondName,
+                    archiveAgency: fond.archiveAgency,
+                    fondType: fond.fondType,
+                }
+                : undefined,
+            dossier: {
+                name: input.dossier.name,
+                folderPath: input.dossier.folderPath,
+                projectCode: input.dossier.projectCode,
+                dossierTypeId: input.dossier.dossierTypeId,
+            },
+        };
     },
 };
