@@ -27,6 +27,56 @@ export function groupsToExportFieldCatalog(
   )
 }
 
+export const EXPORT_SYNTHETIC_GROUP_CODE = '__external'
+
+export function buildExportSyntheticFieldCatalog(labels: {
+  groupName: string
+  filePath: string
+  fileName: string
+  rowNumber: string
+  dossierFolder: string
+}): Array<MetadataExportFieldCatalogItemT> {
+  return [
+    {
+      key: '__row_number',
+      groupCode: EXPORT_SYNTHETIC_GROUP_CODE,
+      groupName: labels.groupName,
+      fieldName: 'row_number',
+      display: labels.rowNumber,
+    },
+    {
+      key: '__dossier_folder',
+      groupCode: EXPORT_SYNTHETIC_GROUP_CODE,
+      groupName: labels.groupName,
+      fieldName: 'dossier_folder',
+      display: labels.dossierFolder,
+    },
+    {
+      key: '__file_path',
+      groupCode: EXPORT_SYNTHETIC_GROUP_CODE,
+      groupName: labels.groupName,
+      fieldName: 'file_path',
+      display: labels.filePath,
+    },
+    {
+      key: '__file_name',
+      groupCode: EXPORT_SYNTHETIC_GROUP_CODE,
+      groupName: labels.groupName,
+      fieldName: 'file_name',
+      display: labels.fileName,
+    },
+  ]
+}
+
+export function mergeExportFieldCatalogWithSynthetics(
+  catalog: Array<MetadataExportFieldCatalogItemT>,
+  synthetics: Array<MetadataExportFieldCatalogItemT>,
+): Array<MetadataExportFieldCatalogItemT> {
+  const seen = new Set(catalog.map((item) => item.key))
+  const extras = synthetics.filter((item) => !seen.has(item.key))
+  return extras.length === 0 ? catalog : [...catalog, ...extras]
+}
+
 /** Pick the template whose catalog covers the most assigned export field keys. */
 export function inferReferenceTemplateId(
   columns: Array<MetadataExportColumnConfigT>,
@@ -66,7 +116,9 @@ export function pruneExportColumnsToCatalog(
   const validKeys = new Set(catalog.map((item) => item.key))
   const nextColumns = columns.map((column) => ({
     ...column,
-    fieldKeys: column.fieldKeys.filter((key) => validKeys.has(key)),
+    fieldKeys: column.fieldKeys.filter(
+      (key) => validKeys.has(key) || key.startsWith('__'),
+    ),
   }))
 
   return JSON.stringify(columns) === JSON.stringify(nextColumns)
@@ -77,10 +129,10 @@ export function pruneExportColumnsToCatalog(
 export const EXPORT_SEPARATOR_OPTIONS = [
   { value: ', ', labelKey: 'comma' as const },
   { value: ' ', labelKey: 'space' as const },
-  { value: ' - ', labelKey: 'dash' as const },
-  { value: ' / ', labelKey: 'slash' as const },
-  { value: ' \\ ', labelKey: 'backslash' as const },
-  { value: ' . ', labelKey: 'dot' as const },
+  { value: '-', labelKey: 'dash' as const },
+  { value: '/', labelKey: 'slash' as const },
+  { value: '\\', labelKey: 'backslash' as const },
+  { value: '.', labelKey: 'dot' as const },
   { value: '_', labelKey: 'underscore' as const },
   { value: '\n', labelKey: 'newline' as const },
 ]
