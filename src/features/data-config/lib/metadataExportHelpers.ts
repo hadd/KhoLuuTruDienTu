@@ -78,6 +78,10 @@ export const EXPORT_SEPARATOR_OPTIONS = [
   { value: ', ', labelKey: 'comma' as const },
   { value: ' ', labelKey: 'space' as const },
   { value: ' - ', labelKey: 'dash' as const },
+  { value: ' / ', labelKey: 'slash' as const },
+  { value: ' \\ ', labelKey: 'backslash' as const },
+  { value: ' . ', labelKey: 'dot' as const },
+  { value: '_', labelKey: 'underscore' as const },
   { value: '\n', labelKey: 'newline' as const },
 ]
 
@@ -167,45 +171,18 @@ export function toggleFieldInColumn(
   return { ...column, fieldKeys: [...without, fieldKey] }
 }
 
-export function isFieldAssignedToOtherColumn(
-  columns: Array<MetadataExportColumnConfigT>,
-  columnIndex: number,
-  fieldKey: string,
-): boolean {
-  return columns.some(
-    (column, index) =>
-      index !== columnIndex && column.fieldKeys.includes(fieldKey),
-  )
-}
-
-/** Gán trường vào một cột; mỗi trường chỉ thuộc tối đa một cột. */
+/** Toggle field on the target column only; the same field may appear on multiple columns. */
 export function toggleFieldAcrossColumns(
   columns: Array<MetadataExportColumnConfigT>,
   columnIndex: number,
   fieldKey: string,
   checked: boolean,
 ): Array<MetadataExportColumnConfigT> {
-  if (!checked) {
-    return columns.map((column, index) =>
-      index === columnIndex
-        ? toggleFieldInColumn(column, fieldKey, false)
-        : column,
-    )
-  }
-
-  return columns.map((column, index) => {
-    const withoutField = {
-      ...column,
-      fieldKeys: column.fieldKeys.filter((key) => key !== fieldKey),
-    }
-    if (index === columnIndex) {
-      return {
-        ...withoutField,
-        fieldKeys: [...withoutField.fieldKeys, fieldKey],
-      }
-    }
-    return withoutField
-  })
+  return columns.map((column, index) =>
+    index === columnIndex
+      ? toggleFieldInColumn(column, fieldKey, checked)
+      : column,
+  )
 }
 
 export function canExportWithPreset(
