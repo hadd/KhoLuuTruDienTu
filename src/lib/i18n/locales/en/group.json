@@ -371,7 +371,9 @@
     "retry": "Retry",
     "count": "{{count}} dossiers",
     "assignedTo": "Assigned to: {{name}}",
-    "unassigned": "Unassigned"
+    "assignedToLabel": "Assigned to:",
+    "unassigned": "Unassigned",
+    "noSearchResults": "No dossiers match your search"
   },
   "memberDossiers": {
     "editorTitle": "Assigned dossiers — {{name}}",
