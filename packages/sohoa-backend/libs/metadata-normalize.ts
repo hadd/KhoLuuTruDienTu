@@ -11,6 +11,48 @@ export const TAI_LIEU_LUU_TRU_GROUP_CODE = "TAI_LIEU_LUU_TRU";
 export const HO_SO_LUU_TRU_GROUP_CODE = "HO_SO_LUU_TRU";
 export const HO_SO_FOND_FIELD = "FOND";
 
+function stripInstanceSegments(fieldName: string): string {
+    return fieldName
+        .replace(/_\d+_/g, "_")
+        .replace(/_\d+$/, "")
+        .replace(/^\d+_/, "")
+        .replace(/^_+/, "")
+        .replace(/_+/g, "_");
+}
+
+function slugifyFieldToken(value: string): string {
+    return value
+        .replace(/đ/gi, "d")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toUpperCase()
+        .trim()
+        .replace(/[^A-Z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+}
+
+const FIELD_CANONICAL_NAME_BY_SLUG: Record<string, string> = {
+    MA_PHONG: "MA_PHONG",
+    PHONG_SO: "MA_PHONG",
+    TEN_PHONG: "TEN_PHONG",
+    MUC_LUC_SO: "MUC_LUC_SO",
+    MUC_LUC_SO_HOAC_NAM_HINH_THANH_HO_SO: "MUC_LUC_SO",
+    FOND: "FOND",
+    PHONG_LUU_TRU: "PHONG_LUU_TRU",
+};
+
+export function canonicalMetadataFieldName(fieldName: string): string {
+    const normalized = stripInstanceSegments(fieldName.trim());
+    const slug = slugifyFieldToken(normalized);
+    return FIELD_CANONICAL_NAME_BY_SLUG[slug] ?? normalized;
+}
+
+export function metadataFieldNamesMatch(a: string, b: string): boolean {
+    if (!a.trim() || !b.trim()) return false;
+    if (stripInstanceSegments(a) === stripInstanceSegments(b)) return true;
+    return canonicalMetadataFieldName(a) === canonicalMetadataFieldName(b);
+}
+
 export const ARCHIVAL_GROUP_CODES = new Set([
     HO_SO_LUU_TRU_GROUP_CODE,
     TAI_LIEU_LUU_TRU_GROUP_CODE,
@@ -286,9 +328,13 @@ export function findMetadataFieldValue(
     fields: MetadataField[],
     fieldName: string,
 ): string | null {
-    const normalizedName = fieldName.trim().toUpperCase();
     for (const field of fields) {
-        if (field.name.trim().toUpperCase() !== normalizedName) continue;
+        if (
+            !metadataFieldNamesMatch(field.name, fieldName) &&
+            !metadataFieldNamesMatch(field.display, fieldName)
+        ) {
+            continue;
+        }
         const value = field.value?.trim();
         if (value) return value;
     }
@@ -332,6 +378,7 @@ export function slugifyTenLoaiTaiLieu(value: string): string {
 
 const DEFAULT_FOND_VALUE = "";
 
+/** Legacy fields collapsed into FOND for fond-sync; detail fields are preserved. */
 const LEGACY_FOND_FIELD_NAMES = [
     "PHONG_LUU_TRU",
     "TEN_PHONG",
@@ -339,8 +386,23 @@ const LEGACY_FOND_FIELD_NAMES = [
 ] as const;
 
 function isLegacyFondFieldName(fieldName: string): boolean {
-    const normalized = fieldName.trim().toUpperCase();
-    return LEGACY_FOND_FIELD_NAMES.some((name) => name === normalized);
+    return (
+        metadataFieldNamesMatch(fieldName, "PHONG_LUU_TRU") ||
+        metadataFieldNamesMatch(fieldName, "TEN_PHONG") ||
+        metadataFieldNamesMatch(fieldName, "MA_PHONG")
+    );
+}
+
+function isPreservedFondDetailFieldName(fieldName: string): boolean {
+    return (
+        metadataFieldNamesMatch(fieldName, "TEN_PHONG") ||
+        metadataFieldNamesMatch(fieldName, "MA_PHONG")
+    );
+}
+
+/** Drop only the ambiguous PHONG_LUU_TRU field name; keep TEN_PHONG / MA_PHONG. */
+function isRemovableLegacyFondFieldName(fieldName: string): boolean {
+    return canonicalMetadataFieldName(fieldName) === "PHONG_LUU_TRU";
 }
 
 function resolveLegacyFondValue(
@@ -360,45 +422,90 @@ function resolveLegacyFondValue(
         DEFAULT_FOND_VALUE;
 }
 
-/** Drop PHONG_LUU_TRU group/field and normalize fond into HO_SO_LUU_TRU.FOND. */
+function toCanonicalFondDetailField(field: MetadataField): MetadataField {
+    return {
+        ...field,
+        name: canonicalMetadataFieldName(field.name),
+    };
+}
+
+function collectPreservedFondDetailFields(
+    phongGroup: MetadataGroup | undefined,
+    hoSoFields: MetadataField[],
+): MetadataField[] {
+    const byName = new Map<string, MetadataField>();
+
+    for (const field of [...hoSoFields, ...(phongGroup?.fields ?? [])]) {
+        if (!isPreservedFondDetailFieldName(field.name) &&
+            !isPreservedFondDetailFieldName(field.display)) {
+            continue;
+        }
+        const canonical = toCanonicalFondDetailField({
+            ...field,
+            name: isPreservedFondDetailFieldName(field.name)
+                ? field.name
+                : metadataFieldNamesMatch(field.display, "MA_PHONG")
+                ? "MA_PHONG"
+                : "TEN_PHONG",
+        });
+        const key = canonicalMetadataFieldName(canonical.name);
+        if (!byName.has(key)) {
+            byName.set(key, { ...canonical, name: key });
+        }
+    }
+
+    return Array.from(byName.values());
+}
+
+/** Drop PHONG_LUU_TRU group; ensure HO_SO_LUU_TRU.FOND; keep TEN_PHONG / MA_PHONG. */
 export function migrateTt05MetadataLayout(metadata: DossierMetadata): DossierMetadata {
     const migrated = structuredClone(metadata) as DossierMetadata;
 
     const phongGroup = migrated.metadata_groups.find(
         (group) => group.group_code === "PHONG_LUU_TRU",
     );
-    const hoSoGroup = migrated.metadata_groups.find(
+    let hoSoGroup = migrated.metadata_groups.find(
         (group) => group.group_code === HO_SO_LUU_TRU_GROUP_CODE,
     );
 
-    const hasFondField = hoSoGroup?.fields.some(
-        (field) => field.name.trim().toUpperCase() === HO_SO_FOND_FIELD,
-    );
     const hasLegacyFondField = hoSoGroup?.fields.some((field) =>
-        isLegacyFondFieldName(field.name)
-    );
+        isLegacyFondFieldName(field.name) || isPreservedFondDetailFieldName(field.name)
+    ) ?? false;
 
-    if (!phongGroup && hasFondField && !hasLegacyFondField) {
+    if (!phongGroup && !hasLegacyFondField) {
         return migrated;
     }
 
     const fondValue = resolveLegacyFondValue(phongGroup, hoSoGroup?.fields ?? []);
+    const preservedDetails = collectPreservedFondDetailFields(
+        phongGroup,
+        hoSoGroup?.fields ?? [],
+    );
 
     migrated.metadata_groups = migrated.metadata_groups.filter(
         (group) => group.group_code !== "PHONG_LUU_TRU",
     );
 
-    const migratedHoSoGroup = migrated.metadata_groups.find(
+    let migratedHoSoGroup = migrated.metadata_groups.find(
         (group) => group.group_code === HO_SO_LUU_TRU_GROUP_CODE,
     );
     if (!migratedHoSoGroup) {
-        return migrated;
+        migratedHoSoGroup = {
+            group_code: HO_SO_LUU_TRU_GROUP_CODE,
+            group_name: phongGroup?.group_name || "Metadata cấp Hồ sơ lưu trữ",
+            source_document: phongGroup?.source_document ??
+                { file_name: null, file_path: null },
+            fields: [],
+        };
+        migrated.metadata_groups.unshift(migratedHoSoGroup);
     }
 
     const fields = (Array.isArray(migratedHoSoGroup.fields) ? migratedHoSoGroup.fields : [])
         .filter((field) =>
             field.name.trim().toUpperCase() !== HO_SO_FOND_FIELD &&
-            !isLegacyFondFieldName(field.name)
+            !isRemovableLegacyFondFieldName(field.name) &&
+            !isPreservedFondDetailFieldName(field.name) &&
+            !isPreservedFondDetailFieldName(field.display)
         );
     const fondField: MetadataField = {
         name: HO_SO_FOND_FIELD,
@@ -410,7 +517,7 @@ export function migrateTt05MetadataLayout(metadata: DossierMetadata): DossierMet
         bboxes: [],
     };
 
-    fields.unshift(fondField);
+    fields.unshift(fondField, ...preservedDetails);
     migratedHoSoGroup.fields = fields;
 
     return migrated;

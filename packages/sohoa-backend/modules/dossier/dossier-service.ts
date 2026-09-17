@@ -1323,7 +1323,15 @@ async function buildApprovedMetadataExportZip(
         pdfBundle.baseFolderName = options.baseFolderName;
       }
 
-      return { metadata, pdfBundle };
+      return {
+        metadata,
+        pdfBundle,
+        files: (dossier.files ?? []).map((f) => ({
+          fileName: f.fileName,
+          filePath: f.filePath,
+        })),
+        folderPath: dossier.folderPath,
+      };
     },
   );
 
@@ -1335,6 +1343,8 @@ async function buildApprovedMetadataExportZip(
 
   const excelBuffer = await buildDynamicMetadataExcel(metadataList, {
     exportConfig,
+    dossierFilesList: loaded.map((item) => item.files),
+    dossierFolderPaths: loaded.map((item) => item.folderPath),
   });
 
   const isSingleDossier =
@@ -3689,6 +3699,7 @@ export const DossierService = {
   ) {
     const dossier = await db.query.dossiers.findFirst({
       where: activeDossierWhere(eq(dossiers.id, dossierId)),
+      with: { files: true },
     });
 
     if (!dossier) {
@@ -3703,7 +3714,14 @@ export const DossierService = {
     const exportConfig =
       await MetadataExportPresetService.resolveExportConfig(input);
     const metadata = await loadDossierMetadataFromStorage(dossier);
-    return buildMetadataExportPreview([metadata], exportConfig);
+    const files = (dossier.files ?? []).map((f) => ({
+      fileName: f.fileName,
+      filePath: f.filePath,
+    }));
+    return buildMetadataExportPreview([metadata], exportConfig, {
+      dossierFilesList: [files],
+      dossierFolderPaths: [dossier.folderPath],
+    });
   },
 
   async previewApprovedMetadataExportByFolder(
@@ -3721,10 +3739,24 @@ export const DossierService = {
       await validateApprovedFoldersMetadataExport(folderIds);
     const exportConfig =
       await MetadataExportPresetService.resolveExportConfig(input);
-    const metadataList = await Promise.all(
-      allDossiers.map((dossier) => loadDossierMetadataFromStorage(dossier)),
+    const loaded = await Promise.all(
+      allDossiers.map(async (dossier) => ({
+        metadata: await loadDossierMetadataFromStorage(dossier),
+        files: (dossier.files ?? []).map((f) => ({
+          fileName: f.fileName,
+          filePath: f.filePath,
+        })),
+        folderPath: dossier.folderPath,
+      })),
     );
-    return buildMetadataExportPreview(metadataList, exportConfig);
+    return buildMetadataExportPreview(
+      loaded.map((item) => item.metadata),
+      exportConfig,
+      {
+        dossierFilesList: loaded.map((item) => item.files),
+        dossierFolderPaths: loaded.map((item) => item.folderPath),
+      },
+    );
   },
 
   async exportDipHoso(

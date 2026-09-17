@@ -113,3 +113,87 @@ Deno.test("extractFieldCatalog expands TT05 TAI_LIEU_LUU_TRU documents[]", () =>
         },
     );
 });
+
+Deno.test("extractFieldCatalog keeps MA_PHONG and TEN_PHONG with FOND", () => {
+    const metadata: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "HO_SO_LUU_TRU",
+                group_name: "Metadata cấp Hồ sơ lưu trữ",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    {
+                        name: "TEN_PHONG",
+                        display: "Tên phông",
+                        type: "string",
+                        value: "Hội CCB",
+                        page: null,
+                        bbox: null,
+                    },
+                    {
+                        name: "MA_PHONG",
+                        display: "Phông Số",
+                        type: "string",
+                        value: "028.25.04",
+                        page: null,
+                        bbox: null,
+                    },
+                    {
+                        name: "TIEU_DE_HO_SO",
+                        display: "Tiêu đề hồ sơ",
+                        type: "string",
+                        value: null,
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+        ],
+    };
+
+    const catalog = extractFieldCatalog(metadata);
+    const keys = catalog.map((entry) => entry.key);
+
+    assertEquals(keys.includes("HO_SO_LUU_TRU.FOND"), true);
+    assertEquals(keys.includes("HO_SO_LUU_TRU.MA_PHONG"), true);
+    assertEquals(keys.includes("HO_SO_LUU_TRU.TEN_PHONG"), true);
+    assertEquals(
+        catalog.find((entry) => entry.key === "HO_SO_LUU_TRU.MA_PHONG")?.display,
+        "Phông Số",
+    );
+});
+
+Deno.test("extractFieldCatalog canonicalizes Vietnamese fond field names", () => {
+    const metadata: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "HO_SO_LUU_TRU",
+                group_name: "Metadata cấp Hồ sơ lưu trữ",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    {
+                        name: "Phông Số",
+                        display: "Phông Số",
+                        type: "string",
+                        value: "028.25.04",
+                        page: null,
+                        bbox: null,
+                    },
+                    {
+                        name: "Mục Lục Số",
+                        display: "Mục Lục Số",
+                        type: "string",
+                        value: "01",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+        ],
+    };
+
+    const catalog = extractFieldCatalog(metadata);
+    const keys = catalog.map((entry) => entry.key);
+    assertEquals(keys.includes("HO_SO_LUU_TRU.MA_PHONG"), true);
+    assertEquals(keys.includes("HO_SO_LUU_TRU.MUC_LUC_SO"), true);
+});
