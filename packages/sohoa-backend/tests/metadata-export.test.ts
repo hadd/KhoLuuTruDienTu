@@ -662,3 +662,153 @@ Deno.test("document row does not fall back to sibling document fields", async ()
     assertEquals(sheet!.getCell(3, 1).value ?? "", "");
 });
 
+Deno.test("buildDynamicMetadataExcel with tuyen_quang.json excludes BIA and CHUNG TU KET THUC from STT, Ma dinh danh and total document count", async () => {
+    let jsonText = "";
+    for (const path of [
+        "packages/sohoa-backend/assets/tuyen_quang.json",
+        "assets/tuyen_quang.json",
+    ]) {
+        try {
+            jsonText = await Deno.readTextFile(path);
+            break;
+        } catch {
+            // try next
+        }
+    }
+    const metadata: DossierMetadata = JSON.parse(jsonText);
+
+    const columns = [
+        {
+            header: "Mã định danh tài liệu",
+            fieldKeys: ["HO_SO_LUU_TRU.MA_PHONG", "HO_SO_LUU_TRU.MUC_LUC_SO", "__row_number"],
+            separator: ".",
+        },
+        {
+            header: "Số thứ tự văn bản trong hồ sơ",
+            fieldKeys: ["__row_number"],
+            separator: "",
+        },
+        {
+            header: "Tên loại tài liệu",
+            fieldKeys: ["TAI_LIEU_LUU_TRU.TEN_LOAI_VAN_BAN"],
+            separator: "",
+        },
+        {
+            header: "Tổng số tài liệu trong hồ sơ",
+            fieldKeys: ["HO_SO_LUU_TRU.SO_TAI_LIEU"],
+            separator: "",
+        },
+        {
+            header: "Path",
+            fieldKeys: ["__file_path"],
+            separator: "",
+        },
+    ];
+
+    const buffer = await buildDynamicMetadataExcel([metadata], {
+        exportConfig: { columns },
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer.buffer as ArrayBuffer);
+    const sheet = workbook.getWorksheet("Metadata");
+
+    // 5 rows: BIA, 0042_2 (QUYET DINH), 0042_3 (BAO CAO), 0042_4 (CHUNG TU KET THUC), MUCLUC
+    // Row 2: BIA
+    assertEquals(sheet!.getCell(2, 1).value ?? "", ""); // Ma dinh danh is empty (no partial 028.25.05.01)
+    assertEquals(sheet!.getCell(2, 2).value ?? "", ""); // STT is empty
+    assertEquals(sheet!.getCell(2, 3).value ?? "", ""); // Ten loai van ban is empty
+    assertEquals(sheet!.getCell(2, 4).value, "2"); // 3 - 1 closing doc = 2!
+    assertEquals(sheet!.getCell(2, 5).value, "CSDL_SOHOA_TUTQ/028.25.05/01/0001/BIA.pdf");
+
+    // Row 3: 0042_2 (QUYẾT ĐINH)
+    assertEquals(sheet!.getCell(3, 1).value, "028.25.05.01.1");
+    assertEquals(sheet!.getCell(3, 2).value, "1");
+    assertEquals(sheet!.getCell(3, 3).value, "QUYẾT ĐINH");
+    assertEquals(sheet!.getCell(3, 4).value, "2");
+    assertEquals(sheet!.getCell(3, 5).value, "CSDL_SOHOA_TUTQ/028.25.05/01/0001/0042_2.pdf");
+
+    // Row 4: 0042_3 (BÁO CÁO)
+    assertEquals(sheet!.getCell(4, 1).value, "028.25.05.01.2");
+    assertEquals(sheet!.getCell(4, 2).value, "2");
+    assertEquals(sheet!.getCell(4, 3).value, "BÁO CÁO");
+    assertEquals(sheet!.getCell(4, 4).value, "2");
+    assertEquals(sheet!.getCell(4, 5).value, "CSDL_SOHOA_TUTQ/028.25.05/01/0001/0042_3.pdf");
+
+    // Row 5: 0042_4 (CHỨNG TỪ KẾT THÚC)
+    assertEquals(sheet!.getCell(5, 1).value ?? "", ""); // Ma dinh danh is empty
+    assertEquals(sheet!.getCell(5, 2).value ?? "", ""); // STT is empty
+    assertEquals(sheet!.getCell(5, 3).value, "CHỨNG TỪ KẾT THÚC");
+    assertEquals(sheet!.getCell(5, 4).value, "2");
+    assertEquals(sheet!.getCell(5, 5).value, "CSDL_SOHOA_TUTQ/028.25.05/01/0001/0042_4.pdf");
+
+    // Row 6: MUCLUC
+    assertEquals(sheet!.getCell(6, 1).value ?? "", ""); // Ma dinh danh is empty
+    assertEquals(sheet!.getCell(6, 2).value ?? "", ""); // STT is empty
+    assertEquals(sheet!.getCell(6, 3).value ?? "", "");
+    assertEquals(sheet!.getCell(6, 4).value, "2");
+    assertEquals(sheet!.getCell(6, 5).value, "CSDL_SOHOA_TUTQ/028.25.05/01/0001/MUCLUC.pdf");
+});
+
+Deno.test("buildMetadataExportPreview matches Excel row values for CHUNG TU KET THUC and BIA", () => {
+    const metadata: DossierMetadata = {
+        ho_so_id: "HS_01",
+        metadata_groups: [
+            {
+                group_code: "HO_SO_LUU_TRU",
+                group_name: "Ho so",
+                source_document: { file_name: "BIA.pdf", file_path: "raw/BIA.pdf" },
+                fields: [
+                    { name: "MA_PHONG", display: "Phông", type: "string", value: "P01", page: null, bbox: null, bboxes: [] },
+                    { name: "TONG_SO_TAI_LIEU_TRONG_HO_SO", display: "Tổng số", type: "string", value: "3", page: null, bbox: null, bboxes: [] },
+                ],
+            },
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "Tai lieu",
+                source_document: { file_name: "doc1.pdf", file_path: "raw/doc1.pdf" },
+                fields: [
+                    { name: "TEN_LOAI_VAN_BAN", display: "Loại", type: "string", value: "CHỨNG TỪ KẾT THÚC", page: null, bbox: null, bboxes: [] },
+                ],
+            },
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "Tai lieu",
+                source_document: { file_name: "doc2.pdf", file_path: "raw/doc2.pdf" },
+                fields: [
+                    { name: "TEN_LOAI_VAN_BAN", display: "Loại", type: "string", value: "BÁO CÁO", page: null, bbox: null, bboxes: [] },
+                ],
+            },
+        ],
+    };
+
+    const columns = [
+        { header: "Mã định danh tài liệu", fieldKeys: ["HO_SO_LUU_TRU.MA_PHONG", "__row_number"], separator: "." },
+        { header: "STT", fieldKeys: ["__row_number"], separator: "" },
+        { header: "Loại", fieldKeys: ["TAI_LIEU_LUU_TRU.TEN_LOAI_VAN_BAN"], separator: "" },
+        { header: "Tổng số", fieldKeys: ["HO_SO_LUU_TRU.TONG_SO_TAI_LIEU_TRONG_HO_SO"], separator: "" },
+    ];
+
+    const preview = buildMetadataExportPreview([metadata], { columns });
+    assertEquals(preview.rows.length, 3);
+
+    // BIA
+    assertEquals(preview.rows[0]?.cells[0], "");
+    assertEquals(preview.rows[0]?.cells[1], "");
+    assertEquals(preview.rows[0]?.cells[2], "");
+    assertEquals(preview.rows[0]?.cells[3], "2"); // 3 - 1 = 2
+
+    // CHỨNG TỪ KẾT THÚC
+    assertEquals(preview.rows[1]?.cells[0], "");
+    assertEquals(preview.rows[1]?.cells[1], "");
+    assertEquals(preview.rows[1]?.cells[2], "CHỨNG TỪ KẾT THÚC");
+    assertEquals(preview.rows[1]?.cells[3], "2");
+
+    // BÁO CÁO
+    assertEquals(preview.rows[2]?.cells[0], "P01.1");
+    assertEquals(preview.rows[2]?.cells[1], "1");
+    assertEquals(preview.rows[2]?.cells[2], "BÁO CÁO");
+    assertEquals(preview.rows[2]?.cells[3], "2");
+});
+
+

@@ -19,7 +19,7 @@ import {
 
 const INSTANCE_JOIN_SEPARATOR = "\n";
 
-export type ExportFileKind = "bia" | "mucluc" | "document";
+export type ExportFileKind = "bia" | "mucluc" | "document" | "chung_tu_ket_thuc";
 
 export interface ExportDossierFileInput {
     fileName: string;
@@ -33,16 +33,73 @@ export interface DossierFileItem {
     groups: MetadataGroup[];
 }
 
+export function isChungTuKetThuc(value: string | null | undefined): boolean {
+    if (!value) return false;
+    const clean = value
+        .trim()
+        .normalize("NFC")
+        .toUpperCase()
+        .replace(/\s+/g, " ");
+    return (
+        clean === "CHỨNG TỪ KẾT THÚC" ||
+        clean === "CHUNG TU KET THUC" ||
+        clean.startsWith("CHỨNG TỪ KẾT THÚC") ||
+        clean.startsWith("CHUNG TU KET THUC")
+    );
+}
+
 export function classifyExportFileKind(
     fileName: string | null | undefined,
     filePath?: string | null,
+    groupsOrFields?: MetadataGroup[] | Array<{ name: string; display?: string; value?: unknown }>,
 ): ExportFileKind {
+    if (groupsOrFields && Array.isArray(groupsOrFields)) {
+        for (const item of groupsOrFields) {
+            if ("fields" in item && Array.isArray(item.fields)) {
+                for (const field of item.fields) {
+                    if (
+                        fieldMatchesKey(field.name, "TEN_LOAI_VAN_BAN") ||
+                        fieldMatchesKey(field.name, "TEN_LOAI_TAI_LIEU") ||
+                        (field.display && (
+                            fieldMatchesKey(field.display, "TEN_LOAI_VAN_BAN") ||
+                            fieldMatchesKey(field.display, "TEN_LOAI_TAI_LIEU")
+                        ))
+                    ) {
+                        if (isChungTuKetThuc(String(field.value ?? ""))) {
+                            return "chung_tu_ket_thuc";
+                        }
+                    }
+                }
+            } else if ("name" in item) {
+                const field = item as { name: string; display?: string; value?: unknown };
+                if (
+                    fieldMatchesKey(field.name, "TEN_LOAI_VAN_BAN") ||
+                    fieldMatchesKey(field.name, "TEN_LOAI_TAI_LIEU") ||
+                    (field.display && (
+                        fieldMatchesKey(field.display, "TEN_LOAI_VAN_BAN") ||
+                        fieldMatchesKey(field.display, "TEN_LOAI_TAI_LIEU")
+                    ))
+                ) {
+                    if (isChungTuKetThuc(String(field.value ?? ""))) {
+                        return "chung_tu_ket_thuc";
+                    }
+                }
+            }
+        }
+    }
+
     const name = (fileName?.trim() || extractBasenameFromPath(filePath) || "").trim();
     if (!name) return "document";
     const stem = name.replace(/\.[^.]+$/, "");
     const lastToken = stem.split(/[._-]/).filter(Boolean).at(-1)?.toUpperCase() ?? "";
     if (lastToken === "BIA" || stem.toUpperCase() === "BIA") return "bia";
     if (lastToken === "MUCLUC" || stem.toUpperCase() === "MUCLUC") return "mucluc";
+
+    const cleanToken = lastToken.replace(/[^A-Z]/g, "");
+    if (cleanToken === "CHUNGTUKETTHUC" || stem.toUpperCase().replace(/[^A-Z]/g, "") === "CHUNGTUKETTHUC") {
+        return "chung_tu_ket_thuc";
+    }
+
     return "document";
 }
 
@@ -148,7 +205,7 @@ export const TT05_DEFAULT_EXPORT_COLUMNS: MetadataExportColumnConfig[] = [
     { header: "Thời hạn bảo quản", fieldKeys: ["HO_SO_LUU_TRU.THOI_HAN_LUU_TRU", "HO_SO_LUU_TRU.THOI_HAN_BAO_QUAN"], separator: "", headerColor: "FFFF00" },
     { header: "Thời gian bắt đầu", fieldKeys: ["HO_SO_LUU_TRU.THOI_GIAN_BAT_DAU"], separator: "", headerColor: "FFFF00" },
     { header: "Thời gian kết thúc", fieldKeys: ["HO_SO_LUU_TRU.THOI_GIAN_KET_THUC"], separator: "", headerColor: "FFFF00" },
-    { header: "Tổng số văn bản trong hồ sơ", fieldKeys: ["HO_SO_LUU_TRU.TONG_SO_VAN_BAN_TRONG_HO_SO", "HO_SO_LUU_TRU.TONG_SO_TAI_LIEU_TRONG_HO_SO", "HO_SO_LUU_TRU.TONG_SO_VAN_BAN", "__file_count"], separator: "", headerColor: "FFFF00" },
+    { header: "Tổng số văn bản trong hồ sơ", fieldKeys: ["HO_SO_LUU_TRU.TONG_SO_VAN_BAN_TRONG_HO_SO", "HO_SO_LUU_TRU.TONG_SO_TAI_LIEU_TRONG_HO_SO", "HO_SO_LUU_TRU.TONG_SO_VAN_BAN", "HO_SO_LUU_TRU.SO_TAI_LIEU", "__file_count"], separator: "", headerColor: "FFFF00" },
     { header: "Số lượng tờ", fieldKeys: ["HO_SO_LUU_TRU.SO_LUONG_TO"], separator: "", headerColor: "FFFF00" },
     { header: "Số lượng trang", fieldKeys: ["HO_SO_LUU_TRU.SO_LUONG_TRANG"], separator: "", headerColor: "FFFF00" },
     { header: "Số thứ tự văn bản trong hồ sơ", fieldKeys: ["TAI_LIEU_LUU_TRU.SO_THU_TU_VAN_BAN", "TAI_LIEU_LUU_TRU.STT_VAN_BAN", "TAI_LIEU_LUU_TRU.STT_VAN_BAN_TRONG_HO_SO", "__file_stt"], separator: "", headerColor: "FFFF00" },
@@ -183,9 +240,114 @@ const DOSSIER_HEADERS = new Set([
     "Thời gian bắt đầu",
     "Thời gian kết thúc",
     "Tổng số văn bản trong hồ sơ",
+    "Tổng số tài liệu trong hồ sơ",
     "Số lượng tờ",
     "Số lượng trang",
+    "Số tài liệu",
+    "Số Tài Liệu",
 ]);
+
+export function isDocumentIdentifierColumn(column: MetadataExportColumnConfig): boolean {
+    const header = (column.header ?? "").trim().toLowerCase();
+    if (
+        header.includes("mã định danh") ||
+        header.includes("ma dinh danh") ||
+        header === "mã tài liệu" ||
+        header === "ma tai lieu" ||
+        header === "mã văn bản" ||
+        header === "ma van ban"
+    ) {
+        return true;
+    }
+    return column.fieldKeys.some((k) =>
+        k === "TAI_LIEU_LUU_TRU.MA_DINH_DANH_TAI_LIEU" ||
+        k === "TAI_LIEU_LUU_TRU.MA_DINH_DANH_VAN_BAN" ||
+        k === "TAI_LIEU_LUU_TRU.MA_VAN_BAN" ||
+        k === "HO_SO_LUU_TRU.MA_DINH_DANH_VAN_BAN" ||
+        k === "__file_identifier"
+    );
+}
+
+export function isDocumentIdentifierFieldKey(fieldKey: string): boolean {
+    return (
+        fieldKey === "TAI_LIEU_LUU_TRU.MA_DINH_DANH_TAI_LIEU" ||
+        fieldKey === "TAI_LIEU_LUU_TRU.MA_DINH_DANH_VAN_BAN" ||
+        fieldKey === "TAI_LIEU_LUU_TRU.MA_VAN_BAN" ||
+        fieldKey === "HO_SO_LUU_TRU.MA_DINH_DANH_VAN_BAN" ||
+        fieldKey === "__file_identifier"
+    );
+}
+
+export function isSttFieldKey(fieldKey: string): boolean {
+    return (
+        fieldKey === "__row_number" ||
+        fieldKey === "__file_stt" ||
+        fieldKey === "TAI_LIEU_LUU_TRU.SO_THU_TU_VAN_BAN" ||
+        fieldKey === "TAI_LIEU_LUU_TRU.STT_VAN_BAN" ||
+        fieldKey === "TAI_LIEU_LUU_TRU.STT_VAN_BAN_TRONG_HO_SO" ||
+        fieldKey.endsWith(".SO_THU_TU_VAN_BAN") ||
+        fieldKey.endsWith(".STT_VAN_BAN")
+    );
+}
+
+export function isTotalDocumentsFieldKey(fieldKey: string): boolean {
+    return (
+        fieldKey === "__file_count" ||
+        fieldKey === "HO_SO_LUU_TRU.SO_TAI_LIEU" ||
+        fieldKey === "HO_SO_LUU_TRU.TONG_SO_TAI_LIEU" ||
+        fieldKey === "HO_SO_LUU_TRU.TONG_SO_TAI_LIEU_TRONG_HO_SO" ||
+        fieldKey === "HO_SO_LUU_TRU.TONG_SO_VAN_BAN" ||
+        fieldKey === "HO_SO_LUU_TRU.TONG_SO_VAN_BAN_TRONG_HO_SO" ||
+        fieldKey.endsWith(".SO_TAI_LIEU") ||
+        fieldKey.endsWith(".TONG_SO_TAI_LIEU") ||
+        fieldKey.endsWith(".TONG_SO_TAI_LIEU_TRONG_HO_SO") ||
+        fieldKey.endsWith(".TONG_SO_VAN_BAN") ||
+        fieldKey.endsWith(".TONG_SO_VAN_BAN_TRONG_HO_SO")
+    );
+}
+
+export function resolveTotalDocumentsValue(
+    metadata: DossierMetadata,
+    fieldKey: string,
+    options: {
+        fileCount: number;
+        validDocCount?: number;
+        closingDocsCount?: number;
+    },
+): string {
+    const validCount = options.validDocCount ?? options.fileCount;
+    const closingCount = options.closingDocsCount ?? 0;
+
+    if (fieldKey === "__file_count") {
+        return String(validCount);
+    }
+
+    let rawVal = resolveExportFieldValue(metadata, fieldKey);
+    if (!rawVal) {
+        for (const k of [
+            "HO_SO_LUU_TRU.SO_TAI_LIEU",
+            "HO_SO_LUU_TRU.TONG_SO_TAI_LIEU_TRONG_HO_SO",
+            "HO_SO_LUU_TRU.TONG_SO_VAN_BAN_TRONG_HO_SO",
+            "HO_SO_LUU_TRU.TONG_SO_VAN_BAN",
+        ]) {
+            rawVal = resolveExportFieldValue(metadata, k);
+            if (rawVal) break;
+        }
+    }
+
+    if (rawVal) {
+        const num = parseInt(rawVal.trim(), 10);
+        if (!isNaN(num) && num > 0) {
+            if (closingCount > 0) {
+                return String(Math.max(0, num - closingCount));
+            }
+            return String(num);
+        }
+        return rawVal;
+    }
+
+    return String(validCount);
+}
 
 export function isDossierColumn(column: MetadataExportColumnConfig): boolean {
     if (isExportSttColumn(column)) {
@@ -272,6 +434,7 @@ function collectMetadataFileEntries(
                     kind: classifyExportFileKind(
                         sourceDocument.file_name,
                         sourceDocument.file_path,
+                        doc.fields ?? [],
                     ),
                 });
             }
@@ -286,6 +449,7 @@ function collectMetadataFileEntries(
                 kind: classifyExportFileKind(
                     sourceDocument.file_name,
                     sourceDocument.file_path,
+                    group.fields ?? [],
                 ),
             });
         }
@@ -311,7 +475,7 @@ export function extractDossierFileItems(
         const existing = groupsByKey.get(key) ?? [];
         groupsByKey.set(key, [...existing, ...entry.groups]);
         const priorKind = kindByKey.get(key);
-        if (!priorKind || priorKind === "document" || entry.kind === "bia") {
+        if (!priorKind || priorKind === "document" || entry.kind === "bia" || entry.kind === "chung_tu_ket_thuc") {
             kindByKey.set(key, entry.kind);
         }
     }
@@ -355,6 +519,7 @@ export function extractDossierFileItems(
                 classifyExportFileKind(
                     sourceDocument.file_name,
                     sourceDocument.file_path,
+                    groups,
                 );
             pushItem(sourceDocument, groups, kind);
         }
@@ -713,13 +878,29 @@ export function resolveExportColumnValueForFile(
         fileCount: number;
         rowNumber?: number;
         dossierFolderPath?: string | null;
+        closingDocsCount?: number;
+        validDocCount?: number;
     },
 ): string {
+    const kind = fileItem.kind ?? "document";
+    const isExcludedFromStt =
+        kind === "bia" || kind === "mucluc" || kind === "chung_tu_ket_thuc";
+
     if (isExportSttColumn(column)) {
+        if (isExcludedFromStt) return "";
         return String(options.dossierIndex + 1);
     }
 
-    const kind = fileItem.kind ?? "document";
+    if (isDocumentIdentifierColumn(column) && isExcludedFromStt) {
+        return "";
+    }
+
+    if (column.fieldKeys.includes("__row_number") && options.rowNumber == null) {
+        if (isExcludedFromStt) {
+            return "";
+        }
+    }
+
     const isDossierCol = isDossierColumn(column);
     const parts: string[] = [];
 
@@ -747,7 +928,7 @@ export function resolveExportColumnValueForFile(
         let value = "";
 
         if (fieldKey === "__row_number") {
-            if (kind === "bia" || kind === "mucluc") {
+            if (isExcludedFromStt) {
                 value = "";
             } else {
                 value = String(options.rowNumber ?? options.fileIndex);
@@ -760,6 +941,12 @@ export function resolveExportColumnValueForFile(
             value = resolveFileNameValue();
         } else if (fieldKey === "__dossier_folder") {
             value = resolveFolderValue();
+        } else if (isTotalDocumentsFieldKey(fieldKey)) {
+            value = resolveTotalDocumentsValue(metadata, fieldKey, options);
+        } else if (isDocumentIdentifierFieldKey(fieldKey) && isExcludedFromStt) {
+            value = "";
+        } else if (isSttFieldKey(fieldKey) && isExcludedFromStt) {
+            value = "";
         } else if (kind === "mucluc") {
             if (isExportPathFieldKey(fieldKey)) {
                 value = fieldKey === "__dossier_folder"
@@ -772,18 +959,28 @@ export function resolveExportColumnValueForFile(
                     ? resolveFolderValue()
                     : resolvePathValue();
             } else if (isHoSoFieldKey(fieldKey) || isDossierCol) {
-                if (fieldKey === "__file_count") {
-                    value = String(options.fileCount);
-                } else if (fieldKey === "__ho_so_id") {
+                if (fieldKey === "__ho_so_id") {
                     value = extractBasenameFromPath(metadata.ho_so_id);
                 } else if (!fieldKey.startsWith("__")) {
                     value = resolveExportFieldValue(metadata, fieldKey);
                 }
             }
+        } else if (kind === "chung_tu_ket_thuc") {
+            if (isExportPathFieldKey(fieldKey)) {
+                value = fieldKey === "__dossier_folder"
+                    ? resolveFolderValue()
+                    : resolvePathValue();
+            } else if (fieldKey === "__ho_so_id") {
+                value = extractBasenameFromPath(metadata.ho_so_id);
+            } else if (isHoSoFieldKey(fieldKey) || isDossierCol) {
+                value = resolveExportFieldValue(metadata, fieldKey);
+            } else if (fieldKey.startsWith("__")) {
+                value = resolveExportFieldValueForFileItem(metadata, fileItem, fieldKey);
+            } else {
+                value = resolveExportFieldValueForFileItem(metadata, fileItem, fieldKey);
+            }
         } else if (fieldKey === "__file_stt") {
             value = String(options.fileIndex);
-        } else if (fieldKey === "__file_count") {
-            value = String(options.fileCount);
         } else if (fieldKey === "__ho_so_id") {
             value = extractBasenameFromPath(metadata.ho_so_id);
         } else if (fieldKey.startsWith("__")) {
@@ -820,6 +1017,8 @@ export function resolveExportColumnValue(
     }
 
     const fileItems = extractDossierFileItems(metadata, options.dossierFiles);
+    const closingDocsCount = fileItems.filter((f) => f.kind === "chung_tu_ket_thuc").length;
+    const validDocCount = fileItems.filter((f) => f.kind === "document").length;
     const firstItem = fileItems[0] ?? {
         fileIndex: 1,
         kind: "document" as const,
@@ -830,7 +1029,9 @@ export function resolveExportColumnValue(
     return resolveExportColumnValueForFile(metadata, firstItem, column, {
         dossierIndex: (options.rowNumber ?? 1) - 1,
         fileIndex: 1,
-        fileCount: fileItems.length,
+        fileCount: validDocCount,
+        validDocCount,
+        closingDocsCount,
         rowNumber: options.rowNumber,
     });
 }

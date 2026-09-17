@@ -97,16 +97,22 @@ export async function buildDynamicMetadataExcel(
         const dossierFiles = options.dossierFilesList?.[dossierIndex] ?? [];
         const dossierFolderPath = options.dossierFolderPaths?.[dossierIndex] ?? null;
         const fileItems = extractDossierFileItems(metadata, dossierFiles);
-        const fileCount = fileItems.length;
-        const dossierRowCount = Math.max(1, fileCount);
+        const closingDocsCount = fileItems.filter((f) => f.kind === "chung_tu_ket_thuc").length;
+        const validDocCount = fileItems.filter((f) => f.kind === "document").length;
+        const dossierRowCount = Math.max(1, fileItems.length);
 
+        let dossierDocIndex = 0;
         for (let k = 0; k < dossierRowCount; k++) {
             const r = currentRow + k;
             const fileItem = fileItems[k]!;
             const kind = fileItem.kind ?? "document";
-            const rowNumber = kind === "bia" || kind === "mucluc"
+            const isExcludedFromStt = kind === "bia" || kind === "mucluc" || kind === "chung_tu_ket_thuc";
+            const rowNumber = isExcludedFromStt
                 ? undefined
                 : ++documentRowNumber;
+            const docIndexInDossier = isExcludedFromStt
+                ? undefined
+                : ++dossierDocIndex;
 
             columns.forEach((column, colIdx) => {
                 const colNum = colIdx + 1;
@@ -117,8 +123,10 @@ export async function buildDynamicMetadataExcel(
                     column,
                     {
                         dossierIndex,
-                        fileIndex: k + 1,
-                        fileCount,
+                        fileIndex: docIndexInDossier ?? k + 1,
+                        fileCount: validDocCount,
+                        validDocCount,
+                        closingDocsCount,
                         rowNumber,
                         dossierFolderPath,
                     },
