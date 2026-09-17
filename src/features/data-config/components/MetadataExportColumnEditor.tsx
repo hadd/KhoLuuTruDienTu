@@ -16,7 +16,6 @@ import {
   EXPORT_SEPARATOR_OPTIONS,
   fieldCatalogToGroups,
   fieldLabel,
-  isFieldAssignedToOtherColumn,
   moveColumn,
   moveFieldInColumn,
   toggleFieldAcrossColumns,
@@ -536,23 +535,12 @@ export function MetadataExportColumnEditor({
                         <div className="flex flex-wrap gap-1.5 mb-2.5">
                           {group.fields.map((field) => {
                             const checked = activeColumn.fieldKeys.includes(field.key)
-                            const assignedElsewhere = isFieldAssignedToOtherColumn(
-                              columns,
-                              activeColumnIndex!,
-                              field.key,
-                            )
-                            const isDisabled = disabled || (assignedElsewhere && !checked)
 
                             return (
                               <button
                                 key={field.key}
                                 type="button"
-                                disabled={isDisabled}
-                                title={
-                                  assignedElsewhere && !checked
-                                    ? t('metadataExport.fieldAssignedElsewhere')
-                                    : undefined
-                                }
+                                disabled={disabled}
                                 onClick={() =>
                                   onChange(
                                     toggleFieldAcrossColumns(
@@ -567,9 +555,8 @@ export function MetadataExportColumnEditor({
                                   'rounded border px-2 py-0.5 text-[11px] transition-colors',
                                   checked
                                     ? 'border-primary bg-primary/10 text-primary font-medium'
-                                    : assignedElsewhere
-                                      ? 'cursor-not-allowed border-border bg-muted/40 text-muted-foreground opacity-50'
-                                      : 'border-border bg-background hover:bg-muted/50',
+                                    : 'border-border bg-background hover:bg-muted/50',
+                                  disabled && 'cursor-not-allowed opacity-50',
                                 )}
                               >
                                 {field.display}

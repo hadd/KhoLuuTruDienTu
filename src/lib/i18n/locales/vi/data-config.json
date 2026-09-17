@@ -212,7 +212,6 @@
     "moveFieldUp": "Di chuyển trường lên",
     "moveFieldDown": "Di chuyển trường xuống",
     "removeField": "Bỏ trường",
-    "fieldAssignedElsewhere": "Trường này đã được chọn ở cột khác",
     "preview": "Xem trước",
     "previewUnavailableNoDossier": "Chọn mẫu dữ liệu mô tả có hồ sơ nguồn để xem trước.",
     "previewUnavailableInvalidColumns": "Hoàn tất cấu hình cột (tiêu đề và trường) trước khi xem trước.",
@@ -232,6 +231,10 @@
       "comma": "Dấu phẩy (, )",
       "space": "Khoảng trắng",
       "dash": "Gạch ngang ( - )",
+      "slash": "Dấu gạch chéo ( / )",
+      "backslash": "Dấu gạch ngược ( \\ )",
+      "dot": "Dấu chấm ( . )",
+      "underscore": "Dấu gạch dưới (_)",
       "newline": "Xuống dòng"
     }
   }

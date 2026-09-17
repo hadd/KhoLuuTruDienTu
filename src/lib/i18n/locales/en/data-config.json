@@ -212,7 +212,6 @@
     "moveFieldUp": "Move field up",
     "moveFieldDown": "Move field down",
     "removeField": "Remove field",
-    "fieldAssignedElsewhere": "This field is already selected in another column",
     "preview": "Preview",
     "previewUnavailableNoDossier": "Select a reference template with a source dossier to preview.",
     "previewUnavailableInvalidColumns": "Complete column configuration (header and fields) before previewing.",
@@ -232,6 +231,10 @@
       "comma": "Comma (, )",
       "space": "Space",
       "dash": "Dash ( - )",
+      "slash": "Slash ( / )",
+      "backslash": "Backslash ( \\ )",
+      "dot": "Dot ( . )",
+      "underscore": "Underscore (_)",
       "newline": "New line"
     }
   }
