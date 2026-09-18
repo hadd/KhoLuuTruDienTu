@@ -60,9 +60,8 @@ export interface UploadFolderOptions {
   runMode?: OcrRunMode
 }
 
-const UPLOAD_EXPIRY_MIN_SECONDS = 60
+const UPLOAD_EXPIRY_MIN_SECONDS = 86_400
 const CONFLICT_CHECK_CONCURRENCY = 10
-const OCR_UPLOAD_TIMEOUT_MS = 300_000
 
 export interface UploadPathConflict {
   relativePath: string
@@ -127,6 +126,7 @@ async function createUploadPoint(
       contentTypePrefix: '',
       runMode: runMode ?? 'auto',
     },
+    { timeout: 0 },
   )
 
   const uploadPoint = unwrapApiRecord<UploadPointResponse>(response.data)
@@ -221,7 +221,7 @@ async function createDocumentFromStorage(
   const response = await apiClient.post<Record<string, unknown>>(
     '/api/v1/dossiers/create-document-from-storage',
     body,
-    { _skipGlobalErrorToast: true, timeout: OCR_UPLOAD_TIMEOUT_MS },
+    { _skipGlobalErrorToast: true, timeout: 0 },
   )
 
   const data = unwrapApiRecord<Record<string, unknown>>(response.data)
@@ -278,7 +278,6 @@ async function uploadFileToMinIO(
   const response = await fetch(uploadPoint.postURL, {
     method: 'POST',
     body: form,
-    signal: AbortSignal.timeout(OCR_UPLOAD_TIMEOUT_MS),
   })
 
   if (!response.ok) {
@@ -305,8 +304,6 @@ function normalizeMetadataExportFileName(fileName: string): string {
   return base ? `${base}.zip` : 'export.zip'
 }
 
-const EXPORT_TIMEOUT_MS = 600_000
-
 async function downloadMetadataExport(
   path: string,
   fallbackName: string,
@@ -315,7 +312,7 @@ async function downloadMetadataExport(
 ): Promise<void> {
   const response = await apiClient.get<Blob>(path, {
     responseType: 'blob',
-    timeout: EXPORT_TIMEOUT_MS,
+    timeout: 0,
     _skipGlobalErrorToast: true,
     dossierId: dossierId ?? null,
     params,
@@ -337,7 +334,7 @@ async function downloadConfiguredMetadataExport(
 ): Promise<void> {
   const response = await apiClient.post<Blob>(path, body, {
     responseType: 'blob',
-    timeout: EXPORT_TIMEOUT_MS,
+    timeout: 0,
     _skipGlobalErrorToast: true,
     dossierId: dossierId ?? null,
   })
