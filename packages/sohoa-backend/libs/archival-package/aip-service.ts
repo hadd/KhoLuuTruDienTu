@@ -4,7 +4,13 @@ import {
   type DipZipStreamResult,
 } from "./dip-hoso-builder.ts";
 import { shouldSkipExistingAip } from "./aip-idempotent.ts";
-import { resolveAipObjectKey, resolveHoSoId } from "./aip-path-utils.ts";
+import { computeRelativeFolderPath } from "../../modules/dossier/dossier-path-utils.ts";
+import {
+  resolveAipObjectKey,
+  resolveExportZipRelativePath,
+  resolveFolderLeafName,
+  resolveHoSoId,
+} from "./aip-path-utils.ts";
 import {
   collectPackagePdfFiles,
   countPackagePdfSources,
@@ -65,6 +71,7 @@ type DipExportOptions = {
   dossierAccessPassword?: string;
   /** Set of dossier file IDs to skip from the export (due to missing download permissions) */
   skippedFileIds?: Set<string>;
+  baseFolderId?: string;
 };
 
 async function loadApprovedDossierContext(dossierId: string): Promise<{
@@ -212,7 +219,7 @@ if (dossier.status !== DossierStatus.APPROVED && dossier.status !== DossierStatu
  * For each ID: if it matches a dossier row, use it directly;
  * otherwise look up as a folder and collect all dossiers in its subtree.
  */
-async function resolveIdsIntoDossierIds(ids: string[]): Promise<string[]> {
+export async function resolveIdsIntoDossierIds(ids: string[]): Promise<string[]> {
   const matchedDossiers = await db.query.dossiers.findMany({
     where: activeDossierWhere(inArray(dossiers.id, ids)),
     columns: { id: true },
@@ -290,6 +297,21 @@ export async function exportDipHosoBatch(
       )
     : null;
 
+  let baseFolderPath = "";
+  let baseFolderName = "";
+  if (options?.baseFolderId) {
+    const baseFolder = await db.query.folders.findFirst({
+      where: activeFolderWhere(eq(folders.id, options.baseFolderId)),
+      columns: { folderPath: true, folderName: true },
+    });
+    console.log("[DIP-EXPORT] baseFolderId:", options.baseFolderId, "baseFolder:", baseFolder);
+    if (baseFolder && baseFolder.folderPath) {
+      baseFolderPath = baseFolder.folderPath;
+      baseFolderName = baseFolder.folderName?.trim() || resolveFolderLeafName(baseFolder.folderPath);
+    }
+  }
+  console.log("[DIP-EXPORT] baseFolderPath:", baseFolderPath, "baseFolderName:", baseFolderName);
+
   // Phase 1: load metadata only, count PDF sources, fail early before downloads.
   const contexts = await mapInBatches(
     resolvedDossierIds,
@@ -302,12 +324,24 @@ export async function exportDipHosoBatch(
         ? (dossier.files ?? []).filter(f => !options.skippedFileIds!.has(f.id))
         : (dossier.files ?? []);
 
+      let relativeFolderPath: string | undefined;
+      if (options?.baseFolderId && baseFolderPath) {
+        relativeFolderPath = computeRelativeFolderPath(
+          dossier.folderPath,
+          baseFolderPath,
+          baseFolderName
+        );
+      }
+
       return {
         metadata,
         hoSoId,
         fondId: dossier.fondId,
+        folderPath: dossier.folderPath,
         files,
         pdfCount: countPackagePdfSources(metadata, files),
+        relativeFolderPath,
+        folderName: baseFolderName || undefined,
       };
     },
   );
@@ -338,6 +372,9 @@ export async function exportDipHosoBatch(
         metadata: ctx.metadata,
         pdfFiles,
         hoSoId: ctx.hoSoId,
+        zipFolderPath: resolveExportZipRelativePath(ctx.folderPath, ctx.hoSoId),
+        folderPath: ctx.relativeFolderPath,
+        folderName: ctx.folderName,
       } satisfies PackageBuildInput;
     },
   );

@@ -72,6 +72,8 @@ export const Permission = {
   METADATA_EXTRACT_TRIGGER: "metadata.extract.trigger",
   METADATA_HIDDEN_FIELDS_READ: "metadata.hidden_fields.read",
   METADATA_HIDDEN_FIELDS_UPDATE: "metadata.hidden_fields.update",
+  METADATA_FIELDS_READ: "metadata.fields.read",
+  METADATA_FIELDS_UPDATE: "metadata.fields.update",
 
   WATERMARK_CONFIG_READ: "watermark.config.read",
   WATERMARK_CONFIG_CREATE: "watermark.config.create",
@@ -1033,6 +1035,18 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     label: "Cập nhật cấu hình ẩn/hiện trường Metadata",
     description:
       "Thêm, sửa, xóa cấu hình ẩn hoặc hiển thị các trường metadata ở màn hình quản lý dữ liệu",
+  },
+  {
+    key: Permission.METADATA_FIELDS_READ,
+    module: "metadata",
+    label: "Xem danh sách trường Metadata",
+    description: "Xem danh mục các trường siêu dữ liệu metadata theo model bóc tách",
+  },
+  {
+    key: Permission.METADATA_FIELDS_UPDATE,
+    module: "metadata",
+    label: "Quản lý trường Metadata",
+    description: "Thêm, cập nhật, xóa trường siêu dữ liệu metadata theo model bóc tách",
   },
   {
     key: Permission.WATERMARK_CONFIG_READ,
