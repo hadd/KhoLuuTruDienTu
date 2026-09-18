@@ -67,7 +67,6 @@ function saveExportBlob(
   window.URL.revokeObjectURL(url)
 }
 
-const EXPORT_TIMEOUT_MS = 600_000
 const MULTI_DOWNLOAD_GAP_MS = 1200
 
 function sleep(ms: number): Promise<void> {
@@ -96,7 +95,7 @@ async function postExportZip(
     : []
   const response = await apiClient.post<Blob>(path, body, {
     responseType: 'blob',
-    timeout: EXPORT_TIMEOUT_MS,
+    timeout: 0,
     _skipGlobalErrorToast: true,
     dossierId: dossierIds[0] ?? null,
     securityAccessModule: 'warehouse',
@@ -129,6 +128,7 @@ export async function checkDossierExportRequirements(
   }
 
   const response = await apiClient.post<ExportCheckResultT>(path, body, {
+    timeout: 0,
     _skipGlobalErrorToast: true,
     dossierId,
     securityAccessModule: 'warehouse',

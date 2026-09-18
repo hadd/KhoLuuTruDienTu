@@ -923,11 +923,11 @@ export function updateDossierStatusInTree(
         children: childrenChanged ? nextChildren : node.children,
         ...(node.dossierMetadata
           ? {
-              dossierMetadata: {
-                ...node.dossierMetadata,
-                trang_thai_ho_so: status,
-              },
-            }
+            dossierMetadata: {
+              ...node.dossierMetadata,
+              trang_thai_ho_so: status,
+            },
+          }
           : {}),
       }
       return { node: updatedNode, changed: true }
@@ -1353,19 +1353,19 @@ export function updateDossierMetadataInTree(
     const nextNode =
       isTarget && metadata
         ? syncRecordDocumentFields(
-            {
-              ...node,
-              dossierMetadata: metadata,
-              fullDossierMetadata: metadata,
-            },
-            metadata,
-          )
+          {
+            ...node,
+            dossierMetadata: metadata,
+            fullDossierMetadata: metadata,
+          },
+          metadata,
+        )
         : isTarget
           ? {
-              ...node,
-              dossierMetadata: metadata,
-              fullDossierMetadata: metadata,
-            }
+            ...node,
+            dossierMetadata: metadata,
+            fullDossierMetadata: metadata,
+          }
           : node
     return {
       ...nextNode,
@@ -1387,28 +1387,28 @@ export function updateDossierWorkflowStateInTree(
     const isTarget = node.id === dossierId || node.dossierId === dossierId
     const nextNode = isTarget
       ? {
-          ...node,
-          ...(patch.dossierStatus ? { dossierStatus: patch.dossierStatus } : {}),
-          ...(patch.assignmentStatus
-            ? { assignmentStatus: patch.assignmentStatus }
-            : {}),
-          ...(node.dossierMetadata && patch.dossierStatus
-            ? {
-                dossierMetadata: {
-                  ...node.dossierMetadata,
-                  trang_thai_ho_so: patch.dossierStatus,
-                },
-              }
-            : {}),
-          ...(node.fullDossierMetadata && patch.dossierStatus
-            ? {
-                fullDossierMetadata: {
-                  ...node.fullDossierMetadata,
-                  trang_thai_ho_so: patch.dossierStatus,
-                },
-              }
-            : {}),
-        }
+        ...node,
+        ...(patch.dossierStatus ? { dossierStatus: patch.dossierStatus } : {}),
+        ...(patch.assignmentStatus
+          ? { assignmentStatus: patch.assignmentStatus }
+          : {}),
+        ...(node.dossierMetadata && patch.dossierStatus
+          ? {
+            dossierMetadata: {
+              ...node.dossierMetadata,
+              trang_thai_ho_so: patch.dossierStatus,
+            },
+          }
+          : {}),
+        ...(node.fullDossierMetadata && patch.dossierStatus
+          ? {
+            fullDossierMetadata: {
+              ...node.fullDossierMetadata,
+              trang_thai_ho_so: patch.dossierStatus,
+            },
+          }
+          : {}),
+      }
       : node
     return {
       ...nextNode,
