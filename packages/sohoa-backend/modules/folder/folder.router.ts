@@ -4,7 +4,7 @@ import { FolderService as service } from "./folder-service.ts";
 import { DossierService as dossierService } from "../dossier/dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
-import { Permission } from "../auth/permission-catalog.ts";
+import { Permission, DOSSIERS_EXPORT_ACCESS } from "../auth/permission-catalog.ts";
 import { submitMetadataBodySchema } from "../data-entry/types.ts";
 import {
   assignFolderProjectBodySchema,
@@ -22,6 +22,7 @@ import {
   assertDownloadAllowedForExport,
   securityAccessHeadersFromRequest,
 } from "../security-level/security-enforcement.ts";
+import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
 
 const permanentDeleteQuerySchema = t.Object({
   permanent: t.Optional(
@@ -57,13 +58,26 @@ const multiFolderMetadataExportBodySchema = t.Object({
   useDocumentNaming: t.Optional(t.Boolean()),
 });
 
+function resolveExportBypassStatus(profile: UserWithRoles): boolean {
+  return authHelper.hasPermission(
+    profile,
+    Permission.DOSSIERS_EXPORT_ANY_STATUS,
+  );
+}
+
+function assertDossierExportAccess(profile: UserWithRoles): boolean {
+  authHelper.checkPermissionAny(profile, DOSSIERS_EXPORT_ACCESS);
+  return resolveExportBypassStatus(profile);
+}
+
 async function assertSecurityDownloadForFolders(
   profile: { id: string },
   request: Request,
   folderIds: string[],
+  options?: { bypassStatus?: boolean },
 ): Promise<{ applyWatermark: boolean; skippedFileIds: Set<string> }> {
   const dossierIds =
-    await dossierService.listApprovedExportDossierIds(folderIds);
+    await dossierService.listApprovedExportDossierIds(folderIds, options);
   const headers = securityAccessHeadersFromRequest(request);
   return await assertDownloadAllowedForExport({
     userId: profile.id,
@@ -266,12 +280,13 @@ export function createFolderRouter(basePath: string = "/folders") {
   app.post(
     "/metadata/export",
     async ({ body, profile, request }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+      const bypassStatus = assertDossierExportAccess(profile);
       const { applyWatermark, skippedFileIds } =
         await assertSecurityDownloadForFolders(
           profile,
           request,
           body.folderIds,
+          { bypassStatus },
         );
       const meta = clientMetaFromRequest(request);
       const { stream, filename, contentType, zipPasswordSource } =
@@ -291,6 +306,7 @@ export function createFolderRouter(basePath: string = "/folders") {
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
+              bypassStatus,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {
@@ -303,7 +319,7 @@ export function createFolderRouter(basePath: string = "/folders") {
         tags,
         summary: "Export metadata ZIP for multiple folders",
         description:
-          "Accepts folderIds (each includes subtree), dedupes dossiers, requires all APPROVED. " +
+          "Accepts folderIds (each includes subtree), dedupes dossiers, requires all APPROVED unless dossiers.export_any_status. " +
           "Optional placementId watermark. PDFs prefer searchable_pdf/ with fallback to raw/.",
       },
     },
@@ -312,10 +328,10 @@ export function createFolderRouter(basePath: string = "/folders") {
   app.post(
     "/metadata/export/preview",
     async ({ body, profile }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+      const bypassStatus = assertDossierExportAccess(profile);
       return await dossierService.previewApprovedMetadataExportByFolders(
         body.folderIds,
-        body,
+        { ...body, bypassStatus },
       );
     },
     {
@@ -330,8 +346,10 @@ export function createFolderRouter(basePath: string = "/folders") {
   app.get(
     "/:id/metadata/export/fields",
     async ({ params, profile }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      return await dossierService.getFolderMetadataExportFields(params.id);
+      const bypassStatus = assertDossierExportAccess(profile);
+      return await dossierService.getFolderMetadataExportFields(params.id, {
+        bypassStatus,
+      });
     },
     {
       params: t.Object({ id: IdParam("Folder ID") }),
@@ -345,10 +363,10 @@ export function createFolderRouter(basePath: string = "/folders") {
   app.post(
     "/:id/metadata/export/preview",
     async ({ params, body, profile }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+      const bypassStatus = assertDossierExportAccess(profile);
       return await dossierService.previewApprovedMetadataExportByFolder(
         params.id,
-        body,
+        { ...body, bypassStatus },
       );
     },
     {
@@ -364,9 +382,11 @@ export function createFolderRouter(basePath: string = "/folders") {
   app.post(
     "/:id/metadata/export",
     async ({ params, body, profile, request }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+      const bypassStatus = assertDossierExportAccess(profile);
       const { applyWatermark, skippedFileIds } =
-        await assertSecurityDownloadForFolders(profile, request, [params.id]);
+        await assertSecurityDownloadForFolders(profile, request, [params.id], {
+          bypassStatus,
+        });
       const meta = clientMetaFromRequest(request);
       const { stream, filename, contentType, zipPasswordSource } =
         await withDownloadLog(
@@ -385,6 +405,7 @@ export function createFolderRouter(basePath: string = "/folders") {
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
+              bypassStatus,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {
@@ -404,9 +425,11 @@ export function createFolderRouter(basePath: string = "/folders") {
   app.get(
     "/:id/metadata/export",
     async ({ params, query, profile, request }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+      const bypassStatus = assertDossierExportAccess(profile);
       const { applyWatermark, skippedFileIds } =
-        await assertSecurityDownloadForFolders(profile, request, [params.id]);
+        await assertSecurityDownloadForFolders(profile, request, [params.id], {
+          bypassStatus,
+        });
       const meta = clientMetaFromRequest(request);
       const { stream, filename, contentType, zipPasswordSource } =
         await withDownloadLog(
@@ -427,6 +450,7 @@ export function createFolderRouter(basePath: string = "/folders") {
               dossierAccessPassword: query.dossierAccessPassword,
               skippedFileIds,
               useDocumentNaming: query.useDocumentNaming === true,
+              bypassStatus,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {

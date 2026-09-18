@@ -376,5 +376,41 @@ Deno.test("collectFolderMetadataExportEntries splits PDF and TIFF trees under sh
     assertEquals(entries[2]?.data, tiffData);
 });
 
+Deno.test("buildFolderMetadataExportZipStream streams PDF and TIFF entries", {
+    sanitizeOps: false,
+    sanitizeResources: false,
+}, async () => {
+    const { readableStreamToUint8Array } = await import("../libs/jszip-stream.ts");
+    const { ZipReader, BlobReader, Uint8ArrayWriter } = await import("@zip.js/zip.js");
+    const { buildFolderMetadataExportZipStream } = await import("../libs/metadata-export.ts");
 
-
+    const pdfData = new TextEncoder().encode("%PDF-1.4 mock");
+    const tiffData = new Uint8Array([0x49, 0x49, 0x2a, 0x00]);
+    const stream = await buildFolderMetadataExportZipStream({
+        excelFileName: "meta.xlsx",
+        excelBuffer: new Uint8Array([1, 2, 3]),
+        dossierPdfBundles: [
+            {
+                dossierFolderName: "HS1",
+                pdfFiles: [{ fileName: "doc.pdf", data: pdfData }],
+                tiffFiles: [{ fileName: "doc.TIFF", data: tiffData }],
+            },
+        ],
+    });
+    const bytes = await readableStreamToUint8Array(stream);
+    const zr = new ZipReader(new BlobReader(new Blob([new Uint8Array(bytes)])));
+    try {
+        const entries = await zr.getEntries();
+        const names = entries.filter((e) => !e.directory).map((e) => e.filename).sort();
+        assertEquals(names, [
+            "PDF/HS1/doc.pdf",
+            "TIFF/HS1/doc.TIFF",
+            "meta.xlsx",
+        ]);
+        const pdfEntry = entries.find((e) => e.filename === "PDF/HS1/doc.pdf");
+        const pdfBytes = await pdfEntry!.getData!(new Uint8ArrayWriter());
+        assertEquals(new TextDecoder().decode(pdfBytes), "%PDF-1.4 mock");
+    } finally {
+        await zr.close();
+    }
+});

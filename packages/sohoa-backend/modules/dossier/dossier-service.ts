@@ -123,14 +123,14 @@ import {
   resolveWatermarkApplyConfig,
 } from "../../libs/watermark/maybe-watermark-pdf-files.ts";
 import { convertBatchToPdfA } from "../../libs/pdf-a/pdf-a-converter.ts";
-import { convertBatchPdfToTiff } from "../../libs/pdf-tiff/pdf-to-tiff-converter.ts";
+import {
+  convertPdfToTiff,
+} from "../../libs/pdf-tiff/pdf-to-tiff-converter.ts";
 import { resolveExportZipPassword } from "../profile/resolve-export-zip-password.ts";
 import { assertExportFileLimit } from "../../libs/export-file-limit.ts";
 import {
   EXPORT_DOSSIER_CONCURRENCY,
-  EXPORT_DOWNLOAD_CONCURRENCY,
   mapInBatches,
-  mapWithConcurrency,
 } from "../../libs/export-concurrency.ts";
 import { metadataHistory } from "../../db/schemas/metadata-history.ts";
 import { purgeLinkedMetadataByDossierIds } from "./dossier-delete-utils.ts";
@@ -140,9 +140,10 @@ import type { MetadataExportConfig } from "../../libs/metadata-export-types.ts";
 import { buildMetadataExportPreview } from "../../libs/metadata-export-preview.ts";
 import { MetadataExportPresetService } from "../metadata-export-preset/metadata-export-preset-service.ts";
 import {
-  buildFolderMetadataExportZipStream,
+  buildFolderMetadataExportZipStreamIncremental,
   collectMetadataPdfSources,
-  type FolderDossierPdfBundle,
+  resolveMetadataExportFolderPrefix,
+  uniqueZipEntryName,
 } from "../../libs/metadata-export.ts";
 import {
   resolveNamedPdfFileName,
@@ -1118,15 +1119,21 @@ async function findDossiersInFolderSubtree(folderId: string) {
   return { rootFolder, dossiers: dossierRows };
 }
 
-async function validateApprovedFolderMetadataExport(folderId: string) {
-  const result = await validateApprovedFoldersMetadataExport([folderId]);
+async function validateApprovedFolderMetadataExport(
+  folderId: string,
+  options?: { bypassStatus?: boolean },
+) {
+  const result = await validateApprovedFoldersMetadataExport([folderId], options);
   return {
     rootFolder: result.rootFolders[0]!,
     dossiers: result.dossiers,
   };
 }
 
-async function validateApprovedFoldersMetadataExport(folderIds: string[]) {
+async function validateApprovedFoldersMetadataExport(
+  folderIds: string[],
+  options?: { bypassStatus?: boolean },
+) {
   const uniqueIds = [
     ...new Set(folderIds.map((id) => id.trim()).filter(Boolean)),
   ];
@@ -1156,14 +1163,16 @@ async function validateApprovedFoldersMetadataExport(folderIds: string[]) {
     throw httpError.badRequest("No dossiers found in the selected folders");
   }
 
-  const notApproved = allDossiers.filter(
-    (dossier) => dossier.status !== DossierStatus.APPROVED,
-  );
-  if (notApproved.length > 0) {
-    const pendingNames = notApproved.map((dossier) => dossier.name).join(", ");
-    throw httpError.badRequest(
-      `Cannot export: all dossiers in this folder must be approved. Pending dossiers: ${pendingNames}`,
+  if (!options?.bypassStatus) {
+    const notApproved = allDossiers.filter(
+      (dossier) => dossier.status !== DossierStatus.APPROVED,
     );
+    if (notApproved.length > 0) {
+      const pendingNames = notApproved.map((dossier) => dossier.name).join(", ");
+      throw httpError.badRequest(
+        `Cannot export: all dossiers in this folder must be approved. Pending dossiers: ${pendingNames}`,
+      );
+    }
   }
 
   const withoutMetadata = allDossiers.filter(
@@ -1181,7 +1190,10 @@ async function validateApprovedFoldersMetadataExport(folderIds: string[]) {
   return { rootFolders, dossiers: allDossiers };
 }
 
-async function loadDossiersForMetadataExport(dossierIds: string[]) {
+async function loadDossiersForMetadataExport(
+  dossierIds: string[],
+  options?: { bypassStatus?: boolean },
+) {
   const uniqueIds = [
     ...new Set(dossierIds.map((id) => id.trim()).filter(Boolean)),
   ];
@@ -1200,18 +1212,20 @@ async function loadDossiersForMetadataExport(dossierIds: string[]) {
     throw httpError.notFound(`Dossier not found: ${missing.join(", ")}`);
   }
 
-  const unexportable = rows.filter(
-    (dossier) =>
-      dossier.status !== DossierStatus.APPROVED &&
-      dossier.status !== DossierStatus.ARCHIVED,
-  );
-  if (unexportable.length > 0) {
-    const unexportableNames = unexportable
-      .map((dossier) => dossier.name)
-      .join(", ");
-    throw httpError.badRequest(
-      `Cannot export: all dossiers must be approved or archived. Pending dossiers: ${unexportableNames}`,
+  if (!options?.bypassStatus) {
+    const unexportable = rows.filter(
+      (dossier) =>
+        dossier.status !== DossierStatus.APPROVED &&
+        dossier.status !== DossierStatus.ARCHIVED,
     );
+    if (unexportable.length > 0) {
+      const unexportableNames = unexportable
+        .map((dossier) => dossier.name)
+        .join(", ");
+      throw httpError.badRequest(
+        `Cannot export: all dossiers must be approved or archived. Pending dossiers: ${unexportableNames}`,
+      );
+    }
   }
 
   const withoutMetadata = rows.filter((dossier) => !dossier.currentMetadataKey);
@@ -1240,6 +1254,8 @@ type MetadataExportInput = {
   skippedFileIds?: Set<string>;
   /** When true, rename PDFs inside ZIP using document naming config. */
   useDocumentNaming?: boolean;
+  /** Skip APPROVED/ARCHIVED status gate (dossiers.export_any_status). */
+  bypassStatus?: boolean;
 };
 
 async function buildApprovedMetadataExportZip(
@@ -1296,38 +1312,7 @@ async function buildApprovedMetadataExportZip(
     : { password: undefined, source: "none" as const };
   const zipPassword = zipResolved.password;
 
-  const loaded = await mapInBatches(
-    metadataForCount,
-    EXPORT_DOSSIER_CONCURRENCY,
-    async ({ dossier, metadata }, dossierIndex) => {
-      const pdfBundle = await buildDossierPdfExportBundle(dossier, metadata, {
-        useDocumentNaming: input?.useDocumentNaming === true,
-        dossierIndex,
-      });
-      pdfBundle.pdfFiles = await applyWatermarkConfigToPdfFiles(
-        pdfBundle.pdfFiles,
-        watermarkConfig,
-      );
-      pdfBundle.pdfFiles = await convertBatchToPdfA(pdfBundle.pdfFiles, {
-        title: metadata.ho_so_id || dossier.name,
-      });
-      pdfBundle.tiffFiles = await convertBatchPdfToTiff(pdfBundle.pdfFiles);
-
-      // Tính relative folder path khi xuất từ folder
-      if (options.baseFolderPath && options.baseFolderName) {
-        pdfBundle.relativeFolderPath = computeRelativeFolderPath(
-          dossier.folderPath,
-          options.baseFolderPath,
-          options.baseFolderName,
-        );
-        pdfBundle.baseFolderName = options.baseFolderName;
-      }
-
-      return { metadata, pdfBundle };
-    },
-  );
-
-  const metadataList = loaded.map((item) => item.metadata);
+  const metadataList = metadataForCount.map((item) => item.metadata);
   const exportConfig =
     input?.presetId || input?.columns
       ? await MetadataExportPresetService.resolveExportConfig(input)
@@ -1337,34 +1322,136 @@ async function buildApprovedMetadataExportZip(
     exportConfig,
   });
 
+  const first = metadataForCount[0];
   const isSingleDossier =
-    options.layout === "dossier-single" && loaded.length === 1;
+    options.layout === "dossier-single" && metadataForCount.length === 1;
+  const singleFolderName = first
+    ? sanitizeExportBaseName(
+      first.metadata.ho_so_id || first.dossier.name || first.dossier.id,
+    )
+    : sanitizeExportBaseName(options.zipBaseName);
   const zipBaseName = isSingleDossier
-    ? loaded[0]!.pdfBundle.dossierFolderName
+    ? singleFolderName
     : sanitizeExportBaseName(options.zipBaseName);
 
   const excelFileName = isSingleDossier
     ? `${zipBaseName}-metadata.xlsx`
     : `${zipBaseName}-metadata-export.xlsx`;
 
-  const stream = await buildFolderMetadataExportZipStream({
+  // Stream ZIP while processing one PDF at a time (peak RAM ≈ 1 file + TIFF).
+  const stream = buildFolderMetadataExportZipStreamIncremental({
     excelFileName,
     excelBuffer,
-    dossierPdfBundles: loaded.map((item) => ({
-      dossierFolderName: item.pdfBundle.zipFolderPath || item.pdfBundle.dossierFolderName,
-      relativeFolderPath: item.pdfBundle.relativeFolderPath,
-      baseFolderName: item.pdfBundle.baseFolderName,
-      pdfFiles: item.pdfBundle.pdfFiles,
-      tiffFiles: item.pdfBundle.tiffFiles,
-    })),
     password: zipPassword,
+    build: async (add, usedFolderNames) => {
+      for (let dossierIndex = 0; dossierIndex < metadataForCount.length; dossierIndex++) {
+        const { dossier, metadata } = metadataForCount[dossierIndex]!;
+        const baseName = metadata.ho_so_id || dossier.name || dossier.id;
+        const dossierFolderName = sanitizeExportBaseName(baseName);
+        const zipFolderPath = resolveExportZipRelativePath(
+          dossier.folderPath,
+          dossierFolderName,
+        );
+
+        let relativeFolderPath: string | undefined;
+        let baseFolderName: string | undefined;
+        if (options.baseFolderPath && options.baseFolderName) {
+          relativeFolderPath = computeRelativeFolderPath(
+            dossier.folderPath,
+            options.baseFolderPath,
+            options.baseFolderName,
+          );
+          baseFolderName = options.baseFolderName;
+        }
+
+        const folderPrefix = resolveMetadataExportFolderPrefix(
+          {
+            dossierFolderName: zipFolderPath || dossierFolderName,
+            zipFolderPath,
+            relativeFolderPath,
+            baseFolderName,
+          },
+          usedFolderNames,
+        );
+
+        const pdfSources = collectMetadataPdfSources(
+          metadata,
+          dossier.files ?? [],
+        );
+
+        let namingContext: Awaited<
+          ReturnType<
+            typeof DocumentNamingConfigService.loadFileNamingExportContext
+          >
+        > = null;
+        if (input?.useDocumentNaming === true) {
+          namingContext = await DocumentNamingConfigService
+            .loadFileNamingExportContext({
+              fondId: dossier.fondId,
+              dossierId: dossier.id,
+              dossier: {
+                name: dossier.name,
+                folderPath: dossier.folderPath,
+                projectCode: dossier.projectCode,
+                dossierTypeId: dossier.dossierTypeId,
+              },
+            });
+        }
+
+        const usedNames = new Set<string>();
+        const usedPdfNames = new Set<string>();
+
+        for (let sourceIndex = 0; sourceIndex < pdfSources.length; sourceIndex++) {
+          const source = pdfSources[sourceIndex]!;
+          const fileName = namingContext
+            ? resolveNamedPdfFileName({
+              context: namingContext,
+              metadata,
+              originalFileName: source.fileName,
+              storageKey: source.storageKey,
+              sourceIndex,
+              dossierFiles: dossier.files,
+              dossierIndex,
+              usedNames,
+            })
+            : source.fileName;
+
+          const downloaded = await downloadExportPdfSource(source);
+          let pdfFiles = [
+            {
+              fileName,
+              data: downloaded.data,
+              ...(downloaded.preserveSignature
+                ? { preserveSignature: true as const }
+                : {}),
+            },
+          ];
+          pdfFiles = await applyWatermarkConfigToPdfFiles(
+            pdfFiles,
+            watermarkConfig,
+          );
+          pdfFiles = await convertBatchToPdfA(pdfFiles, {
+            title: metadata.ho_so_id || dossier.name,
+          });
+
+          const pdf = pdfFiles[0]!;
+          const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
+          await add(`PDF/${folderPrefix}/${entryName}`, pdf.data);
+
+          const tiffBytes = await convertPdfToTiff(pdf.data);
+          pdf.data = new Uint8Array(0);
+          const tiffEntryName = entryName.replace(/\.pdf$/i, ".TIFF");
+          await add(`TIFF/${folderPrefix}/${tiffEntryName}`, tiffBytes);
+        }
+      }
+    },
   });
 
   return {
     stream,
     filename: `${zipBaseName}-metadata-export.zip`,
     contentType: "application/zip" as const,
-    exportedCount: loaded.length,
+    exportedCount: metadataForCount.length,
     zipPasswordSource: zipResolved.source,
   };
 }
@@ -1381,71 +1468,6 @@ async function loadDossierMetadataFromStorage(dossier: DossierWithFiles) {
   }
 
   return metadata;
-}
-
-async function buildDossierPdfExportBundle(
-  dossier: DossierWithFiles,
-  metadata: DossierMetadata,
-  options?: {
-    useDocumentNaming?: boolean;
-    dossierIndex?: number;
-  },
-): Promise<FolderDossierPdfBundle> {
-  const baseName = metadata.ho_so_id || dossier.name || dossier.id;
-  const dossierFolderName = sanitizeExportBaseName(baseName);
-  const zipFolderPath = resolveExportZipRelativePath(
-    dossier.folderPath,
-    dossierFolderName,
-  );
-  const pdfSources = collectMetadataPdfSources(metadata, dossier.files ?? []);
-
-  let namingContext: Awaited<
-    ReturnType<typeof DocumentNamingConfigService.loadFileNamingExportContext>
-  > = null;
-  if (options?.useDocumentNaming) {
-    namingContext = await DocumentNamingConfigService.loadFileNamingExportContext({
-      fondId: dossier.fondId,
-      dossierId: dossier.id,
-      dossier: {
-        name: dossier.name,
-        folderPath: dossier.folderPath,
-        projectCode: dossier.projectCode,
-        dossierTypeId: dossier.dossierTypeId,
-      },
-    });
-  }
-
-  const usedNames = new Set<string>();
-  const resolvedNames = pdfSources.map((source, sourceIndex) => {
-    if (!namingContext) return source.fileName;
-    return resolveNamedPdfFileName({
-      context: namingContext,
-      metadata,
-      originalFileName: source.fileName,
-      storageKey: source.storageKey,
-      sourceIndex,
-      dossierFiles: dossier.files,
-      dossierIndex: options?.dossierIndex ?? 0,
-      usedNames,
-    });
-  });
-
-  const pdfFiles = await mapWithConcurrency(
-    pdfSources,
-    EXPORT_DOWNLOAD_CONCURRENCY,
-    async (source, index) => {
-      const downloaded = await downloadExportPdfSource(source);
-      return {
-        fileName: resolvedNames[index] ?? source.fileName,
-        data: downloaded.data,
-        ...(downloaded.preserveSignature
-          ? { preserveSignature: true as const }
-          : {}),
-      };
-    },
-  );
-
-  return { dossierFolderName, zipFolderPath, pdfFiles };
 }
 
 async function assignDossiersByFolderId(input: {
@@ -3655,7 +3677,9 @@ export const DossierService = {
     dossierIds: string[],
     input?: MetadataExportInput,
   ) {
-    const rows = await loadDossiersForMetadataExport(dossierIds);
+    const rows = await loadDossiersForMetadataExport(dossierIds, {
+      bypassStatus: input?.bypassStatus === true,
+    });
     const layout = rows.length === 1 ? "dossier-single" : "folder";
     const zipBaseName = rows.length === 1 ? rows[0]!.name : "multi-dossiers";
 
@@ -3708,17 +3732,27 @@ export const DossierService = {
 
   async previewApprovedMetadataExportByFolder(
     folderId: string,
-    input: { presetId?: string; columns?: MetadataExportConfig["columns"] },
+    input: {
+      presetId?: string;
+      columns?: MetadataExportConfig["columns"];
+      bypassStatus?: boolean;
+    },
   ) {
     return await this.previewApprovedMetadataExportByFolders([folderId], input);
   },
 
   async previewApprovedMetadataExportByFolders(
     folderIds: string[],
-    input: { presetId?: string; columns?: MetadataExportConfig["columns"] },
+    input: {
+      presetId?: string;
+      columns?: MetadataExportConfig["columns"];
+      bypassStatus?: boolean;
+    },
   ) {
     const { dossiers: allDossiers } =
-      await validateApprovedFoldersMetadataExport(folderIds);
+      await validateApprovedFoldersMetadataExport(folderIds, {
+        bypassStatus: input.bypassStatus === true,
+      });
     const exportConfig =
       await MetadataExportPresetService.resolveExportConfig(input);
     const metadataList = await Promise.all(
@@ -3736,6 +3770,7 @@ export const DossierService = {
       dossierAccessPassword?: string;
       skippedFileIds?: Set<string>;
       useDocumentNaming?: boolean;
+      bypassStatus?: boolean;
     },
   ) {
     const applyWatermark = await resolveApplyWatermarkForDossiers([dossierId]);
@@ -3759,6 +3794,7 @@ export const DossierService = {
       skippedFileIds?: Set<string>;
       baseFolderId?: string;
       useDocumentNaming?: boolean;
+      bypassStatus?: boolean;
     },
   ) {
     const applyWatermark = await resolveApplyWatermarkForDossiers(dossierIds);
@@ -3780,9 +3816,12 @@ export const DossierService = {
   },
 
   /** Resolve dossier IDs in folder subtree(s) for security download checks before export. */
-  async listApprovedExportDossierIds(folderIds: string[]): Promise<string[]> {
+  async listApprovedExportDossierIds(
+    folderIds: string[],
+    options?: { bypassStatus?: boolean },
+  ): Promise<string[]> {
     const { dossiers: allDossiers } =
-      await validateApprovedFoldersMetadataExport(folderIds);
+      await validateApprovedFoldersMetadataExport(folderIds, options);
     return allDossiers.map((d) => d.id);
   },
 
@@ -3791,7 +3830,9 @@ export const DossierService = {
     input?: MetadataExportInput,
   ) {
     const { rootFolders, dossiers: allDossiers } =
-      await validateApprovedFoldersMetadataExport(folderIds);
+      await validateApprovedFoldersMetadataExport(folderIds, {
+        bypassStatus: input?.bypassStatus === true,
+      });
 
     const zipBaseName =
       rootFolders.length === 1 ? rootFolders[0]!.folderName : "multi-folders";
@@ -3809,9 +3850,12 @@ export const DossierService = {
     });
   },
 
-  async getFolderMetadataExportFields(folderId: string) {
+  async getFolderMetadataExportFields(
+    folderId: string,
+    options?: { bypassStatus?: boolean },
+  ) {
     const { dossiers: allDossiers } =
-      await validateApprovedFolderMetadataExport(folderId);
+      await validateApprovedFolderMetadataExport(folderId, options);
     const metadataList = await Promise.all(
       allDossiers.map((dossier) => loadDossierMetadataFromStorage(dossier)),
     );

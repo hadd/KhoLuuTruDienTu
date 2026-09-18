@@ -1,15 +1,17 @@
 import { buildAipHosoPackage } from "./aip-hoso-builder.ts";
 import {
-  buildDipExportZipStream,
+  buildDipExportZipStreamIncremental,
   type DipZipStreamResult,
 } from "./dip-hoso-builder.ts";
 import { shouldSkipExistingAip } from "./aip-idempotent.ts";
 import { computeRelativeFolderPath } from "../../modules/dossier/dossier-path-utils.ts";
 import {
   resolveAipObjectKey,
+  resolveDipZipFileName,
   resolveExportZipRelativePath,
   resolveFolderLeafName,
   resolveHoSoId,
+  uniqueZipFolderPath,
 } from "./aip-path-utils.ts";
 import {
   collectPackagePdfFiles,
@@ -83,6 +85,8 @@ type DipExportOptions = {
   baseFolderId?: string;
   /** When true, rename PDFs inside ZIP using document naming config. */
   useDocumentNaming?: boolean;
+  /** Skip APPROVED/ARCHIVED status gate (dossiers.export_any_status). */
+  bypassStatus?: boolean;
 };
 
 async function loadApprovedDossierContext(dossierId: string): Promise<{
@@ -187,7 +191,10 @@ export async function getAipStatus(dossierId: string) {
   };
 }
 
-async function loadArchivedDossierContext(dossierId: string): Promise<{
+async function loadArchivedDossierContext(
+  dossierId: string,
+  options?: { bypassStatus?: boolean },
+): Promise<{
   dossier: DossierRow;
   metadata: import("../metadata-types.ts").DossierMetadata;
   hoSoId: string;
@@ -201,10 +208,17 @@ async function loadArchivedDossierContext(dossierId: string): Promise<{
     throw httpError.notFound("Dossier not found");
   }
 
-  // BYPASS FOR TESTING: Cho phép xuất DIP không cần trạng thái ARCHIVED
-if (dossier.status !== DossierStatus.APPROVED && dossier.status !== DossierStatus.ARCHIVED) {
-    throw httpError.badRequest("Dossier must be approved or archived before DIP export");
-}
+  if (!options?.bypassStatus) {
+    // BYPASS FOR TESTING: Cho phép xuất DIP không cần trạng thái ARCHIVED
+    if (
+      dossier.status !== DossierStatus.APPROVED &&
+      dossier.status !== DossierStatus.ARCHIVED
+    ) {
+      throw httpError.badRequest(
+        "Dossier must be approved or archived before DIP export",
+      );
+    }
+  }
 
   if (!dossier.currentMetadataKey) {
     throw httpError.badRequest("Dossier has no current metadata");
@@ -329,7 +343,9 @@ export async function exportDipHosoBatch(
     EXPORT_DOSSIER_CONCURRENCY,
     async (id) => {
       const { metadata, hoSoId, dossier } =
-        await loadArchivedDossierContext(id);
+        await loadArchivedDossierContext(id, {
+          bypassStatus: options?.bypassStatus === true,
+        });
       
       const files = options?.skippedFileIds
         ? (dossier.files ?? []).filter(f => !options.skippedFileIds!.has(f.id))
@@ -372,46 +388,76 @@ export async function exportDipHosoBatch(
     : { password: undefined, source: "none" as const };
   const zipPassword = zipResolved.password;
 
-  // Phase 2: download + watermark in bounded dossier batches.
-  const packages = await mapInBatches(
-    contexts,
-    EXPORT_DOSSIER_CONCURRENCY,
-    async (ctx, dossierIndex) => {
-      const namingContext = options?.useDocumentNaming === true
-        ? await DocumentNamingConfigService.loadFileNamingExportContext({
-          fondId: ctx.fondId,
-          dossierId: ctx.dossierId,
-          dossier: {
-            name: ctx.dossierName,
-            folderPath: ctx.folderPath,
-            projectCode: ctx.projectCode,
-            dossierTypeId: ctx.dossierTypeId,
-          },
-        })
-        : null;
+  const first = contexts[0]!;
+  const isFolderExport = Boolean(first.folderName);
+  const filename = contexts.length === 1
+    ? (first.folderName
+      ? resolveDipZipFileName(first.folderName)
+      : resolveDipZipFileName(first.hoSoId))
+    : (first.folderName
+      ? resolveDipZipFileName(first.folderName)
+      : "multi-dip-export.zip");
 
-      let pdfFiles = await collectPackagePdfFiles(ctx.metadata, ctx.files, {
-        namingContext,
-        dossierIndex,
-      });
-      pdfFiles = await applyWatermarkConfigToPdfFiles(
-        pdfFiles,
-        watermarkConfig,
-      );
-      pdfFiles = await convertBatchToPdfA(pdfFiles, { title: ctx.hoSoId });
-      return {
-        metadata: ctx.metadata,
-        pdfFiles,
-        hoSoId: ctx.hoSoId,
-        zipFolderPath: resolveExportZipRelativePath(ctx.folderPath, ctx.hoSoId),
-        folderPath: ctx.relativeFolderPath,
-        folderName: ctx.folderName,
-      } satisfies PackageBuildInput;
+  // Phase 2: stream ZIP while processing one dossier at a time (no full packages[] in RAM).
+  const result = buildDipExportZipStreamIncremental({
+    password: zipPassword,
+    filename,
+    exportedCount: contexts.length,
+    build: async (addPackage, usedFolderNames) => {
+      for (let dossierIndex = 0; dossierIndex < contexts.length; dossierIndex++) {
+        const ctx = contexts[dossierIndex]!;
+        const namingContext = options?.useDocumentNaming === true
+          ? await DocumentNamingConfigService.loadFileNamingExportContext({
+            fondId: ctx.fondId,
+            dossierId: ctx.dossierId,
+            dossier: {
+              name: ctx.dossierName,
+              folderPath: ctx.folderPath,
+              projectCode: ctx.projectCode,
+              dossierTypeId: ctx.dossierTypeId,
+            },
+          })
+          : null;
+
+        let pdfFiles = await collectPackagePdfFiles(ctx.metadata, ctx.files, {
+          namingContext,
+          dossierIndex,
+        });
+        pdfFiles = await applyWatermarkConfigToPdfFiles(
+          pdfFiles,
+          watermarkConfig,
+        );
+        pdfFiles = await convertBatchToPdfA(pdfFiles, { title: ctx.hoSoId });
+
+        const pkg = {
+          metadata: ctx.metadata,
+          pdfFiles,
+          hoSoId: ctx.hoSoId,
+          zipFolderPath: resolveExportZipRelativePath(ctx.folderPath, ctx.hoSoId),
+          folderPath: ctx.relativeFolderPath,
+          folderName: ctx.folderName,
+        } satisfies PackageBuildInput;
+
+        if (contexts.length === 1) {
+          await addPackage(pkg, {
+            outerFolder: "",
+            xmlAtRoot: Boolean(pkg.folderName),
+          });
+        } else {
+          const outerFolder = isFolderExport
+            ? ""
+            : uniqueZipFolderPath(
+              pkg.zipFolderPath?.trim() || pkg.hoSoId,
+              usedFolderNames,
+            );
+          await addPackage(pkg, { outerFolder });
+        }
+      }
     },
-  );
+  });
 
-  return await buildDipExportZipStream(packages, zipPassword).then((result) => ({
+  return {
     ...result,
     zipPasswordSource: zipResolved.source,
-  }));
+  };
 }

@@ -1,14 +1,11 @@
-import { BlobWriter, Uint8ArrayReader, ZipWriter } from "@zip.js/zip.js";
+import type { ZipEntryInput } from "./streaming-zip-writer.ts";
+import { streamZipWhileBuilding } from "./streaming-zip-writer.ts";
 
-export type ZipEntryInput = {
-  name: string;
-  data: Uint8Array;
-};
+export type { ZipEntryInput } from "./streaming-zip-writer.ts";
 
 /**
  * Build an AES-encrypted ZIP as a ReadableStream.
- * Used when watermark export has a fond zip password.
- * Buffers the full ZIP (zip.js closes to a Blob) — acceptable for password path.
+ * Streams bytes as each entry is added (no full-archive Blob buffer).
  */
 export async function encryptedZipEntriesToReadableStream(
   entries: ZipEntryInput[],
@@ -19,27 +16,20 @@ export async function encryptedZipEntriesToReadableStream(
     throw new Error("ZIP password must not be empty");
   }
 
-  const writer = new ZipWriter(new BlobWriter("application/zip"), {
-    password: trimmed,
-    encryptionStrength: 3, // AES-256
-    bufferedWrite: true,
-  });
+  // Collect entries first so callers that mutate buffers after this call
+  // still work; then stream them one-by-one into the ZIP.
+  const snapshot = entries.map((e) => ({
+    name: e.name,
+    data: e.data,
+  }));
 
-  try {
-    for (const entry of entries) {
-      await writer.add(entry.name, new Uint8ArrayReader(entry.data), {
-        password: trimmed,
-        encryptionStrength: 3,
-      });
-    }
-    const blob = await writer.close();
-    return blob.stream();
-  } catch (err) {
-    try {
-      await writer.close();
-    } catch {
-      // ignore close after failure
-    }
-    throw err;
-  }
+  return streamZipWhileBuilding(
+    async (zip) => {
+      for (const entry of snapshot) {
+        await zip.add(entry.name, entry.data);
+        entry.data = new Uint8Array(0);
+      }
+    },
+    { password: trimmed },
+  );
 }

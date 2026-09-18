@@ -1,14 +1,10 @@
-import JSZip from "jszip";
 import type { DossierMetadata } from "./metadata-types.ts";
 import { expandTaiLieuDocuments } from "./metadata-normalize.ts";
 import { normalizeStorageKey, storageBasename } from "../modules/dossier/dossier-path-utils.ts";
 import { uniqueZipFolderPath } from "./archival-package/aip-path-utils.ts";
 import { sanitizeFolderPathForZip } from "./archival-package/zip-utils.ts";
-import { encryptedZipEntriesToReadableStream } from "./encrypted-zip-stream.ts";
-import {
-    jszipToReadableStream,
-    readableStreamToUint8Array,
-} from "./jszip-stream.ts";
+import { readableStreamToUint8Array } from "./jszip-stream.ts";
+import { streamZipWhileBuilding } from "./streaming-zip-writer.ts";
 
 export interface MetadataPdfSource {
     storageKey: string;
@@ -134,10 +130,6 @@ export interface DossierMetadataExportBundle {
     pdfFiles: MetadataExportPdfFile[];
 }
 
-// collectMetadataExportEntries removed as we use folder layout for all
-
-// Deprecated flat structure export functions removed
-
 export interface FolderDossierPdfBundle {
     /** Nested ZIP folder path preserving warehouse hierarchy (e.g. A/B/HoSo). */
     dossierFolderName: string;
@@ -151,6 +143,31 @@ export interface FolderDossierPdfBundle {
     tiffFiles?: MetadataExportPdfFile[];
 }
 
+/** Resolve unique folder prefix under PDF/ and TIFF/ for one dossier. */
+export function resolveMetadataExportFolderPrefix(
+    bundle: Pick<
+        FolderDossierPdfBundle,
+        | "dossierFolderName"
+        | "zipFolderPath"
+        | "relativeFolderPath"
+        | "baseFolderName"
+    >,
+    usedFolderNames: Set<string>,
+): string {
+    if (bundle.baseFolderName && bundle.relativeFolderPath !== undefined) {
+        const cleanBase = sanitizeFolderPathForZip(bundle.baseFolderName);
+        const cleanRel = sanitizeFolderPathForZip(bundle.relativeFolderPath);
+        return uniqueZipFolderPath(
+            cleanRel ? `${cleanBase}/${cleanRel}` : cleanBase,
+            usedFolderNames,
+        );
+    }
+    return uniqueZipFolderPath(
+        bundle.zipFolderPath || bundle.dossierFolderName,
+        usedFolderNames,
+    );
+}
+
 export function collectFolderMetadataExportEntries(input: {
     excelFileName: string;
     excelBuffer: Uint8Array;
@@ -161,20 +178,10 @@ export function collectFolderMetadataExportEntries(input: {
     ];
     const usedFolderNames = new Set<string>();
     for (const bundle of input.dossierPdfBundles) {
-        let folderPrefix: string;
-        if (bundle.baseFolderName && bundle.relativeFolderPath !== undefined) {
-            const cleanBase = sanitizeFolderPathForZip(bundle.baseFolderName);
-            const cleanRel = sanitizeFolderPathForZip(bundle.relativeFolderPath);
-            folderPrefix = uniqueZipFolderPath(
-                cleanRel ? `${cleanBase}/${cleanRel}` : cleanBase,
-                usedFolderNames,
-            );
-        } else {
-            folderPrefix = uniqueZipFolderPath(
-                bundle.zipFolderPath || bundle.dossierFolderName,
-                usedFolderNames,
-            );
-        }
+        const folderPrefix = resolveMetadataExportFolderPrefix(
+            bundle,
+            usedFolderNames,
+        );
         const usedPdfNames = new Set<string>();
         const tiffFiles = bundle.tiffFiles ?? [];
         for (let i = 0; i < bundle.pdfFiles.length; i++) {
@@ -204,18 +211,6 @@ export function collectFolderMetadataExportEntries(input: {
     return entries;
 }
 
-function buildFolderMetadataExportJsZip(input: {
-    excelFileName: string;
-    excelBuffer: Uint8Array;
-    dossierPdfBundles: FolderDossierPdfBundle[];
-}): JSZip {
-    const zip = new JSZip();
-    for (const entry of collectFolderMetadataExportEntries(input)) {
-        zip.file(entry.name, entry.data);
-    }
-    return zip;
-}
-
 /** ZIP: Excel at root + parallel PDF/ and TIFF/ trees preserving folder hierarchy. */
 export async function buildFolderMetadataExportZipStream(input: {
     excelFileName: string;
@@ -223,13 +218,39 @@ export async function buildFolderMetadataExportZipStream(input: {
     dossierPdfBundles: FolderDossierPdfBundle[];
     password?: string;
 }): Promise<ReadableStream<Uint8Array>> {
-    if (input.password?.trim()) {
-        return await encryptedZipEntriesToReadableStream(
-            collectFolderMetadataExportEntries(input),
-            input.password,
-        );
-    }
-    return jszipToReadableStream(buildFolderMetadataExportJsZip(input));
+    const entries = collectFolderMetadataExportEntries(input);
+    return streamZipWhileBuilding(
+        async (zip) => {
+            for (const entry of entries) {
+                await zip.add(entry.name, entry.data);
+                entry.data = new Uint8Array(0);
+            }
+        },
+        { password: input.password },
+    );
+}
+
+/**
+ * Build metadata export ZIP while processing dossiers via `appendDossier`.
+ * Excel is written first; caller adds PDF/TIFF entries one file at a time.
+ */
+export function buildFolderMetadataExportZipStreamIncremental(input: {
+    excelFileName: string;
+    excelBuffer: Uint8Array;
+    password?: string;
+    build: (
+        add: (name: string, data: Uint8Array) => Promise<void>,
+        usedFolderNames: Set<string>,
+    ) => Promise<void>;
+}): ReadableStream<Uint8Array> {
+    const usedFolderNames = new Set<string>();
+    return streamZipWhileBuilding(
+        async (zip) => {
+            await zip.add(input.excelFileName, input.excelBuffer);
+            await input.build(zip.add.bind(zip), usedFolderNames);
+        },
+        { password: input.password },
+    );
 }
 
 export async function buildFolderMetadataExportZip(input: {
@@ -242,3 +263,5 @@ export async function buildFolderMetadataExportZip(input: {
         await buildFolderMetadataExportZipStream(input),
     );
 }
+
+export { uniqueZipEntryName };

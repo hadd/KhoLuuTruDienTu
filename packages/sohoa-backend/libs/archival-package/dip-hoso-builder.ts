@@ -6,11 +6,11 @@ import {
 } from "./aip-path-utils.ts";
 import type { PackageBuildInput, PackageBuildResult } from "./package-types.ts";
 import { encodeUtf8, uniqueZipEntryName, sanitizeFolderPathForZip } from "./zip-utils.ts";
-import { encryptedZipEntriesToReadableStream } from "../encrypted-zip-stream.ts";
 import {
     jszipToReadableStream,
     readableStreamToUint8Array,
 } from "../jszip-stream.ts";
+import { streamZipWhileBuilding } from "../streaming-zip-writer.ts";
 
 function resolvePackageZipFolderPath(input: PackageBuildInput): string {
     return input.zipFolderPath?.trim() || input.hoSoId;
@@ -31,7 +31,7 @@ function resolvePackageZipFolderPath(input: PackageBuildInput): string {
  *     documents/
  *       file.pdf
  */
-function collectSingleDipEntries(
+export function collectSingleDipEntries(
     input: PackageBuildInput,
     outerFolder = "",
     xmlAtRoot = false,
@@ -131,9 +131,50 @@ export type DipZipStreamResult = {
 };
 
 /**
- * Incrementally add packages into one JSZip then return a streaming response body.
+ * Stream DIP ZIP while packages are produced one-by-one via `build`.
+ * Each package's PDF buffers are cleared after being added to the ZIP.
+ */
+export function buildDipExportZipStreamIncremental(input: {
+    password?: string;
+    filename: string;
+    exportedCount: number;
+    build: (
+        addPackage: (
+            pkg: PackageBuildInput,
+            options?: { outerFolder?: string; xmlAtRoot?: boolean },
+        ) => Promise<void>,
+        usedFolderNames: Set<string>,
+    ) => Promise<void>;
+}): DipZipStreamResult {
+    const usedFolderNames = new Set<string>();
+    const stream = streamZipWhileBuilding(
+        async (zip) => {
+            await input.build(async (pkg, options) => {
+                const entries = collectSingleDipEntries(
+                    pkg,
+                    options?.outerFolder ?? "",
+                    options?.xmlAtRoot ?? false,
+                );
+                for (const entry of entries) {
+                    await zip.add(entry.name, entry.data);
+                    entry.data = new Uint8Array(0);
+                }
+            }, usedFolderNames);
+        },
+        { password: input.password },
+    );
+
+    return {
+        stream,
+        filename: input.filename,
+        contentType: "application/zip",
+        exportedCount: input.exportedCount,
+    };
+}
+
+/**
+ * Incrementally add packages into one streaming ZIP.
  * Mutates inputs (clears pdf data after each append) to free RAM early.
- * When password is set, builds AES-encrypted ZIP via @zip.js/zip.js.
  *
  * Cấu trúc ZIP:
  *   Xuất folder: hoso.xml ở root + <folderName>/<relPath>/<file>.pdf
@@ -144,70 +185,44 @@ export async function buildDipExportZipStream(
     packages: PackageBuildInput[],
     password?: string,
 ): Promise<DipZipStreamResult> {
-    if (password?.trim()) {
-        const entries: Array<{ name: string; data: Uint8Array }> = [];
-        if (packages.length === 1) {
-            const only = packages[0]!;
-            entries.push(...collectSingleDipEntries(only, "", Boolean(only.folderName)));
-            const zipFileName = only.folderName
-                ? resolveDipZipFileName(only.folderName)
-                : resolveDipZipFileName(only.hoSoId);
-            return {
-                stream: await encryptedZipEntriesToReadableStream(entries, password),
-                filename: zipFileName,
-                contentType: "application/zip",
-                exportedCount: 1,
-            };
-        }
-
-        const usedFolderNames = new Set<string>();
-        const isFolderExport = Boolean(packages[0]?.folderName);
-        for (const input of packages) {
-            const outerFolder = isFolderExport
-                ? ""
-                : uniqueZipFolderPath(resolvePackageZipFolderPath(input), usedFolderNames);
-            entries.push(...collectSingleDipEntries(input, outerFolder));
-        }
-        const commonFolderName = packages[0]?.folderName;
-        return {
-            stream: await encryptedZipEntriesToReadableStream(entries, password),
-            filename: commonFolderName ? resolveDipZipFileName(commonFolderName) : "multi-dip-export.zip",
-            contentType: "application/zip",
-            exportedCount: packages.length,
-        };
+    if (packages.length === 0) {
+        throw new Error("At least one DIP package is required");
     }
 
-    const zip = new JSZip();
-
-    if (packages.length === 1) {
-        const only = packages[0]!;
-        appendSingleDipToZip(zip, only, "", Boolean(only.folderName));
-        const zipFileName = only.folderName
+    const only = packages[0]!;
+    const isFolderExport = Boolean(only.folderName);
+    const filename = packages.length === 1
+        ? (only.folderName
             ? resolveDipZipFileName(only.folderName)
-            : resolveDipZipFileName(only.hoSoId);
-        return {
-            stream: jszipToReadableStream(zip),
-            filename: zipFileName,
-            contentType: "application/zip",
-            exportedCount: 1,
-        };
-    }
+            : resolveDipZipFileName(only.hoSoId))
+        : (only.folderName
+            ? resolveDipZipFileName(only.folderName)
+            : "multi-dip-export.zip");
 
-    const usedFolderNames = new Set<string>();
-    const isFolderExport = Boolean(packages[0]?.folderName);
-    for (const input of packages) {
-        const outerFolder = isFolderExport
-            ? ""
-            : uniqueZipFolderPath(resolvePackageZipFolderPath(input), usedFolderNames);
-        appendSingleDipToZip(zip, input, outerFolder);
-    }
-    const commonFolderName = packages[0]?.folderName;
-    return {
-        stream: jszipToReadableStream(zip),
-        filename: commonFolderName ? resolveDipZipFileName(commonFolderName) : "multi-dip-export.zip",
-        contentType: "application/zip",
+    return buildDipExportZipStreamIncremental({
+        password,
+        filename,
         exportedCount: packages.length,
-    };
+        build: async (addPackage, usedFolderNames) => {
+            if (packages.length === 1) {
+                await addPackage(only, {
+                    outerFolder: "",
+                    xmlAtRoot: Boolean(only.folderName),
+                });
+                return;
+            }
+
+            for (const input of packages) {
+                const outerFolder = isFolderExport
+                    ? ""
+                    : uniqueZipFolderPath(
+                        resolvePackageZipFolderPath(input),
+                        usedFolderNames,
+                    );
+                await addPackage(input, { outerFolder });
+            }
+        },
+    });
 }
 
 /** Add one DIP package into an existing multi-dossier ZIP (folder per path/hoSoId). */

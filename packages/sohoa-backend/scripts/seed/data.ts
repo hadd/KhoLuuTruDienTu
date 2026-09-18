@@ -243,6 +243,7 @@ export const ROLE_DEFINITIONS = [
         "dossiers.write",
         "dossiers.assign",
         "dossiers.export",
+        "dossiers.export_any_status",
         "dossiers.sign",
         "dossiers.direct_approve",
         "dossiers.metadata.summary.edit",
