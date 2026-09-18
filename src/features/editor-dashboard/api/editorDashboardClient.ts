@@ -60,6 +60,7 @@ export const getEditorDashboard = async (
   const response = await apiClient.get<
     EditorDashboardRawT | SingleResourceResponse<EditorDashboardRawT>
   >('/api/v1/dashboard/editor', {
+    timeout: 90_000,
     params: { period },
   })
 
