@@ -44,6 +44,7 @@ const metadataExportBodySchema = t.Object({
   placementId: t.Optional(t.String({ format: "uuid" })),
   applyWatermark: t.Optional(t.Boolean()),
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
+  useDocumentNaming: t.Optional(t.Boolean()),
 });
 
 const multiFolderMetadataExportBodySchema = t.Object({
@@ -53,6 +54,7 @@ const multiFolderMetadataExportBodySchema = t.Object({
   placementId: t.Optional(t.String({ format: "uuid" })),
   applyWatermark: t.Optional(t.Boolean()),
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
+  useDocumentNaming: t.Optional(t.Boolean()),
 });
 
 async function assertSecurityDownloadForFolders(
@@ -133,6 +135,34 @@ export function createFolderRouter(basePath: string = "/folders") {
         summary: "List root folders",
         description:
           "Returns root folders (parentId is null). Requires folder browse permission (folders.browse_all or folders.browse_assigned). Optional projectCode filters by project; browse_assigned callers must manage that project.",
+      },
+    },
+  );
+
+  app.get(
+    "/search-tree",
+    async ({ urlQuery, profile, query }) => {
+      authHelper.checkPermissionAny(profile, [
+        Permission.FOLDERS_BROWSE_ALL,
+        Permission.FOLDERS_BROWSE_ASSIGNED,
+      ]);
+      const scope = await resolveFolderBrowseScope(
+        profile,
+        urlQuery.projectCode,
+      );
+      if (!query.q) {
+        return await service.listAllParents(scope);
+      }
+      return await service.searchTree(query.q, scope);
+    },
+    {
+      query: t.Object({
+        q: t.Optional(t.String()),
+      }),
+      detail: {
+        tags,
+        summary: "Search and return partial tree",
+        description: "Returns a partial tree of folders, dossiers, and files matching the search query.",
       },
     },
   );
@@ -396,6 +426,7 @@ export function createFolderRouter(basePath: string = "/folders") {
               userId: profile.id,
               dossierAccessPassword: query.dossierAccessPassword,
               skippedFileIds,
+              useDocumentNaming: query.useDocumentNaming === true,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {
@@ -410,6 +441,7 @@ export function createFolderRouter(basePath: string = "/folders") {
         dossierAccessPassword: t.Optional(
           t.String({ minLength: 1, maxLength: 128 }),
         ),
+        useDocumentNaming: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,

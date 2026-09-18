@@ -5,7 +5,9 @@ import {
     resolveAipObjectKey,
     resolveAipZipFileName,
     resolveDipZipFileName,
+    resolveExportZipRelativePath,
     resolveHoSoId,
+    uniqueZipFolderPath,
 } from "../libs/archival-package/aip-path-utils.ts";
 import { buildAipHosoPackage } from "../libs/archival-package/aip-hoso-builder.ts";
 import { buildDipHosoPackage, buildMultiDipHosoZip } from "../libs/archival-package/dip-hoso-builder.ts";
@@ -144,6 +146,34 @@ Deno.test("buildDipHosoPackage produces zip", async () => {
     assertEquals(result.buffer.length > 50, true);
 });
 
+Deno.test("resolveExportZipRelativePath strips raw prefix and keeps parents", () => {
+    assertEquals(
+        resolveExportZipRelativePath("raw/ProjectA/Batch1/HoSoX", "fallback"),
+        "ProjectA/Batch1/HoSoX",
+    );
+    assertEquals(
+        resolveExportZipRelativePath("raw/Batch1/HoSoX", "fallback"),
+        "Batch1/HoSoX",
+    );
+    assertEquals(resolveExportZipRelativePath("raw", "fallback"), "fallback");
+    assertEquals(
+        resolveExportZipRelativePath("ProjectA/HoSoX", "fallback"),
+        "ProjectA/HoSoX",
+    );
+});
+
+Deno.test("uniqueZipFolderPath keeps nested segments and uniquifies leaf", () => {
+    const used = new Set<string>();
+    assertEquals(
+        uniqueZipFolderPath("ProjectA/Batch1/HoSo", used),
+        "ProjectA/Batch1/HoSo",
+    );
+    assertEquals(
+        uniqueZipFolderPath("ProjectA/Batch1/HoSo", used),
+        "ProjectA/Batch1/HoSo (2)",
+    );
+});
+
 Deno.test("buildMultiDipHosoZip nests each dossier under its hoSoId folder", async () => {
     const pdfData = new TextEncoder().encode("%PDF-1.4 fake");
     const metaA = sampleMetadata();
@@ -161,6 +191,33 @@ Deno.test("buildMultiDipHosoZip nests each dossier under its hoSoId folder", asy
     assertEquals(names.includes("185_CD/documents/a.pdf"), true);
     assertEquals(names.includes("186_CD/hoso.xml"), true);
     assertEquals(names.includes("186_CD/documents/b.pdf"), true);
+});
+
+Deno.test("buildMultiDipHosoZip preserves zipFolderPath hierarchy", async () => {
+    const pdfData = new TextEncoder().encode("%PDF-1.4 fake");
+    const metaA = sampleMetadata();
+    const metaB = { ...sampleMetadata(), ho_so_id: "186_CD" };
+    const result = await buildMultiDipHosoZip([
+        {
+            metadata: metaA,
+            hoSoId: "185_CD",
+            zipFolderPath: "ProjectA/Batch1/185_CD",
+            pdfFiles: [{ fileName: "a.pdf", data: pdfData }],
+        },
+        {
+            metadata: metaB,
+            hoSoId: "186_CD",
+            zipFolderPath: "ProjectA/Batch2/186_CD",
+            pdfFiles: [{ fileName: "b.pdf", data: pdfData }],
+        },
+    ]);
+
+    const zip = await JSZip.loadAsync(result.buffer);
+    const names = Object.keys(zip.files).sort();
+    assertEquals(names.includes("ProjectA/Batch1/185_CD/hoso.xml"), true);
+    assertEquals(names.includes("ProjectA/Batch1/185_CD/documents/a.pdf"), true);
+    assertEquals(names.includes("ProjectA/Batch2/186_CD/hoso.xml"), true);
+    assertEquals(names.includes("ProjectA/Batch2/186_CD/documents/b.pdf"), true);
 });
 
 Deno.test("sanitizeMetadataHeaders encodes non-ASCII Vietnamese values to safe ASCII strings", () => {

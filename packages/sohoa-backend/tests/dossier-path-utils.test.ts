@@ -12,6 +12,7 @@ import {
     toDocJsonDataLakePrefix,
     toProcessedMetadataKey,
     toTt05MetadataKey,
+    toTuyenQuangMetadataKey,
     toSearchablePdfKey,
     isCanonicalOcrOutputKey,
 } from "../modules/dossier/dossier-path-utils.ts";
@@ -73,6 +74,14 @@ Deno.test("toTt05MetadataKey mirrors raw folder to nested tt05_metadata json", (
     assertEquals(toTt05MetadataKey("imports/a/ho-so"), null);
 });
 
+Deno.test("toTuyenQuangMetadataKey mirrors raw folder to nested tuyen_quang_metadata json", () => {
+    assertEquals(
+        toTuyenQuangMetadataKey("raw/batch-1/ho-so-123"),
+        "tuyen_quang_metadata/batch-1/ho-so-123/ho-so-123.json",
+    );
+    assertEquals(toTuyenQuangMetadataKey("imports/a/ho-so"), null);
+});
+
 Deno.test("deriveFolderPathFromProcessedKey maps nested processed json to raw folder", () => {
     assertEquals(
         deriveFolderPathFromProcessedKey("processed/batch-1/ho-so-123/ho-so-123.json"),
@@ -126,6 +135,18 @@ Deno.test("isCanonicalOcrOutputKey accepts tt05_metadata canonical key", () => {
     assertEquals(isCanonicalOcrOutputKey(`/${base}`), true);
     assertEquals(
         isCanonicalOcrOutputKey("tt05_metadata/BO_HS2_3_CAI/HS2/HS2_EDITOR.json"),
+        false,
+    );
+});
+
+Deno.test("isCanonicalOcrOutputKey accepts tuyen_quang_metadata canonical key", () => {
+    const base = "tuyen_quang_metadata/BO_HS2_3_CAI/HS2/HS2.json";
+    assertEquals(isCanonicalOcrOutputKey(base), true);
+    assertEquals(isCanonicalOcrOutputKey(`/${base}`), true);
+    assertEquals(
+        isCanonicalOcrOutputKey(
+            "tuyen_quang_metadata/BO_HS2_3_CAI/HS2/HS2_EDITOR.json",
+        ),
         false,
     );
 });

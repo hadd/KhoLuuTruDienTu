@@ -57,6 +57,7 @@ const metadataExportBodySchema = t.Object({
   placementId: t.Optional(t.String({ format: "uuid" })),
   applyWatermark: t.Optional(t.Boolean()),
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
+  useDocumentNaming: t.Optional(t.Boolean()),
 });
 
 const multiDossierMetadataExportBodySchema = t.Object({
@@ -68,14 +69,18 @@ const multiDossierMetadataExportBodySchema = t.Object({
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
   /** When true, only validate access + ZIP password requirements (no ZIP body). */
   checkOnly: t.Optional(t.Boolean()),
+  useDocumentNaming: t.Optional(t.Boolean()),
 });
 
 const multiDipExportBodySchema = t.Object({
-  dossierIds: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
+  dossierIds: t.Array(t.String({ format: "uuid" }), { minItems: 0, default: [] }),
+  folderIds: t.Optional(t.Array(t.String({ format: "uuid" }))),
   placementId: t.Optional(t.String({ format: "uuid" })),
   applyWatermark: t.Optional(t.Boolean()),
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
   checkOnly: t.Optional(t.Boolean()),
+  baseFolderId: t.Optional(t.String({ format: "uuid" })),
+  useDocumentNaming: t.Optional(t.Boolean()),
 });
 
 async function assertSecurityDownload(
@@ -421,11 +426,23 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.post(
     "/dip/export",
     async ({ body, profile, request }) => {
+      // Resolve folderIds into dossierIds before any security checks
+      const allInputIds = [
+        ...(body.dossierIds ?? []),
+        ...(body.folderIds ?? []),
+      ];
+      if (allInputIds.length === 0) {
+        throw httpError.badRequest("Cần ít nhất một hồ sơ hoặc thư mục.");
+      }
+
+      // Resolve folder IDs into actual dossier IDs (recursive subtree)
+      const resolvedDossierIds = await service.resolveInputIdsToDossierIds(allInputIds);
+
       let bypassSecurity = false;
-      if (body.dossierIds.length > 0) {
+      if (resolvedDossierIds.length > 0) {
         const records = await db.select({ status: dossiers.status })
           .from(dossiers)
-          .where(inArray(dossiers.id, body.dossierIds));
+          .where(inArray(dossiers.id, resolvedDossierIds));
         if (records.length > 0 && records.every(r => r.status === DossierStatus.APPROVED)) {
           bypassSecurity = true;
         }
@@ -445,7 +462,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         const sec = await assertSecurityDownload(
           profile,
           request,
-          body.dossierIds,
+          resolvedDossierIds,
         );
         applyWatermark = sec.applyWatermark;
         skippedFileIds = sec.skippedFileIds;
@@ -462,7 +479,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         }
         const check = await checkExportZipRequirements(
           profile,
-          body.dossierIds,
+          resolvedDossierIds,
           body.dossierAccessPassword,
         );
         return { ...check, applyWatermark };
@@ -475,18 +492,20 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             userId: profile.id,
             exportType: "dip",
             scope: "batch",
-            resourceIds: { dossierIds: body.dossierIds },
+            resourceIds: { dossierIds: resolvedDossierIds },
             applyWatermark,
             placementId: body.placementId,
             ...meta,
           },
           () =>
-            service.exportDipHosoBatch(body.dossierIds, {
+            service.exportDipHosoBatch(resolvedDossierIds, {
               placementId: body.placementId,
               applyWatermark,
               userId: profile.id,
               dossierAccessPassword: body.dossierAccessPassword,
               skippedFileIds,
+              baseFolderId: body.baseFolderId,
+              useDocumentNaming: body.useDocumentNaming === true,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {
@@ -720,6 +739,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
               userId: profile.id,
               dossierAccessPassword: query.dossierAccessPassword,
               skippedFileIds,
+              useDocumentNaming: query.useDocumentNaming === true,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {
@@ -734,6 +754,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         dossierAccessPassword: t.Optional(
           t.String({ minLength: 1, maxLength: 128 }),
         ),
+        useDocumentNaming: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,
@@ -880,6 +901,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
+              useDocumentNaming: query.useDocumentNaming === true,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {
@@ -891,6 +913,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
       query: t.Object({
         placementId: t.Optional(t.String({ format: "uuid" })),
         applyWatermark: t.Optional(t.Boolean()),
+        useDocumentNaming: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,

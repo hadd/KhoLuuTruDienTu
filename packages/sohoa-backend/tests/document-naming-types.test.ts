@@ -55,7 +55,7 @@ Deno.test("buildDocumentNamePreview - generates full file name according to user
     const result = buildDocumentNamePreview({
         segments,
         fond: { id: "11" },
-        metadataMap: {
+        metadataValues: {
             "HO_SO_LUU_TRU.MUC_LUC_SO": "7",
             "HO_SO_LUU_TRU.MA_HO_SO": "123",
             "TAI_LIEU_LUU_TRU.TEN_LOAI_TAI_LIEU": "BC",
@@ -75,7 +75,7 @@ Deno.test("buildDocumentNamePreview - handles ĐVBQ with suffix a, b (e.g. 123a 
 
     const result = buildDocumentNamePreview({
         segments,
-        metadataMap: {
+        metadataValues: {
             "HO_SO_LUU_TRU.MA_HO_SO": "123a",
         },
     });

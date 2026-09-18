@@ -51,7 +51,7 @@ export function createMetadataExtractRouter(basePath: string = "/metadata") {
                     tags,
                     summary: "Update system-wide metadata extract mode",
                     description:
-                        "Applies to every dossier after merge-finished-wait (old / tt05 / off).",
+                        "Applies to every dossier after merge-finished-wait (old / tt05 / pvep / tuyen-quang / off).",
                 },
             },
         )
@@ -78,7 +78,7 @@ export function createMetadataExtractRouter(basePath: string = "/metadata") {
                     tags,
                     summary: "Trigger metadata extract (manual / re-extract)",
                     description:
-                        "Publishes Kafka messages for old / tt05 / both. Independent of OCR manual trigger.",
+                        "Publishes Kafka messages for old / tt05 / pvep / tuyen-quang / both. Independent of OCR manual trigger.",
                 },
             },
         );

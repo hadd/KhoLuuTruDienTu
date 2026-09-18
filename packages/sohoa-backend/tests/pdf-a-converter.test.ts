@@ -1,6 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { PDFDocument } from "pdf-lib";
-import { convertToPdfA } from "../libs/pdf-a/pdf-a-converter.ts";
+import { convertToPdfA, convertBatchToPdfA } from "../libs/pdf-a/pdf-a-converter.ts";
 
 async function makeSamplePdf(): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
@@ -30,4 +30,30 @@ Deno.test("convertToPdfA converts standard PDF into PDF/A-2b with MarkInfo and V
   // 3. Verify XMP Metadata pdfaid:part=2
   assertEquals(rawText.includes("<pdfaid:part>2</pdfaid:part>"), true);
   assertEquals(rawText.includes("<pdfaid:conformance>B</pdfaid:conformance>"), true);
+});
+
+Deno.test("convertBatchToPdfA leaves preserveSignature files unchanged", async () => {
+  const signedBytes = await makeSamplePdf();
+  const unsignedBytes = await makeSamplePdf();
+
+  const result = await convertBatchToPdfA([
+    {
+      fileName: "signed.pdf",
+      data: signedBytes,
+      preserveSignature: true,
+    },
+    {
+      fileName: "unsigned.pdf",
+      data: unsignedBytes,
+    },
+  ]);
+
+  assertEquals(result.length, 2);
+  assertEquals(result[0]!.data, signedBytes);
+  assertEquals(result[0]!.preserveSignature, true);
+  assertEquals(result[1]!.data === unsignedBytes, false);
+  assertEquals(
+    new TextDecoder("utf-8").decode(result[1]!.data).includes("<pdfaid:part>2</pdfaid:part>"),
+    true,
+  );
 });

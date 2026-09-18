@@ -43,6 +43,13 @@
       "when": 1788491943604,
       "tag": "0005_solid_thena",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789390000000,
+      "tag": "0006_page_quota",
+      "breakpoints": true
     }
   ]
 }

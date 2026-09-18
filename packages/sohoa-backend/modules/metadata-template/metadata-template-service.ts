@@ -12,8 +12,10 @@ import { downloadJsonFromStorage } from "../data-entry/data-entry-s3-utils.ts";
 import {
     enrichFieldCatalogWithGroupNames,
     extractFieldCatalog,
+    mergeFieldCatalogs,
     parseFieldCatalog,
     serializeFieldCatalog,
+    type MetadataFieldCatalogEntry,
 } from "../../libs/metadata-template.ts";
 import { isDossierMetadata } from "../../libs/metadata-types.ts";
 import { upsertDocumentTypesFromMetadata } from "../../libs/document-type-sync.ts";
@@ -28,6 +30,55 @@ async function loadOcrMetadata(ocrMetadataKey: string) {
 
 function fieldCatalogNeedsGroupName(catalog: ReturnType<typeof parseFieldCatalog>) {
     return catalog.some((entry) => !entry.groupName);
+}
+
+function catalogHasNewKeys(
+    stored: MetadataFieldCatalogEntry[],
+    merged: MetadataFieldCatalogEntry[],
+): boolean {
+    if (merged.length <= stored.length) return false;
+    const storedKeys = new Set(stored.map((entry) => entry.key));
+    return merged.some((entry) => !storedKeys.has(entry.key));
+}
+
+async function refreshFieldCatalogFromSourceOcr(input: {
+    templateId: string;
+    storedCatalog: MetadataFieldCatalogEntry[];
+    ocrMetadataKey: string | null | undefined;
+    persist: boolean;
+}): Promise<{
+    fieldCatalog: MetadataFieldCatalogEntry[];
+    metadata: Awaited<ReturnType<typeof loadOcrMetadata>>;
+}> {
+    const { templateId, storedCatalog, ocrMetadataKey, persist } = input;
+    if (!ocrMetadataKey) {
+        return { fieldCatalog: storedCatalog, metadata: null };
+    }
+
+    const metadata = await loadOcrMetadata(ocrMetadataKey);
+    if (!metadata) {
+        return { fieldCatalog: storedCatalog, metadata: null };
+    }
+
+    const liveCatalog = extractFieldCatalog(metadata);
+    const merged = mergeFieldCatalogs(storedCatalog, liveCatalog);
+
+    if (persist && catalogHasNewKeys(storedCatalog, merged)) {
+        await db
+            .update(metadataTemplates)
+            .set({
+                fieldCatalog: serializeFieldCatalog(merged),
+                updatedAt: new Date(),
+            })
+            .where(
+                and(
+                    eq(metadataTemplates.id, templateId),
+                    isNull(metadataTemplates.deletedAt),
+                ),
+            );
+    }
+
+    return { fieldCatalog: merged, metadata };
 }
 
 const OCR_READY_STATUSES = [
@@ -108,7 +159,29 @@ export const MetadataTemplateService = {
             where: isNull(metadataTemplates.deletedAt),
             orderBy: [desc(metadataTemplates.updatedAt)],
         });
-        return rows.map(mapTemplate);
+
+        return await Promise.all(
+            rows.map(async (row) => {
+                const storedCatalog = parseFieldCatalog(row.fieldCatalog);
+                const { fieldCatalog } = await refreshFieldCatalogFromSourceOcr({
+                    templateId: row.id,
+                    storedCatalog,
+                    ocrMetadataKey: row.sourceOcrMetadataKey,
+                    persist: true,
+                });
+                return {
+                    id: row.id,
+                    name: row.name,
+                    description: row.description,
+                    sourceDossierId: row.sourceDossierId,
+                    sourceOcrMetadataKey: row.sourceOcrMetadataKey,
+                    fieldCatalog,
+                    isActive: row.isActive,
+                    createdAt: row.createdAt,
+                    updatedAt: row.updatedAt,
+                };
+            }),
+        );
     },
 
     async get(id: string) {
@@ -127,7 +200,18 @@ export const MetadataTemplateService = {
             throw httpError.notFound("Metadata template not found");
         }
 
-        let fieldCatalog = parseFieldCatalog(row.fieldCatalog);
+        const storedCatalog = parseFieldCatalog(row.fieldCatalog);
+        const ocrKey =
+            row.sourceDossier?.ocrMetadataKey ?? row.sourceOcrMetadataKey;
+        const { fieldCatalog: mergedCatalog, metadata } =
+            await refreshFieldCatalogFromSourceOcr({
+                templateId: row.id,
+                storedCatalog,
+                ocrMetadataKey: ocrKey,
+                persist: true,
+            });
+
+        let fieldCatalog = mergedCatalog;
         const codes = [...new Set(fieldCatalog.map((e) => e.groupCode).filter(Boolean))];
         let catalogNameByCode: Map<string, string> | undefined;
         if (codes.length > 0) {
@@ -140,16 +224,13 @@ export const MetadataTemplateService = {
 
         if (
             (fieldCatalogNeedsGroupName(fieldCatalog) || catalogNameByCode?.size) &&
-            row.sourceDossier?.ocrMetadataKey
+            metadata
         ) {
-            const metadata = await loadOcrMetadata(row.sourceDossier.ocrMetadataKey);
-            if (metadata) {
-                fieldCatalog = enrichFieldCatalogWithGroupNames(
-                    fieldCatalog,
-                    metadata,
-                    catalogNameByCode,
-                );
-            }
+            fieldCatalog = enrichFieldCatalogWithGroupNames(
+                fieldCatalog,
+                metadata,
+                catalogNameByCode,
+            );
         } else if (catalogNameByCode?.size) {
             fieldCatalog = fieldCatalog.map((entry) => ({
                 ...entry,

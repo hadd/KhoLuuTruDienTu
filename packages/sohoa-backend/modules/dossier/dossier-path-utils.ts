@@ -7,10 +7,13 @@ export const PROCESSED_STORAGE_PREFIX = "processed";
 export const TT05_METADATA_STORAGE_PREFIX = "tt05_metadata";
 /** PVEP metadata worker output root (parallel to processed/). */
 export const PVEP_METADATA_STORAGE_PREFIX = "pvep_metadata";
+/** Tuyên Quang metadata worker output root (parallel to processed/). */
+export const TUYEN_QUANG_METADATA_STORAGE_PREFIX = "tuyen_quang_metadata";
 export const METADATA_OUTPUT_STORAGE_PREFIXES = [
     PROCESSED_STORAGE_PREFIX,
     TT05_METADATA_STORAGE_PREFIX,
     PVEP_METADATA_STORAGE_PREFIX,
+    TUYEN_QUANG_METADATA_STORAGE_PREFIX,
 ] as const;
 export type MetadataOutputStoragePrefix =
     (typeof METADATA_OUTPUT_STORAGE_PREFIXES)[number];
@@ -226,6 +229,14 @@ export function toPvepMetadataKey(folderPath: string): string | null {
 }
 
 /**
+ * Mirror a raw/ folder path to Tuyên Quang metadata key.
+ * raw/<root>/<ho_so_id> -> tuyen_quang_metadata/<root>/<ho_so_id>/<ho_so_id>.json
+ */
+export function toTuyenQuangMetadataKey(folderPath: string): string | null {
+    return toMetadataOutputKey(folderPath, TUYEN_QUANG_METADATA_STORAGE_PREFIX);
+}
+
+/**
  * Derive raw folderPath from metadata output key (processed/ or tt05_metadata/).
  * processed|tt05_metadata/<root>/<ho_so_id>/<ho_so_id>.json -> raw/<root>/<ho_so_id>
  */
@@ -261,4 +272,49 @@ export function isCanonicalOcrOutputKey(outputPath: string): boolean {
         return false;
     }
     return normalized === expected;
+}
+
+function stripRawPrefix(path: string): string {
+  const normalized = normalizeStorageKey(path).replace(/^\/+|\/+$/g, "");
+  const rawPrefix = resolveRawStoragePrefix();
+  if (normalized === rawPrefix) return "";
+  if (normalized.startsWith(`${rawPrefix}/`)) {
+    return normalized.slice(rawPrefix.length + 1);
+  }
+  return normalized;
+}
+
+/** True when `path` equals `prefix` or is a child path under `prefix/` (segment-safe). */
+function isPathPrefixOrEqual(path: string, prefix: string): boolean {
+  if (!prefix) return true;
+  if (path === prefix) return true;
+  return path.startsWith(`${prefix}/`);
+}
+
+export function computeRelativeFolderPath(
+  dossierPath: string | null | undefined,
+  basePath: string | undefined,
+  baseFolderName: string | undefined
+): string | undefined {
+  if (!dossierPath) return undefined;
+  if (!basePath) return undefined;
+
+  const rel = stripRawPrefix(dossierPath);
+  const base = stripRawPrefix(basePath);
+
+  if (isPathPrefixOrEqual(rel, base)) {
+    if (rel === base) return "";
+    return rel.slice(base.length + 1);
+  }
+
+  // Fallback: locate selected folder name as a full path segment (not a substring).
+  if (baseFolderName) {
+    const segments = rel.split("/").filter(Boolean);
+    const idx = segments.lastIndexOf(baseFolderName);
+    if (idx >= 0) {
+      return segments.slice(idx + 1).join("/");
+    }
+  }
+
+  return rel;
 }

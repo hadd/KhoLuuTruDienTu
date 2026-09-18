@@ -1,6 +1,17 @@
-import { normalizeFieldDisplay, normalizeFieldName } from "./metadata-field-filter.ts";
+import {
+    metadataFieldNamesMatch,
+    normalizeFieldDisplay,
+    normalizeFieldName,
+} from "./metadata-field-filter.ts";
+import {
+    canonicalMetadataFieldName,
+    resolveCatalogGroupAliasCodes,
+} from "./metadata-normalize.ts";
 import type { DossierMetadata, MetadataGroup } from "./metadata-types.ts";
-import type { MetadataExportColumnConfig, MetadataExportFieldCatalogItem } from "./metadata-export-types.ts";
+import type {
+    MetadataExportColumnConfig,
+    MetadataExportFieldCatalogItem,
+} from "./metadata-export-types.ts";
 import {
     createExportSttColumn,
     isExportSttColumn,
@@ -8,10 +19,178 @@ import {
 
 const INSTANCE_JOIN_SEPARATOR = "\n";
 
+export type ExportFileKind = "bia" | "mucluc" | "document" | "chung_tu_ket_thuc";
+
+export interface ExportDossierFileInput {
+    fileName: string;
+    filePath: string;
+}
+
 export interface DossierFileItem {
     fileIndex: number;
+    kind: ExportFileKind;
     sourceDocument: { file_name: string | null; file_path: string | null };
     groups: MetadataGroup[];
+}
+
+export function isChungTuKetThuc(value: string | null | undefined): boolean {
+    if (!value) return false;
+    const clean = value
+        .trim()
+        .normalize("NFC")
+        .toUpperCase()
+        .replace(/\s+/g, " ");
+    return (
+        clean === "CHỨNG TỪ KẾT THÚC" ||
+        clean === "CHUNG TU KET THUC" ||
+        clean.startsWith("CHỨNG TỪ KẾT THÚC") ||
+        clean.startsWith("CHUNG TU KET THUC")
+    );
+}
+
+export function classifyExportFileKind(
+    fileName: string | null | undefined,
+    filePath?: string | null,
+    groupsOrFields?: MetadataGroup[] | Array<{ name: string; display?: string; value?: unknown }>,
+): ExportFileKind {
+    if (groupsOrFields && Array.isArray(groupsOrFields)) {
+        for (const item of groupsOrFields) {
+            if ("fields" in item && Array.isArray(item.fields)) {
+                for (const field of item.fields) {
+                    if (
+                        fieldMatchesKey(field.name, "TEN_LOAI_VAN_BAN") ||
+                        fieldMatchesKey(field.name, "TEN_LOAI_TAI_LIEU") ||
+                        (field.display && (
+                            fieldMatchesKey(field.display, "TEN_LOAI_VAN_BAN") ||
+                            fieldMatchesKey(field.display, "TEN_LOAI_TAI_LIEU")
+                        ))
+                    ) {
+                        if (isChungTuKetThuc(String(field.value ?? ""))) {
+                            return "chung_tu_ket_thuc";
+                        }
+                    }
+                }
+            } else if ("name" in item) {
+                const field = item as { name: string; display?: string; value?: unknown };
+                if (
+                    fieldMatchesKey(field.name, "TEN_LOAI_VAN_BAN") ||
+                    fieldMatchesKey(field.name, "TEN_LOAI_TAI_LIEU") ||
+                    (field.display && (
+                        fieldMatchesKey(field.display, "TEN_LOAI_VAN_BAN") ||
+                        fieldMatchesKey(field.display, "TEN_LOAI_TAI_LIEU")
+                    ))
+                ) {
+                    if (isChungTuKetThuc(String(field.value ?? ""))) {
+                        return "chung_tu_ket_thuc";
+                    }
+                }
+            }
+        }
+    }
+
+    const name = (fileName?.trim() || extractBasenameFromPath(filePath) || "").trim();
+    if (!name) return "document";
+    const stem = name.replace(/\.[^.]+$/, "");
+    const lastToken = stem.split(/[._-]/).filter(Boolean).at(-1)?.toUpperCase() ?? "";
+    if (lastToken === "BIA" || stem.toUpperCase() === "BIA") return "bia";
+    if (lastToken === "MUCLUC" || stem.toUpperCase() === "MUCLUC") return "mucluc";
+
+    const cleanToken = lastToken.replace(/[^A-Z]/g, "");
+    if (cleanToken === "CHUNGTUKETTHUC" || stem.toUpperCase().replace(/[^A-Z]/g, "") === "CHUNGTUKETTHUC") {
+        return "chung_tu_ket_thuc";
+    }
+
+    return "document";
+}
+
+function normalizeExportFileKey(
+    fileName: string | null | undefined,
+    filePath: string | null | undefined,
+): string {
+    const pathKey = (filePath ?? "").trim().replace(/\\/g, "/").toLowerCase();
+    if (pathKey) return pathKey;
+    return (fileName ?? "").trim().toLowerCase();
+}
+
+function isExportPathFieldKey(fieldKey: string): boolean {
+    return (
+        fieldKey === "__file_path" ||
+        fieldKey === "__file_name" ||
+        fieldKey === "__dossier_folder" ||
+        fieldKey.endsWith(".TEP_TIN_TAI_LIEU") ||
+        fieldKey.endsWith(".TEP_TIN_HO_SO")
+    );
+}
+
+function isHoSoFieldKey(fieldKey: string): boolean {
+    return (
+        fieldKey.startsWith("HO_SO_LUU_TRU.") ||
+        fieldKey.startsWith("PHONG_LUU_TRU.") ||
+        fieldKey === "__ho_so_id" ||
+        fieldKey === "__dossier_folder" ||
+        fieldKey === "__file_count" ||
+        fieldKey === "__stt" ||
+        fieldKey === "__row_number"
+    );
+}
+
+export function resolveDossierFolderPath(
+    metadata: DossierMetadata,
+    fileItem: DossierFileItem,
+    dossierFolderPath?: string | null,
+): string {
+    let folderPath = "";
+
+    if (dossierFolderPath?.trim()) {
+        folderPath = cleanFilePath(dossierFolderPath);
+    } else {
+        const fromHoSoId = metadata.ho_so_id?.trim();
+        if (fromHoSoId && /[/\\]/.test(fromHoSoId)) {
+            folderPath = cleanFilePath(fromHoSoId);
+        } else {
+            const filePath = fileItem.sourceDocument.file_path?.trim();
+            if (filePath) {
+                const cleaned = cleanFilePath(filePath).replace(/\\/g, "/");
+                const slashIdx = cleaned.lastIndexOf("/");
+                if (slashIdx > 0) {
+                    folderPath = cleaned.slice(0, slashIdx);
+                }
+            }
+        }
+    }
+
+    return extractBasenameFromPath(folderPath);
+}
+
+function resolveHoSoCoverSource(
+    hoSoGroup: MetadataGroup | undefined,
+): { file_name: string | null; file_path: string | null } | null {
+    if (!hoSoGroup) return null;
+
+    const fromSource = hoSoGroup.source_document;
+    if (fromSource?.file_path?.trim() || fromSource?.file_name?.trim()) {
+        return {
+            file_name: fromSource.file_name ?? null,
+            file_path: fromSource.file_path ?? null,
+        };
+    }
+
+    for (const field of hoSoGroup.fields ?? []) {
+        if (
+            !fieldMatchesKey(field.name, "TEP_TIN_HO_SO") &&
+            !fieldMatchesKey(field.display, "TEP_TIN_HO_SO")
+        ) {
+            continue;
+        }
+        const pathVal = field.value?.trim();
+        if (!pathVal) continue;
+        return {
+            file_name: extractBasenameFromPath(pathVal) || null,
+            file_path: pathVal,
+        };
+    }
+
+    return null;
 }
 
 export const TT05_DEFAULT_EXPORT_COLUMNS: MetadataExportColumnConfig[] = [
@@ -26,7 +205,7 @@ export const TT05_DEFAULT_EXPORT_COLUMNS: MetadataExportColumnConfig[] = [
     { header: "Thời hạn bảo quản", fieldKeys: ["HO_SO_LUU_TRU.THOI_HAN_LUU_TRU", "HO_SO_LUU_TRU.THOI_HAN_BAO_QUAN"], separator: "", headerColor: "FFFF00" },
     { header: "Thời gian bắt đầu", fieldKeys: ["HO_SO_LUU_TRU.THOI_GIAN_BAT_DAU"], separator: "", headerColor: "FFFF00" },
     { header: "Thời gian kết thúc", fieldKeys: ["HO_SO_LUU_TRU.THOI_GIAN_KET_THUC"], separator: "", headerColor: "FFFF00" },
-    { header: "Tổng số văn bản trong hồ sơ", fieldKeys: ["HO_SO_LUU_TRU.TONG_SO_VAN_BAN_TRONG_HO_SO", "HO_SO_LUU_TRU.TONG_SO_TAI_LIEU_TRONG_HO_SO", "HO_SO_LUU_TRU.TONG_SO_VAN_BAN", "__file_count"], separator: "", headerColor: "FFFF00" },
+    { header: "Tổng số văn bản trong hồ sơ", fieldKeys: ["HO_SO_LUU_TRU.TONG_SO_VAN_BAN_TRONG_HO_SO", "HO_SO_LUU_TRU.TONG_SO_TAI_LIEU_TRONG_HO_SO", "HO_SO_LUU_TRU.TONG_SO_VAN_BAN", "HO_SO_LUU_TRU.SO_TAI_LIEU", "__file_count"], separator: "", headerColor: "FFFF00" },
     { header: "Số lượng tờ", fieldKeys: ["HO_SO_LUU_TRU.SO_LUONG_TO"], separator: "", headerColor: "FFFF00" },
     { header: "Số lượng trang", fieldKeys: ["HO_SO_LUU_TRU.SO_LUONG_TRANG"], separator: "", headerColor: "FFFF00" },
     { header: "Số thứ tự văn bản trong hồ sơ", fieldKeys: ["TAI_LIEU_LUU_TRU.SO_THU_TU_VAN_BAN", "TAI_LIEU_LUU_TRU.STT_VAN_BAN", "TAI_LIEU_LUU_TRU.STT_VAN_BAN_TRONG_HO_SO", "__file_stt"], separator: "", headerColor: "FFFF00" },
@@ -61,9 +240,114 @@ const DOSSIER_HEADERS = new Set([
     "Thời gian bắt đầu",
     "Thời gian kết thúc",
     "Tổng số văn bản trong hồ sơ",
+    "Tổng số tài liệu trong hồ sơ",
     "Số lượng tờ",
     "Số lượng trang",
+    "Số tài liệu",
+    "Số Tài Liệu",
 ]);
+
+export function isDocumentIdentifierColumn(column: MetadataExportColumnConfig): boolean {
+    const header = (column.header ?? "").trim().toLowerCase();
+    if (
+        header.includes("mã định danh") ||
+        header.includes("ma dinh danh") ||
+        header === "mã tài liệu" ||
+        header === "ma tai lieu" ||
+        header === "mã văn bản" ||
+        header === "ma van ban"
+    ) {
+        return true;
+    }
+    return column.fieldKeys.some((k) =>
+        k === "TAI_LIEU_LUU_TRU.MA_DINH_DANH_TAI_LIEU" ||
+        k === "TAI_LIEU_LUU_TRU.MA_DINH_DANH_VAN_BAN" ||
+        k === "TAI_LIEU_LUU_TRU.MA_VAN_BAN" ||
+        k === "HO_SO_LUU_TRU.MA_DINH_DANH_VAN_BAN" ||
+        k === "__file_identifier"
+    );
+}
+
+export function isDocumentIdentifierFieldKey(fieldKey: string): boolean {
+    return (
+        fieldKey === "TAI_LIEU_LUU_TRU.MA_DINH_DANH_TAI_LIEU" ||
+        fieldKey === "TAI_LIEU_LUU_TRU.MA_DINH_DANH_VAN_BAN" ||
+        fieldKey === "TAI_LIEU_LUU_TRU.MA_VAN_BAN" ||
+        fieldKey === "HO_SO_LUU_TRU.MA_DINH_DANH_VAN_BAN" ||
+        fieldKey === "__file_identifier"
+    );
+}
+
+export function isSttFieldKey(fieldKey: string): boolean {
+    return (
+        fieldKey === "__row_number" ||
+        fieldKey === "__file_stt" ||
+        fieldKey === "TAI_LIEU_LUU_TRU.SO_THU_TU_VAN_BAN" ||
+        fieldKey === "TAI_LIEU_LUU_TRU.STT_VAN_BAN" ||
+        fieldKey === "TAI_LIEU_LUU_TRU.STT_VAN_BAN_TRONG_HO_SO" ||
+        fieldKey.endsWith(".SO_THU_TU_VAN_BAN") ||
+        fieldKey.endsWith(".STT_VAN_BAN")
+    );
+}
+
+export function isTotalDocumentsFieldKey(fieldKey: string): boolean {
+    return (
+        fieldKey === "__file_count" ||
+        fieldKey === "HO_SO_LUU_TRU.SO_TAI_LIEU" ||
+        fieldKey === "HO_SO_LUU_TRU.TONG_SO_TAI_LIEU" ||
+        fieldKey === "HO_SO_LUU_TRU.TONG_SO_TAI_LIEU_TRONG_HO_SO" ||
+        fieldKey === "HO_SO_LUU_TRU.TONG_SO_VAN_BAN" ||
+        fieldKey === "HO_SO_LUU_TRU.TONG_SO_VAN_BAN_TRONG_HO_SO" ||
+        fieldKey.endsWith(".SO_TAI_LIEU") ||
+        fieldKey.endsWith(".TONG_SO_TAI_LIEU") ||
+        fieldKey.endsWith(".TONG_SO_TAI_LIEU_TRONG_HO_SO") ||
+        fieldKey.endsWith(".TONG_SO_VAN_BAN") ||
+        fieldKey.endsWith(".TONG_SO_VAN_BAN_TRONG_HO_SO")
+    );
+}
+
+export function resolveTotalDocumentsValue(
+    metadata: DossierMetadata,
+    fieldKey: string,
+    options: {
+        fileCount: number;
+        validDocCount?: number;
+        closingDocsCount?: number;
+    },
+): string {
+    const validCount = options.validDocCount ?? options.fileCount;
+    const closingCount = options.closingDocsCount ?? 0;
+
+    if (fieldKey === "__file_count") {
+        return String(validCount);
+    }
+
+    let rawVal = resolveExportFieldValue(metadata, fieldKey);
+    if (!rawVal) {
+        for (const k of [
+            "HO_SO_LUU_TRU.SO_TAI_LIEU",
+            "HO_SO_LUU_TRU.TONG_SO_TAI_LIEU_TRONG_HO_SO",
+            "HO_SO_LUU_TRU.TONG_SO_VAN_BAN_TRONG_HO_SO",
+            "HO_SO_LUU_TRU.TONG_SO_VAN_BAN",
+        ]) {
+            rawVal = resolveExportFieldValue(metadata, k);
+            if (rawVal) break;
+        }
+    }
+
+    if (rawVal) {
+        const num = parseInt(rawVal.trim(), 10);
+        if (!isNaN(num) && num > 0) {
+            if (closingCount > 0) {
+                return String(Math.max(0, num - closingCount));
+            }
+            return String(num);
+        }
+        return rawVal;
+    }
+
+    return String(validCount);
+}
 
 export function isDossierColumn(column: MetadataExportColumnConfig): boolean {
     if (isExportSttColumn(column)) {
@@ -100,72 +384,181 @@ export function isDossierColumn(column: MetadataExportColumnConfig): boolean {
     return false;
 }
 
-export function extractDossierFileItems(metadata: DossierMetadata): DossierFileItem[] {
+function collectMetadataFileEntries(
+    metadata: DossierMetadata,
+): Array<{
+    sourceDocument: { file_name: string | null; file_path: string | null };
+    groups: MetadataGroup[];
+    kind: ExportFileKind;
+}> {
     const hoSoGroup = metadata.metadata_groups.find(
         (g) => g.group_code === "HO_SO_LUU_TRU",
     );
-
     const nonHoSoGroups = metadata.metadata_groups.filter(
         (g) => g.group_code !== "HO_SO_LUU_TRU",
     );
 
-    const fileItems: DossierFileItem[] = [];
-    let fileIdx = 1;
+    const entries: Array<{
+        sourceDocument: { file_name: string | null; file_path: string | null };
+        groups: MetadataGroup[];
+        kind: ExportFileKind;
+    }> = [];
+
+    const coverSource = resolveHoSoCoverSource(hoSoGroup);
+    if (coverSource) {
+        entries.push({
+            sourceDocument: coverSource,
+            groups: [],
+            kind: "bia",
+        });
+    }
 
     for (const group of nonHoSoGroups) {
         const nestedDocs = group.documents ?? group.document;
         if (Array.isArray(nestedDocs) && nestedDocs.length > 0) {
             for (const doc of nestedDocs) {
-                fileItems.push({
-                    fileIndex: fileIdx++,
-                    sourceDocument: doc.source_document ?? { file_name: null, file_path: null },
+                const sourceDocument = doc.source_document ?? {
+                    file_name: null,
+                    file_path: null,
+                };
+                entries.push({
+                    sourceDocument,
                     groups: [
                         {
                             group_code: group.group_code,
                             group_name: group.group_name,
-                            source_document: doc.source_document ?? { file_name: null, file_path: null },
+                            source_document: sourceDocument,
                             fields: doc.fields ?? [],
                         },
                     ],
+                    kind: classifyExportFileKind(
+                        sourceDocument.file_name,
+                        sourceDocument.file_path,
+                        doc.fields ?? [],
+                    ),
                 });
             }
         } else {
-            fileItems.push({
-                fileIndex: fileIdx++,
-                sourceDocument: group.source_document ?? { file_name: null, file_path: null },
+            const sourceDocument = group.source_document ?? {
+                file_name: null,
+                file_path: null,
+            };
+            entries.push({
+                sourceDocument,
                 groups: [group],
+                kind: classifyExportFileKind(
+                    sourceDocument.file_name,
+                    sourceDocument.file_path,
+                    group.fields ?? [],
+                ),
             });
         }
     }
 
-    if (fileItems.length > 0) {
-        return fileItems;
+    return entries;
+}
+
+export function extractDossierFileItems(
+    metadata: DossierMetadata,
+    dossierFiles: ExportDossierFileInput[] = [],
+): DossierFileItem[] {
+    const metadataEntries = collectMetadataFileEntries(metadata);
+    const groupsByKey = new Map<string, MetadataGroup[]>();
+    const kindByKey = new Map<string, ExportFileKind>();
+
+    for (const entry of metadataEntries) {
+        const key = normalizeExportFileKey(
+            entry.sourceDocument.file_name,
+            entry.sourceDocument.file_path,
+        );
+        if (!key) continue;
+        const existing = groupsByKey.get(key) ?? [];
+        groupsByKey.set(key, [...existing, ...entry.groups]);
+        const priorKind = kindByKey.get(key);
+        if (!priorKind || priorKind === "document" || entry.kind === "bia" || entry.kind === "chung_tu_ket_thuc") {
+            kindByKey.set(key, entry.kind);
+        }
     }
 
-    if (hoSoGroup) {
-        return [
-            {
-                fileIndex: 1,
-                sourceDocument: hoSoGroup.source_document ?? { file_name: null, file_path: null },
-                groups: [],
-            },
-        ];
+    const fileItems: DossierFileItem[] = [];
+    const seenKeys = new Set<string>();
+    let fileIdx = 1;
+
+    const pushItem = (
+        sourceDocument: { file_name: string | null; file_path: string | null },
+        groups: MetadataGroup[],
+        kind: ExportFileKind,
+    ) => {
+        const key = normalizeExportFileKey(
+            sourceDocument.file_name,
+            sourceDocument.file_path,
+        );
+        if (key && seenKeys.has(key)) return;
+        if (key) seenKeys.add(key);
+        fileItems.push({
+            fileIndex: fileIdx++,
+            kind,
+            sourceDocument,
+            groups,
+        });
+    };
+
+    if (dossierFiles.length > 0) {
+        for (const file of dossierFiles) {
+            const sourceDocument = {
+                file_name: file.fileName || null,
+                file_path: file.filePath || null,
+            };
+            const key = normalizeExportFileKey(
+                sourceDocument.file_name,
+                sourceDocument.file_path,
+            );
+            const groups = key ? (groupsByKey.get(key) ?? []) : [];
+            const kind =
+                (key ? kindByKey.get(key) : undefined) ??
+                classifyExportFileKind(
+                    sourceDocument.file_name,
+                    sourceDocument.file_path,
+                    groups,
+                );
+            pushItem(sourceDocument, groups, kind);
+        }
+
+        for (const entry of metadataEntries) {
+            pushItem(entry.sourceDocument, entry.groups, entry.kind);
+        }
+
+        if (fileItems.length > 0) {
+            return fileItems;
+        }
+    } else {
+        for (const entry of metadataEntries) {
+            pushItem(entry.sourceDocument, entry.groups, entry.kind);
+        }
+
+        if (fileItems.length > 0) {
+            return fileItems;
+        }
     }
 
     return [
         {
             fileIndex: 1,
+            kind: "document",
             sourceDocument: { file_name: null, file_path: null },
             groups: [],
         },
     ];
 }
 
-export function sanitizeDatePart(val: string | null | undefined): string {
+export function sanitizeDatePart(val: string | null | undefined, padToTwoDigits = false): string {
     if (!val) return "";
-    const trimmed = val.trim();
+    let trimmed = val.trim();
     if (trimmed === "0" || trimmed === "00" || trimmed === "0000" || /^0+$/.test(trimmed)) {
         return "";
+    }
+    if (padToTwoDigits && /^\d$/.test(trimmed)) {
+        trimmed = `0${trimmed}`;
     }
     return trimmed;
 }
@@ -202,15 +595,15 @@ function parseDateParts(dateStr: string | null | undefined): { day: string; mont
     if (isoMatch) {
         return {
             year: sanitizeDatePart(isoMatch[1]),
-            month: sanitizeDatePart(String(Number(isoMatch[2]))),
-            day: sanitizeDatePart(String(Number(isoMatch[3]))),
+            month: sanitizeDatePart(String(Number(isoMatch[2])), true),
+            day: sanitizeDatePart(String(Number(isoMatch[3])), true),
         };
     }
     const vnMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(str);
     if (vnMatch) {
         return {
-            day: sanitizeDatePart(String(Number(vnMatch[1]))),
-            month: sanitizeDatePart(String(Number(vnMatch[2]))),
+            day: sanitizeDatePart(String(Number(vnMatch[1])), true),
+            month: sanitizeDatePart(String(Number(vnMatch[2])), true),
             year: sanitizeDatePart(vnMatch[3]),
         };
     }
@@ -218,13 +611,16 @@ function parseDateParts(dateStr: string | null | undefined): { day: string; mont
 }
 
 function findFieldValueInGroups(groups: MetadataGroup[], fieldName: string): string | null {
-    const canonical = normalizeFieldName(fieldName);
     for (const group of groups) {
         for (const field of group.fields) {
-            if (normalizeFieldName(field.name) === canonical) {
-                const val = field.value?.trim();
-                if (val) return val;
+            if (
+                !fieldMatchesKey(field.name, fieldName) &&
+                !fieldMatchesKey(field.display, fieldName)
+            ) {
+                continue;
             }
+            const val = field.value?.trim();
+            if (val) return val;
         }
     }
     return null;
@@ -248,8 +644,23 @@ function parseFieldKey(fieldKey: string): { groupCode: string; fieldName: string
     };
 }
 
+function groupCodesMatch(groupCode: string, targetGroupCode: string): boolean {
+    if (groupCode === targetGroupCode) return true;
+    return resolveCatalogGroupAliasCodes(targetGroupCode).includes(groupCode);
+}
+
 export function fieldMatchesKey(fieldName: string, canonicalFieldName: string): boolean {
-    return normalizeFieldName(fieldName) === canonicalFieldName;
+    return metadataFieldNamesMatch(fieldName, canonicalFieldName);
+}
+
+function fieldMatchesExportKey(
+    field: { name: string; display: string },
+    canonicalFieldName: string,
+): boolean {
+    return (
+        fieldMatchesKey(field.name, canonicalFieldName) ||
+        fieldMatchesKey(field.display, canonicalFieldName)
+    );
 }
 
 export function extractBasenameFromPath(pathStr: string | null | undefined): string {
@@ -279,18 +690,19 @@ export function resolveExportFieldValue(
     }
 
     const isDatePart = parsed.fieldName === "NGAY" || parsed.fieldName === "THANG" || parsed.fieldName === "NAM";
+    const padDatePart = parsed.fieldName === "NGAY" || parsed.fieldName === "THANG";
     const values: string[] = [];
     for (const group of metadata.metadata_groups) {
-        if (group.group_code !== parsed.groupCode) {
+        if (!groupCodesMatch(group.group_code, parsed.groupCode)) {
             continue;
         }
         for (const field of group.fields ?? []) {
-            if (!fieldMatchesKey(field.name, parsed.fieldName)) {
+            if (!fieldMatchesExportKey(field, parsed.fieldName)) {
                 continue;
             }
             const formatted = formatCellValue(field.value);
             if (formatted) {
-                const finalVal = isDatePart ? sanitizeDatePart(formatted) : formatted;
+                const finalVal = isDatePart ? sanitizeDatePart(formatted, padDatePart) : formatted;
                 if (finalVal) {
                     values.push(finalVal);
                 }
@@ -305,12 +717,12 @@ export function resolveExportFieldValue(
     // Fallback: search across all metadata groups
     for (const group of metadata.metadata_groups) {
         for (const field of group.fields ?? []) {
-            if (!fieldMatchesKey(field.name, parsed.fieldName)) {
+            if (!fieldMatchesExportKey(field, parsed.fieldName)) {
                 continue;
             }
             const formatted = formatCellValue(field.value);
             if (formatted) {
-                const finalVal = isDatePart ? sanitizeDatePart(formatted) : formatted;
+                const finalVal = isDatePart ? sanitizeDatePart(formatted, padDatePart) : formatted;
                 if (finalVal) {
                     values.push(finalVal);
                 }
@@ -342,6 +754,11 @@ export function resolveExportFieldValueForFileItem(
             const fp = fileItem.sourceDocument.file_path ?? fileItem.sourceDocument.file_name ?? "";
             return cleanFilePath(fp);
         }
+        if (fieldKey === "__file_name") {
+            const name = fileItem.sourceDocument.file_name?.trim();
+            if (name) return name;
+            return extractBasenameFromPath(fileItem.sourceDocument.file_path);
+        }
         if (fieldKey === "__file_identifier") {
             const idVal =
                 findFieldValueInGroups(fileItem.groups, "MA_DINH_DANH_TAI_LIEU") ??
@@ -369,15 +786,15 @@ export function resolveExportFieldValueForFileItem(
                     : "NAM";
             const direct = findFieldValueInGroups(fileItem.groups, fieldName);
             if (direct !== null) {
-                return sanitizeDatePart(direct);
+                return sanitizeDatePart(direct, fieldName === "NGAY" || fieldName === "THANG");
             }
             const dateStr =
                 findFieldValueInGroups(fileItem.groups, "NGAY_THANG_NAM_BAN_HANH") ??
                 findFieldValueInGroups(fileItem.groups, "NGAY_THANG_NAM_VAN_BAN") ??
                 findFieldValueInGroups(fileItem.groups, "NGAY_BAN_HANH_AN_QD");
             const parts = parseDateParts(dateStr);
-            if (fieldKey === "__date_day") return sanitizeDatePart(parts.day);
-            if (fieldKey === "__date_month") return sanitizeDatePart(parts.month);
+            if (fieldKey === "__date_day") return sanitizeDatePart(parts.day, true);
+            if (fieldKey === "__date_month") return sanitizeDatePart(parts.month, true);
             if (fieldKey === "__date_year") return sanitizeDatePart(parts.year);
         }
         return "";
@@ -388,7 +805,7 @@ export function resolveExportFieldValueForFileItem(
     if (fieldName === "NGAY" || fieldName === "THANG" || fieldName === "NAM") {
         const direct = findFieldValueInGroups(fileItem.groups, fieldName);
         if (direct !== null) {
-            return sanitizeDatePart(direct);
+            return sanitizeDatePart(direct, fieldName === "NGAY" || fieldName === "THANG");
         }
 
         const dateStr =
@@ -396,25 +813,29 @@ export function resolveExportFieldValueForFileItem(
             findFieldValueInGroups(fileItem.groups, "NGAY_THANG_NAM_VAN_BAN") ??
             findFieldValueInGroups(fileItem.groups, "NGAY_BAN_HANH_AN_QD");
         const parts = parseDateParts(dateStr);
-        if (fieldName === "NGAY") return sanitizeDatePart(parts.day);
-        if (fieldName === "THANG") return sanitizeDatePart(parts.month);
+        if (fieldName === "NGAY") return sanitizeDatePart(parts.day, true);
+        if (fieldName === "THANG") return sanitizeDatePart(parts.month, true);
         if (fieldName === "NAM") return sanitizeDatePart(parts.year);
         return "";
     }
 
     const isDatePart = fieldName === "NGAY" || fieldName === "THANG" || fieldName === "NAM";
+    const padDatePart = fieldName === "NGAY" || fieldName === "THANG";
     const values: string[] = [];
     for (const group of fileItem.groups) {
-        if (group.group_code !== groupCode && groupCode !== "TAI_LIEU_LUU_TRU") {
+        if (
+            !groupCodesMatch(group.group_code, groupCode) &&
+            groupCode !== "TAI_LIEU_LUU_TRU"
+        ) {
             continue;
         }
         for (const field of group.fields ?? []) {
-            if (!fieldMatchesKey(field.name, fieldName)) {
+            if (!fieldMatchesExportKey(field, fieldName)) {
                 continue;
             }
             const formatted = formatCellValue(field.value);
             if (formatted) {
-                const finalVal = isDatePart ? sanitizeDatePart(formatted) : formatted;
+                const finalVal = isDatePart ? sanitizeDatePart(formatted, padDatePart) : formatted;
                 if (finalVal) {
                     values.push(finalVal);
                 }
@@ -428,10 +849,10 @@ export function resolveExportFieldValueForFileItem(
 
     for (const group of fileItem.groups) {
         for (const field of group.fields ?? []) {
-            if (fieldMatchesKey(field.name, fieldName)) {
+            if (fieldMatchesExportKey(field, fieldName)) {
                 const formatted = formatCellValue(field.value);
                 if (formatted) {
-                    const finalVal = isDatePart ? sanitizeDatePart(formatted) : formatted;
+                    const finalVal = isDatePart ? sanitizeDatePart(formatted, padDatePart) : formatted;
                     if (finalVal) {
                         values.push(finalVal);
                     }
@@ -444,21 +865,60 @@ export function resolveExportFieldValueForFileItem(
         return values.join(INSTANCE_JOIN_SEPARATOR);
     }
 
-    return resolveExportFieldValue(metadata, fieldKey);
+    return "";
 }
 
 export function resolveExportColumnValueForFile(
     metadata: DossierMetadata,
     fileItem: DossierFileItem,
     column: MetadataExportColumnConfig,
-    options: { dossierIndex: number; fileIndex: number; fileCount: number },
+    options: {
+        dossierIndex: number;
+        fileIndex: number;
+        fileCount: number;
+        rowNumber?: number;
+        dossierFolderPath?: string | null;
+        closingDocsCount?: number;
+        validDocCount?: number;
+    },
 ): string {
+    const kind = fileItem.kind ?? "document";
+    const isExcludedFromStt =
+        kind === "bia" || kind === "mucluc" || kind === "chung_tu_ket_thuc";
+
     if (isExportSttColumn(column)) {
+        if (isExcludedFromStt) return "";
         return String(options.dossierIndex + 1);
+    }
+
+    if (isDocumentIdentifierColumn(column) && isExcludedFromStt) {
+        return "";
+    }
+
+    if (column.fieldKeys.includes("__row_number") && options.rowNumber == null) {
+        if (isExcludedFromStt) {
+            return "";
+        }
     }
 
     const isDossierCol = isDossierColumn(column);
     const parts: string[] = [];
+
+    const resolvePathValue = (): string => {
+        const fp =
+            fileItem.sourceDocument.file_path ??
+            fileItem.sourceDocument.file_name ??
+            "";
+        return cleanFilePath(fp);
+    };
+
+    const resolveFileNameValue = (): string => {
+        const name = fileItem.sourceDocument.file_name?.trim();
+        return name || extractBasenameFromPath(fileItem.sourceDocument.file_path);
+    };
+
+    const resolveFolderValue = (): string =>
+        resolveDossierFolderPath(metadata, fileItem, options.dossierFolderPath);
 
     for (const fieldKey of column.fieldKeys) {
         if (parts.length > 0 && !column.separator) {
@@ -467,31 +927,75 @@ export function resolveExportColumnValueForFile(
 
         let value = "";
 
-        if (fieldKey.startsWith("__")) {
-            if (fieldKey === "__stt") {
-                value = String(options.dossierIndex + 1);
-            } else if (fieldKey === "__file_stt") {
-                value = String(options.fileIndex);
-            } else if (fieldKey === "__file_count") {
-                value = String(options.fileCount);
+        if (fieldKey === "__row_number") {
+            if (isExcludedFromStt) {
+                value = "";
+            } else {
+                value = String(options.rowNumber ?? options.fileIndex);
+            }
+        } else if (fieldKey === "__stt") {
+            value = String(options.dossierIndex + 1);
+        } else if (fieldKey === "__file_path") {
+            value = resolvePathValue();
+        } else if (fieldKey === "__file_name") {
+            value = resolveFileNameValue();
+        } else if (fieldKey === "__dossier_folder") {
+            value = resolveFolderValue();
+        } else if (isTotalDocumentsFieldKey(fieldKey)) {
+            value = resolveTotalDocumentsValue(metadata, fieldKey, options);
+        } else if (isDocumentIdentifierFieldKey(fieldKey) && isExcludedFromStt) {
+            value = "";
+        } else if (isSttFieldKey(fieldKey) && isExcludedFromStt) {
+            value = "";
+        } else if (kind === "mucluc") {
+            if (isExportPathFieldKey(fieldKey)) {
+                value = fieldKey === "__dossier_folder"
+                    ? resolveFolderValue()
+                    : resolvePathValue();
+            }
+        } else if (kind === "bia") {
+            if (isExportPathFieldKey(fieldKey)) {
+                value = fieldKey === "__dossier_folder"
+                    ? resolveFolderValue()
+                    : resolvePathValue();
+            } else if (isHoSoFieldKey(fieldKey) || isDossierCol) {
+                if (fieldKey === "__ho_so_id") {
+                    value = extractBasenameFromPath(metadata.ho_so_id);
+                } else if (!fieldKey.startsWith("__")) {
+                    value = resolveExportFieldValue(metadata, fieldKey);
+                }
+            }
+        } else if (kind === "chung_tu_ket_thuc") {
+            if (isExportPathFieldKey(fieldKey)) {
+                value = fieldKey === "__dossier_folder"
+                    ? resolveFolderValue()
+                    : resolvePathValue();
             } else if (fieldKey === "__ho_so_id") {
                 value = extractBasenameFromPath(metadata.ho_so_id);
-            } else if (fieldKey === "__file_path") {
-                const fp =
-                    fileItem.sourceDocument.file_path ??
-                    fileItem.sourceDocument.file_name ??
-                    "";
-                value = cleanFilePath(fp);
+            } else if (isHoSoFieldKey(fieldKey) || isDossierCol) {
+                value = resolveExportFieldValue(metadata, fieldKey);
+            } else if (fieldKey.startsWith("__")) {
+                value = resolveExportFieldValueForFileItem(metadata, fileItem, fieldKey);
             } else {
                 value = resolveExportFieldValueForFileItem(metadata, fileItem, fieldKey);
             }
-        } else if (isDossierCol) {
+        } else if (fieldKey === "__file_stt") {
+            value = String(options.fileIndex);
+        } else if (fieldKey === "__ho_so_id") {
+            value = extractBasenameFromPath(metadata.ho_so_id);
+        } else if (fieldKey.startsWith("__")) {
+            value = resolveExportFieldValueForFileItem(metadata, fileItem, fieldKey);
+        } else if (isDossierCol || isHoSoFieldKey(fieldKey)) {
             value = resolveExportFieldValue(metadata, fieldKey);
         } else {
             value = resolveExportFieldValueForFileItem(metadata, fileItem, fieldKey);
         }
 
-        if (fieldKey === "TAI_LIEU_LUU_TRU.TEP_TIN_TAI_LIEU" && value) {
+        if (
+            (fieldKey === "TAI_LIEU_LUU_TRU.TEP_TIN_TAI_LIEU" ||
+                fieldKey === "HO_SO_LUU_TRU.TEP_TIN_HO_SO") &&
+            value
+        ) {
             value = cleanFilePath(value);
         }
 
@@ -506,15 +1010,18 @@ export function resolveExportColumnValueForFile(
 export function resolveExportColumnValue(
     metadata: DossierMetadata,
     column: MetadataExportColumnConfig,
-    options: { rowNumber?: number } = {},
+    options: { rowNumber?: number; dossierFiles?: ExportDossierFileInput[] } = {},
 ): string {
     if (isExportSttColumn(column) && options.rowNumber != null) {
         return String(options.rowNumber);
     }
 
-    const fileItems = extractDossierFileItems(metadata);
+    const fileItems = extractDossierFileItems(metadata, options.dossierFiles);
+    const closingDocsCount = fileItems.filter((f) => f.kind === "chung_tu_ket_thuc").length;
+    const validDocCount = fileItems.filter((f) => f.kind === "document").length;
     const firstItem = fileItems[0] ?? {
         fileIndex: 1,
+        kind: "document" as const,
         sourceDocument: { file_name: null, file_path: null },
         groups: metadata.metadata_groups,
     };
@@ -522,7 +1029,10 @@ export function resolveExportColumnValue(
     return resolveExportColumnValueForFile(metadata, firstItem, column, {
         dossierIndex: (options.rowNumber ?? 1) - 1,
         fileIndex: 1,
-        fileCount: fileItems.length,
+        fileCount: validDocCount,
+        validDocCount,
+        closingDocsCount,
+        rowNumber: options.rowNumber,
     });
 }
 
@@ -535,7 +1045,7 @@ export function buildUnionExportFieldCatalog(
     for (const metadata of metadataList) {
         for (const group of metadata.metadata_groups) {
             for (const field of group.fields ?? []) {
-                const fieldName = normalizeFieldName(field.name);
+                const fieldName = canonicalMetadataFieldName(field.name);
                 const key = `${group.group_code}.${fieldName}`;
                 if (seen.has(key)) {
                     continue;
@@ -586,7 +1096,7 @@ export function buildDefaultExportConfig(
         for (const group of metadata.metadata_groups) {
             if (Array.isArray(group.fields)) {
                 for (const field of group.fields) {
-                    const norm = normalizeFieldName(field.name);
+                    const norm = canonicalMetadataFieldName(field.name);
                     const canonicalKey = `${group.group_code}.${norm}`;
                     if (!coveredKeys.has(canonicalKey)) {
                         coveredKeys.add(canonicalKey);
@@ -605,7 +1115,7 @@ export function buildDefaultExportConfig(
                 for (const doc of nestedDocs) {
                     if (Array.isArray(doc.fields)) {
                         for (const field of doc.fields) {
-                            const norm = normalizeFieldName(field.name);
+                            const norm = canonicalMetadataFieldName(field.name);
                             const canonicalKey = `${group.group_code}.${norm}`;
                             if (!coveredKeys.has(canonicalKey)) {
                                 coveredKeys.add(canonicalKey);

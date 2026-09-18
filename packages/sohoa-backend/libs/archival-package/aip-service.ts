@@ -4,11 +4,18 @@ import {
   type DipZipStreamResult,
 } from "./dip-hoso-builder.ts";
 import { shouldSkipExistingAip } from "./aip-idempotent.ts";
-import { resolveAipObjectKey, resolveHoSoId } from "./aip-path-utils.ts";
+import { computeRelativeFolderPath } from "../../modules/dossier/dossier-path-utils.ts";
+import {
+  resolveAipObjectKey,
+  resolveExportZipRelativePath,
+  resolveFolderLeafName,
+  resolveHoSoId,
+} from "./aip-path-utils.ts";
 import {
   collectPackagePdfFiles,
   countPackagePdfSources,
 } from "./collect-package-sources.ts";
+import { DocumentNamingConfigService } from "../../modules/document-naming-config/document-naming-config-service.ts";
 import {
   applyWatermarkConfigToPdfFiles,
   resolveWatermarkApplyConfig,
@@ -53,7 +60,15 @@ type DossierRow = {
   status: string;
   currentMetadataKey: string | null;
   fondId: string | null;
-  files?: Array<{ fileName: string; filePath: string }>;
+  projectCode: string | null;
+  dossierTypeId: string | null;
+  files?: Array<{
+    id: string;
+    fileName: string;
+    filePath: string;
+    documentTypeId?: string | null;
+    signedFilePath?: string | null;
+  }>;
 };
 
 type DipExportOptions = {
@@ -65,6 +80,9 @@ type DipExportOptions = {
   dossierAccessPassword?: string;
   /** Set of dossier file IDs to skip from the export (due to missing download permissions) */
   skippedFileIds?: Set<string>;
+  baseFolderId?: string;
+  /** When true, rename PDFs inside ZIP using document naming config. */
+  useDocumentNaming?: boolean;
 };
 
 async function loadApprovedDossierContext(dossierId: string): Promise<{
@@ -212,7 +230,7 @@ if (dossier.status !== DossierStatus.APPROVED && dossier.status !== DossierStatu
  * For each ID: if it matches a dossier row, use it directly;
  * otherwise look up as a folder and collect all dossiers in its subtree.
  */
-async function resolveIdsIntoDossierIds(ids: string[]): Promise<string[]> {
+export async function resolveIdsIntoDossierIds(ids: string[]): Promise<string[]> {
   const matchedDossiers = await db.query.dossiers.findMany({
     where: activeDossierWhere(inArray(dossiers.id, ids)),
     columns: { id: true },
@@ -290,6 +308,21 @@ export async function exportDipHosoBatch(
       )
     : null;
 
+  let baseFolderPath = "";
+  let baseFolderName = "";
+  if (options?.baseFolderId) {
+    const baseFolder = await db.query.folders.findFirst({
+      where: activeFolderWhere(eq(folders.id, options.baseFolderId)),
+      columns: { folderPath: true, folderName: true },
+    });
+    console.log("[DIP-EXPORT] baseFolderId:", options.baseFolderId, "baseFolder:", baseFolder);
+    if (baseFolder && baseFolder.folderPath) {
+      baseFolderPath = baseFolder.folderPath;
+      baseFolderName = baseFolder.folderName?.trim() || resolveFolderLeafName(baseFolder.folderPath);
+    }
+  }
+  console.log("[DIP-EXPORT] baseFolderPath:", baseFolderPath, "baseFolderName:", baseFolderName);
+
   // Phase 1: load metadata only, count PDF sources, fail early before downloads.
   const contexts = await mapInBatches(
     resolvedDossierIds,
@@ -302,12 +335,28 @@ export async function exportDipHosoBatch(
         ? (dossier.files ?? []).filter(f => !options.skippedFileIds!.has(f.id))
         : (dossier.files ?? []);
 
+      let relativeFolderPath: string | undefined;
+      if (options?.baseFolderId && baseFolderPath) {
+        relativeFolderPath = computeRelativeFolderPath(
+          dossier.folderPath,
+          baseFolderPath,
+          baseFolderName
+        );
+      }
+
       return {
+        dossierId: dossier.id,
+        dossierName: dossier.name,
+        projectCode: dossier.projectCode,
+        dossierTypeId: dossier.dossierTypeId,
         metadata,
         hoSoId,
         fondId: dossier.fondId,
+        folderPath: dossier.folderPath,
         files,
         pdfCount: countPackagePdfSources(metadata, files),
+        relativeFolderPath,
+        folderName: baseFolderName || undefined,
       };
     },
   );
@@ -327,8 +376,24 @@ export async function exportDipHosoBatch(
   const packages = await mapInBatches(
     contexts,
     EXPORT_DOSSIER_CONCURRENCY,
-    async (ctx) => {
-      let pdfFiles = await collectPackagePdfFiles(ctx.metadata, ctx.files);
+    async (ctx, dossierIndex) => {
+      const namingContext = options?.useDocumentNaming === true
+        ? await DocumentNamingConfigService.loadFileNamingExportContext({
+          fondId: ctx.fondId,
+          dossierId: ctx.dossierId,
+          dossier: {
+            name: ctx.dossierName,
+            folderPath: ctx.folderPath,
+            projectCode: ctx.projectCode,
+            dossierTypeId: ctx.dossierTypeId,
+          },
+        })
+        : null;
+
+      let pdfFiles = await collectPackagePdfFiles(ctx.metadata, ctx.files, {
+        namingContext,
+        dossierIndex,
+      });
       pdfFiles = await applyWatermarkConfigToPdfFiles(
         pdfFiles,
         watermarkConfig,
@@ -338,6 +403,9 @@ export async function exportDipHosoBatch(
         metadata: ctx.metadata,
         pdfFiles,
         hoSoId: ctx.hoSoId,
+        zipFolderPath: resolveExportZipRelativePath(ctx.folderPath, ctx.hoSoId),
+        folderPath: ctx.relativeFolderPath,
+        folderName: ctx.folderName,
       } satisfies PackageBuildInput;
     },
   );

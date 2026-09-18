@@ -211,6 +211,12 @@ function createEnvObject() {
             Deno.env.get("KAFKA_START_METADATA_PVEP_TOPIC") ?? "start-metadata-pvep",
         KAFKA_PVEP_METADATA_TOPIC:
             Deno.env.get("KAFKA_PVEP_METADATA_TOPIC") ?? "pvep-metadata-completed",
+        KAFKA_START_METADATA_TUYEN_QUANG_TOPIC:
+            Deno.env.get("KAFKA_START_METADATA_TUYEN_QUANG_TOPIC") ??
+            "start-metadata-tuyen-quang",
+        KAFKA_TUYEN_QUANG_METADATA_TOPIC:
+            Deno.env.get("KAFKA_TUYEN_QUANG_METADATA_TOPIC") ??
+            "tuyen-quang-metadata-completed",
         SCANNER_ENABLED: getBooleanEnv("SCANNER_ENABLED", false),
         SCANNER_INTERVAL_MS: getPositiveIntEnv("SCANNER_INTERVAL_MS", 10_000),
         SOCKET_ENABLED: getBooleanEnv("SOCKET_ENABLED", true),
@@ -241,6 +247,17 @@ function createEnvObject() {
         AUDIT_LOG_COLD_SOURCE: Deno.env.get("AUDIT_LOG_COLD_SOURCE") ?? "postgres_projection",
         /** NiFi HandleHttpRequest endpoint dùng để giải phóng file đang chờ ở processor Wait (chế độ OCR manual). */
         NIFI_TRIGGER_URL: Deno.env.get("NIFI_TRIGGER_URL") ?? "",
+        /**
+         * When true, Kafka extract routing stops without a valid license or when usedPages >= pageLimit.
+         * Default: false in local/development, true otherwise.
+         */
+        PAGE_QUOTA_ENFORCE: (() => {
+            const raw = Deno.env.get("PAGE_QUOTA_ENFORCE");
+            if (raw !== undefined && raw !== null && raw.trim() !== "") {
+                return getBooleanEnv("PAGE_QUOTA_ENFORCE", false);
+            }
+            return nodeEnv !== "local" && nodeEnv !== "development";
+        })(),
     } as const;
 }
 

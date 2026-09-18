@@ -6,6 +6,7 @@ import {
     resolveExportFieldValue,
 } from "../libs/metadata-export-field-resolver.ts";
 import { buildDynamicMetadataExcel } from "../libs/metadata-excel-export.ts";
+import { collectFolderMetadataExportEntries } from "../libs/metadata-export.ts";
 import { buildMetadataExportPreview } from "../libs/metadata-export-preview.ts";
 import type { DossierMetadata } from "../libs/metadata-types.ts";
 
@@ -48,6 +49,45 @@ const sampleMetadata: DossierMetadata = {
 Deno.test("resolveExportFieldValue joins instances with newline", () => {
     const value = resolveExportFieldValue(sampleMetadata, "DUONG_SU.HO_VA_TEN");
     assertEquals(value, "Nguyễn Văn A\nTrần Thị B");
+});
+
+Deno.test("resolveExportFieldValue matches Vietnamese OCR names to canonical keys", () => {
+    const metadata: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "HO_SO_LUU_TRU",
+                group_name: "Metadata cấp Hồ sơ lưu trữ",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    {
+                        name: "Phông Số",
+                        display: "Phông Số",
+                        type: "string",
+                        value: "028.25.04",
+                        page: null,
+                        bbox: null,
+                    },
+                    {
+                        name: "Mục Lục Số",
+                        display: "Mục Lục Số",
+                        type: "string",
+                        value: "01",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+        ],
+    };
+
+    assertEquals(
+        resolveExportFieldValue(metadata, "HO_SO_LUU_TRU.MA_PHONG"),
+        "028.25.04",
+    );
+    assertEquals(
+        resolveExportFieldValue(metadata, "HO_SO_LUU_TRU.MUC_LUC_SO"),
+        "01",
+    );
 });
 
 Deno.test("resolveExportColumnValue merges fields with separator", () => {
@@ -136,7 +176,7 @@ Deno.test("buildMetadataExportPreview returns headers and row cells", () => {
     assertEquals(preview.rows[0]?.cells[1], "001122334455");
 });
 
-Deno.test("buildDynamicMetadataExcel expands multi-file dossier into rows with merged dossier metadata", async () => {
+Deno.test("buildDynamicMetadataExcel expands multi-file dossier into rows without merging dossier metadata", async () => {
     const ExcelJS = (await import("exceljs")).default;
 
     const multiFileTt05Metadata: DossierMetadata = {
@@ -145,7 +185,7 @@ Deno.test("buildDynamicMetadataExcel expands multi-file dossier into rows with m
             {
                 group_code: "HO_SO_LUU_TRU",
                 group_name: "Metadata cấp Hồ sơ lưu trữ",
-                source_document: { file_name: "bia.pdf", file_path: "raw/bia.pdf" },
+                source_document: { file_name: "BIA.pdf", file_path: "raw/BIA.pdf" },
                 fields: [
                     { name: "MA_HO_SO", display: "Mã hồ sơ", type: "string", value: "HS-999_TEST", page: null, bbox: null },
                     { name: "TIEU_DE_HO_SO", display: "Tiêu đề hồ sơ", type: "string", value: "Hồ sơ kiểm thử merge file", page: null, bbox: null },
@@ -184,8 +224,9 @@ Deno.test("buildDynamicMetadataExcel expands multi-file dossier into rows with m
     const sheet = workbook.getWorksheet("Metadata");
     assertEquals(sheet != null, true);
 
-    // Header row + 2 file rows
-    assertEquals(sheet!.actualRowCount, 3);
+    // Header + BIA + 2 document rows
+    assertEquals(sheet!.actualRowCount, 4);
+    assertEquals(sheet!.hasMerges, false);
 
     // Check Header Titles and Fill Colors
     const cellA1 = sheet!.getCell(1, 1);
@@ -199,34 +240,39 @@ Deno.test("buildDynamicMetadataExcel expands multi-file dossier into rows with m
     assertEquals((cellH1.fill as { fgColor?: { argb?: string } })?.fgColor?.argb, "FFFFFF00");
     assertEquals((cellP1.fill as { fgColor?: { argb?: string } })?.fgColor?.argb, "FFA9CD90");
 
-    // Row 2 (File 1)
-    assertEquals(sheet!.getCell(2, 1).value, "1"); // STT
-    assertEquals(sheet!.getCell(2, 2).value, "TL-001"); // Mã định danh file 1
-    assertEquals(sheet!.getCell(2, 3).value, "HS-999_TEST"); // Mã hồ sơ dossier
+    // Row 2 (BIA) — hồ sơ metadata + path, no document id
+    assertEquals(sheet!.getCell(2, 1).value, "1");
+    assertEquals(sheet!.getCell(2, 2).value ?? "", "");
+    assertEquals(sheet!.getCell(2, 3).value, "HS-999_TEST");
+    assertEquals(sheet!.getCell(2, 32).value, "BIA.pdf");
 
-    // Row 3 (File 2)
-    assertEquals(sheet!.getCell(3, 1).value, "1"); // STT (merged)
-    assertEquals(sheet!.getCell(3, 2).value, "TL-002"); // Mã định danh file 2
-    assertEquals(sheet!.getCell(3, 3).value, "HS-999_TEST"); // Mã hồ sơ dossier (merged)
+    // Row 3 (File 1)
+    assertEquals(sheet!.getCell(3, 1).value, "1");
+    assertEquals(sheet!.getCell(3, 2).value, "TL-001");
+    assertEquals(sheet!.getCell(3, 3).value, "HS-999_TEST");
 
-    // Check date parsing auto-fill columns (Day, Month, Year)
-    const dayFile1 = sheet!.getCell(2, 19).value;
-    const monthFile1 = sheet!.getCell(2, 20).value;
-    const yearFile1 = sheet!.getCell(2, 21).value;
+    // Row 4 (File 2)
+    assertEquals(sheet!.getCell(4, 1).value, "1");
+    assertEquals(sheet!.getCell(4, 2).value, "TL-002");
+    assertEquals(sheet!.getCell(4, 3).value, "HS-999_TEST");
+
+    // Check date parsing auto-fill columns (Day, Month, Year) on document rows
+    const dayFile1 = sheet!.getCell(3, 19).value;
+    const monthFile1 = sheet!.getCell(3, 20).value;
+    const yearFile1 = sheet!.getCell(3, 21).value;
     assertEquals(dayFile1, "10");
-    assertEquals(monthFile1, "5");
+    assertEquals(monthFile1, "05");
     assertEquals(yearFile1, "2024");
 
-    const dayFile2 = sheet!.getCell(3, 19).value;
-    const monthFile2 = sheet!.getCell(3, 20).value;
-    const yearFile2 = sheet!.getCell(3, 21).value;
+    const dayFile2 = sheet!.getCell(4, 19).value;
+    const monthFile2 = sheet!.getCell(4, 20).value;
+    const yearFile2 = sheet!.getCell(4, 21).value;
     assertEquals(dayFile2, "11");
-    assertEquals(monthFile2, "5");
+    assertEquals(monthFile2, "05");
     assertEquals(yearFile2, "2024");
 
-    // Check file path column (Col 32 / AF)
-    assertEquals(sheet!.getCell(2, 32).value, "doc_1.pdf");
-    assertEquals(sheet!.getCell(3, 32).value, "doc_2.pdf");
+    assertEquals(sheet!.getCell(3, 32).value, "doc_1.pdf");
+    assertEquals(sheet!.getCell(4, 32).value, "doc_2.pdf");
 });
 
 Deno.test("buildDynamicMetadataExcel exports PVEP sample metadata with file_name MA_DINH_DANH_VAN_BAN", async () => {
@@ -244,12 +290,17 @@ Deno.test("buildDynamicMetadataExcel exports PVEP sample metadata with file_name
     // Header row + 5 document rows
     assertEquals(sheet!.actualRowCount, 6);
 
-    // Check MA_DINH_DANH_VAN_BAN (Col B / 2) displays file_name
+    // Check MA_DINH_DANH_VAN_BAN (Col B / 2) displays file_name for documents;
+    // BIA row only fills hồ sơ + path fields
     assertEquals(sheet!.getCell(2, 2).value, "PVEP.2002.0964.001.pdf");
     assertEquals(sheet!.getCell(3, 2).value, "PVEP.2002.0964.002.pdf");
     assertEquals(sheet!.getCell(4, 2).value, "PVEP.2002.0964.003.pdf");
     assertEquals(sheet!.getCell(5, 2).value, "PVEP.2002.0964.004.pdf");
-    assertEquals(sheet!.getCell(6, 2).value, "PVEP.2002.0964.BIA.pdf");
+    assertEquals(sheet!.getCell(6, 2).value ?? "", "");
+    assertEquals(
+        sheet!.getCell(6, 32).value,
+        "1.DL PDF/LAN 1/CSDL_SOHOA_PVEP/ALG/VV/358/0964/PVEP.2002.0964.BIA.pdf",
+    );
 
     // Check dossier-level metadata
     assertEquals(sheet!.getCell(2, 3).value, "0964"); // Mã hồ sơ
@@ -258,9 +309,10 @@ Deno.test("buildDynamicMetadataExcel exports PVEP sample metadata with file_name
     // Check document-level metadata
     assertEquals(sheet!.getCell(2, 17).value, "1330"); // Số của văn bản
     assertEquals(sheet!.getCell(2, 19).value, "14"); // Ngày
-    assertEquals(sheet!.getCell(2, 20).value, "1"); // Tháng
+    assertEquals(sheet!.getCell(2, 20).value, "01"); // Tháng
     assertEquals(sheet!.getCell(2, 21).value, "2002"); // Năm
     assertEquals(sheet!.getCell(2, 22).value, "14/01/2002"); // Ngày, tháng, năm văn bản (formatted dd/mm/yyyy)
+
 
     // Find column index for "Số lượng trang của văn bản" & "Tình trạng vật lý"
     const soLuongTrangColIdx = columns.findIndex((c) => c.header === "Số lượng trang của văn bản") + 1;
@@ -270,7 +322,7 @@ Deno.test("buildDynamicMetadataExcel exports PVEP sample metadata with file_name
     assertEquals(
         sheet!.getCell(2, 32).value,
         "1.DL PDF/LAN 1/CSDL_SOHOA_PVEP/ALG/VV/358/0964/PVEP.2002.0964.001.pdf",
-    ); // Đường dẫn file (stripped raw/)
+    ); // Đường dẫn file
 
     // Check that standard TT05 columns count is exactly 32 and no extra fields are appended
     assertEquals(columns.length, 32);
@@ -316,10 +368,10 @@ Deno.test("buildDynamicMetadataExcel formats dates to dd/mm/yyyy and omits 0 val
     const sheet = workbook.getWorksheet("Metadata");
     assertEquals(sheet != null, true);
 
-    const dayVal = sheet!.getCell(2, 19).value;
-    const monthVal = sheet!.getCell(2, 20).value;
-    const yearVal = sheet!.getCell(2, 21).value;
-    const fullDateVal = sheet!.getCell(2, 22).value;
+    const dayVal = sheet!.getCell(3, 19).value;
+    const monthVal = sheet!.getCell(3, 20).value;
+    const yearVal = sheet!.getCell(3, 21).value;
+    const fullDateVal = sheet!.getCell(3, 22).value;
 
     assertEquals(dayVal ?? "", "");
     assertEquals(monthVal ?? "", "");
@@ -327,100 +379,436 @@ Deno.test("buildDynamicMetadataExcel formats dates to dd/mm/yyyy and omits 0 val
     assertEquals(fullDateVal, "05/08/2024");
 });
 
-Deno.test("buildDynamicMetadataExcel sets Times New Roman size 14 and numFmt dd/mm/yyyy", async () => {
-    const ExcelJS = (await import("exceljs")).default;
-    const buffer = await buildDynamicMetadataExcel([sampleMetadata]);
+Deno.test("buildDynamicMetadataExcel supports empty columns with no fieldKeys", async () => {
+    const columns = [
+        { header: "STT", fieldKeys: [], separator: "" },
+        { header: "Ghi chú (Cột trống)", fieldKeys: [], separator: "" },
+    ];
+    const buffer = await buildDynamicMetadataExcel([sampleMetadata], { exportConfig: { columns } });
+
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer.buffer as ArrayBuffer);
-    const sheet = workbook.getWorksheet("Metadata")!;
+    const sheet = workbook.getWorksheet("Metadata");
+    assertEquals(sheet != null, true);
 
-    // Verify header cell font
-    const headerCell = sheet.getCell(1, 1);
-    assertEquals(headerCell.font?.name, "Times New Roman");
-    assertEquals(headerCell.font?.size, 14);
-    assertEquals(headerCell.font?.bold, true);
+    const emptyHeader = sheet!.getCell(1, 2).value;
+    const emptyCellValue = sheet!.getCell(2, 2).value;
 
-    // Verify data cell font
-    const dataCell = sheet.getCell(2, 1);
-    assertEquals(dataCell.font?.name, "Times New Roman");
-    assertEquals(dataCell.font?.size, 14);
+    assertEquals(emptyHeader, "Ghi chú (Cột trống)");
+    assertEquals(emptyCellValue ?? "", "");
+});
 
-    // Test with date column
-    const dateMetadata: DossierMetadata = {
+Deno.test("collectFolderMetadataExportEntries splits PDF and TIFF trees under shared folderPrefix", () => {
+    const excelBuffer = new Uint8Array([1, 2, 3]);
+    const pdfData = new Uint8Array([10, 11]);
+    const tiffData = new Uint8Array([20, 21, 22]);
+
+    const entries = collectFolderMetadataExportEntries({
+        excelFileName: "export-metadata-export.xlsx",
+        excelBuffer,
+        dossierPdfBundles: [
+            {
+                dossierFolderName: "HoSo",
+                baseFolderName: "PVEP",
+                relativeFolderPath: "01/20",
+                pdfFiles: [{ fileName: "1.PDF", data: pdfData }],
+                tiffFiles: [{ fileName: "1.TIFF", data: tiffData }],
+            },
+        ],
+    });
+
+    assertEquals(entries.map((e) => e.name), [
+        "export-metadata-export.xlsx",
+        "PDF/PVEP/01/20/1.PDF",
+        "TIFF/PVEP/01/20/1.TIFF",
+    ]);
+    assertEquals(entries[1]?.data, pdfData);
+    assertEquals(entries[2]?.data, tiffData);
+});
+
+Deno.test("buildDynamicMetadataExcel includes BIA and orphan MUCLUC with kind-specific fields", async () => {
+    const metadata: DossierMetadata = {
+        ho_so_id: "HS_BIA_MUCLUC",
         metadata_groups: [
             {
                 group_code: "HO_SO_LUU_TRU",
-                group_name: "Hồ sơ",
-                source_document: { file_name: null, file_path: null },
+                group_name: "Metadata cấp Hồ sơ lưu trữ",
+                source_document: {
+                    file_name: "BIA.pdf",
+                    file_path: "raw/CSDL/01/0001/BIA.pdf",
+                },
                 fields: [
-                    { name: "NGAY_TAO", display: "Ngày tạo", type: "date", value: "14/09/2026", page: null, bbox: null },
+                    {
+                        name: "TIEU_DE_HO_SO",
+                        display: "Tiêu đề hồ sơ",
+                        type: "string",
+                        value: "Hồ sơ quyết định",
+                        page: null,
+                        bbox: null,
+                    },
+                    {
+                        name: "MA_HO_SO",
+                        display: "Mã hồ sơ",
+                        type: "string",
+                        value: "0001",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "Metadata cấp Tài liệu lưu trữ",
+                source_document: {
+                    file_name: "001.pdf",
+                    file_path: "raw/CSDL/01/0001/001.pdf",
+                },
+                fields: [
+                    {
+                        name: "TRICH_YEU_NOI_DUNG",
+                        display: "Trích yếu nội dung",
+                        type: "string",
+                        value: "Quyết định số 1",
+                        page: null,
+                        bbox: null,
+                    },
                 ],
             },
         ],
     };
-    const dateBuffer = await buildDynamicMetadataExcel([dateMetadata], {
-        exportConfig: {
-            columns: [
-                { header: "STT", fieldKeys: [], separator: "" },
-                { header: "Ngày tạo", fieldKeys: ["HO_SO_LUU_TRU.NGAY_TAO"], separator: "" },
-            ],
-        },
+
+    const columns = [
+        { header: "STT_HANG", fieldKeys: ["__row_number"], separator: "" },
+        { header: "Tiêu đề hồ sơ", fieldKeys: ["HO_SO_LUU_TRU.TIEU_DE_HO_SO"], separator: "" },
+        { header: "Trích yếu", fieldKeys: ["TAI_LIEU_LUU_TRU.TRICH_YEU_NOI_DUNG"], separator: "" },
+        { header: "Path", fieldKeys: ["__file_path"], separator: "" },
+    ];
+
+    const buffer = await buildDynamicMetadataExcel([metadata], {
+        exportConfig: { columns },
+        dossierFilesList: [[
+            { fileName: "BIA.pdf", filePath: "raw/CSDL/01/0001/BIA.pdf" },
+            { fileName: "MUCLUC.pdf", filePath: "raw/CSDL/01/0001/MUCLUC.pdf" },
+            { fileName: "001.pdf", filePath: "raw/CSDL/01/0001/001.pdf" },
+        ]],
     });
-    const dateWb = new ExcelJS.Workbook();
-    await dateWb.xlsx.load(dateBuffer.buffer as ArrayBuffer);
-    const dateSheet = dateWb.getWorksheet("Metadata")!;
 
-    // Find date column index: Column 2 is Ngày tạo
-    const dateDataCell = dateSheet.getCell(2, 2);
-    assertEquals(dateDataCell.font?.name, "Times New Roman");
-    assertEquals(dateDataCell.font?.size, 14);
-    assertEquals(dateDataCell.numFmt, "dd/mm/yyyy");
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer.buffer as ArrayBuffer);
+    const sheet = workbook.getWorksheet("Metadata");
+    assertEquals(sheet!.actualRowCount, 4);
+    assertEquals(sheet!.hasMerges, false);
+
+    // BIA — no row number
+    assertEquals(sheet!.getCell(2, 1).value ?? "", "");
+    assertEquals(sheet!.getCell(2, 2).value, "Hồ sơ quyết định");
+    assertEquals(sheet!.getCell(2, 3).value ?? "", "");
+    assertEquals(sheet!.getCell(2, 4).value, "CSDL/01/0001/BIA.pdf");
+
+    // MUCLUC — path only, no row number
+    assertEquals(sheet!.getCell(3, 1).value ?? "", "");
+    assertEquals(sheet!.getCell(3, 2).value ?? "", "");
+    assertEquals(sheet!.getCell(3, 3).value ?? "", "");
+    assertEquals(sheet!.getCell(3, 4).value, "CSDL/01/0001/MUCLUC.pdf");
+
+    // Document — hồ sơ + tài liệu, first numbered document
+    assertEquals(sheet!.getCell(4, 1).value, "1");
+    assertEquals(sheet!.getCell(4, 2).value, "Hồ sơ quyết định");
+    assertEquals(sheet!.getCell(4, 3).value, "Quyết định số 1");
+    assertEquals(sheet!.getCell(4, 4).value, "CSDL/01/0001/001.pdf");
 });
 
-Deno.test("generateHsCode produces zero-padded HS codes", async () => {
-    const { generateHsCode } = await import("../libs/metadata-export.ts");
-    assertEquals(generateHsCode(0), "HS_01");
-    assertEquals(generateHsCode(1), "HS_02");
-    assertEquals(generateHsCode(8), "HS_09");
-    assertEquals(generateHsCode(9), "HS_10");
-    assertEquals(generateHsCode(99), "HS_100");
+Deno.test("resolveExportColumnValue joins fields without surrounding separator spaces", () => {
+    const value = resolveExportColumnValue(sampleMetadata, {
+        header: "Joined",
+        fieldKeys: ["DUONG_SU.SO_CCCD", "DUONG_SU.HO_VA_TEN"],
+        separator: "/",
+    });
+    assertEquals(value, "001122334455/Nguyễn Văn A\nTrần Thị B");
 });
 
-Deno.test("collectFolderMetadataExportEntries formats folders as HS_01, HS_02 with pdfs/", async () => {
-    const { collectFolderMetadataExportEntries } = await import("../libs/metadata-export.ts");
-    const entries = collectFolderMetadataExportEntries({
-        excelFileName: "metadata.xlsx",
-        excelBuffer: new Uint8Array([1, 2, 3]),
-        dossierPdfBundles: [
+Deno.test("__row_number increments across dossiers", async () => {
+    const columns = [
+        { header: "STT_HANG", fieldKeys: ["__row_number"], separator: "" },
+        { header: "Mã", fieldKeys: ["__ho_so_id"], separator: "" },
+    ];
+
+    const buffer = await buildDynamicMetadataExcel(
+        [
             {
-                dossierFolderName: "Dossier_Alpha",
-                pdfFiles: [
-                    { fileName: "doc1.pdf", data: new Uint8Array([10]) },
-                    { fileName: "doc2.pdf", data: new Uint8Array([20]) },
+                ho_so_id: "HS_A",
+                metadata_groups: [
+                    {
+                        group_code: "TAI_LIEU_LUU_TRU",
+                        group_name: "TL",
+                        source_document: { file_name: "a1.pdf", file_path: "raw/a1.pdf" },
+                        fields: [],
+                    },
+                    {
+                        group_code: "TAI_LIEU_LUU_TRU",
+                        group_name: "TL",
+                        source_document: { file_name: "a2.pdf", file_path: "raw/a2.pdf" },
+                        fields: [],
+                    },
                 ],
             },
             {
-                dossierFolderName: "Dossier_Beta",
-                pdfFiles: [
-                    { fileName: "report.pdf", data: new Uint8Array([30]) },
-                ],
-            },
-            {
-                dossierFolderName: "Dossier_Gamma",
-                pdfFiles: [
-                    { fileName: "contract.pdf", data: new Uint8Array([40]) },
+                ho_so_id: "HS_B",
+                metadata_groups: [
+                    {
+                        group_code: "TAI_LIEU_LUU_TRU",
+                        group_name: "TL",
+                        source_document: { file_name: "b1.pdf", file_path: "raw/b1.pdf" },
+                        fields: [],
+                    },
                 ],
             },
         ],
-    });
+        { exportConfig: { columns } },
+    );
 
-    assertEquals(entries.length, 5);
-    assertEquals(entries[0]!.name, "metadata.xlsx");
-    assertEquals(entries[1]!.name, "HS_01/pdfs/doc1.pdf");
-    assertEquals(entries[2]!.name, "HS_01/pdfs/doc2.pdf");
-    assertEquals(entries[3]!.name, "HS_02/pdfs/report.pdf");
-    assertEquals(entries[4]!.name, "HS_03/pdfs/contract.pdf");
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer.buffer as ArrayBuffer);
+    const sheet = workbook.getWorksheet("Metadata");
+    assertEquals(sheet!.getCell(2, 1).value, "1");
+    assertEquals(sheet!.getCell(3, 1).value, "2");
+    assertEquals(sheet!.getCell(4, 1).value, "3");
 });
 
+Deno.test("__dossier_folder resolves from dossier folder path and joins with file name", async () => {
+    const metadata: DossierMetadata = {
+        ho_so_id: "0001",
+        metadata_groups: [
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "TL",
+                source_document: {
+                    file_name: "BIA.pdf",
+                    file_path: "raw/CSDL/028.25.05/01/0001/BIA.pdf",
+                },
+                fields: [],
+            },
+        ],
+    };
+
+    const columns = [
+        {
+            header: "Folder",
+            fieldKeys: ["__dossier_folder"],
+            separator: "",
+        },
+        {
+            header: "Joined",
+            fieldKeys: ["__dossier_folder", "__file_name"],
+            separator: "/",
+        },
+    ];
+
+    const buffer = await buildDynamicMetadataExcel([metadata], {
+        exportConfig: { columns },
+        dossierFolderPaths: ["raw/CSDL/028.25.05/01/0001"],
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer.buffer as ArrayBuffer);
+    const sheet = workbook.getWorksheet("Metadata");
+    assertEquals(sheet!.getCell(2, 1).value, "0001");
+    assertEquals(sheet!.getCell(2, 2).value, "0001/BIA.pdf");
+});
+
+Deno.test("document row does not fall back to sibling document fields", async () => {
+    const metadata: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "TL",
+                source_document: { file_name: "doc_a.pdf", file_path: "raw/doc_a.pdf" },
+                fields: [
+                    {
+                        name: "KY_HIEU_CUA_VAN_BAN",
+                        display: "Ký hiệu",
+                        type: "string",
+                        value: "QĐ/ĐTN",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "TL",
+                source_document: { file_name: "doc_b.pdf", file_path: "raw/doc_b.pdf" },
+                fields: [],
+            },
+        ],
+    };
+
+    const columns = [
+        {
+            header: "Ký hiệu",
+            fieldKeys: ["TAI_LIEU_LUU_TRU.KY_HIEU_CUA_VAN_BAN"],
+            separator: "",
+        },
+    ];
+
+    const buffer = await buildDynamicMetadataExcel([metadata], {
+        exportConfig: { columns },
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer.buffer as ArrayBuffer);
+    const sheet = workbook.getWorksheet("Metadata");
+    assertEquals(sheet!.getCell(2, 1).value, "QĐ/ĐTN");
+    assertEquals(sheet!.getCell(3, 1).value ?? "", "");
+});
+
+Deno.test("buildDynamicMetadataExcel with tuyen_quang.json excludes BIA and CHUNG TU KET THUC from STT, Ma dinh danh and total document count", async () => {
+    let jsonText = "";
+    for (const path of [
+        "packages/sohoa-backend/assets/tuyen_quang.json",
+        "assets/tuyen_quang.json",
+    ]) {
+        try {
+            jsonText = await Deno.readTextFile(path);
+            break;
+        } catch {
+            // try next
+        }
+    }
+    const metadata: DossierMetadata = JSON.parse(jsonText);
+
+    const columns = [
+        {
+            header: "Mã định danh tài liệu",
+            fieldKeys: ["HO_SO_LUU_TRU.MA_PHONG", "HO_SO_LUU_TRU.MUC_LUC_SO", "__row_number"],
+            separator: ".",
+        },
+        {
+            header: "Số thứ tự văn bản trong hồ sơ",
+            fieldKeys: ["__row_number"],
+            separator: "",
+        },
+        {
+            header: "Tên loại tài liệu",
+            fieldKeys: ["TAI_LIEU_LUU_TRU.TEN_LOAI_VAN_BAN"],
+            separator: "",
+        },
+        {
+            header: "Tổng số tài liệu trong hồ sơ",
+            fieldKeys: ["HO_SO_LUU_TRU.SO_TAI_LIEU"],
+            separator: "",
+        },
+        {
+            header: "Path",
+            fieldKeys: ["__file_path"],
+            separator: "",
+        },
+    ];
+
+    const buffer = await buildDynamicMetadataExcel([metadata], {
+        exportConfig: { columns },
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer.buffer as ArrayBuffer);
+    const sheet = workbook.getWorksheet("Metadata");
+
+    // 5 rows: BIA, 0042_2 (QUYET DINH), 0042_3 (BAO CAO), 0042_4 (CHUNG TU KET THUC), MUCLUC
+    // Row 2: BIA
+    assertEquals(sheet!.getCell(2, 1).value ?? "", ""); // Ma dinh danh is empty (no partial 028.25.05.01)
+    assertEquals(sheet!.getCell(2, 2).value ?? "", ""); // STT is empty
+    assertEquals(sheet!.getCell(2, 3).value ?? "", ""); // Ten loai van ban is empty
+    assertEquals(sheet!.getCell(2, 4).value, "2"); // 3 - 1 closing doc = 2!
+    assertEquals(sheet!.getCell(2, 5).value, "CSDL_SOHOA_TUTQ/028.25.05/01/0001/BIA.pdf");
+
+    // Row 3: 0042_2 (QUYẾT ĐINH)
+    assertEquals(sheet!.getCell(3, 1).value, "028.25.05.01.1");
+    assertEquals(sheet!.getCell(3, 2).value, "1");
+    assertEquals(sheet!.getCell(3, 3).value, "QUYẾT ĐINH");
+    assertEquals(sheet!.getCell(3, 4).value, "2");
+    assertEquals(sheet!.getCell(3, 5).value, "CSDL_SOHOA_TUTQ/028.25.05/01/0001/0042_2.pdf");
+
+    // Row 4: 0042_3 (BÁO CÁO)
+    assertEquals(sheet!.getCell(4, 1).value, "028.25.05.01.2");
+    assertEquals(sheet!.getCell(4, 2).value, "2");
+    assertEquals(sheet!.getCell(4, 3).value, "BÁO CÁO");
+    assertEquals(sheet!.getCell(4, 4).value, "2");
+    assertEquals(sheet!.getCell(4, 5).value, "CSDL_SOHOA_TUTQ/028.25.05/01/0001/0042_3.pdf");
+
+    // Row 5: 0042_4 (CHỨNG TỪ KẾT THÚC)
+    assertEquals(sheet!.getCell(5, 1).value ?? "", ""); // Ma dinh danh is empty
+    assertEquals(sheet!.getCell(5, 2).value ?? "", ""); // STT is empty
+    assertEquals(sheet!.getCell(5, 3).value, "CHỨNG TỪ KẾT THÚC");
+    assertEquals(sheet!.getCell(5, 4).value, "2");
+    assertEquals(sheet!.getCell(5, 5).value, "CSDL_SOHOA_TUTQ/028.25.05/01/0001/0042_4.pdf");
+
+    // Row 6: MUCLUC
+    assertEquals(sheet!.getCell(6, 1).value ?? "", ""); // Ma dinh danh is empty
+    assertEquals(sheet!.getCell(6, 2).value ?? "", ""); // STT is empty
+    assertEquals(sheet!.getCell(6, 3).value ?? "", "");
+    assertEquals(sheet!.getCell(6, 4).value, "2");
+    assertEquals(sheet!.getCell(6, 5).value, "CSDL_SOHOA_TUTQ/028.25.05/01/0001/MUCLUC.pdf");
+});
+
+Deno.test("buildMetadataExportPreview matches Excel row values for CHUNG TU KET THUC and BIA", () => {
+    const metadata: DossierMetadata = {
+        ho_so_id: "HS_01",
+        metadata_groups: [
+            {
+                group_code: "HO_SO_LUU_TRU",
+                group_name: "Ho so",
+                source_document: { file_name: "BIA.pdf", file_path: "raw/BIA.pdf" },
+                fields: [
+                    { name: "MA_PHONG", display: "Phông", type: "string", value: "P01", page: null, bbox: null, bboxes: [] },
+                    { name: "TONG_SO_TAI_LIEU_TRONG_HO_SO", display: "Tổng số", type: "string", value: "3", page: null, bbox: null, bboxes: [] },
+                ],
+            },
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "Tai lieu",
+                source_document: { file_name: "doc1.pdf", file_path: "raw/doc1.pdf" },
+                fields: [
+                    { name: "TEN_LOAI_VAN_BAN", display: "Loại", type: "string", value: "CHỨNG TỪ KẾT THÚC", page: null, bbox: null, bboxes: [] },
+                ],
+            },
+            {
+                group_code: "TAI_LIEU_LUU_TRU",
+                group_name: "Tai lieu",
+                source_document: { file_name: "doc2.pdf", file_path: "raw/doc2.pdf" },
+                fields: [
+                    { name: "TEN_LOAI_VAN_BAN", display: "Loại", type: "string", value: "BÁO CÁO", page: null, bbox: null, bboxes: [] },
+                ],
+            },
+        ],
+    };
+
+    const columns = [
+        { header: "Mã định danh tài liệu", fieldKeys: ["HO_SO_LUU_TRU.MA_PHONG", "__row_number"], separator: "." },
+        { header: "STT", fieldKeys: ["__row_number"], separator: "" },
+        { header: "Loại", fieldKeys: ["TAI_LIEU_LUU_TRU.TEN_LOAI_VAN_BAN"], separator: "" },
+        { header: "Tổng số", fieldKeys: ["HO_SO_LUU_TRU.TONG_SO_TAI_LIEU_TRONG_HO_SO"], separator: "" },
+    ];
+
+    const preview = buildMetadataExportPreview([metadata], { columns });
+    assertEquals(preview.rows.length, 3);
+
+    // BIA
+    assertEquals(preview.rows[0]?.cells[0], "");
+    assertEquals(preview.rows[0]?.cells[1], "");
+    assertEquals(preview.rows[0]?.cells[2], "");
+    assertEquals(preview.rows[0]?.cells[3], "2"); // 3 - 1 = 2
+
+    // CHỨNG TỪ KẾT THÚC
+    assertEquals(preview.rows[1]?.cells[0], "");
+    assertEquals(preview.rows[1]?.cells[1], "");
+    assertEquals(preview.rows[1]?.cells[2], "CHỨNG TỪ KẾT THÚC");
+    assertEquals(preview.rows[1]?.cells[3], "2");
+
+    // BÁO CÁO
+    assertEquals(preview.rows[2]?.cells[0], "P01.1");
+    assertEquals(preview.rows[2]?.cells[1], "1");
+    assertEquals(preview.rows[2]?.cells[2], "BÁO CÁO");
+    assertEquals(preview.rows[2]?.cells[3], "2");
+});
 
 

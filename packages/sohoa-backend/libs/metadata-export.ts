@@ -2,6 +2,8 @@ import JSZip from "jszip";
 import type { DossierMetadata } from "./metadata-types.ts";
 import { expandTaiLieuDocuments } from "./metadata-normalize.ts";
 import { normalizeStorageKey, storageBasename } from "../modules/dossier/dossier-path-utils.ts";
+import { uniqueZipFolderPath } from "./archival-package/aip-path-utils.ts";
+import { sanitizeFolderPathForZip } from "./archival-package/zip-utils.ts";
 import { encryptedZipEntriesToReadableStream } from "./encrypted-zip-stream.ts";
 import {
     jszipToReadableStream,
@@ -11,11 +13,16 @@ import {
 export interface MetadataPdfSource {
     storageKey: string;
     fileName: string;
+    /** When set, download this key instead of storageKey (signed PDF bytes). */
+    downloadKey?: string;
+    /** Skip watermark / PDF/A so embedded digital signatures stay valid. */
+    preserveSignature?: boolean;
 }
 
 export interface MetadataExportPdfFile {
     fileName: string;
     data: Uint8Array;
+    preserveSignature?: boolean;
 }
 
 function isPdfPath(path: string): boolean {
@@ -47,23 +54,45 @@ function uniqueZipEntryName(fileName: string, usedNames: Set<string>): string {
     return uniqueName;
 }
 
+type DossierFilePdfSourceInput = {
+    fileName: string;
+    filePath: string;
+    signedFilePath?: string | null;
+};
+
 export function collectMetadataPdfSources(
     metadata: DossierMetadata,
-    dossierFiles: Array<{ fileName: string; filePath: string }> = [],
+    dossierFiles: DossierFilePdfSourceInput[] = [],
 ): MetadataPdfSource[] {
-    const sources = new Map<string, string>();
+    const sources = new Map<string, MetadataPdfSource>();
+    const signedByPath = new Map<string, string>();
     const expanded = expandTaiLieuDocuments(metadata);
+
+    for (const file of dossierFiles) {
+        const pathKey = normalizeStorageKey(file.filePath);
+        if (file.signedFilePath) {
+            signedByPath.set(pathKey, normalizeStorageKey(file.signedFilePath));
+        }
+    }
 
     for (const file of dossierFiles) {
         if (!isPdfPath(file.filePath) && !isPdfPath(file.fileName)) {
             continue;
         }
 
-        sources.set(normalizeStorageKey(file.filePath), file.fileName);
+        const storageKey = normalizeStorageKey(file.filePath);
+        const downloadKey = signedByPath.get(storageKey);
+        sources.set(storageKey, {
+            storageKey,
+            fileName: file.fileName,
+            ...(downloadKey
+                ? { downloadKey, preserveSignature: true as const }
+                : {}),
+        });
     }
 
     const allowedStorageKeys = new Set(
-        dossierFiles.map(f => normalizeStorageKey(f.filePath))
+        dossierFiles.map((f) => normalizeStorageKey(f.filePath)),
     );
 
     for (const group of expanded.metadata_groups) {
@@ -77,11 +106,25 @@ export function collectMetadataPdfSources(
             continue;
         }
 
-        const fileName = group.source_document?.file_name ?? storageBasename(filePath);
-        sources.set(storageKey, fileName);
+        const fileName =
+            group.source_document?.file_name ?? storageBasename(filePath);
+        const downloadKey = signedByPath.get(storageKey);
+        const existing = sources.get(storageKey);
+        sources.set(storageKey, {
+            storageKey,
+            fileName: existing?.fileName ?? fileName,
+            ...(downloadKey
+                ? { downloadKey, preserveSignature: true as const }
+                : existing?.preserveSignature
+                ? {
+                    downloadKey: existing.downloadKey,
+                    preserveSignature: true as const,
+                }
+                : {}),
+        });
     }
 
-    return [...sources.entries()].map(([storageKey, fileName]) => ({ storageKey, fileName }));
+    return [...sources.values()];
 }
 
 export interface DossierMetadataExportBundle {
@@ -91,67 +134,21 @@ export interface DossierMetadataExportBundle {
     pdfFiles: MetadataExportPdfFile[];
 }
 
-function collectMetadataExportEntries(input: {
-    excelFileName: string;
-    excelBuffer: Uint8Array;
-    pdfFiles: MetadataExportPdfFile[];
-}): Array<{ name: string; data: Uint8Array }> {
-    const entries: Array<{ name: string; data: Uint8Array }> = [
-        { name: input.excelFileName, data: input.excelBuffer },
-    ];
-    const usedPdfNames = new Set<string>();
-    for (const pdf of input.pdfFiles) {
-        const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
-        entries.push({ name: `pdfs/${entryName}`, data: pdf.data });
-        pdf.data = new Uint8Array(0);
-    }
-    input.pdfFiles.length = 0;
-    return entries;
-}
+// collectMetadataExportEntries removed as we use folder layout for all
 
-function buildMetadataExportJsZip(input: {
-    excelFileName: string;
-    excelBuffer: Uint8Array;
-    pdfFiles: MetadataExportPdfFile[];
-}): JSZip {
-    const zip = new JSZip();
-    for (const entry of collectMetadataExportEntries(input)) {
-        zip.file(entry.name, entry.data);
-    }
-    return zip;
-}
-
-export async function buildMetadataExportZipStream(input: {
-    excelFileName: string;
-    excelBuffer: Uint8Array;
-    pdfFiles: MetadataExportPdfFile[];
-    password?: string;
-}): Promise<ReadableStream<Uint8Array>> {
-    if (input.password?.trim()) {
-        return await encryptedZipEntriesToReadableStream(
-            collectMetadataExportEntries(input),
-            input.password,
-        );
-    }
-    return jszipToReadableStream(buildMetadataExportJsZip(input));
-}
-
-export async function buildMetadataExportZip(input: {
-    excelFileName: string;
-    excelBuffer: Uint8Array;
-    pdfFiles: MetadataExportPdfFile[];
-    password?: string;
-}): Promise<Uint8Array> {
-    return await readableStreamToUint8Array(await buildMetadataExportZipStream(input));
-}
+// Deprecated flat structure export functions removed
 
 export interface FolderDossierPdfBundle {
+    /** Nested ZIP folder path preserving warehouse hierarchy (e.g. A/B/HoSo). */
     dossierFolderName: string;
+    zipFolderPath?: string;
+    /** Đường dẫn thư mục tương đối từ baseFolderPath, dùng để tạo cấu trúc thư mục trong ZIP */
+    relativeFolderPath?: string;
+    /** Tên thư mục gốc (baseFolderName) mà user đã chọn xuất */
+    baseFolderName?: string;
     pdfFiles: MetadataExportPdfFile[];
-}
-
-export function generateHsCode(index: number): string {
-    return `HS_${(index + 1).toString().padStart(2, "0")}`;
+    /** Parallel to pdfFiles: same stem, `.TIFF` extension. */
+    tiffFiles?: MetadataExportPdfFile[];
 }
 
 export function collectFolderMetadataExportEntries(input: {
@@ -162,19 +159,47 @@ export function collectFolderMetadataExportEntries(input: {
     const entries: Array<{ name: string; data: Uint8Array }> = [
         { name: input.excelFileName, data: input.excelBuffer },
     ];
-    for (let dossierIndex = 0; dossierIndex < input.dossierPdfBundles.length; dossierIndex++) {
-        const bundle = input.dossierPdfBundles[dossierIndex]!;
-        const hsCode = generateHsCode(dossierIndex); // ← HS_01, HS_02, ...
+    const usedFolderNames = new Set<string>();
+    for (const bundle of input.dossierPdfBundles) {
+        let folderPrefix: string;
+        if (bundle.baseFolderName && bundle.relativeFolderPath !== undefined) {
+            const cleanBase = sanitizeFolderPathForZip(bundle.baseFolderName);
+            const cleanRel = sanitizeFolderPathForZip(bundle.relativeFolderPath);
+            folderPrefix = uniqueZipFolderPath(
+                cleanRel ? `${cleanBase}/${cleanRel}` : cleanBase,
+                usedFolderNames,
+            );
+        } else {
+            folderPrefix = uniqueZipFolderPath(
+                bundle.zipFolderPath || bundle.dossierFolderName,
+                usedFolderNames,
+            );
+        }
         const usedPdfNames = new Set<string>();
-        for (const pdf of bundle.pdfFiles) {
+        const tiffFiles = bundle.tiffFiles ?? [];
+        for (let i = 0; i < bundle.pdfFiles.length; i++) {
+            const pdf = bundle.pdfFiles[i]!;
             const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
             entries.push({
-                name: `${hsCode}/pdfs/${entryName}`, // ← Use HS_xx instead of dossierFolderName
+                name: `PDF/${folderPrefix}/${entryName}`,
                 data: pdf.data,
             });
             pdf.data = new Uint8Array(0);
+
+            const tiff = tiffFiles[i];
+            if (tiff) {
+                const tiffEntryName = entryName.replace(/\.pdf$/i, ".TIFF");
+                entries.push({
+                    name: `TIFF/${folderPrefix}/${tiffEntryName}`,
+                    data: tiff.data,
+                });
+                tiff.data = new Uint8Array(0);
+            }
         }
         bundle.pdfFiles.length = 0;
+        if (bundle.tiffFiles) {
+            bundle.tiffFiles.length = 0;
+        }
     }
     return entries;
 }
@@ -191,7 +216,7 @@ function buildFolderMetadataExportJsZip(input: {
     return zip;
 }
 
-/** ZIP gồm một Excel tổng hợp ở gốc và PDF theo từng thư mục hồ sơ. */
+/** ZIP: Excel at root + parallel PDF/ and TIFF/ trees preserving folder hierarchy. */
 export async function buildFolderMetadataExportZipStream(input: {
     excelFileName: string;
     excelBuffer: Uint8Array;
