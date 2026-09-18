@@ -173,6 +173,14 @@ Deno.test("migrateTt05MetadataLayout moves fond from legacy PHONG group", () => 
                         page: null,
                         bbox: null,
                     },
+                    {
+                        name: "MA_PHONG",
+                        display: "Phong So",
+                        type: "string",
+                        value: "028.25.04",
+                        page: null,
+                        bbox: null,
+                    },
                 ],
             },
             {
@@ -184,20 +192,58 @@ Deno.test("migrateTt05MetadataLayout moves fond from legacy PHONG group", () => 
         ],
     };
     const migrated = migrateTt05MetadataLayout(raw);
+    const hoSoFields = migrated.metadata_groups.find((group) =>
+        group.group_code === HO_SO_LUU_TRU_GROUP_CODE
+    )?.fields ?? [];
 
     assertEquals(
         migrated.metadata_groups.some((group) => group.group_code === "PHONG_LUU_TRU"),
         false,
     );
     assertEquals(
-        findMetadataFieldValue(
-            migrated.metadata_groups.find((group) =>
-                group.group_code === HO_SO_LUU_TRU_GROUP_CODE
-            )?.fields ?? [],
-            HO_SO_FOND_FIELD,
-        ),
+        findMetadataFieldValue(hoSoFields, HO_SO_FOND_FIELD),
         "Phong legacy",
     );
+    assertEquals(findMetadataFieldValue(hoSoFields, "TEN_PHONG"), "Phong legacy");
+    assertEquals(findMetadataFieldValue(hoSoFields, "MA_PHONG"), "028.25.04");
+});
+
+Deno.test("migrateTt05MetadataLayout keeps MA_PHONG beside FOND on HO_SO", () => {
+    const raw: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: HO_SO_LUU_TRU_GROUP_CODE,
+                group_name: "Ho so",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    {
+                        name: "TEN_PHONG",
+                        display: "Ten phong",
+                        type: "string",
+                        value: "Hoi CCB",
+                        page: null,
+                        bbox: null,
+                    },
+                    {
+                        name: "MA_PHONG",
+                        display: "Phong So",
+                        type: "string",
+                        value: "028.25.04",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+        ],
+    };
+    const migrated = migrateTt05MetadataLayout(raw);
+    const hoSoFields = migrated.metadata_groups.find((group) =>
+        group.group_code === HO_SO_LUU_TRU_GROUP_CODE
+    )?.fields ?? [];
+
+    assertEquals(findMetadataFieldValue(hoSoFields, HO_SO_FOND_FIELD), "Hoi CCB");
+    assertEquals(findMetadataFieldValue(hoSoFields, "MA_PHONG"), "028.25.04");
+    assertEquals(findMetadataFieldValue(hoSoFields, "TEN_PHONG"), "Hoi CCB");
 });
 
 Deno.test("hasHoSoFondField identifies presence of Fond field correctly", () => {

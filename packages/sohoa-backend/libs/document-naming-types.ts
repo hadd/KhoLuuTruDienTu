@@ -42,6 +42,7 @@ export const DOCUMENT_NAMING_SYNTHETIC_METADATA_FIELDS: DocumentNamingFieldOptio
     { key: "__file_count", label: "Tổng số văn bản trong hồ sơ" },
     { key: "__ho_so_id", label: "Mã hồ sơ (basename)" },
     { key: "__file_path", label: "Đường dẫn file" },
+    { key: "__file_name", label: "Tên file" },
     { key: "__file_identifier", label: "Mã định danh văn bản" },
     { key: "__document_type_name", label: "Tên loại văn bản" },
     { key: "__date_day", label: "Ngày (từ ngày văn bản)" },
