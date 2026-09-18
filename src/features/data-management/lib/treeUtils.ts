@@ -261,9 +261,16 @@ export function isDossierWorkflowNode(node: DataTreeNodeT): boolean {
   return node.dossierStatus != null || node.entityType === 'DOCUMENT'
 }
 
-/** True when a node is an exportable hồ sơ leaf (APPROVED or ARCHIVED). */
-export function isBatchExportDossierLeafNode(node: DataTreeNodeT): boolean {
-  if (
+/** True when a node is an exportable hồ sơ leaf (APPROVED or ARCHIVED, or any status when bypass). */
+export function isBatchExportDossierLeafNode(
+  node: DataTreeNodeT,
+  options?: { bypassStatus?: boolean },
+): boolean {
+  if (options?.bypassStatus) {
+    if (!isDossierWorkflowNode(node) && node.type !== 'record' && !node.dossierId) {
+      return false
+    }
+  } else if (
     node.dossierStatus !== 'APPROVED' &&
     node.dossierStatus !== 'ARCHIVED'
   ) {
@@ -276,64 +283,100 @@ export function isBatchExportDossierLeafNode(node: DataTreeNodeT): boolean {
   )
 }
 
-function hasBatchExportDossierLeafDescendant(node: DataTreeNodeT): boolean {
+function hasBatchExportDossierLeafDescendant(
+  node: DataTreeNodeT,
+  options?: { bypassStatus?: boolean },
+): boolean {
   for (const child of node.children) {
-    if (isBatchExportDossierLeafNode(child)) return true
-    if (hasBatchExportDossierLeafDescendant(child)) return true
+    if (isBatchExportDossierLeafNode(child, options)) return true
+    if (hasBatchExportDossierLeafDescendant(child, options)) return true
   }
   return false
 }
 
 /**
  * True when a tree node can be picked in batch metadata export mode.
- * Includes parent folders (not shared raw/) that contain exportable hồ sơ,
- * or unloaded intermediate folders (cascade-load on select).
+ * Includes parent folders (not shared raw/) — tick means export whole subtree
+ * via folderId API (no cascade-load into React).
  */
-export function isBatchExportSelectableNode(node: DataTreeNodeT): boolean {
+export function isBatchExportSelectableNode(
+  node: DataTreeNodeT,
+  options?: { bypassStatus?: boolean },
+): boolean {
   if (node.type === 'document') return false
   if (node.id === DATA_TREE_ROOT_ID) return false
   if (isSharedRawRootFolder(node)) return false
-  if (isBatchExportDossierLeafNode(node)) return true
+  if (isBatchExportDossierLeafNode(node, options)) return true
   // Non-exportable hồ sơ (e.g. READY_FOR_ENTRY) must not show a checkbox —
   // clicking them loaded the tree then silently dropped selection.
-  if (isDossierWorkflowNode(node)) return false
-  if (node.type !== 'folder') return false
-  if (hasBatchExportDossierLeafDescendant(node)) return true
-  // Unloaded pure container folder — allow tick to cascade-load subtree.
-  return node.children.length === 0
-}
-
-/** Collect this node + all selectable descendants for cascade select/deselect. */
-export function collectBatchExportSelectableIds(node: DataTreeNodeT): Array<string> {
-  const ids: Array<string> = []
-  function walk(current: DataTreeNodeT) {
-    if (isBatchExportSelectableNode(current)) {
-      ids.push(current.id)
-    }
-    for (const child of current.children) {
-      walk(child)
-    }
+  if (isDossierWorkflowNode(node) && !options?.bypassStatus) return false
+  if (isDossierWorkflowNode(node) && options?.bypassStatus) {
+    return (
+      node.type === 'record' ||
+      Boolean(node.dossierId) ||
+      node.entityType === 'DOCUMENT'
+    )
   }
-  walk(node)
-  return ids
+  if (node.type !== 'folder') return false
+  // Pure container folder — tick means "export whole subtree" via folderId API
+  // (no cascade-load of children into React state).
+  return true
 }
 
-/** Checkbox state for batch export cascade selection. */
+/** Collect this node only (folders are atomic subtree selections). */
+export function collectBatchExportSelectableIds(
+  node: DataTreeNodeT,
+  options?: { bypassStatus?: boolean },
+): Array<string> {
+  if (!isBatchExportSelectableNode(node, options)) return []
+  return [node.id]
+}
+
+/** True when an ancestor folder (not a dossier leaf) is in `selectedIds`. */
+export function isUnderSelectedBatchExportFolder(
+  node: DataTreeNodeT,
+  tree: DataTreeNodeT,
+  selectedIds: Array<string>,
+  options?: { bypassStatus?: boolean },
+): boolean {
+  const selectedSet = new Set(selectedIds)
+  let parentId = node.parentId
+  while (parentId) {
+    if (selectedSet.has(parentId)) {
+      const parent = findNodeById(tree, parentId)
+      if (
+        parent &&
+        parent.type === 'folder' &&
+        !isBatchExportDossierLeafNode(parent, options) &&
+        isBatchExportSelectableNode(parent, options)
+      ) {
+        return true
+      }
+    }
+    const parent = findNodeById(tree, parentId)
+    if (!parent) break
+    parentId = parent.parentId
+  }
+  return false
+}
+
+/** Checkbox state for batch export — folder tick covers whole subtree visually. */
 export function getBatchExportCheckState(
   node: DataTreeNodeT,
   selectedIds: Array<string>,
+  options?: { bypassStatus?: boolean },
+  tree?: DataTreeNodeT | null,
 ): boolean | 'indeterminate' {
-  if (!isBatchExportSelectableNode(node)) return false
-  const cascadeIds = collectBatchExportSelectableIds(node)
-  if (cascadeIds.length === 0) return false
+  if (!isBatchExportSelectableNode(node, options)) return false
   const selectedSet = new Set(selectedIds)
-  let selectedCount = 0
-  for (const id of cascadeIds) {
-    if (selectedSet.has(id)) selectedCount += 1
+  if (selectedSet.has(node.id)) return true
+  if (
+    tree &&
+    isUnderSelectedBatchExportFolder(node, tree, selectedIds, options)
+  ) {
+    return true
   }
-  if (selectedCount === 0) return false
-  if (selectedCount === cascadeIds.length) return true
-  return 'indeterminate'
+  return false
 }
 
 /** True when the API marks this node as assigned (`isAssigned: true`). */
@@ -923,11 +966,11 @@ export function updateDossierStatusInTree(
         children: childrenChanged ? nextChildren : node.children,
         ...(node.dossierMetadata
           ? {
-              dossierMetadata: {
-                ...node.dossierMetadata,
-                trang_thai_ho_so: status,
-              },
-            }
+            dossierMetadata: {
+              ...node.dossierMetadata,
+              trang_thai_ho_so: status,
+            },
+          }
           : {}),
       }
       return { node: updatedNode, changed: true }
@@ -1353,19 +1396,19 @@ export function updateDossierMetadataInTree(
     const nextNode =
       isTarget && metadata
         ? syncRecordDocumentFields(
-            {
-              ...node,
-              dossierMetadata: metadata,
-              fullDossierMetadata: metadata,
-            },
-            metadata,
-          )
+          {
+            ...node,
+            dossierMetadata: metadata,
+            fullDossierMetadata: metadata,
+          },
+          metadata,
+        )
         : isTarget
           ? {
-              ...node,
-              dossierMetadata: metadata,
-              fullDossierMetadata: metadata,
-            }
+            ...node,
+            dossierMetadata: metadata,
+            fullDossierMetadata: metadata,
+          }
           : node
     return {
       ...nextNode,
@@ -1387,28 +1430,28 @@ export function updateDossierWorkflowStateInTree(
     const isTarget = node.id === dossierId || node.dossierId === dossierId
     const nextNode = isTarget
       ? {
-          ...node,
-          ...(patch.dossierStatus ? { dossierStatus: patch.dossierStatus } : {}),
-          ...(patch.assignmentStatus
-            ? { assignmentStatus: patch.assignmentStatus }
-            : {}),
-          ...(node.dossierMetadata && patch.dossierStatus
-            ? {
-                dossierMetadata: {
-                  ...node.dossierMetadata,
-                  trang_thai_ho_so: patch.dossierStatus,
-                },
-              }
-            : {}),
-          ...(node.fullDossierMetadata && patch.dossierStatus
-            ? {
-                fullDossierMetadata: {
-                  ...node.fullDossierMetadata,
-                  trang_thai_ho_so: patch.dossierStatus,
-                },
-              }
-            : {}),
-        }
+        ...node,
+        ...(patch.dossierStatus ? { dossierStatus: patch.dossierStatus } : {}),
+        ...(patch.assignmentStatus
+          ? { assignmentStatus: patch.assignmentStatus }
+          : {}),
+        ...(node.dossierMetadata && patch.dossierStatus
+          ? {
+            dossierMetadata: {
+              ...node.dossierMetadata,
+              trang_thai_ho_so: patch.dossierStatus,
+            },
+          }
+          : {}),
+        ...(node.fullDossierMetadata && patch.dossierStatus
+          ? {
+            fullDossierMetadata: {
+              ...node.fullDossierMetadata,
+              trang_thai_ho_so: patch.dossierStatus,
+            },
+          }
+          : {}),
+      }
       : node
     return {
       ...nextNode,

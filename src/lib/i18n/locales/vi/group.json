@@ -371,7 +371,9 @@
     "retry": "Thử lại",
     "count": "{{count}} hồ sơ",
     "assignedTo": "Gán cho: {{name}}",
-    "unassigned": "Chưa gán người"
+    "assignedToLabel": "Gán cho:",
+    "unassigned": "Chưa gán người",
+    "noSearchResults": "Không tìm thấy hồ sơ khớp tìm kiếm"
   },
   "memberDossiers": {
     "editorTitle": "Hồ sơ đã phân công — {{name}}",

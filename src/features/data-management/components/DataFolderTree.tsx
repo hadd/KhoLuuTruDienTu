@@ -469,7 +469,7 @@ function TreeBranch({
                   </span>
                   {showAssigneeLine ? (
                     <span
-                      className="truncate text-[10px] leading-4 text-muted-foreground"
+                      className="truncate text-xs leading-4"
                       title={
                         assigneeName
                           ? tGroup('assignedDossiers.assignedTo', {
@@ -478,11 +478,20 @@ function TreeBranch({
                           : tGroup('assignedDossiers.unassigned')
                       }
                     >
-                      {assigneeName
-                        ? tGroup('assignedDossiers.assignedTo', {
-                            name: assigneeName,
-                          })
-                        : tGroup('assignedDossiers.unassigned')}
+                      {assigneeName ? (
+                        <>
+                          <span className="text-muted-foreground">
+                            {tGroup('assignedDossiers.assignedToLabel')}{' '}
+                          </span>
+                          <span className="font-medium text-foreground">
+                            {assigneeName}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          {tGroup('assignedDossiers.unassigned')}
+                        </span>
+                      )}
                     </span>
                   ) : null}
                 </span>

@@ -28,6 +28,10 @@ import { useEditorErrorReports } from '@/features/data-management/hooks/useEdito
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
 import { useRoleAccess } from '@/features/permissions/hooks/useRoleAccess'
 import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
+import {
+  canExportAnyStatusPermission,
+  canExportDossiersPermission,
+} from '@/features/data-management/lib/dossierExportAccess'
 import { buildPdfFieldHighlight } from '@/features/data-management/lib/bboxCoords'
 import { resolveCurrentUserCheckerLevel } from '@/features/data-management/lib/checkerAssignmentHelpers'
 import {
@@ -222,14 +226,13 @@ export function RecordDetailPanel({
               dossierStatus: effectiveDossierStatus,
             })) &&
           (managementRole !== 'qc' || canActAsChecker)))
-  const canExportDossiers = isPermissionGranted(
-    userPermissions,
-    'dossiers.export',
-    'dossiers',
-  )
+  const canExportDossiers = canExportDossiersPermission(userPermissions)
+  const canExportAnyStatus = canExportAnyStatusPermission(userPermissions)
   const canExport =
     canExportDossiers &&
-    canExportDossierMetadata(dossierStatus ?? node.dossierStatus)
+    canExportDossierMetadata(dossierStatus ?? node.dossierStatus, {
+      bypassStatus: canExportAnyStatus,
+    })
   const canDigitalSign =
     canSignDossiers &&
     permissions.canDigitalSign &&

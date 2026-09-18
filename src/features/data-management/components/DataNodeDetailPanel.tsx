@@ -23,7 +23,10 @@ import type {
   DataTreeNodeT,
 } from '@/features/data-management/types'
 import { useRoleAccess } from '@/features/permissions/hooks/useRoleAccess'
-import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
+import {
+  canExportAnyStatusPermission,
+  canExportDossiersPermission,
+} from '@/features/data-management/lib/dossierExportAccess'
 import { translateError } from '@/lib/utils/translate-error'
 
 function FolderDetailCard({
@@ -44,13 +47,15 @@ function FolderDetailCard({
   const [canExportDip, setCanExportDip] = useState(false)
 
   const { permissions: userPermissions } = useRoleAccess()
-  const canExportDossiers = isPermissionGranted(
-    userPermissions,
-    'dossiers.export',
-    'dossiers',
-  )
-  const showExport = canExportDossiers && canExportNode(node)
-  const exportContext = showExport ? resolveExportContext(node) : null
+  const canExportDossiers = canExportDossiersPermission(userPermissions)
+  const exportStatusOptions = {
+    bypassStatus: canExportAnyStatusPermission(userPermissions),
+  }
+  const showExport =
+    canExportDossiers && canExportNode(node, exportStatusOptions)
+  const exportContext = showExport
+    ? resolveExportContext(node, exportStatusOptions)
+    : null
 
   useEffect(() => {
     if (!exportContext) {

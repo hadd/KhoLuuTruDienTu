@@ -1,14 +1,17 @@
 import { applyStoragePathPrefix } from '@/features/data-management/lib/uploadPathPrefix'
 import { toScopedProjectCode } from '@/features/data-management/lib/constants'
 import { sumUploadPdfPages } from '@/features/data-management/lib/countPdfFilePages'
-import { notifyZipPasswordLocked } from '@/features/security-level/lib/zipPasswordToast'
 import { checkPageQuotaUpload } from '@/features/metadata-extract/api/pageQuotaClient'
 import { apiClient } from '@/lib/api/apiClient'
+import { streamDownloadToDisk } from '@/lib/api/streamDownload'
 import { env } from '@/lib/utils/env'
 import {
   isPageQuotaUploadExceededMessage,
   translateError,
 } from '@/lib/utils/translate-error'
+
+/** ~10000 phút — export cây lớn có thể stream rất lâu. */
+const EXPORT_TIMEOUT_MS = 10_000 * 60 * 1000
 
 export type OcrRunMode = 'auto' | 'manual'
 
@@ -60,9 +63,8 @@ export interface UploadFolderOptions {
   runMode?: OcrRunMode
 }
 
-const UPLOAD_EXPIRY_MIN_SECONDS = 60
+const UPLOAD_EXPIRY_MIN_SECONDS = 86_400
 const CONFLICT_CHECK_CONCURRENCY = 10
-const OCR_UPLOAD_TIMEOUT_MS = 300_000
 
 export interface UploadPathConflict {
   relativePath: string
@@ -127,6 +129,7 @@ async function createUploadPoint(
       contentTypePrefix: '',
       runMode: runMode ?? 'auto',
     },
+    { timeout: 0 },
   )
 
   const uploadPoint = unwrapApiRecord<UploadPointResponse>(response.data)
@@ -212,16 +215,16 @@ async function createDocumentFromStorage(
   dossierId?: string
 }> {
   const body: { key: string; projectCode: string | null; runMode: OcrRunMode } =
-    {
-      key,
-      projectCode: toScopedProjectCode(projectCode) ?? null,
-      runMode: runMode ?? 'auto',
-    }
+  {
+    key,
+    projectCode: toScopedProjectCode(projectCode) ?? null,
+    runMode: runMode ?? 'auto',
+  }
 
   const response = await apiClient.post<Record<string, unknown>>(
     '/api/v1/dossiers/create-document-from-storage',
     body,
-    { _skipGlobalErrorToast: true, timeout: OCR_UPLOAD_TIMEOUT_MS },
+    { _skipGlobalErrorToast: true, timeout: 0 },
   )
 
   const data = unwrapApiRecord<Record<string, unknown>>(response.data)
@@ -278,7 +281,6 @@ async function uploadFileToMinIO(
   const response = await fetch(uploadPoint.postURL, {
     method: 'POST',
     body: form,
-    signal: AbortSignal.timeout(OCR_UPLOAD_TIMEOUT_MS),
   })
 
   if (!response.ok) {
@@ -286,26 +288,11 @@ async function uploadFileToMinIO(
   }
 }
 
-function resolveDownloadFileName(
-  contentDisposition: string | undefined,
-  fallbackName: string,
-): string {
-  if (!contentDisposition) return fallbackName
-
-  const match = /filename\*?=(?:UTF-8''|"?)([^";]+)/i.exec(contentDisposition)
-  if (!match?.[1]) return fallbackName
-
-  return decodeURIComponent(match[1].replace(/"/g, ''))
-}
-
-/** Metadata export endpoints return a ZIP archive, not a single .xlsx file. */
 function normalizeMetadataExportFileName(fileName: string): string {
   if (/\.zip$/i.test(fileName)) return fileName
   const base = fileName.replace(/\.xlsx?$/i, '').replace(/\.+$/, '')
   return base ? `${base}.zip` : 'export.zip'
 }
-
-const EXPORT_TIMEOUT_MS = 600_000
 
 async function downloadMetadataExport(
   path: string,
@@ -313,60 +300,30 @@ async function downloadMetadataExport(
   dossierId?: string,
   params?: Record<string, string | boolean | undefined>,
 ): Promise<void> {
-  const response = await apiClient.get<Blob>(path, {
-    responseType: 'blob',
-    timeout: EXPORT_TIMEOUT_MS,
-    _skipGlobalErrorToast: true,
+  await streamDownloadToDisk({
+    method: 'GET',
+    path,
+    fallbackFileName: normalizeMetadataExportFileName(fallbackName),
     dossierId: dossierId ?? null,
     params,
+    timeoutMs: EXPORT_TIMEOUT_MS,
   })
-
-  await saveMetadataExportBlob(
-    response.data,
-    response.headers['content-disposition'],
-    fallbackName,
-  )
-  notifyZipPasswordLocked(response.headers as Record<string, unknown>)
 }
 
 async function downloadConfiguredMetadataExport(
   path: string,
   fallbackName: string,
-  body: MetadataExportRequestT,
+  body: MetadataExportRequestT | Record<string, unknown>,
   dossierId?: string,
 ): Promise<void> {
-  const response = await apiClient.post<Blob>(path, body, {
-    responseType: 'blob',
-    timeout: EXPORT_TIMEOUT_MS,
-    _skipGlobalErrorToast: true,
+  await streamDownloadToDisk({
+    method: 'POST',
+    path,
+    body,
+    fallbackFileName: normalizeMetadataExportFileName(fallbackName),
     dossierId: dossierId ?? null,
+    timeoutMs: EXPORT_TIMEOUT_MS,
   })
-
-  await saveMetadataExportBlob(
-    response.data,
-    response.headers['content-disposition'],
-    fallbackName,
-  )
-  notifyZipPasswordLocked(response.headers as Record<string, unknown>)
-}
-
-async function saveMetadataExportBlob(
-  data: Blob,
-  contentDisposition: string | undefined,
-  fallbackName: string,
-): Promise<void> {
-  const fileName = normalizeMetadataExportFileName(
-    resolveDownloadFileName(contentDisposition, fallbackName),
-  )
-
-  const url = window.URL.createObjectURL(new Blob([data]))
-  const link = document.createElement('a')
-  link.href = url
-  link.setAttribute('download', fileName)
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  window.URL.revokeObjectURL(url)
 }
 
 export interface MetadataExportColumnRequestT {
@@ -379,6 +336,7 @@ export interface MetadataExportRequestT {
   presetId?: string
   columns?: Array<MetadataExportColumnRequestT>
   useDocumentNaming?: boolean
+  excelOnly?: boolean
 }
 
 export interface MetadataExportPreviewRowT {
@@ -451,7 +409,12 @@ export async function exportDossierMetadataExcel(
     : `dossier-${dossierId}.zip`
   const path = `/api/v1/dossiers/${encodeURIComponent(dossierId)}/metadata/export`
 
-  if (config?.presetId || config?.columns || config?.useDocumentNaming) {
+  if (
+    config?.presetId ||
+    config?.columns ||
+    config?.useDocumentNaming ||
+    config?.excelOnly
+  ) {
     await downloadConfiguredMetadataExport(
       path,
       fallbackName,
@@ -480,6 +443,29 @@ export async function exportMultiDossiersMetadataExcel(
   await downloadConfiguredMetadataExport(path, fallbackName, body)
 }
 
+export async function exportMultiFoldersMetadataExcel(
+  folderIds: string[],
+  downloadName?: string,
+  config?: MetadataExportRequestT,
+): Promise<void> {
+  if (folderIds.length === 0) return
+  if (folderIds.length === 1) {
+    await exportFolderMetadataExcel(folderIds[0]!, downloadName, config)
+    return
+  }
+  const fallbackName = downloadName?.trim()
+    ? `${downloadName.trim()}.zip`
+    : `multi-folders.zip`
+  await downloadConfiguredMetadataExport(
+    `/api/v1/folders/metadata/export`,
+    fallbackName,
+    {
+      ...config,
+      folderIds,
+    } as MetadataExportRequestT & { folderIds: string[] },
+  )
+}
+
 export async function exportFolderMetadataExcel(
   folderId: string,
   downloadName?: string,
@@ -490,7 +476,12 @@ export async function exportFolderMetadataExcel(
     : `folder-${folderId}.zip`
   const path = `/api/v1/folders/${encodeURIComponent(folderId)}/metadata/export`
 
-  if (config?.presetId || config?.columns || config?.useDocumentNaming) {
+  if (
+    config?.presetId ||
+    config?.columns ||
+    config?.useDocumentNaming ||
+    config?.excelOnly
+  ) {
     await downloadConfiguredMetadataExport(path, fallbackName, config)
     return
   }
@@ -525,21 +516,29 @@ export async function exportMultiDossiersDip(
   downloadName?: string,
   baseFolderId?: string,
   options?: DipExportOptionsT,
+  folderIds?: string[],
 ): Promise<void> {
   const fallbackName = downloadName?.trim()
     ? `${downloadName.trim()}-dip.zip`
     : `multi-dossiers-dip.zip`
+  const resolvedFolderIds = folderIds?.length
+    ? folderIds
+    : baseFolderId
+      ? [baseFolderId]
+      : undefined
   await downloadConfiguredMetadataExport(
     `/api/v1/dossiers/dip/export`,
     fallbackName,
     {
       dossierIds,
-      baseFolderId,
+      ...(resolvedFolderIds ? { folderIds: resolvedFolderIds } : {}),
+      baseFolderId: baseFolderId ?? resolvedFolderIds?.[0],
       ...(options?.useDocumentNaming === true
         ? { useDocumentNaming: true }
         : {}),
     } as MetadataExportRequestT & {
       dossierIds: string[]
+      folderIds?: string[]
       baseFolderId?: string
     },
   )
