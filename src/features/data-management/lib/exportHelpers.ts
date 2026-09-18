@@ -22,7 +22,7 @@ import type {
 } from '@/features/data-management/types'
 
 export type ExportKind = 'folder' | 'dossier' | 'multi_dossiers'
-export type ExportMode = 'metadata' | 'dip'
+export type ExportMode = 'metadata' | 'dip' | 'excel'
 
 export interface ExportOptions {
   presetId?: string
@@ -164,20 +164,24 @@ export async function runExport({
   ]
   const batchDossierIds = [...new Set((dossierIds ?? []).filter(Boolean))]
 
-  if (mode === 'metadata') {
+  if (mode === 'metadata' || mode === 'excel') {
+    const configWithExcelFlag: MetadataExportRequestT | undefined =
+      mode === 'excel'
+        ? { ...metadataConfig, excelOnly: true }
+        : metadataConfig
     if (kind === 'multi_dossiers') {
       if (batchFolderIds.length > 0) {
         await exportMultiFoldersMetadataExcel(
           batchFolderIds,
           downloadName,
-          metadataConfig,
+          configWithExcelFlag,
         )
       }
       if (batchDossierIds.length > 0) {
         await exportMultiDossiersMetadataExcel(
           batchDossierIds,
           downloadName,
-          metadataConfig,
+          configWithExcelFlag,
         )
       }
       if (batchFolderIds.length === 0 && batchDossierIds.length === 0) {
@@ -186,11 +190,19 @@ export async function runExport({
       return
     }
     if (kind === 'folder' && folderId) {
-      await exportFolderMetadataExcel(folderId, downloadName, metadataConfig)
+      await exportFolderMetadataExcel(
+        folderId,
+        downloadName,
+        configWithExcelFlag,
+      )
       return
     }
     if (kind === 'dossier' && dossierId) {
-      await exportDossierMetadataExcel(dossierId, downloadName, metadataConfig)
+      await exportDossierMetadataExcel(
+        dossierId,
+        downloadName,
+        configWithExcelFlag,
+      )
       return
     }
     throw new Error('Missing required IDs for metadata export')

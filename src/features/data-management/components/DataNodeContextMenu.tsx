@@ -5,6 +5,7 @@ import {
   FileText,
   FolderKanban,
   FolderMinus,
+  FolderTree,
   Package,
   PenLine,
   Trash2,
@@ -49,6 +50,7 @@ export function DataNodeContextMenu({
   onAction,
   onViewInfo,
   onExportExcel,
+  onExportByFolderStructure,
   onUploadDossier,
   onUploadDocument,
   onAssignPdfDocument,
@@ -65,6 +67,7 @@ export function DataNodeContextMenu({
   onAction: (node: DataTreeNodeT, mode: DataNodeActionDialogMode) => void
   onViewInfo: (node: DataTreeNodeT) => void
   onExportExcel?: (node: DataTreeNodeT) => void
+  onExportByFolderStructure?: (node: DataTreeNodeT) => void
   onUploadDossier?: (node: DataTreeNodeT) => void
   onUploadDocument?: (node: DataTreeNodeT) => void
   onAssignPdfDocument?: (node: DataTreeNodeT) => void
@@ -129,6 +132,7 @@ export function DataNodeContextMenu({
     | DataNodeActionDialogMode
     | 'viewInfo'
     | 'exportExcel'
+    | 'exportByFolderStructure'
     | 'uploadDossier'
     | 'uploadDocument'
     | 'assignDocument'
@@ -143,6 +147,11 @@ export function DataNodeContextMenu({
         key: 'exportExcel',
         label: t('contextMenu.exportExcel'),
         icon: FileDown,
+      },
+      {
+        key: 'exportByFolderStructure',
+        label: t('contextMenu.exportByFolderStructure'),
+        icon: FolderTree,
       },
       { key: 'rename', label: t('contextMenu.edit'), icon: Edit3 },
       {
@@ -205,6 +214,15 @@ export function DataNodeContextMenu({
 
     if (item.key === 'exportExcel') {
       return canExportDossiers && canExportNode(node, exportStatusOptions)
+    }
+
+    if (item.key === 'exportByFolderStructure') {
+      return (
+        canExportDossiers &&
+        node.type === 'folder' &&
+        node.id !== DATA_TREE_ROOT_ID &&
+        !isRoot
+      )
     }
 
     if (item.key === 'uploadDossier') {
@@ -297,7 +315,7 @@ export function DataNodeContextMenu({
     <div
       ref={menuRef}
       className={cn(
-        'fixed z-50 w-52 rounded-md border border-border bg-popover p-1 shadow-md',
+        'fixed z-50 min-w-52 max-w-80 rounded-md border border-border bg-popover p-1 shadow-md',
       )}
       style={{ left: menuPosition.x, top: menuPosition.y }}
     >
@@ -320,6 +338,8 @@ export function DataNodeContextMenu({
                   onViewInfo(node)
                 } else if (item.key === 'exportExcel') {
                   onExportExcel?.(node)
+                } else if (item.key === 'exportByFolderStructure') {
+                  onExportByFolderStructure?.(node)
                 } else if (item.key === 'uploadDossier') {
                   onUploadDossier?.(node)
                 } else if (item.key === 'uploadDocument') {

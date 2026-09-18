@@ -209,6 +209,13 @@
     "fieldsLabel": "Trường trong cột",
     "noFieldsInColumn": "Chưa chọn trường nào cho cột này.",
     "noFieldCatalog": "Chưa có danh sách trường. Chọn mẫu dữ liệu mô tả tham chiếu.",
+    "synthetic": {
+      "groupName": "Thông tin ngoài",
+      "filePath": "Đường dẫn file",
+      "fileName": "Tên file",
+      "rowNumber": "Số thứ tự (1–N)",
+      "dossierFolder": "Thư mục hồ sơ"
+    },
     "moveFieldUp": "Di chuyển trường lên",
     "moveFieldDown": "Di chuyển trường xuống",
     "removeField": "Bỏ trường",
@@ -230,10 +237,10 @@
     "separators": {
       "comma": "Dấu phẩy (, )",
       "space": "Khoảng trắng",
-      "dash": "Gạch ngang ( - )",
-      "slash": "Dấu gạch chéo ( / )",
-      "backslash": "Dấu gạch ngược ( \\ )",
-      "dot": "Dấu chấm ( . )",
+      "dash": "Gạch ngang (-)",
+      "slash": "Dấu gạch chéo (/)",
+      "backslash": "Dấu gạch ngược (\\)",
+      "dot": "Dấu chấm (.)",
       "underscore": "Dấu gạch dưới (_)",
       "newline": "Xuống dòng"
     }

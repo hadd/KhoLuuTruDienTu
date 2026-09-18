@@ -10,6 +10,9 @@ import {
   translateError,
 } from '@/lib/utils/translate-error'
 
+/** ~10000 phút — export cây lớn có thể stream rất lâu. */
+const EXPORT_TIMEOUT_MS = 10_000 * 60 * 1000
+
 export type OcrRunMode = 'auto' | 'manual'
 
 export interface UploadPointResponse {
@@ -60,9 +63,8 @@ export interface UploadFolderOptions {
   runMode?: OcrRunMode
 }
 
-const UPLOAD_EXPIRY_MIN_SECONDS = 60
+const UPLOAD_EXPIRY_MIN_SECONDS = 86_400
 const CONFLICT_CHECK_CONCURRENCY = 10
-const OCR_UPLOAD_TIMEOUT_MS = 300_000
 
 export interface UploadPathConflict {
   relativePath: string
@@ -127,6 +129,7 @@ async function createUploadPoint(
       contentTypePrefix: '',
       runMode: runMode ?? 'auto',
     },
+    { timeout: 0 },
   )
 
   const uploadPoint = unwrapApiRecord<UploadPointResponse>(response.data)
@@ -212,16 +215,16 @@ async function createDocumentFromStorage(
   dossierId?: string
 }> {
   const body: { key: string; projectCode: string | null; runMode: OcrRunMode } =
-    {
-      key,
-      projectCode: toScopedProjectCode(projectCode) ?? null,
-      runMode: runMode ?? 'auto',
-    }
+  {
+    key,
+    projectCode: toScopedProjectCode(projectCode) ?? null,
+    runMode: runMode ?? 'auto',
+  }
 
   const response = await apiClient.post<Record<string, unknown>>(
     '/api/v1/dossiers/create-document-from-storage',
     body,
-    { _skipGlobalErrorToast: true, timeout: OCR_UPLOAD_TIMEOUT_MS },
+    { _skipGlobalErrorToast: true, timeout: 0 },
   )
 
   const data = unwrapApiRecord<Record<string, unknown>>(response.data)
@@ -278,7 +281,6 @@ async function uploadFileToMinIO(
   const response = await fetch(uploadPoint.postURL, {
     method: 'POST',
     body: form,
-    signal: AbortSignal.timeout(OCR_UPLOAD_TIMEOUT_MS),
   })
 
   if (!response.ok) {
@@ -291,9 +293,6 @@ function normalizeMetadataExportFileName(fileName: string): string {
   const base = fileName.replace(/\.xlsx?$/i, '').replace(/\.+$/, '')
   return base ? `${base}.zip` : 'export.zip'
 }
-
-/** ~10000 phút — khớp streamDownload, tránh abort giữa chừng. */
-const EXPORT_TIMEOUT_MS = 10_000 * 60 * 1000
 
 async function downloadMetadataExport(
   path: string,
@@ -337,6 +336,7 @@ export interface MetadataExportRequestT {
   presetId?: string
   columns?: Array<MetadataExportColumnRequestT>
   useDocumentNaming?: boolean
+  excelOnly?: boolean
 }
 
 export interface MetadataExportPreviewRowT {
@@ -409,7 +409,12 @@ export async function exportDossierMetadataExcel(
     : `dossier-${dossierId}.zip`
   const path = `/api/v1/dossiers/${encodeURIComponent(dossierId)}/metadata/export`
 
-  if (config?.presetId || config?.columns || config?.useDocumentNaming) {
+  if (
+    config?.presetId ||
+    config?.columns ||
+    config?.useDocumentNaming ||
+    config?.excelOnly
+  ) {
     await downloadConfiguredMetadataExport(
       path,
       fallbackName,
@@ -471,7 +476,12 @@ export async function exportFolderMetadataExcel(
     : `folder-${folderId}.zip`
   const path = `/api/v1/folders/${encodeURIComponent(folderId)}/metadata/export`
 
-  if (config?.presetId || config?.columns || config?.useDocumentNaming) {
+  if (
+    config?.presetId ||
+    config?.columns ||
+    config?.useDocumentNaming ||
+    config?.excelOnly
+  ) {
     await downloadConfiguredMetadataExport(path, fallbackName, config)
     return
   }

@@ -36,8 +36,9 @@ function normalizeExportFileName(fileName: string): string {
   return base ? `${base}.zip` : 'export.zip'
 }
 
-/** ~10000 phút — khớp streamDownload, tránh abort giữa chừng. */
+/** ~10000 phút — export cây lớn có thể stream rất lâu. */
 const EXPORT_TIMEOUT_MS = 10_000 * 60 * 1000
+
 const MULTI_DOWNLOAD_GAP_MS = 1200
 
 function sleep(ms: number): Promise<void> {
@@ -94,6 +95,7 @@ export async function checkDossierExportRequirements(
   }
 
   const response = await apiClient.post<ExportCheckResultT>(path, body, {
+    timeout: 0,
     _skipGlobalErrorToast: true,
     dossierId,
     securityAccessModule: 'warehouse',

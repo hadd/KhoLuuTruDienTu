@@ -95,6 +95,7 @@ import {
   isUnderSelectedBatchExportFolder,
   isDossierWorkflowNode,
   isNodeForDossier,
+  isNodeUnderAncestor,
   reloadTreePathToNode,
   resolveDataManagementSelection,
   resolveDocumentFocusNavigation,
@@ -226,7 +227,7 @@ export function DataManagementPage({
 
   const q = typeof search.q === 'string' ? search.q : ''
   const [localSearchQuery, setLocalSearchQuery] = useState(q)
-  
+
   useEffect(() => {
     setLocalSearchQuery(q)
   }, [q])
@@ -437,9 +438,18 @@ export function DataManagementPage({
       .filter((node): node is DataTreeNodeT => {
         if (!node) return false
         if (isBatchExportDossierLeafNode(node, exportStatusOptions)) return false
-        return (
-          node.type === 'folder' &&
-          isBatchExportSelectableNode(node, exportStatusOptions)
+        if (
+          node.type !== 'folder' ||
+          !isBatchExportSelectableNode(node, exportStatusOptions)
+        ) {
+          return false
+        }
+        // Covered by a selected ancestor folder — one folderId API call is enough.
+        return !isUnderSelectedBatchExportFolder(
+          node,
+          effectiveTree,
+          selectedRecordIds,
+          exportStatusOptions,
         )
       })
       .map((node) => resolveFolderExportId(node))
@@ -488,7 +498,7 @@ export function DataManagementPage({
         focusGroupIndex: resolved.focusGroupIndex,
         focusFieldKey:
           resolved.focusDocumentId === focusDocumentId &&
-          resolved.focusGroupIndex === focusGroupIndex
+            resolved.focusGroupIndex === focusGroupIndex
             ? prev.focusFieldKey
             : undefined,
       }),
@@ -927,6 +937,20 @@ export function DataManagementPage({
     setExportDialogOpen(true)
   }
 
+  function handleExportByFolderStructure(node: DataTreeNodeT) {
+    if (!canExportDossiers) return
+    if (node.type !== 'folder' || node.id === DATA_TREE_ROOT_ID) return
+
+    setExportContext({
+      kind: 'folder',
+      folderId: resolveFolderExportId(node),
+      dossierId: findDescendantDossierTarget(node)?.dossierId ?? null,
+      downloadName: node.name,
+    })
+    setCanExportDip(true)
+    setExportDialogOpen(true)
+  }
+
   async function handleSubmitArchive(node: DataTreeNodeT) {
     let dossierId = resolveDossierUpdateId(node)
     if (!dossierId) {
@@ -1182,7 +1206,19 @@ export function DataManagementPage({
                 }
                 return [...next]
               }
-              return [...new Set([...prev, id])]
+              // Check: add this id and drop any selected descendants —
+              // folder API already covers the whole subtree.
+              const next = new Set(prev)
+              next.add(id)
+              for (const selectedId of prev) {
+                if (selectedId === id) continue
+                if (
+                  isNodeUnderAncestor(workingTree!, selectedId, id)
+                ) {
+                  next.delete(selectedId)
+                }
+              }
+              return [...next]
             })
             return
           }
@@ -1541,7 +1577,7 @@ export function DataManagementPage({
             </p>
           </div>
         ) : null}
-        
+
         {treeCollapsed && (
           <button
             type="button"
@@ -1562,62 +1598,62 @@ export function DataManagementPage({
               className="flex min-h-0 shrink-0 flex-col overflow-hidden bg-card"
             >
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {showSearch || (isProjectScoped && permissions.canReadProjects) ? (
-              <div className="shrink-0 space-y-1.5 border-b border-border px-2.5 py-1.5">
-                {isProjectScoped && permissions.canReadProjects ? (
-                  <ProjectSelect
-                    className="w-full"
-                    compact
-                    value={projectCode}
-                    onValueChange={handleProjectChange}
-                  />
-                ) : null}
-                {showSearch ? (
-                  <div className="relative flex items-center">
-                    <Search className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      placeholder={t('search.placeholder')}
-                      className="w-full bg-background pl-8 pr-8"
-                      value={localSearchQuery}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        setLocalSearchQuery(val)
-                        if (!val.trim() && q) {
-                          handleSearchInput('')
-                        }
-                      }}
-                      onSearch={(e) => {
-                        const target = e.target as HTMLInputElement
-                        setLocalSearchQuery(target.value)
-                        handleSearchInput(target.value)
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          handleSearchInput(localSearchQuery)
-                        }
-                      }}
-                      aria-label={t('search.placeholder')}
-                    />
-                    {localSearchQuery ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLocalSearchQuery('')
-                          handleSearchInput('')
-                        }}
-                        className="absolute right-2 flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
-                        title="Xóa tìm kiếm"
-                        aria-label="Xóa tìm kiếm"
-                      >
-                        <X className="size-3.5" />
-                      </button>
+                {showSearch || (isProjectScoped && permissions.canReadProjects) ? (
+                  <div className="shrink-0 space-y-1.5 border-b border-border px-2.5 py-1.5">
+                    {isProjectScoped && permissions.canReadProjects ? (
+                      <ProjectSelect
+                        className="w-full"
+                        compact
+                        value={projectCode}
+                        onValueChange={handleProjectChange}
+                      />
+                    ) : null}
+                    {showSearch ? (
+                      <div className="relative flex items-center">
+                        <Search className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground" />
+                        <Input
+                          type="search"
+                          placeholder={t('search.placeholder')}
+                          className="w-full bg-background pl-8 pr-8"
+                          value={localSearchQuery}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setLocalSearchQuery(val)
+                            if (!val.trim() && q) {
+                              handleSearchInput('')
+                            }
+                          }}
+                          onSearch={(e) => {
+                            const target = e.target as HTMLInputElement
+                            setLocalSearchQuery(target.value)
+                            handleSearchInput(target.value)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              handleSearchInput(localSearchQuery)
+                            }
+                          }}
+                          aria-label={t('search.placeholder')}
+                        />
+                        {localSearchQuery ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLocalSearchQuery('')
+                              handleSearchInput('')
+                            }}
+                            className="absolute right-2 flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
+                            title="Xóa tìm kiếm"
+                            aria-label="Xóa tìm kiếm"
+                          >
+                            <X className="size-3.5" />
+                          </button>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
                 ) : null}
-              </div>
-            ) : null}
             {isSearching && (isSearchFetching || !searchTree) ? (
               <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center text-sm text-muted-foreground">
                 <Loader2 className="mb-2 size-6 animate-spin text-muted-foreground/60" />
@@ -1684,20 +1720,20 @@ export function DataManagementPage({
                     const { folderIds, dossierIds } =
                       collectOcrRoomIdsFromTree(updatedTree)
 
-                    if (folderIds.length > 0) {
-                      setOcrWatchFolderIds((prev) => [
-                        ...new Set([...prev, ...folderIds]),
-                      ])
-                    }
-                    if (dossierIds.length > 0) {
-                      setOcrWatchDossierIds((prev) => [
-                        ...new Set([...prev, ...dossierIds]),
-                      ])
-                    }
-                  })
-                }}
-              />
-            ) : null}
+                        if (folderIds.length > 0) {
+                          setOcrWatchFolderIds((prev) => [
+                            ...new Set([...prev, ...folderIds]),
+                          ])
+                        }
+                        if (dossierIds.length > 0) {
+                          setOcrWatchDossierIds((prev) => [
+                            ...new Set([...prev, ...dossierIds]),
+                          ])
+                        }
+                      })
+                    }}
+                  />
+                ) : null}
               </div>
             </ResizablePanel>
             <ResizableHandle className="relative w-px bg-border">
@@ -1933,6 +1969,9 @@ export function DataManagementPage({
           setViewInfoOpen(true)
         }}
         onExportExcel={(node) => void handleExportExcel(node)}
+        onExportByFolderStructure={(node) =>
+          void handleExportByFolderStructure(node)
+        }
         onUploadDossier={(node) => {
           setUploadTargetFolder(node)
           setUploadOpen(true)

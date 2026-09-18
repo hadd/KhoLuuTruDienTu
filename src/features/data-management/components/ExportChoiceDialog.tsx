@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileArchive, FileSpreadsheet, Loader2 } from 'lucide-react'
+import { FileArchive, FileSpreadsheet, Files, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -26,6 +26,7 @@ import type {
   ExportMode,
   ExportOptions,
 } from '@/features/data-management/lib/exportHelpers'
+import { cn } from '@/lib/utils/cn'
 
 const DEFAULT_PRESET_VALUE = 'default'
 const FILE_NAMING_ORIGINAL = 'original'
@@ -49,6 +50,7 @@ export function ExportChoiceDialog({
   exportingMode: ExportMode | null
 }) {
   const { t } = useTranslation('data-management')
+  const [selectedMode, setSelectedMode] = useState<ExportMode>('excel')
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_VALUE)
   const [fileNamingMode, setFileNamingMode] = useState(FILE_NAMING_ORIGINAL)
 
@@ -59,33 +61,66 @@ export function ExportChoiceDialog({
 
   useEffect(() => {
     if (!open) return
+    setSelectedMode('excel')
     setSelectedPresetId(DEFAULT_PRESET_VALUE)
     setFileNamingMode(FILE_NAMING_ORIGINAL)
   }, [open, context?.dossierId, context?.folderId])
 
   if (!context) return null
 
-  const isExportingMetadata = isExporting && exportingMode === 'metadata'
-  const isExportingDip = isExporting && exportingMode === 'dip'
+  const needsPreset = selectedMode === 'excel' || selectedMode === 'metadata'
+  const needsFileNaming =
+    selectedMode === 'metadata' || selectedMode === 'dip'
+  const showPackageNotice = selectedMode === 'metadata'
+  const selectedModeDisabled =
+    selectedMode === 'dip' && !canExportDip
 
-  function buildExportOptions(includePreset: boolean): ExportOptions | undefined {
+  async function handleConfirmExport() {
+    if (selectedModeDisabled) return
+
     const options: ExportOptions = {}
-    if (includePreset && selectedPresetId !== DEFAULT_PRESET_VALUE) {
+    if (needsPreset && selectedPresetId !== DEFAULT_PRESET_VALUE) {
       options.presetId = selectedPresetId
     }
-    if (fileNamingMode === FILE_NAMING_CONFIG) {
+    if (needsFileNaming && fileNamingMode === FILE_NAMING_CONFIG) {
       options.useDocumentNaming = true
     }
-    return Object.keys(options).length > 0 ? options : undefined
+
+    await onExport(
+      selectedMode,
+      Object.keys(options).length > 0 ? options : undefined,
+    )
   }
 
-  async function handleMetadataExport() {
-    await onExport('metadata', buildExportOptions(true))
-  }
-
-  async function handleDipExport() {
-    await onExport('dip', buildExportOptions(false))
-  }
+  const formatOptions: Array<{
+    mode: ExportMode
+    icon: typeof FileSpreadsheet
+    titleKey: string
+    descriptionKey: string
+    disabled?: boolean
+  }> = [
+    {
+      mode: 'excel',
+      icon: FileSpreadsheet,
+      titleKey: 'recordDetail.exportDialog.excelOnlyOption',
+      descriptionKey: 'recordDetail.exportDialog.excelOnlyOptionDescription',
+    },
+    {
+      mode: 'metadata',
+      icon: Files,
+      titleKey: 'recordDetail.exportDialog.metadataOption',
+      descriptionKey: 'recordDetail.exportDialog.metadataOptionDescription',
+    },
+    {
+      mode: 'dip',
+      icon: FileArchive,
+      titleKey: 'recordDetail.exportDialog.dipOption',
+      descriptionKey: canExportDip
+        ? 'recordDetail.exportDialog.dipOptionDescription'
+        : 'recordDetail.exportDialog.dipUnavailable',
+      disabled: !canExportDip,
+    },
+  ]
 
   return (
     <Dialog open={open} onOpenChange={isExporting ? undefined : onOpenChange}>
@@ -97,125 +132,132 @@ export function ExportChoiceDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-3 py-4">
-          <div className="space-y-2 rounded-lg border border-border p-3">
-            <Label htmlFor="metadata-export-preset">
-              {t('recordDetail.exportDialog.presetLabel')}
-            </Label>
-            <Select
-              value={selectedPresetId}
-              disabled={isExporting || isLoadingPresets}
-              onValueChange={setSelectedPresetId}
-            >
-              <SelectTrigger id="metadata-export-preset">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={DEFAULT_PRESET_VALUE}>
-                  {t('recordDetail.exportDialog.defaultPresetOption')}
-                </SelectItem>
-                {presets.map((preset) => (
-                  <SelectItem key={preset.id} value={preset.id}>
-                    {preset.name}
+        <div className="flex flex-col gap-4 py-2">
+          <div className="space-y-2">
+            <Label>{t('recordDetail.exportDialog.formatLabel')}</Label>
+            <div className="flex flex-col gap-2" role="radiogroup">
+              {formatOptions.map((option) => {
+                const Icon = option.icon
+                const selected = selectedMode === option.mode
+                return (
+                  <button
+                    key={option.mode}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    disabled={isExporting || option.disabled}
+                    onClick={() => setSelectedMode(option.mode)}
+                    className={cn(
+                      'flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors',
+                      selected
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:bg-muted/40',
+                      option.disabled && 'cursor-not-allowed opacity-50',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border',
+                        selected
+                          ? 'border-primary'
+                          : 'border-muted-foreground/40',
+                      )}
+                      aria-hidden
+                    >
+                      {selected ? (
+                        <span className="size-2 rounded-full bg-primary" />
+                      ) : null}
+                    </span>
+                    <Icon
+                      className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                      aria-hidden
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium">
+                        {t(option.titleKey)}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        {t(option.descriptionKey)}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {needsPreset ? (
+            <div className="space-y-2">
+              <Label htmlFor="metadata-export-preset">
+                {t('recordDetail.exportDialog.presetLabel')}
+              </Label>
+              <Select
+                value={selectedPresetId}
+                disabled={isExporting || isLoadingPresets}
+                onValueChange={setSelectedPresetId}
+              >
+                <SelectTrigger id="metadata-export-preset">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={DEFAULT_PRESET_VALUE}>
+                    {t('recordDetail.exportDialog.defaultPresetOption')}
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              {isLoadingPresets
-                ? t('recordDetail.exportDialog.loadingPresets')
-                : selectedPresetId === DEFAULT_PRESET_VALUE
-                  ? t('recordDetail.exportDialog.defaultPresetHint')
-                  : t('recordDetail.exportDialog.selectedPresetHint')}
-            </p>
-          </div>
-
-          <div className="space-y-2 rounded-lg border border-border p-3">
-            <Label htmlFor="export-file-naming">
-              {t('recordDetail.exportDialog.fileNamingLabel')}
-            </Label>
-            <Select
-              value={fileNamingMode}
-              disabled={isExporting}
-              onValueChange={setFileNamingMode}
-            >
-              <SelectTrigger id="export-file-naming">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={FILE_NAMING_ORIGINAL}>
-                  {t('recordDetail.exportDialog.fileNamingOriginal')}
-                </SelectItem>
-                <SelectItem value={FILE_NAMING_CONFIG}>
-                  {t('recordDetail.exportDialog.fileNamingConfig')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              {fileNamingMode === FILE_NAMING_CONFIG
-                ? t('recordDetail.exportDialog.fileNamingConfigHint')
-                : t('recordDetail.exportDialog.fileNamingOriginalHint')}
-            </p>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="h-auto w-full justify-start gap-3 px-4 py-3"
-            onClick={() => void handleMetadataExport()}
-            disabled={isExporting}
-          >
-            {isExportingMetadata ? (
-              <Loader2 className="size-5 animate-spin" aria-hidden />
-            ) : (
-              <FileSpreadsheet
-                className="size-5 text-muted-foreground"
-                aria-hidden
-              />
-            )}
-            <div className="flex flex-col items-start gap-0.5 text-left">
-              <span className="font-medium">
-                {t('recordDetail.exportDialog.metadataOption')}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {t('recordDetail.exportDialog.metadataOptionDescription')}
-              </span>
+                  {presets.map((preset) => (
+                    <SelectItem key={preset.id} value={preset.id}>
+                      {preset.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {isLoadingPresets
+                  ? t('recordDetail.exportDialog.loadingPresets')
+                  : selectedPresetId === DEFAULT_PRESET_VALUE
+                    ? t('recordDetail.exportDialog.defaultPresetHint')
+                    : t('recordDetail.exportDialog.selectedPresetHint')}
+              </p>
             </div>
-          </Button>
+          ) : null}
 
-          <Button
-            type="button"
-            variant="outline"
-            className="h-auto w-full justify-start gap-3 px-4 py-3"
-            onClick={() => void handleDipExport()}
-            disabled={isExporting || !canExportDip}
-          >
-            {isExportingDip ? (
-              <Loader2 className="size-5 animate-spin" aria-hidden />
-            ) : (
-              <FileArchive
-                className="size-5 text-muted-foreground"
-                aria-hidden
-              />
-            )}
-            <div className="flex flex-col items-start gap-0.5 text-left">
-              <span className="font-medium">
-                {t('recordDetail.exportDialog.dipOption')}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {canExportDip
-                  ? t('recordDetail.exportDialog.dipOptionDescription')
-                  : t('recordDetail.exportDialog.dipUnavailable')}
-              </span>
+          {needsFileNaming ? (
+            <div className="space-y-2">
+              <Label htmlFor="export-file-naming">
+                {t('recordDetail.exportDialog.fileNamingLabel')}
+              </Label>
+              <Select
+                value={fileNamingMode}
+                disabled={isExporting}
+                onValueChange={setFileNamingMode}
+              >
+                <SelectTrigger id="export-file-naming">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={FILE_NAMING_ORIGINAL}>
+                    {t('recordDetail.exportDialog.fileNamingOriginal')}
+                  </SelectItem>
+                  <SelectItem value={FILE_NAMING_CONFIG}>
+                    {t('recordDetail.exportDialog.fileNamingConfig')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {fileNamingMode === FILE_NAMING_CONFIG
+                  ? t('recordDetail.exportDialog.fileNamingConfigHint')
+                  : t('recordDetail.exportDialog.fileNamingOriginalHint')}
+              </p>
             </div>
-          </Button>
+          ) : null}
 
-          <div className="rounded-md border border-primary/20 bg-primary/5 p-2.5 text-center text-xs font-medium text-primary">
-            {t('recordDetail.exportDialog.pdfaNotice')}
-          </div>
+          {showPackageNotice ? (
+            <p className="text-xs text-muted-foreground">
+              {t('recordDetail.exportDialog.pdfaNotice')}
+            </p>
+          ) : null}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-2">
           <Button
             type="button"
             variant="ghost"
@@ -223,6 +265,16 @@ export function ExportChoiceDialog({
             disabled={isExporting}
           >
             {t('recordDetail.exportDialog.cancel')}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => void handleConfirmExport()}
+            disabled={isExporting || selectedModeDisabled}
+          >
+            {isExporting && exportingMode === selectedMode ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : null}
+            {t('recordDetail.exportDialog.confirm')}
           </Button>
         </DialogFooter>
       </DialogContent>
