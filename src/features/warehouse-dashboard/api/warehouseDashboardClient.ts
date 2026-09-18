@@ -27,7 +27,7 @@ type WarehouseDossierChartRawT = {
   granularity?: 'day' | 'month' | 'year'
   rangeStart?: string
   rangeEnd?: string
-  points?: WarehouseDossierChartPointRawT[]
+  points?: Array<WarehouseDossierChartPointRawT>
 }
 
 type WarehouseStatsRawT = {
@@ -157,10 +157,15 @@ function normalizeWarehouseUnplacedResponse(
 /**
  * Lấy danh sách địa điểm kho gốc kèm thống kê sức chứa thực tế đã chuẩn hóa
  */
-export const getWarehouseDashboardLocations = async (): Promise<WarehouseLocationT[]> => {
+export const getWarehouseDashboardLocations = async (): Promise<
+  Array<WarehouseLocationT>
+> => {
   const response = await apiClient.get<
-    WarehouseLocationRawT[] | SingleResourceResponse<WarehouseLocationRawT[]>
-  >('/api/v1/dashboard/warehouse/locations')
+    | Array<WarehouseLocationRawT>
+    | SingleResourceResponse<Array<WarehouseLocationRawT>>
+  >('/api/v1/dashboard/warehouse/locations', {
+    timeout: 90_000,
+  })
 
   const rawData = unwrapResponse(response.data)
   return (Array.isArray(rawData) ? rawData : []).map(normalizeWarehouseLocation)
@@ -173,7 +178,9 @@ export const getActiveFondsWithCount = async (): Promise<ActiveFondsResponseT> =
   // Thay đổi đường dẫn gọi từ '/api/v1/fonds/active-with-count' sang API của Dashboard Warehouse:
   const response = await apiClient.get<
     ActiveFondsResponseRawT | SingleResourceResponse<ActiveFondsResponseRawT>
-  >('/api/v1/dashboard/warehouse/active-fonds')
+  >('/api/v1/dashboard/warehouse/active-fonds', {
+    timeout: 90_000,
+  })
 
   const rawData = unwrapResponse(response.data)
   return normalizeActiveFondsResponse(rawData)
@@ -188,6 +195,7 @@ export const getWarehouseStats = async (
   const response = await apiClient.get<
     WarehouseStatsT | SingleResourceResponse<WarehouseStatsT>
   >('/api/v1/dashboard/warehouse/stats', {
+    timeout: 90_000,
     params: { chartGranularity: granularity },
   })
 
@@ -200,7 +208,9 @@ export const getWarehouseStats = async (
 export const getWarehouseDashboardUnplaced = async (): Promise<WarehouseUnplacedResponseT> => {
   const response = await apiClient.get<
     WarehouseUnplacedResponseRawT | SingleResourceResponse<WarehouseUnplacedResponseRawT>
-  >('/api/v1/dashboard/warehouse/unplaced')
+  >('/api/v1/dashboard/warehouse/unplaced', {
+    timeout: 90_000,
+  })
 
   const rawData = unwrapResponse(response.data)
   return normalizeWarehouseUnplacedResponse(rawData)
@@ -210,7 +220,10 @@ export const getWarehouseDashboardUnplaced = async (): Promise<WarehouseUnplaced
  * Lấy số liệu đếm phiếu mượn trả dành riêng cho thủ kho
  */
 export const getWarehouseDashboardBorrowStats = async (): Promise<WarehouseBorrowStatsT> => {
-  const response = await apiClient.get<WarehouseBorrowStatsT>('/api/v1/dashboard/warehouse/borrow-stats')
+  const response = await apiClient.get<WarehouseBorrowStatsT>(
+    '/api/v1/dashboard/warehouse/borrow-stats',
+    { timeout: 90_000 },
+  )
   return unwrapResponse(response.data)
 }
 
@@ -218,6 +231,9 @@ export const getWarehouseDashboardBorrowStats = async (): Promise<WarehouseBorro
  * Lấy danh sách hồ sơ chờ tiêu hủy dành riêng cho thủ kho
  */
 export const getWarehouseDashboardDisposal = async (): Promise<WarehouseDisposalResponseT> => {
-  const response = await apiClient.get<WarehouseDisposalResponseT>('/api/v1/dashboard/warehouse/disposal-candidates')
+  const response = await apiClient.get<WarehouseDisposalResponseT>(
+    '/api/v1/dashboard/warehouse/disposal-candidates',
+    { timeout: 90_000 },
+  )
   return unwrapResponse(response.data)
 }
