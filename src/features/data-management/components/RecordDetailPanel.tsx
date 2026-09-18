@@ -1542,13 +1542,15 @@ export function RecordDetailPanel({
             <Button
               type="button"
               size="sm"
+              variant={canShowSubmitButton ? 'outline' : 'default'}
               className="gap-1.5"
               onClick={() => setExportDialogOpen(true)}
             >
               <FileDown className="size-3.5" aria-hidden />
               {t('recordDetail.exportExcel')}
             </Button>
-          ) : canShowSubmitButton ? (
+          ) : null}
+          {canShowSubmitButton ? (
             isEditorRole ? (
               <>
                 {!isEditorDraftDossier ? (
