@@ -73,10 +73,13 @@ import {
   resolveExportContext,
   runExport,
 } from '@/features/data-management/lib/exportHelpers'
+import {
+  canExportAnyStatusPermission,
+  canExportDossiersPermission,
+} from '@/features/data-management/lib/dossierExportAccess'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import {
   collectOcrRoomIdsFromTree,
-  collectBatchExportSelectableIds,
   filterTreeExcludeArchived,
   filterTreeForSearch,
   findDescendantDossierTarget,
@@ -89,6 +92,7 @@ import {
   isBatchSignSelectableNode,
   isBatchExportDossierLeafNode,
   isBatchExportSelectableNode,
+  isUnderSelectedBatchExportFolder,
   isDossierWorkflowNode,
   isNodeForDossier,
   reloadTreePathToNode,
@@ -96,6 +100,7 @@ import {
   resolveDocumentFocusNavigation,
   buildDefaultDataManagementNavigation,
   resolveDossierUpdateId,
+  resolveFolderExportId,
   resolveFoldersToReloadAfterDelete,
   resolveRecordDossierId,
   resolveSelectionAfterDelete,
@@ -128,7 +133,6 @@ import {
 import { ArchiveSubmitDialog } from '@/features/archive-submission/components/ArchiveSubmitDialog'
 import { useArchiveSubmissionAccess } from '@/features/archive-submission/hooks/useArchiveSubmissionAccess'
 import { useRoleAccess } from '@/features/permissions/hooks/useRoleAccess'
-import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 
 function wrapDataDigitizationPage(content: ReactNode, className?: string) {
   return (
@@ -159,10 +163,12 @@ export function DataManagementPage({
   const navigate = useNavigate()
   const permissions = useDataManagementResolvedPermissions()
   const { permissions: userPermissions } = useRoleAccess()
-  const canExportDossiers = isPermissionGranted(
-    userPermissions,
-    'dossiers.export',
-    'dossiers',
+  const canExportDossiers = canExportDossiersPermission(userPermissions)
+  const exportStatusOptions = useMemo(
+    () => ({
+      bypassStatus: canExportAnyStatusPermission(userPermissions),
+    }),
+    [userPermissions],
   )
   const { canSubmitArchive } = useArchiveSubmissionAccess()
   const [uploadOpen, setUploadOpen] = useState(false)
@@ -400,12 +406,48 @@ export function DataManagementPage({
       .filter((node): node is DataTreeNodeT => {
         if (!node) return false
         if (batchSignMode) return isBatchSignSelectableNode(node)
-        if (batchExportMode) return isBatchExportDossierLeafNode(node)
+        if (batchExportMode)
+          return isBatchExportDossierLeafNode(node, exportStatusOptions)
         return false
+      })
+      .filter((node) => {
+        if (!batchExportMode || !effectiveTree) return true
+        // Covered by a selected ancestor folder — folder API exports the subtree.
+        return !isUnderSelectedBatchExportFolder(
+          node,
+          effectiveTree,
+          selectedRecordIds,
+          exportStatusOptions,
+        )
       })
       .map((node) => node.dossierId ?? node.id)
     return [...new Set(ids)]
-  }, [selectedRecordIds, effectiveTree, batchSignMode, batchExportMode])
+  }, [
+    selectedRecordIds,
+    effectiveTree,
+    batchSignMode,
+    batchExportMode,
+    exportStatusOptions,
+  ])
+
+  const selectedExportFolderIds = useMemo(() => {
+    if (!effectiveTree || !batchExportMode) return [] as Array<string>
+    const ids = selectedRecordIds
+      .map((id) => findNodeById(effectiveTree, id))
+      .filter((node): node is DataTreeNodeT => {
+        if (!node) return false
+        if (isBatchExportDossierLeafNode(node, exportStatusOptions)) return false
+        return (
+          node.type === 'folder' &&
+          isBatchExportSelectableNode(node, exportStatusOptions)
+        )
+      })
+      .map((node) => resolveFolderExportId(node))
+    return [...new Set(ids)]
+  }, [selectedRecordIds, effectiveTree, batchExportMode, exportStatusOptions])
+
+  const batchExportSelectionCount =
+    selectedDossierIds.length + selectedExportFolderIds.length
 
   const handleOcrTerminalComplete = useCallback(
     (payload: OcrTerminalCompletePayloadT) => {
@@ -633,52 +675,6 @@ export function DataManagementPage({
       ? { nodeId: loadNodeId, refresh: true }
       : loadNodeId
     return loadChildrenMutation.mutateAsync(input).then((result) => result.tree)
-  }
-
-  async function ensureBatchExportSubtreeLoaded(
-    rootId: string,
-    startTree: DataTreeNodeT,
-  ): Promise<DataTreeNodeT> {
-    let currentTree = startTree
-    const queue = [rootId]
-    const visited = new Set<string>()
-
-    while (queue.length > 0) {
-      const currentId = queue.shift()!
-      if (visited.has(currentId)) continue
-      visited.add(currentId)
-
-      const node = findNodeById(currentTree, currentId)
-      if (!node || node.type === 'document') continue
-
-      const needsLoad =
-        !isNodeChildrenCached(currentId) ||
-        (node.type === 'folder' &&
-          isDossierWorkflowNode(node) &&
-          node.children.length === 0) ||
-        (node.type === 'record' && !node.dossierMetadata)
-
-      if (needsLoad) {
-        currentTree = await loadNodeTree(
-          currentId,
-          node.type === 'folder' &&
-            isDossierWorkflowNode(node) &&
-            node.children.length === 0
-            ? { refresh: true }
-            : undefined,
-        )
-      }
-
-      const updated = findNodeById(currentTree, currentId)
-      if (!updated) continue
-      for (const child of updated.children) {
-        if (child.type !== 'document') {
-          queue.push(child.id)
-        }
-      }
-    }
-
-    return currentTree
   }
 
   function handleSearchInput(raw: string) {
@@ -919,7 +915,7 @@ export function DataManagementPage({
 
   function handleExportExcel(node: DataTreeNodeT) {
     if (!canExportDossiers) return
-    const ctx = resolveExportContext(node)
+    const ctx = resolveExportContext(node, exportStatusOptions)
     if (!ctx) return
 
     setExportContext(ctx)
@@ -991,15 +987,28 @@ export function DataManagementPage({
   )
 
   const batchExportContext: ExportContext | null = useMemo(() => {
-    if (selectedDossierIds.length === 0) return null
+    if (
+      selectedDossierIds.length === 0 &&
+      selectedExportFolderIds.length === 0
+    ) {
+      return null
+    }
+    const parts: string[] = []
+    if (selectedExportFolderIds.length > 0) {
+      parts.push(`${selectedExportFolderIds.length}-folder`)
+    }
+    if (selectedDossierIds.length > 0) {
+      parts.push(`${selectedDossierIds.length}-hoso`)
+    }
     return {
       kind: 'multi_dossiers',
       dossierId: null,
       folderId: null,
+      folderIds: selectedExportFolderIds,
       dossierIds: selectedDossierIds,
-      downloadName: `multi-export-${selectedDossierIds.length}-hoso`,
+      downloadName: `multi-export-${parts.join('-')}`,
     }
-  }, [selectedDossierIds])
+  }, [selectedDossierIds, selectedExportFolderIds])
 
   const handleBatchExport = useCallback(
     async (mode: ExportMode, options?: ExportOptions) => {
@@ -1012,6 +1021,7 @@ export function DataManagementPage({
           kind: batchExportContext.kind,
           mode,
           folderId: batchExportContext.folderId,
+          folderIds: batchExportContext.folderIds,
           dossierId: batchExportContext.dossierId,
           dossierIds: batchExportContext.dossierIds,
           downloadName: batchExportContext.downloadName,
@@ -1132,30 +1142,47 @@ export function DataManagementPage({
           targetNode &&
           (batchSignMode
             ? isBatchSignSelectableNode(targetNode)
-            : isBatchExportSelectableNode(targetNode))
+            : isBatchExportSelectableNode(targetNode, exportStatusOptions))
         ) {
           if (batchExportMode) {
-            workingTree = await ensureBatchExportSubtreeLoaded(
-              id,
-              workingTree,
-            )
-            const loadedNode = findNodeById(workingTree, id)
-            if (!loadedNode || !isBatchExportSelectableNode(loadedNode)) {
-              return
-            }
-            const cascadeIds = collectBatchExportSelectableIds(loadedNode)
-            if (cascadeIds.length === 0) return
-            setSelectedRecordIds((prev) => {
-              const selectedSet = new Set(prev)
-              const allSelected = cascadeIds.every((cascadeId) =>
-                selectedSet.has(cascadeId),
+            // Toggle this node only — folders export via folderId (no subtree load).
+            const appearsChecked =
+              selectedRecordIds.includes(id) ||
+              isUnderSelectedBatchExportFolder(
+                targetNode,
+                workingTree,
+                selectedRecordIds,
+                exportStatusOptions,
               )
-              if (allSelected) {
-                return prev.filter(
-                  (recordId) => !cascadeIds.includes(recordId),
-                )
+
+            setSelectedRecordIds((prev) => {
+              if (appearsChecked) {
+                // Uncheck: remove this id and any selected ancestor folders
+                // that were making a leaf appear checked.
+                const next = new Set(prev)
+                next.delete(id)
+                let parentId = targetNode.parentId
+                while (parentId) {
+                  if (next.has(parentId)) {
+                    const parent = findNodeById(workingTree!, parentId)
+                    if (
+                      parent &&
+                      parent.type === 'folder' &&
+                      !isBatchExportDossierLeafNode(
+                        parent,
+                        exportStatusOptions,
+                      )
+                    ) {
+                      next.delete(parentId)
+                    }
+                  }
+                  const parent = findNodeById(workingTree!, parentId)
+                  if (!parent) break
+                  parentId = parent.parentId
+                }
+                return [...next]
               }
-              return [...new Set([...prev, ...cascadeIds])]
+              return [...new Set([...prev, id])]
             })
             return
           }
@@ -1622,13 +1649,19 @@ export function DataManagementPage({
                   batchSignMode
                     ? isBatchSignSelectableNode
                     : batchExportMode
-                      ? isBatchExportSelectableNode
+                      ? (node) =>
+                          isBatchExportSelectableNode(node, exportStatusOptions)
                       : undefined
                 }
                 getMultiSelectCheckedState={
                   batchExportMode
                     ? (node) =>
-                        getBatchExportCheckState(node, selectedRecordIds)
+                        getBatchExportCheckState(
+                          node,
+                          selectedRecordIds,
+                          exportStatusOptions,
+                          effectiveTree,
+                        )
                     : undefined
                 }
                 expandPathToNodeIds={treeExpandToNodeIds}
@@ -1782,13 +1815,13 @@ export function DataManagementPage({
                     type="button"
                     size="sm"
                     className="shrink-0 gap-1.5"
-                    disabled={selectedDossierIds.length === 0 || isExporting}
+                    disabled={batchExportSelectionCount === 0 || isExporting}
                     onClick={() => setBatchExportDialogOpen(true)}
                   >
                     <FolderUp className="size-3.5" aria-hidden />
                     {t('recordDetail.exportExcelRunBatch', {
-                      count: selectedDossierIds.length,
-                      defaultValue: `Xuất {{count}} hồ sơ đã chọn`,
+                      count: batchExportSelectionCount,
+                      defaultValue: `Xuất {{count}} mục đã chọn`,
                     })}
                   </Button>
                 ) : null}

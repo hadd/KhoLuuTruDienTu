@@ -35,7 +35,10 @@ import {
   isPdfDocumentNode,
 } from '@/features/data-management/lib/treeUtils'
 import { useRoleAccess } from '@/features/permissions/hooks/useRoleAccess'
-import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
+import {
+  canExportAnyStatusPermission,
+  canExportDossiersPermission,
+} from '@/features/data-management/lib/dossierExportAccess'
 import { cn } from '@/lib/utils/cn'
 
 export function DataNodeContextMenu({
@@ -192,17 +195,16 @@ export function DataNodeContextMenu({
       },
     ]
 
-  const canExportDossiers = isPermissionGranted(
-    userPermissions,
-    'dossiers.export',
-    'dossiers',
-  )
+  const canExportDossiers = canExportDossiersPermission(userPermissions)
+  const exportStatusOptions = {
+    bypassStatus: canExportAnyStatusPermission(userPermissions),
+  }
 
   const visibleItems = baseItems.filter((item) => {
     if (item.key === 'viewInfo') return true
 
     if (item.key === 'exportExcel') {
-      return canExportDossiers && canExportNode(node)
+      return canExportDossiers && canExportNode(node, exportStatusOptions)
     }
 
     if (item.key === 'uploadDossier') {

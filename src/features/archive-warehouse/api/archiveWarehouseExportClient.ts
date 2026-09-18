@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/api/apiClient'
-import { notifyZipPasswordLocked } from '@/features/security-level/lib/zipPasswordToast'
+import { streamDownloadToDisk } from '@/lib/api/streamDownload'
 
 export type ArchiveWarehouseExportModeT = 'metadata' | 'dip'
 
@@ -30,44 +30,14 @@ export type ExportCheckResultT = {
   applyWatermark?: boolean
 }
 
-function resolveDownloadFileName(
-  contentDisposition: string | undefined,
-  fallbackName: string,
-): string {
-  if (!contentDisposition) return fallbackName
-
-  const match = /filename\*?=(?:UTF-8''|"?)([^";]+)/i.exec(contentDisposition)
-  if (!match?.[1]) return fallbackName
-
-  return decodeURIComponent(match[1].replace(/"/g, ''))
-}
-
 function normalizeExportFileName(fileName: string): string {
   if (/\.zip$/i.test(fileName)) return fileName
   const base = fileName.replace(/\.xlsx?$/i, '').replace(/\.+$/, '')
   return base ? `${base}.zip` : 'export.zip'
 }
 
-function saveExportBlob(
-  data: Blob,
-  contentDisposition: string | undefined,
-  fallbackName: string,
-): void {
-  const fileName = normalizeExportFileName(
-    resolveDownloadFileName(contentDisposition, fallbackName),
-  )
-
-  const url = window.URL.createObjectURL(new Blob([data]))
-  const link = document.createElement('a')
-  link.href = url
-  link.setAttribute('download', fileName)
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  window.URL.revokeObjectURL(url)
-}
-
-const EXPORT_TIMEOUT_MS = 600_000
+/** ~10000 phút — khớp streamDownload, tránh abort giữa chừng. */
+const EXPORT_TIMEOUT_MS = 10_000 * 60 * 1000
 const MULTI_DOWNLOAD_GAP_MS = 1200
 
 function sleep(ms: number): Promise<void> {
@@ -94,20 +64,15 @@ async function postExportZip(
   const dossierIds = Array.isArray(body.dossierIds)
     ? (body.dossierIds as Array<string>)
     : []
-  const response = await apiClient.post<Blob>(path, body, {
-    responseType: 'blob',
-    timeout: EXPORT_TIMEOUT_MS,
-    _skipGlobalErrorToast: true,
+  await streamDownloadToDisk({
+    method: 'POST',
+    path,
+    body,
+    fallbackFileName: normalizeExportFileName(fallbackName),
     dossierId: dossierIds[0] ?? null,
     securityAccessModule: 'warehouse',
+    timeoutMs: EXPORT_TIMEOUT_MS,
   })
-
-  saveExportBlob(
-    response.data,
-    response.headers['content-disposition'],
-    fallbackName,
-  )
-  notifyZipPasswordLocked(response.headers as Record<string, unknown>)
 }
 
 /** Probe access + ZIP password needs without downloading. */
