@@ -246,8 +246,9 @@ function AdminDashboardContent({
   permissions: Array<string>
   groupId?: string
 }) {
+  const [dateRange, setDateRange] = useState<{ dateFrom?: string; dateTo?: string }>({})
   const { data, isLoading } = useQuery(
-    adminDashboardQueryOptions(dossierTrendGranularity),
+    adminDashboardQueryOptions(dossierTrendGranularity, dateRange.dateFrom, dateRange.dateTo),
   )
 
   if (isLoading || !data) {
@@ -261,6 +262,7 @@ function AdminDashboardContent({
       dossierTrendGranularity={dossierTrendGranularity}
       permissions={permissions}
       groupId={groupId}
+      onDateRangeChange={(dateFrom, dateTo) => setDateRange({ dateFrom, dateTo })}
     />
   )
 }

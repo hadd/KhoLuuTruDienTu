@@ -54,12 +54,14 @@ export type EmployeeKpiTableProps = {
   data: Array<AdminDashboardEmployeeKpiT>
   selectedGroupId?: string
   dashboardGroups?: Array<AdminDashboardGroupStatsT>
+  onDateRangeChange?: (dateFrom?: string, dateTo?: string) => void
 }
 
 export function EmployeeKpiTable({
   data,
   selectedGroupId,
   dashboardGroups = [],
+  onDateRangeChange,
 }: EmployeeKpiTableProps) {
   const { t } = useTranslation('admin-dashboard')
   const navigate = dashboardRouteApi.useNavigate()
@@ -70,34 +72,53 @@ export function EmployeeKpiTable({
   )
   const { data: systemRoles = [] } = useQuery(adminRolesQueryOptions())
 
-  // Tổng hợp danh sách tổ/nhóm duy nhất từ prop dashboardGroups, adminGroupsData và data KPI
+  // Tổng hợp danh sách tổ/nhóm duy nhất thực tế có trong danh sách nhân sự KPI
   const combinedGroups = useMemo(() => {
     const map = new Map<string, string>()
 
-    dashboardGroups.forEach((g) => {
-      if (g.id || g.name) {
-        map.set(g.id ?? g.name, g.name)
+    data.forEach((item) => {
+      const totalAssigned = (item.assignedDossiersCount ?? 0) + (item.makerAssignedDossiersCount ?? 0) + (item.qcAssignedDossiersCount ?? 0)
+      if (item.role !== 'admin' && totalAssigned > 0) {
+        if (item.groupId && item.groupName) {
+          map.set(item.groupId, item.groupName)
+        } else if (item.groupName) {
+          map.set(item.groupName, item.groupName)
+        }
       }
     })
 
-    if (adminGroupsData?.items) {
-      adminGroupsData.items.forEach((g) => {
-        if (g.id && g.name) {
-          map.set(g.id, g.name)
+    if (map.size === 0) {
+      dashboardGroups.forEach((g) => {
+        if (g.id || g.name) {
+          map.set(g.id ?? g.name, g.name)
         }
       })
     }
 
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
+  }, [dashboardGroups, data])
+
+  // Danh sách các vai trò thực tế xuất hiện trong danh sách nhân sự KPI
+  const availableRoles = useMemo(() => {
+    const roleMap = new Map<string, string>()
+
     data.forEach((item) => {
-      if (item.groupId && item.groupName) {
-        map.set(item.groupId, item.groupName)
-      } else if (item.groupName) {
-        map.set(item.groupName, item.groupName)
+      const totalAssigned = (item.assignedDossiersCount ?? 0) + (item.makerAssignedDossiersCount ?? 0) + (item.qcAssignedDossiersCount ?? 0)
+      if (item.role !== 'admin' && totalAssigned > 0) {
+        const roleKey = item.role.toLowerCase()
+        if (roleKey === 'editor' || roleKey.includes('biên tập') || roleKey.includes('maker')) {
+          roleMap.set('editor', 'Biên tập (Editor)')
+        } else if (roleKey === 'qc' || roleKey.startsWith('qc') || roleKey.includes('kiểm duyệt') || roleKey.includes('checker')) {
+          roleMap.set('qc', 'Kiểm duyệt (QC)')
+        } else {
+          const sysRole = systemRoles.find((r) => r.id.toLowerCase() === roleKey || r.name.toLowerCase() === roleKey)
+          roleMap.set(item.role, sysRole ? sysRole.name : item.role)
+        }
       }
     })
 
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
-  }, [dashboardGroups, adminGroupsData, data])
+    return Array.from(roleMap.entries()).map(([id, name]) => ({ id, name }))
+  }, [data, systemRoles])
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('')
@@ -127,6 +148,51 @@ export function EmployeeKpiTable({
     })
   }
 
+  const handlePeriodChange = (newPeriod: string, customFrom?: string, customTo?: string) => {
+    setPeriod(newPeriod)
+    setCurrentPage(1)
+
+    let dFrom = ''
+    let dTo = ''
+
+    const today = new Date()
+    const formatDateStr = (d: Date) => d.toISOString().split('T')[0]
+
+    if (newPeriod === 'today') {
+      dFrom = formatDateStr(today)
+      dTo = formatDateStr(today)
+    } else if (newPeriod === '7d') {
+      const past = new Date(today)
+      past.setDate(past.getDate() - 7)
+      dFrom = formatDateStr(past)
+      dTo = formatDateStr(today)
+    } else if (newPeriod === '30d') {
+      const past = new Date(today)
+      past.setDate(past.getDate() - 30)
+      dFrom = formatDateStr(past)
+      dTo = formatDateStr(today)
+    } else if (newPeriod === 'month') {
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+      dFrom = formatDateStr(startOfMonth)
+      dTo = formatDateStr(today)
+    } else if (newPeriod === 'custom') {
+      dFrom = customFrom !== undefined ? customFrom : dateFrom
+      dTo = customTo !== undefined ? customTo : dateTo
+    }
+
+    if (newPeriod !== 'custom') {
+      setDateFrom(dFrom)
+      setDateTo(dTo)
+      onDateRangeChange?.(dFrom, dTo)
+    } else {
+      if (customFrom !== undefined) setDateFrom(customFrom)
+      if (customTo !== undefined) setDateTo(customTo)
+      if (dFrom || dTo) {
+        onDateRangeChange?.(dFrom || undefined, dTo || undefined)
+      }
+    }
+  }
+
   // Sorting & Pagination States
   const [sortBy, setSortBy] = useState<
     'fullName' | 'groupName' | 'dossier' | 'page' | 'time' | 'rejected' | 'accuracy'
@@ -138,6 +204,12 @@ export function EmployeeKpiTable({
   // Filter Data
   const filteredData = useMemo(() => {
     return data.filter((item) => {
+      // 0. Ẩn Admin tổng & nhân sự chưa được giao hồ sơ nào
+      const totalAssigned = (item.assignedDossiersCount ?? 0) + (item.makerAssignedDossiersCount ?? 0) + (item.qcAssignedDossiersCount ?? 0)
+      if (item.role === 'admin' || totalAssigned <= 0) {
+        return false
+      }
+
       // 1. Search Query Filter
       const matchSearch =
         item.fullName.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
@@ -150,24 +222,27 @@ export function EmployeeKpiTable({
         const selectedGroup = combinedGroups.find((g) => g.id === groupFilter)
         const targetName = selectedGroup ? selectedGroup.name.toLowerCase() : groupFilter.toLowerCase()
         const matchesGroup =
-          item.groupId === groupFilter ||
+          (Boolean(item.groupId) && item.groupId === groupFilter) ||
           (item.groupName ?? '').toLowerCase() === targetName ||
           (item.groupName ?? '').toLowerCase().includes(targetName)
 
         if (!matchesGroup) return false
       }
 
-      // 3. Role Filter (Dynamic System Roles)
+      // 3. Role Filter (Dynamic System Roles & Keyword fallbacks)
       if (roleFilter !== 'all') {
         const matchedRoleObj = systemRoles.find((r) => r.id === roleFilter)
-        const roleTargetName = matchedRoleObj ? matchedRoleObj.name.toLowerCase() : roleFilter.toLowerCase()
+        const itemRoleLower = item.role.toLowerCase()
+        const filterLower = roleFilter.toLowerCase()
 
         const matchesRole =
-          item.role === roleFilter ||
-          item.role.toLowerCase() === roleFilter.toLowerCase() ||
+          itemRoleLower === filterLower ||
+          (filterLower === 'editor' && (itemRoleLower === 'editor' || itemRoleLower.includes('biên tập') || itemRoleLower.includes('maker'))) ||
+          (filterLower === 'qc' && (itemRoleLower === 'qc' || itemRoleLower.startsWith('qc') || itemRoleLower.includes('kiểm duyệt') || itemRoleLower.includes('checker'))) ||
+          (filterLower === 'admin' && (itemRoleLower === 'admin' || itemRoleLower.includes('quản trị'))) ||
           (matchedRoleObj && (
-            item.role.toLowerCase() === matchedRoleObj.id.toLowerCase() ||
-            item.role.toLowerCase() === matchedRoleObj.name.toLowerCase()
+            itemRoleLower === matchedRoleObj.id.toLowerCase() ||
+            itemRoleLower === matchedRoleObj.name.toLowerCase()
           ))
 
         if (!matchesRole) return false
@@ -282,23 +357,40 @@ export function EmployeeKpiTable({
   // Summary Metrics
   const summaryMetrics = useMemo(() => {
     const totalUsers = data.length
+
+    // Chỉ tính Độ chính xác TB cho các nhân sự đã có hồ sơ hoàn thành hoặc có lượt kiểm tra/đánh giá
+    const activeAccuracyUsers = data.filter(
+      (item) => item.completedDossiersCount > 0 || (item.rejectedDossiersCount ?? 0) > 0,
+    )
     const avgAccuracy =
-      totalUsers > 0
+      activeAccuracyUsers.length > 0
+        ? Math.round(
+            (activeAccuracyUsers.reduce((sum, item) => sum + item.accuracyRate, 0) /
+              activeAccuracyUsers.length) *
+              10,
+          ) / 10
+        : totalUsers > 0
         ? Math.round(
             (data.reduce((sum, item) => sum + item.accuracyRate, 0) / totalUsers) * 10,
           ) / 10
         : 0
+
     const totalRejected = data.reduce(
       (sum, item) => sum + (item.rejectedDossiersCount ?? 0),
       0,
     )
+
+    // Chỉ tính Thời gian TB cho các nhân sự đã hoàn thành hồ sơ và có thời gian xử lý > 0
+    const activeTimeUsers = data.filter(
+      (item) => item.completedDossiersCount > 0 && (item.avgProcessingTimeMinutes ?? 0) > 0,
+    )
     const avgTime =
-      totalUsers > 0
+      activeTimeUsers.length > 0
         ? Math.round(
-            data.reduce(
+            activeTimeUsers.reduce(
               (sum, item) => sum + (item.avgProcessingTimeMinutes ?? 0),
               0,
-            ) / totalUsers,
+            ) / activeTimeUsers.length,
           )
         : 0
 
@@ -458,20 +550,11 @@ export function EmployeeKpiTable({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả vai trò</SelectItem>
-                <SelectItem value="editor">Biên tập (Editor)</SelectItem>
-                <SelectItem value="qc">Kiểm duyệt (QC)</SelectItem>
-                <SelectItem value="admin">Quản trị (Admin)</SelectItem>
-                {systemRoles
-                  .filter(
-                    (r) =>
-                      !['admin', 'editor', 'qc'].includes(r.id.toLowerCase()) &&
-                      !['admin', 'editor', 'qc'].includes(r.name.toLowerCase()),
-                  )
-                  .map((role) => (
-                    <SelectItem key={role.id} value={role.id}>
-                      {role.name}
-                    </SelectItem>
-                  ))}
+                {availableRoles.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -499,10 +582,7 @@ export function EmployeeKpiTable({
           <div className="flex items-center gap-2">
             <Select
               value={period}
-              onValueChange={(val) => {
-                setPeriod(val)
-                setCurrentPage(1)
-              }}
+              onValueChange={(val) => handlePeriodChange(val)}
             >
               <SelectTrigger className="h-8 w-[120px] text-xs">
                 <SelectValue />
@@ -521,14 +601,14 @@ export function EmployeeKpiTable({
                 <Input
                   type="date"
                   value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
+                  onChange={(e) => handlePeriodChange('custom', e.target.value, dateTo)}
                   className="h-8 w-[120px] text-xs"
                 />
                 <span className="text-xs text-muted-foreground">-</span>
                 <Input
                   type="date"
                   value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
+                  onChange={(e) => handlePeriodChange('custom', dateFrom, e.target.value)}
                   className="h-8 w-[120px] text-xs"
                 />
               </div>

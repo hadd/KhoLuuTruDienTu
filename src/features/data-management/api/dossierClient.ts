@@ -498,6 +498,7 @@ export async function exportDossierDip(
 export async function exportMultiDossiersDip(
   dossierIds: string[],
   downloadName?: string,
+  baseFolderId?: string,
 ): Promise<void> {
   const fallbackName = downloadName?.trim()
     ? `${downloadName.trim()}-dip.zip`
@@ -505,7 +506,21 @@ export async function exportMultiDossiersDip(
   await downloadConfiguredMetadataExport(
     `/api/v1/dossiers/dip/export`,
     fallbackName,
-    { dossierIds } as any,
+    { dossierIds, baseFolderId } as any,
+  )
+}
+
+export async function exportFolderDip(
+  folderId: string,
+  downloadName?: string,
+): Promise<void> {
+  const fallbackName = downloadName?.trim()
+    ? `${downloadName.trim()}-dip.zip`
+    : `folder-dip.zip`
+  await downloadConfiguredMetadataExport(
+    `/api/v1/dossiers/dip/export`,
+    fallbackName,
+    { dossierIds: [], folderIds: [folderId], baseFolderId: folderId } as any,
   )
 }
 

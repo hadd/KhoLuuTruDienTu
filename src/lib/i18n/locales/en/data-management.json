@@ -6,7 +6,10 @@
   },
   "loading": "Loading…",
   "search": {
-    "placeholder": "Search folders and documents..."
+    "placeholder": "Search folders and documents...",
+    "searching": "Searching...",
+    "noResults": "No results found",
+    "noResultsDesc": "No folders or documents match \"{{query}}\""
   },
   "project": {
     "label": "Project",
