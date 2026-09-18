@@ -205,11 +205,19 @@ export interface DataMetadataEditFieldChangeT {
   field: DataDocumentFieldT
 }
 
+/** File linked from a history version via metadata group + tree document id. */
+export interface DataMetadataHistoryFileRefT {
+  documentId: string | null
+  fileName: string
+  groupIndex: number
+}
+
 export interface DataMetadataEditBatchT {
   id: string
   editorName: string
   editedAt: string
   changes: Array<DataMetadataEditFieldChangeT>
+  files: Array<DataMetadataHistoryFileRefT>
   action: string
   notes: string | null
   versionNumber: number

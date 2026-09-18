@@ -119,7 +119,7 @@ export function DataFolderTree({
       `[data-tree-node-id="${selectedId}"]`,
     )
     selectedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  }, [multiSelect, selectedId])
+  }, [multiSelect, selectedId, expanded])
 
   const toggle = useCallback(
     (id: string) => {
@@ -267,6 +267,11 @@ function TreeBranch({
           'flex min-w-0 items-start gap-1 rounded-md py-1 pr-2 text-sm',
           isChecked && 'bg-accent text-accent-foreground',
           !isChecked && isSelected && !multiSelect && 'bg-accent text-accent-foreground',
+          !isChecked &&
+            isSelected &&
+            !multiSelect &&
+            node.type === 'document' &&
+            'ring-1 ring-inset ring-primary',
           !isChecked && selectedId === node.id && multiSelect && 'ring-1 ring-inset ring-primary/40',
         )}
         style={{ paddingLeft: `${collapsed ? 6 : depth * 12 + 4}px` }}

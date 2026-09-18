@@ -53,6 +53,7 @@ import {
   findAllDocumentsForMetadataGroup,
   findAllMetadataGroupIndicesForDocument,
   findDocumentForMetadataGroup,
+  findMetadataGroupIndexForDocument,
   handleMetadataFieldNavigationKeyDown,
   isPdfDocumentRef,
   mergeMetadataFieldChanges,
@@ -85,6 +86,7 @@ import type {
   DataDossierStatus,
   DataMetadataEditBatchT,
   DataMetadataEditFieldChangeT,
+  DataMetadataHistoryFileRefT,
   DataTreeNodeT,
 } from '@/features/data-management/types'
 import { useSubmitEditorDraftFinalSaveItemsMutation } from '@/features/editor-dossiers/queries'
@@ -197,12 +199,12 @@ export function RecordDetailPanel({
       (isInQcStep
         ? canActAsChecker
         : canManage &&
-          (managementRole !== 'editor' ||
-            canEditorSubmitMetadata({
-              assignmentStatus: node.assignmentStatus,
-              dossierStatus: effectiveDossierStatus,
-            })) &&
-          (managementRole !== 'qc' || canActAsChecker)))
+        (managementRole !== 'editor' ||
+          canEditorSubmitMetadata({
+            assignmentStatus: node.assignmentStatus,
+            dossierStatus: effectiveDossierStatus,
+          })) &&
+        (managementRole !== 'qc' || canActAsChecker)))
   const canExportDossiers = isPermissionGranted(
     userPermissions,
     'dossiers.export',
@@ -485,8 +487,12 @@ export function RecordDetailPanel({
     if (!canViewEditHistory || !activeMetadata || !editHistoryQuery.data) {
       return []
     }
-    return mapMetadataHistoryToBatches(editHistoryQuery.data, activeMetadata)
-  }, [canViewEditHistory, activeMetadata, editHistoryQuery.data])
+    return mapMetadataHistoryToBatches(
+      editHistoryQuery.data,
+      activeMetadata,
+      documents,
+    )
+  }, [canViewEditHistory, activeMetadata, editHistoryQuery.data, documents])
 
   const selectedGroupIndex = useMemo(() => {
     if (
@@ -875,6 +881,49 @@ export function RecordDetailPanel({
       fieldKey,
       change.id,
     )
+  }
+
+  function handleHistoryFileFocus(file: DataMetadataHistoryFileRefT) {
+    let groupIndex = file.groupIndex
+    const documentId = file.documentId?.trim() || ''
+
+    if (documentId) {
+      const targetDocument = documents.find((item) => item.id === documentId)
+      if (targetDocument && (groupIndex < 0 || !groups[groupIndex])) {
+        groupIndex = findMetadataGroupIndexForDocument(
+          groups,
+          targetDocument,
+          documents,
+        )
+      }
+
+      onFocusDocument?.(documentId, groupIndex >= 0 ? groupIndex : 0)
+      window.requestAnimationFrame(() => {
+        window.document
+          .querySelector(`[data-tree-node-id="${documentId}"]`)
+          ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      })
+      return
+    }
+
+    const group = activeMetadata?.metadata_groups[groupIndex]
+    if (!group) return
+
+    const linkedDocuments = findAllDocumentsForMetadataGroup(group, documents)
+    if (linkedDocuments.length > 0) {
+      const targetDocument = linkedDocuments[0]
+      onFocusDocument?.(targetDocument.id, groupIndex)
+      window.requestAnimationFrame(() => {
+        window.document
+          .querySelector(`[data-tree-node-id="${targetDocument.id}"]`)
+          ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      })
+      return
+    }
+
+    if (groupIndex !== selectedGroupIndex && onFocusDocument) {
+      onFocusDocument('', groupIndex)
+    }
   }
 
   function handleRequestRevertHistoryBatch(batch: DataMetadataEditBatchT) {
@@ -1434,6 +1483,7 @@ export function RecordDetailPanel({
                   isRestoring={restoreHistoryMutation.isPending}
                   restoringBatchId={restoringBatchId}
                   onFieldActivate={handleHistoryFieldActivate}
+                  onFileActivate={handleHistoryFileFocus}
                   onRevertBatch={handleRequestRevertHistoryBatch}
                 />
               </TabsContent>

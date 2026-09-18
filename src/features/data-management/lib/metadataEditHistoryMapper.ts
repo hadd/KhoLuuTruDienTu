@@ -1,10 +1,13 @@
 import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
+import { findAllDocumentsForMetadataGroup } from '@/features/data-management/lib/metadataHelpers'
 import type {
   DataDocumentFieldT,
   DataDossierMetadataT,
   DataMetadataEditBatchT,
   DataMetadataEditFieldChangeT,
   DataMetadataHistoryEntryT,
+  DataMetadataHistoryFileRefT,
+  DataTreeNodeT,
 } from '@/features/data-management/types'
 
 function normalizeHistoryValue(value: string | null | undefined): string {
@@ -106,16 +109,115 @@ function resolveEditorName(entry: DataMetadataHistoryEntryT): string {
   return ''
 }
 
+function collectChangedGroupIndices(
+  entry: DataMetadataHistoryEntryT,
+  metadata: DataDossierMetadataT,
+): Array<number> {
+  if (!entry.fieldChanges) return []
+
+  const indices: Array<number> = []
+  const seen = new Set<number>()
+
+  for (const fieldKey of Object.keys(entry.fieldChanges)) {
+    const location = resolveFieldLocation(metadata, fieldKey)
+    if (location) {
+      if (!seen.has(location.groupIndex)) {
+        seen.add(location.groupIndex)
+        indices.push(location.groupIndex)
+      }
+      continue
+    }
+
+    const dotIndex = fieldKey.indexOf('.')
+    if (dotIndex <= 0) continue
+    const groupCode = fieldKey.slice(0, dotIndex)
+    const groupIndex = metadata.metadata_groups.findIndex(
+      (group) => group.group_code === groupCode,
+    )
+    if (groupIndex < 0 || seen.has(groupIndex)) continue
+    seen.add(groupIndex)
+    indices.push(groupIndex)
+  }
+
+  return indices
+}
+
+function addHistoryFile(
+  files: Array<DataMetadataHistoryFileRefT>,
+  seen: Set<string>,
+  file: DataMetadataHistoryFileRefT,
+) {
+  const key = file.documentId ?? `name:${file.fileName}:${file.groupIndex}`
+  if (!file.fileName.trim() && !file.documentId) return
+  if (seen.has(key)) return
+  seen.add(key)
+  files.push(file)
+}
+
+function resolveHistoryFiles(
+  entry: DataMetadataHistoryEntryT,
+  metadata: DataDossierMetadataT,
+  documents: Array<DataTreeNodeT>,
+): Array<DataMetadataHistoryFileRefT> {
+  const files: Array<DataMetadataHistoryFileRefT> = []
+  const seen = new Set<string>()
+  const groupIndices = collectChangedGroupIndices(entry, metadata)
+
+  function addFromGroup(groupIndex: number) {
+    const group = metadata.metadata_groups[groupIndex]
+    if (!group) return
+
+    const matchedDocuments = findAllDocumentsForMetadataGroup(group, documents)
+    const sourceFileName = group.source_document?.file_name?.trim() ?? ''
+
+    if (matchedDocuments.length > 0) {
+      for (const document of matchedDocuments) {
+        addHistoryFile(files, seen, {
+          documentId: document.id,
+          fileName: sourceFileName || document.name.trim(),
+          groupIndex,
+        })
+      }
+      return
+    }
+
+    if (sourceFileName) {
+      addHistoryFile(files, seen, {
+        documentId: null,
+        fileName: sourceFileName,
+        groupIndex,
+      })
+    }
+  }
+
+  if (groupIndices.length > 0) {
+    groupIndices.forEach(addFromGroup)
+    return files
+  }
+
+  if (documents.length === 1) {
+    addHistoryFile(files, seen, {
+      documentId: documents[0].id,
+      fileName: documents[0].name.trim(),
+      groupIndex: 0,
+    })
+  }
+
+  return files
+}
+
 /** Map BE metadata-history entries to UI edit batches. */
 export function mapMetadataHistoryToBatches(
   entries: Array<DataMetadataHistoryEntryT>,
   metadata: DataDossierMetadataT,
+  documents: Array<DataTreeNodeT> = [],
 ): Array<DataMetadataEditBatchT> {
   return entries.map((entry) => ({
     id: entry.id,
     editorName: resolveEditorName(entry),
     editedAt: entry.createdAt,
     changes: mapFieldChanges(entry, metadata),
+    files: resolveHistoryFiles(entry, metadata, documents),
     action: entry.action,
     notes: entry.notes,
     versionNumber: entry.versionNumber,
