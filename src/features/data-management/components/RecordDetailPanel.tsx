@@ -674,6 +674,12 @@ export function RecordDetailPanel({
     activePdfUrl === ocrPdfUrl,
   )
 
+  // Enable text layer for any source PDF (searchable_pdf or raw fallback) so
+  // already-searchable originals still support select/copy when no OCR mirror exists.
+  const shouldRenderTextLayer = Boolean(
+    pdfViewMode === 'source' && activePdfUrl,
+  )
+
   const handleOcrPdfLoadFailed = useCallback(() => {
     if (!ocrPdfUrl || !originalPdfUrl || useOriginalPdfFallback) return
     if (ocrPdfUrl === originalPdfUrl) return
@@ -1712,10 +1718,12 @@ export function RecordDetailPanel({
                     revealRegions={
                       pdfViewMode === 'source' ? pdfRevealRegions : []
                     }
-                    renderTextLayer={isOcrPdfLayer}
-                    renderAnnotationLayer={isOcrPdfLayer}
+                    renderTextLayer={shouldRenderTextLayer}
+                    renderAnnotationLayer={shouldRenderTextLayer}
                     restrictTextCopyToRevealRegions={
-                      isEditorRole && isPdfMaskEnabled && isOcrPdfLayer
+                      isEditorRole &&
+                      isPdfMaskEnabled &&
+                      shouldRenderTextLayer
                     }
                     onLoadFailed={
                       isOcrPdfLayer && originalPdfUrl
@@ -1742,10 +1750,10 @@ export function RecordDetailPanel({
               highlight={pdfHighlight}
               maskMode={isEditorRole && isPdfMaskEnabled ? 'bbox-only' : 'off'}
               revealRegions={pdfRevealRegions}
-              renderTextLayer={isOcrPdfLayer}
-              renderAnnotationLayer={isOcrPdfLayer}
+              renderTextLayer={shouldRenderTextLayer}
+              renderAnnotationLayer={shouldRenderTextLayer}
               restrictTextCopyToRevealRegions={
-                isEditorRole && isPdfMaskEnabled && isOcrPdfLayer
+                isEditorRole && isPdfMaskEnabled && shouldRenderTextLayer
               }
               onLoadFailed={
                 isOcrPdfLayer && originalPdfUrl

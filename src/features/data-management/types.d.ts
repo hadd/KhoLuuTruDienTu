@@ -236,7 +236,7 @@ export interface DataTreeNodeT {
   /** Logical path for metadata matching (distinct from signed fileUrl). */
   filePath?: string
   fileUrl?: string // Đã sửa lỗi type gốc (ileUrl -> fileUrl)
-  /** OCR/searchable PDF URL — text layer supports copy. */
+  /** OCR/searchable PDF URL when a searchable_pdf/ mirror exists. */
   ocrPdfUrl?: string
   /** True when the PDF has an embedded digital signature (signed_file_path). */
   isSigned?: boolean
