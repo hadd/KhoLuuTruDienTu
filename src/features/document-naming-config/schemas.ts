@@ -26,6 +26,7 @@ export const namingSegmentSchema = z.object({
     'fond_field',
     'dossier_field',
     'file_field',
+    'metadata_field',
   ]),
   value: z.string().max(255).nullable().optional(),
   fieldKey: z.string().max(100).nullable().optional(),
@@ -41,6 +42,7 @@ export const SEGMENT_SOURCE_VALUES = [
   'fond_field',
   'dossier_field',
   'file_field',
+  'metadata_field',
 ] as const
 
 export const DOSSIER_SEGMENT_SOURCE_VALUES = [
@@ -83,7 +85,8 @@ function needsFieldKey(source: DocumentNamingSegmentSourceT): boolean {
   return (
     source === 'fond_field' ||
     source === 'dossier_field' ||
-    source === 'file_field'
+    source === 'file_field' ||
+    source === 'metadata_field'
   )
 }
 

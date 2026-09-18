@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Eye, Loader2, Save } from 'lucide-react'
+import { Eye, Info, Loader2, Save } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -20,10 +20,12 @@ import { activeArchiveFondsQueryOptions } from '@/features/archive-fond/queries'
 import { NamingSegmentTable } from '@/features/document-naming-config/components/NamingSegmentTable'
 import {
   validateDocumentNamingSegments,
+  type DocumentNamingSearchT,
   type NamingSegmentFieldErrorT,
 } from '@/features/document-naming-config/schemas'
 import {
   documentNamingConfigQueryOptions,
+  documentNamingDossierMetadataFieldsQueryOptions,
   documentNamingDossierOptionsQueryOptions,
   documentNamingFieldCatalogQueryOptions,
   usePreviewDocumentNamingConfig,
@@ -36,7 +38,7 @@ const routeApi = getRouteApi('/app/data-config/document-naming')
 export function DocumentNamingConfigPage() {
   const { t } = useTranslation('document-naming-config')
   const navigate = routeApi.useNavigate()
-  const search = routeApi.useSearch()
+  const search = routeApi.useSearch() as DocumentNamingSearchT
 
   const fondId = search.fondId ?? ''
   const dossierId = search.dossierId ?? ''
@@ -74,6 +76,9 @@ export function DocumentNamingConfigPage() {
       fondId ? { fondId, search: dossierSearch || undefined } : null,
     ),
   )
+  const metadataFieldsQuery = useQuery(
+    documentNamingDossierMetadataFieldsQueryOptions(dossierId || undefined),
+  )
 
   const upsertMutation = useUpsertDocumentNamingConfig()
   const previewMutation = usePreviewDocumentNamingConfig()
@@ -85,6 +90,8 @@ export function DocumentNamingConfigPage() {
     file: [],
   }
   const dossierOptions = dossierOptionsQuery.data ?? []
+  const metadataFields = metadataFieldsQuery.data?.fields ?? []
+  const isFallbackMetadata = metadataFieldsQuery.data?.isFallback ?? false
 
   useEffect(() => {
     setDossierSegments(dossierConfigQuery.data?.segments ?? [])
@@ -278,6 +285,8 @@ export function DocumentNamingConfigPage() {
                 targetType="dossier"
                 segments={dossierSegments}
                 fieldCatalog={fieldCatalog}
+                metadataFields={metadataFields}
+                isFallbackMetadata={isFallbackMetadata}
                 disabled={upsertMutation.isPending}
                 errors={dossierSegmentErrors}
                 onChange={handleDossierSegmentsChange}
@@ -372,6 +381,8 @@ export function DocumentNamingConfigPage() {
                       targetType="file"
                       segments={fileSegments}
                       fieldCatalog={fieldCatalog}
+                      metadataFields={metadataFields}
+                      isFallbackMetadata={isFallbackMetadata}
                       disabled={upsertMutation.isPending}
                       errors={fileSegmentErrors}
                       onChange={handleFileSegmentsChange}

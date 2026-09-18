@@ -1,4 +1,5 @@
-import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, ChevronUp, Database, Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -29,15 +30,19 @@ import {
 } from '@/features/document-naming-config/schemas'
 import type {
   DocumentNamingFieldCatalogT,
+  DocumentNamingMetadataFieldOptionT,
   DocumentNamingSegmentSourceT,
   DocumentNamingSegmentT,
   DocumentNamingTargetTypeT,
 } from '@/features/document-naming-config/types'
+import { MetadataFieldPickerDialog } from '@/features/document-naming-config/components/MetadataFieldPickerDialog'
 import { cn } from '@/lib/utils/cn'
 
 interface NamingSegmentTableProps {
   segments: Array<DocumentNamingSegmentT>
   fieldCatalog: DocumentNamingFieldCatalogT
+  metadataFields?: Array<DocumentNamingMetadataFieldOptionT>
+  isFallbackMetadata?: boolean
   title: string
   targetType: DocumentNamingTargetTypeT
   disabled?: boolean
@@ -100,6 +105,8 @@ function getCurrentDateValue(source: DocumentNamingSegmentSourceT): string {
 export function NamingSegmentTable({
   segments,
   fieldCatalog,
+  metadataFields,
+  isFallbackMetadata = false,
   title,
   targetType,
   disabled = false,
@@ -107,6 +114,7 @@ export function NamingSegmentTable({
   onChange,
 }: NamingSegmentTableProps) {
   const { t } = useTranslation('document-naming-config')
+  const [activePickerIndex, setActivePickerIndex] = useState<number | null>(null)
   const sourceOptions = SOURCE_OPTIONS_BY_TARGET[targetType]
 
   const updateSegment = (index: number, patch: Partial<DocumentNamingSegmentT>) => {
@@ -172,6 +180,9 @@ export function NamingSegmentTable({
             <TableBody>
               {segments.map((segment, index) => {
                 const fieldOptions = getFieldOptions(segment.source, fieldCatalog)
+                const selectedMetaField = metadataFields?.find(
+                  (f) => f.key === segment.fieldKey || f.fieldName === segment.fieldKey,
+                )
                 const lengthError = getSegmentFieldError(errors, index, 'length')
                 const sourceError = getSegmentFieldError(errors, index, 'source')
                 const valueError = getSegmentFieldError(errors, index, 'value')
@@ -271,6 +282,34 @@ export function NamingSegmentTable({
                                 }
                               />
                             )
+                          ) : segment.source === 'metadata_field' ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={disabled}
+                              className={cn(
+                                'h-9 w-full justify-start text-left font-normal truncate px-2.5',
+                                fieldKeyError && 'border-destructive',
+                              )}
+                              onClick={() => setActivePickerIndex(index)}
+                            >
+                              {segment.fieldKey ? (
+                                <span className="truncate flex items-center gap-1.5 text-xs">
+                                  <Database className="size-3.5 text-primary shrink-0" />
+                                  <span className="font-medium text-foreground">
+                                    {selectedMetaField?.display ?? segment.value ?? segment.fieldKey}
+                                  </span>
+                                  <span className="text-[11px] font-mono text-muted-foreground">
+                                    ({selectedMetaField?.fieldName ?? segment.fieldKey})
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-xs italic flex items-center gap-1">
+                                  <Database className="size-3.5 text-muted-foreground" />
+                                  + {t('segments.selectMetadataField', { defaultValue: 'Chọn trường metadata...' })}
+                                </span>
+                              )}
+                            </Button>
                           ) : needsFieldKey(segment.source) ? (
                             <Select
                               value={segment.fieldKey ?? ''}
@@ -379,6 +418,26 @@ export function NamingSegmentTable({
           </Table>
         </div>
       )}
+
+      {activePickerIndex !== null ? (
+        <MetadataFieldPickerDialog
+          open={activePickerIndex !== null}
+          onOpenChange={(open) => {
+            if (!open) setActivePickerIndex(null)
+          }}
+          fields={metadataFields ?? []}
+          isFallback={isFallbackMetadata}
+          selectedKey={segments[activePickerIndex]?.fieldKey}
+          onSelect={(field) => {
+            if (activePickerIndex !== null) {
+              updateSegment(activePickerIndex, {
+                fieldKey: field.key,
+                value: field.display,
+              })
+            }
+          }}
+        />
+      ) : null}
     </div>
   )
 }

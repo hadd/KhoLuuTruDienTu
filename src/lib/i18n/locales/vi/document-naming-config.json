@@ -54,8 +54,10 @@
       "day": "Ngày",
       "fond_field": "Thông tin phông",
       "dossier_field": "Thông tin hồ sơ",
-      "file_field": "Thông tin file"
+      "file_field": "Thông tin file",
+      "metadata_field": "Trường Metadata"
     },
+    "selectMetadataField": "Chọn trường metadata...",
     "validation": {
       "segmentsRequired": "Hãy thêm ít nhất một đoạn mã",
       "invalidSource": "Đoạn mã {{position}}: nguồn dữ liệu không hợp lệ cho loại quy tắc này",
@@ -88,5 +90,12 @@
     "saveFailed": "Không thể lưu cấu hình",
     "previewFailed": "Không thể tạo xem trước",
     "segmentsRequired": "Hãy thêm ít nhất một đoạn mã trước khi lưu"
+  },
+  "metadataPicker": {
+    "title": "Chọn trường Metadata",
+    "searchPlaceholder": "Tìm theo tên hoặc mã trường (vd: mục lục, số vb)...",
+    "empty": "Không tìm thấy trường metadata phù hợp",
+    "groupDossier": "Metadata cấp Hồ sơ",
+    "groupDocument": "Metadata cấp Văn bản"
   }
 }
