@@ -3,7 +3,7 @@
  * Keeps S3 downloads and CPU-heavy PDF work from exploding memory.
  */
 
-export const MAX_EXPORT_FILES = 500;
+export const MAX_EXPORT_FILES = 50000000;
 export const EXPORT_DOWNLOAD_CONCURRENCY = 5;
 export const EXPORT_DOSSIER_CONCURRENCY = 5;
 
