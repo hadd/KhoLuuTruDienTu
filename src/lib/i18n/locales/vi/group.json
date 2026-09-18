@@ -369,6 +369,20 @@
     "empty": "Nhóm chưa có hồ sơ nào được gán",
     "loadFailed": "Không thể tải danh sách hồ sơ",
     "retry": "Thử lại",
+    "count": "{{count}} hồ sơ",
+    "assignedTo": "Gán cho: {{name}}",
+    "unassigned": "Chưa gán người"
+  },
+  "memberDossiers": {
+    "editorTitle": "Hồ sơ đã phân công — {{name}}",
+    "editorDescription": "Các hồ sơ đang được phân công cho {{name}}",
+    "checkerTitle": "Hồ sơ phân công duyệt — {{name}}",
+    "checkerDescription": "Các hồ sơ đã phân công cho {{name}} duyệt (Duyệt {{level}})",
+    "searchPlaceholder": "Tìm kiếm hồ sơ...",
+    "editorEmpty": "Chưa có hồ sơ nào được phân công",
+    "checkerEmpty": "Chưa có hồ sơ nào được phân công duyệt",
+    "loadFailed": "Không thể tải danh sách hồ sơ",
+    "retry": "Thử lại",
     "count": "{{count}} hồ sơ"
   }
 }

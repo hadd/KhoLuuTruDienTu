@@ -7,12 +7,14 @@ import type {
   AvailableEditorsResponseT,
   CreateAdminGroupPayloadT,
   GroupAssignedDossierT,
+  GroupAssignedDossiersResponseT,
+  GroupAssignmentCountsT,
+  GroupMemberAssignmentsQueryT,
+  GroupMemberAssignmentsResponseT,
   UpdateAdminGroupPayloadT,
 } from '@/features/group/types'
 import { apiClient } from '@/lib/api/apiClient'
-import type { PaginatedResponse, SingleResourceResponse } from '@/types/api'
-
-const ASSIGNED_DOSSIERS_PAGE_LIMIT = 50
+import type { SingleResourceResponse } from '@/types/api'
 
 export const getAvailableEditors =
   async (): Promise<AvailableEditorsResponseT> => {
@@ -88,31 +90,40 @@ export const deleteAdminGroup = async (groupId: string): Promise<void> => {
   await apiClient.delete(`/api/v1/admin/groups/${encodeURIComponent(groupId)}`)
 }
 
-/** GET /api/v1/dossiers/?assignGroupId= — fetches all pages, filters by groupId */
+/** GET /api/v1/admin/groups/:id/assigned-dossiers */
 export const getDossiersByAssignGroupId = async (
   groupId: string,
 ): Promise<Array<GroupAssignedDossierT>> => {
-  const items: Array<GroupAssignedDossierT> = []
-  let page = 1
-  let hasNextPage = true
+  const response = await apiClient.get<GroupAssignedDossiersResponseT>(
+    `/api/v1/admin/groups/${encodeURIComponent(groupId)}/assigned-dossiers`,
+  )
+  return response.data.dossiers
+}
 
-  while (hasNextPage) {
-    const response = await apiClient.get<PaginatedResponse<GroupAssignedDossierT>>(
-      '/api/v1/dossiers/',
-      {
-        params: {
-          assignGroupId: groupId,
-          page,
-          limit: ASSIGNED_DOSSIERS_PAGE_LIMIT,
-        },
+/** GET /api/v1/admin/groups/:id/assignment-counts */
+export const getGroupAssignmentCounts = async (
+  groupId: string,
+): Promise<GroupAssignmentCountsT> => {
+  const response = await apiClient.get<GroupAssignmentCountsT>(
+    `/api/v1/admin/groups/${encodeURIComponent(groupId)}/assignment-counts`,
+  )
+  return response.data
+}
+
+/** GET /api/v1/admin/groups/:id/member-assignments */
+export const getGroupMemberAssignments = async (
+  groupId: string,
+  query: GroupMemberAssignmentsQueryT,
+): Promise<GroupMemberAssignmentsResponseT> => {
+  const response = await apiClient.get<GroupMemberAssignmentsResponseT>(
+    `/api/v1/admin/groups/${encodeURIComponent(groupId)}/member-assignments`,
+    {
+      params: {
+        userId: query.userId,
+        kind: query.kind,
+        ...(query.level != null ? { level: query.level } : {}),
       },
-    )
-
-    const data = response.data
-    items.push(...data.items)
-    hasNextPage = data.hasNextPage === true
-    page += 1
-  }
-
-  return items.filter((dossier) => dossier.assignedGroupId === groupId)
+    },
+  )
+  return response.data
 }

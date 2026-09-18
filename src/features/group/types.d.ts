@@ -242,7 +242,12 @@ export interface MetadataSchemaGroupT {
   fields: Array<MetadataSchemaFieldT>
 }
 
-/** Dossier row from GET /api/v1/dossiers/?assignGroupId= */
+/** Dossier row from GET /api/v1/admin/groups/:id/assigned-dossiers */
+export interface GroupAssignedDossierEditorT {
+  userId: string
+  fullName: string | null
+}
+
 export interface GroupAssignedDossierT {
   id: string
   folderId: string
@@ -262,6 +267,41 @@ export interface GroupAssignedDossierT {
   createdAt: string
   updatedAt: string
   deletedAt: string | null
+  /** MAKER editors (empty when queued / not yet assigned to a person). */
+  editors?: Array<GroupAssignedDossierEditorT>
+}
+
+export interface GroupAssignedDossiersResponseT {
+  dossiers: Array<GroupAssignedDossierT>
+  total: number
+}
+
+export type GroupMemberAssignmentKindT = 'editor' | 'checker'
+
+export interface GroupAssignmentCountsT {
+  editors: Array<{ userId: string; count: number }>
+  checkers: Array<{ userId: string; level: number; count: number }>
+}
+
+export interface GroupMemberAssignmentsQueryT {
+  userId: string
+  kind: GroupMemberAssignmentKindT
+  level?: number
+}
+
+export interface GroupMemberAssignmentsResponseT {
+  kind: GroupMemberAssignmentKindT
+  userId: string
+  level: number | null
+  dossiers: Array<GroupAssignedDossierT>
+  total: number
+}
+
+export interface MemberDossiersTargetT {
+  kind: GroupMemberAssignmentKindT
+  userId: string
+  name: string
+  level?: number
 }
 
 export interface AssignGroupByFolderResponseT {

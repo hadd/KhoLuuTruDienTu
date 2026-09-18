@@ -28,6 +28,8 @@ import type {
 } from '@/features/data-management/lib/exportHelpers'
 
 const DEFAULT_PRESET_VALUE = 'default'
+const FILE_NAMING_ORIGINAL = 'original'
+const FILE_NAMING_CONFIG = 'config'
 
 export function ExportChoiceDialog({
   open,
@@ -48,6 +50,7 @@ export function ExportChoiceDialog({
 }) {
   const { t } = useTranslation('data-management')
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_VALUE)
+  const [fileNamingMode, setFileNamingMode] = useState(FILE_NAMING_ORIGINAL)
 
   const { data: presets = [], isLoading: isLoadingPresets } = useQuery({
     ...metadataExportPresetOptionsQueryOptions(),
@@ -57,6 +60,7 @@ export function ExportChoiceDialog({
   useEffect(() => {
     if (!open) return
     setSelectedPresetId(DEFAULT_PRESET_VALUE)
+    setFileNamingMode(FILE_NAMING_ORIGINAL)
   }, [open, context?.dossierId, context?.folderId])
 
   if (!context) return null
@@ -64,12 +68,23 @@ export function ExportChoiceDialog({
   const isExportingMetadata = isExporting && exportingMode === 'metadata'
   const isExportingDip = isExporting && exportingMode === 'dip'
 
+  function buildExportOptions(includePreset: boolean): ExportOptions | undefined {
+    const options: ExportOptions = {}
+    if (includePreset && selectedPresetId !== DEFAULT_PRESET_VALUE) {
+      options.presetId = selectedPresetId
+    }
+    if (fileNamingMode === FILE_NAMING_CONFIG) {
+      options.useDocumentNaming = true
+    }
+    return Object.keys(options).length > 0 ? options : undefined
+  }
+
   async function handleMetadataExport() {
-    const options =
-      selectedPresetId !== DEFAULT_PRESET_VALUE
-        ? { presetId: selectedPresetId }
-        : undefined
-    await onExport('metadata', options)
+    await onExport('metadata', buildExportOptions(true))
+  }
+
+  async function handleDipExport() {
+    await onExport('dip', buildExportOptions(false))
   }
 
   return (
@@ -115,6 +130,34 @@ export function ExportChoiceDialog({
             </p>
           </div>
 
+          <div className="space-y-2 rounded-lg border border-border p-3">
+            <Label htmlFor="export-file-naming">
+              {t('recordDetail.exportDialog.fileNamingLabel')}
+            </Label>
+            <Select
+              value={fileNamingMode}
+              disabled={isExporting}
+              onValueChange={setFileNamingMode}
+            >
+              <SelectTrigger id="export-file-naming">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={FILE_NAMING_ORIGINAL}>
+                  {t('recordDetail.exportDialog.fileNamingOriginal')}
+                </SelectItem>
+                <SelectItem value={FILE_NAMING_CONFIG}>
+                  {t('recordDetail.exportDialog.fileNamingConfig')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {fileNamingMode === FILE_NAMING_CONFIG
+                ? t('recordDetail.exportDialog.fileNamingConfigHint')
+                : t('recordDetail.exportDialog.fileNamingOriginalHint')}
+            </p>
+          </div>
+
           <Button
             type="button"
             variant="outline"
@@ -144,7 +187,7 @@ export function ExportChoiceDialog({
             type="button"
             variant="outline"
             className="h-auto w-full justify-start gap-3 px-4 py-3"
-            onClick={() => void onExport('dip')}
+            onClick={() => void handleDipExport()}
             disabled={isExporting || !canExportDip}
           >
             {isExportingDip ? (
@@ -167,8 +210,8 @@ export function ExportChoiceDialog({
             </div>
           </Button>
 
-          <div className="rounded-md border border-primary/20 bg-primary/5 p-2.5 text-center text-xs text-primary font-medium">
-            🔒 Tất cả tệp PDF xuất ra đều được tự động chuẩn hóa sang định dạng <strong>PDF/A (ISO 19005)</strong> phục vụ bảo tồn lưu trữ dài hạn.
+          <div className="rounded-md border border-primary/20 bg-primary/5 p-2.5 text-center text-xs font-medium text-primary">
+            {t('recordDetail.exportDialog.pdfaNotice')}
           </div>
         </div>
 

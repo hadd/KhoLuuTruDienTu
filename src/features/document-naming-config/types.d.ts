@@ -47,6 +47,7 @@ export type DocumentNamingFieldCatalogT = {
   fond: Array<DocumentNamingFieldOptionT>
   dossier: Array<DocumentNamingFieldOptionT>
   file: Array<DocumentNamingFieldOptionT>
+  metadata: Array<DocumentNamingFieldOptionT>
 }
 
 export type DocumentNamingDossierOptionT = {

@@ -28,10 +28,15 @@ export const documentNamingDossierOptionsQueryKeyPrefix = [
   'dossier-options',
 ] as const
 
-export function documentNamingFieldCatalogQueryOptions() {
+export function documentNamingFieldCatalogQueryOptions(params?: {
+  dossierId?: string
+} | null) {
   return queryOptions({
-    queryKey: documentNamingFieldCatalogQueryKey,
-    queryFn: getDocumentNamingFieldCatalog,
+    queryKey: [...documentNamingFieldCatalogQueryKey, params?.dossierId ?? null],
+    queryFn: () =>
+      getDocumentNamingFieldCatalog(
+        params?.dossierId ? { dossierId: params.dossierId } : undefined,
+      ),
     staleTime: 60_000,
   })
 }

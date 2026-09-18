@@ -55,7 +55,7 @@
       "fond_field": "Fond info",
       "dossier_field": "Dossier info",
       "file_field": "File info",
-      "metadata_field": "Metadata field"
+      "metadata_field": "Dossier/file metadata"
     },
     "selectMetadataField": "Select metadata field...",
     "validation": {

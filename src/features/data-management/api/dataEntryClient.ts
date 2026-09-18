@@ -14,8 +14,11 @@ import { apiClient } from '@/lib/api/apiClient'
 const MAKER_CLAIM_PATH = '/api/v1/data-entry/maker/claim'
 
 /** GET /api/v1/data-entry/maker/claim — claim next maker assignment */
-export async function claimMakerAssignment(): Promise<MakerClaimT> {
+export async function claimMakerAssignment(options?: {
+  skipDraft?: boolean
+}): Promise<MakerClaimT> {
   const response = await apiClient.get<MakerClaimT>(MAKER_CLAIM_PATH, {
+    params: options?.skipDraft ? { skipDraft: true } : undefined,
     validateStatus: (status) => status === 200 || status === 404,
     _skipGlobalErrorToast: true,
   })

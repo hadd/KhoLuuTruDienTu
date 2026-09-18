@@ -209,10 +209,16 @@
     "fieldsLabel": "Fields in column",
     "noFieldsInColumn": "No fields selected for this column.",
     "noFieldCatalog": "No field catalog. Select a reference template.",
+    "synthetic": {
+      "groupName": "External info",
+      "filePath": "File path",
+      "fileName": "File name",
+      "rowNumber": "Row number (1–N)",
+      "dossierFolder": "Dossier folder"
+    },
     "moveFieldUp": "Move field up",
     "moveFieldDown": "Move field down",
     "removeField": "Remove field",
-    "fieldAssignedElsewhere": "This field is already selected in another column",
     "preview": "Preview",
     "previewUnavailableNoDossier": "Select a reference template with a source dossier to preview.",
     "previewUnavailableInvalidColumns": "Complete column configuration (header and fields) before previewing.",
@@ -231,7 +237,11 @@
     "separators": {
       "comma": "Comma (, )",
       "space": "Space",
-      "dash": "Dash ( - )",
+      "dash": "Dash (-)",
+      "slash": "Slash (/)",
+      "backslash": "Backslash (\\)",
+      "dot": "Dot (.)",
+      "underscore": "Underscore (_)",
       "newline": "New line"
     }
   }

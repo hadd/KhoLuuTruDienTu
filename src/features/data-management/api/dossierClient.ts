@@ -1,8 +1,14 @@
 import { applyStoragePathPrefix } from '@/features/data-management/lib/uploadPathPrefix'
 import { toScopedProjectCode } from '@/features/data-management/lib/constants'
+import { sumUploadPdfPages } from '@/features/data-management/lib/countPdfFilePages'
 import { notifyZipPasswordLocked } from '@/features/security-level/lib/zipPasswordToast'
+import { checkPageQuotaUpload } from '@/features/metadata-extract/api/pageQuotaClient'
 import { apiClient } from '@/lib/api/apiClient'
 import { env } from '@/lib/utils/env'
+import {
+  isPageQuotaUploadExceededMessage,
+  translateError,
+} from '@/lib/utils/translate-error'
 
 export type OcrRunMode = 'auto' | 'manual'
 
@@ -56,6 +62,7 @@ export interface UploadFolderOptions {
 
 const UPLOAD_EXPIRY_MIN_SECONDS = 60
 const CONFLICT_CHECK_CONCURRENCY = 10
+const OCR_UPLOAD_TIMEOUT_MS = 300_000
 
 export interface UploadPathConflict {
   relativePath: string
@@ -214,6 +221,7 @@ async function createDocumentFromStorage(
   const response = await apiClient.post<Record<string, unknown>>(
     '/api/v1/dossiers/create-document-from-storage',
     body,
+    { _skipGlobalErrorToast: true, timeout: OCR_UPLOAD_TIMEOUT_MS },
   )
 
   const data = unwrapApiRecord<Record<string, unknown>>(response.data)
@@ -270,6 +278,7 @@ async function uploadFileToMinIO(
   const response = await fetch(uploadPoint.postURL, {
     method: 'POST',
     body: form,
+    signal: AbortSignal.timeout(OCR_UPLOAD_TIMEOUT_MS),
   })
 
   if (!response.ok) {
@@ -302,12 +311,14 @@ async function downloadMetadataExport(
   path: string,
   fallbackName: string,
   dossierId?: string,
+  params?: Record<string, string | boolean | undefined>,
 ): Promise<void> {
   const response = await apiClient.get<Blob>(path, {
     responseType: 'blob',
     timeout: EXPORT_TIMEOUT_MS,
     _skipGlobalErrorToast: true,
     dossierId: dossierId ?? null,
+    params,
   })
 
   await saveMetadataExportBlob(
@@ -367,6 +378,7 @@ export interface MetadataExportColumnRequestT {
 export interface MetadataExportRequestT {
   presetId?: string
   columns?: Array<MetadataExportColumnRequestT>
+  useDocumentNaming?: boolean
 }
 
 export interface MetadataExportPreviewRowT {
@@ -439,8 +451,13 @@ export async function exportDossierMetadataExcel(
     : `dossier-${dossierId}.zip`
   const path = `/api/v1/dossiers/${encodeURIComponent(dossierId)}/metadata/export`
 
-  if (config?.presetId || config?.columns) {
-    await downloadConfiguredMetadataExport(path, fallbackName, config, dossierId)
+  if (config?.presetId || config?.columns || config?.useDocumentNaming) {
+    await downloadConfiguredMetadataExport(
+      path,
+      fallbackName,
+      config,
+      dossierId,
+    )
     return
   }
 
@@ -473,7 +490,7 @@ export async function exportFolderMetadataExcel(
     : `folder-${folderId}.zip`
   const path = `/api/v1/folders/${encodeURIComponent(folderId)}/metadata/export`
 
-  if (config?.presetId || config?.columns) {
+  if (config?.presetId || config?.columns || config?.useDocumentNaming) {
     await downloadConfiguredMetadataExport(path, fallbackName, config)
     return
   }
@@ -481,9 +498,14 @@ export async function exportFolderMetadataExcel(
   await downloadMetadataExport(path, fallbackName)
 }
 
+export type DipExportOptionsT = {
+  useDocumentNaming?: boolean
+}
+
 export async function exportDossierDip(
   dossierId: string,
   downloadName?: string,
+  options?: DipExportOptionsT,
 ): Promise<void> {
   const fallbackName = downloadName?.trim()
     ? `${downloadName.trim()}-dip.zip`
@@ -492,12 +514,17 @@ export async function exportDossierDip(
     `/api/v1/dossiers/${encodeURIComponent(dossierId)}/dip/export`,
     fallbackName,
     dossierId,
+    options?.useDocumentNaming === true
+      ? { useDocumentNaming: true }
+      : undefined,
   )
 }
 
 export async function exportMultiDossiersDip(
   dossierIds: string[],
   downloadName?: string,
+  baseFolderId?: string,
+  options?: DipExportOptionsT,
 ): Promise<void> {
   const fallbackName = downloadName?.trim()
     ? `${downloadName.trim()}-dip.zip`
@@ -505,7 +532,42 @@ export async function exportMultiDossiersDip(
   await downloadConfiguredMetadataExport(
     `/api/v1/dossiers/dip/export`,
     fallbackName,
-    { dossierIds } as any,
+    {
+      dossierIds,
+      baseFolderId,
+      ...(options?.useDocumentNaming === true
+        ? { useDocumentNaming: true }
+        : {}),
+    } as MetadataExportRequestT & {
+      dossierIds: string[]
+      baseFolderId?: string
+    },
+  )
+}
+
+export async function exportFolderDip(
+  folderId: string,
+  downloadName?: string,
+  options?: DipExportOptionsT,
+): Promise<void> {
+  const fallbackName = downloadName?.trim()
+    ? `${downloadName.trim()}-dip.zip`
+    : `folder-dip.zip`
+  await downloadConfiguredMetadataExport(
+    `/api/v1/dossiers/dip/export`,
+    fallbackName,
+    {
+      dossierIds: [],
+      folderIds: [folderId],
+      baseFolderId: folderId,
+      ...(options?.useDocumentNaming === true
+        ? { useDocumentNaming: true }
+        : {}),
+    } as MetadataExportRequestT & {
+      dossierIds: string[]
+      folderIds: string[]
+      baseFolderId: string
+    },
   )
 }
 
@@ -522,6 +584,15 @@ export async function uploadFolderFiles(
     currentFile: '',
     phase: 'preparing',
   })
+
+  const totalPages = await sumUploadPdfPages(files)
+  const quotaCheck = await checkPageQuotaUpload(totalPages)
+  if (!quotaCheck.allowed) {
+    const message =
+      quotaCheck.message ??
+      `Không đủ hạn mức bóc tách: lượt tải có ${totalPages} trang, chỉ còn ${quotaCheck.remaining ?? 0} trang. Hãy nạp thêm license hoặc giảm số trang.`
+    throw new Error(message)
+  }
 
   const uploadPoint =
     options?.uploadPoint ??
@@ -574,14 +645,17 @@ export async function uploadFolderFiles(
         })
       }
     } catch (err) {
-      const error = err instanceof Error ? err.message : String(err)
+      const error = translateError(err)
       results.push({ file, relativePath, status: 'error', error })
+      if (isPageQuotaUploadExceededMessage(error)) {
+        break
+      }
     }
   }
 
   onProgress?.({
     total: files.length,
-    completed: files.length,
+    completed: results.length,
     currentFile: '',
     phase: 'uploading',
   })

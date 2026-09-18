@@ -77,6 +77,11 @@ export function buildAssignedDossierTree(
 
       if (!nodesMap.has(nodeId)) {
         const dossierStatus = parseDossierStatus(dossier.status)
+        const editors = dossier.editors ?? []
+        const primaryEditor = editors[0]
+        const editorNames = editors
+          .map((editor) => editor.fullName?.trim() || editor.userId)
+          .filter(Boolean)
         const newNode: DataTreeNodeT = {
           id: nodeId,
           name: isLast ? dossier.name || segment : segment,
@@ -99,6 +104,15 @@ export function buildAssignedDossierTree(
                 ...(dossier.requiredQcCount != null
                   ? { requiredQcCount: dossier.requiredQcCount }
                   : {}),
+                ...(primaryEditor
+                  ? {
+                      editor: {
+                        id: primaryEditor.userId,
+                        name: editorNames.join(', '),
+                        role: 'editor' as const,
+                      },
+                    }
+                  : {}),
               }
             : {}),
         }
@@ -112,11 +126,25 @@ export function buildAssignedDossierTree(
         const existing = nodesMap.get(nodeId)
         if (existing) {
           const dossierStatus = parseDossierStatus(dossier.status)
+          const editors = dossier.editors ?? []
+          const primaryEditor = editors[0]
+          const editorNames = editors
+            .map((editor) => editor.fullName?.trim() || editor.userId)
+            .filter(Boolean)
           existing.name = dossier.name || segment
           existing.dossierId = dossierId
           existing.folderId = dossier.folderId
           existing.isAssigned = true
           if (dossierStatus) existing.dossierStatus = dossierStatus
+          if (primaryEditor) {
+            existing.editor = {
+              id: primaryEditor.userId,
+              name: editorNames.join(', '),
+              role: 'editor',
+            }
+          } else {
+            delete existing.editor
+          }
         }
       }
 

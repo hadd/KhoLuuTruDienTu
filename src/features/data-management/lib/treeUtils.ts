@@ -256,8 +256,13 @@ export function isBatchSignSelectableNode(node: DataTreeNodeT): boolean {
   )
 }
 
-/** True when a tree node can be picked in batch metadata export mode (APPROVED or ARCHIVED). */
-export function isBatchExportSelectableNode(node: DataTreeNodeT): boolean {
+/** Dossier folder/record from `/all-first-subfolders` (has workflow `status`). */
+export function isDossierWorkflowNode(node: DataTreeNodeT): boolean {
+  return node.dossierStatus != null || node.entityType === 'DOCUMENT'
+}
+
+/** True when a node is an exportable hồ sơ leaf (APPROVED or ARCHIVED). */
+export function isBatchExportDossierLeafNode(node: DataTreeNodeT): boolean {
   if (
     node.dossierStatus !== 'APPROVED' &&
     node.dossierStatus !== 'ARCHIVED'
@@ -271,9 +276,64 @@ export function isBatchExportSelectableNode(node: DataTreeNodeT): boolean {
   )
 }
 
-/** Dossier folder/record from `/all-first-subfolders` (has workflow `status`). */
-export function isDossierWorkflowNode(node: DataTreeNodeT): boolean {
-  return node.dossierStatus != null || node.entityType === 'DOCUMENT'
+function hasBatchExportDossierLeafDescendant(node: DataTreeNodeT): boolean {
+  for (const child of node.children) {
+    if (isBatchExportDossierLeafNode(child)) return true
+    if (hasBatchExportDossierLeafDescendant(child)) return true
+  }
+  return false
+}
+
+/**
+ * True when a tree node can be picked in batch metadata export mode.
+ * Includes parent folders (not shared raw/) that contain exportable hồ sơ,
+ * or unloaded intermediate folders (cascade-load on select).
+ */
+export function isBatchExportSelectableNode(node: DataTreeNodeT): boolean {
+  if (node.type === 'document') return false
+  if (node.id === DATA_TREE_ROOT_ID) return false
+  if (isSharedRawRootFolder(node)) return false
+  if (isBatchExportDossierLeafNode(node)) return true
+  // Non-exportable hồ sơ (e.g. READY_FOR_ENTRY) must not show a checkbox —
+  // clicking them loaded the tree then silently dropped selection.
+  if (isDossierWorkflowNode(node)) return false
+  if (node.type !== 'folder') return false
+  if (hasBatchExportDossierLeafDescendant(node)) return true
+  // Unloaded pure container folder — allow tick to cascade-load subtree.
+  return node.children.length === 0
+}
+
+/** Collect this node + all selectable descendants for cascade select/deselect. */
+export function collectBatchExportSelectableIds(node: DataTreeNodeT): Array<string> {
+  const ids: Array<string> = []
+  function walk(current: DataTreeNodeT) {
+    if (isBatchExportSelectableNode(current)) {
+      ids.push(current.id)
+    }
+    for (const child of current.children) {
+      walk(child)
+    }
+  }
+  walk(node)
+  return ids
+}
+
+/** Checkbox state for batch export cascade selection. */
+export function getBatchExportCheckState(
+  node: DataTreeNodeT,
+  selectedIds: Array<string>,
+): boolean | 'indeterminate' {
+  if (!isBatchExportSelectableNode(node)) return false
+  const cascadeIds = collectBatchExportSelectableIds(node)
+  if (cascadeIds.length === 0) return false
+  const selectedSet = new Set(selectedIds)
+  let selectedCount = 0
+  for (const id of cascadeIds) {
+    if (selectedSet.has(id)) selectedCount += 1
+  }
+  if (selectedCount === 0) return false
+  if (selectedCount === cascadeIds.length) return true
+  return 'indeterminate'
 }
 
 /** True when the API marks this node as assigned (`isAssigned: true`). */
@@ -1467,20 +1527,78 @@ export function filterTreeExcludeArchived(
   return filt(root) ?? { ...root, children: [] }
 }
 
+export function removeVietnameseTones(str: string): string {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .toLowerCase()
+}
+
+export function matchesFuzzyFileName(
+  targetName: string | undefined | null,
+  query: string,
+): boolean {
+  if (!targetName || !query) return false
+  const trimmedQ = query.trim()
+  if (!trimmedQ) return false
+
+  const rawTarget = targetName.toLowerCase()
+  const rawQ = trimmedQ.toLowerCase()
+  if (rawTarget.includes(rawQ)) return true
+
+  const unaccentTarget = removeVietnameseTones(targetName)
+  const unaccentQ = removeVietnameseTones(trimmedQ)
+  if (unaccentTarget.includes(unaccentQ)) return true
+
+  // Stripped alphanumeric matching (e.g. pvep2002 matches PVEP.2002.0964.001)
+  const cleanTarget = unaccentTarget.replace(/[^a-z0-9]/g, '')
+  const cleanQ = unaccentQ.replace(/[^a-z0-9]/g, '')
+  if (cleanQ.length >= 2 && cleanTarget.includes(cleanQ)) {
+    return true
+  }
+
+  // Without .pdf extension check
+  const cleanTargetWithoutExt = unaccentTarget.replace(/\.pdf$/i, '').replace(/[^a-z0-9]/g, '')
+  const cleanQWithoutExt = unaccentQ.replace(/\.pdf$/i, '').replace(/[^a-z0-9]/g, '')
+  if (cleanQWithoutExt.length >= 2 && cleanTargetWithoutExt.includes(cleanQWithoutExt)) {
+    return true
+  }
+
+  // Token matching: all tokens in query exist in target
+  const tokens = unaccentQ.split(/[\s_\-\.]+/).filter(Boolean)
+  if (tokens.length > 1) {
+    const normTarget = unaccentTarget.replace(/[\s_\-\.]+/g, ' ')
+    if (tokens.every((t) => normTarget.includes(t))) {
+      return true
+    }
+  }
+
+  return false
+}
+
 export function filterTreeForSearch(
   root: DataTreeNodeT,
   q: string,
 ): DataTreeNodeT {
-  const needle = q.trim().toLowerCase()
+  const needle = q.trim()
   if (!needle) return root
 
-  function filt(n: DataTreeNodeT): DataTreeNodeT | null {
-    const kids = n.children
+  function filt(node: DataTreeNodeT): DataTreeNodeT | null {
+    const selfMatch =
+      Boolean(node.isSearchMatch) || matchesFuzzyFileName(node.name, needle)
+    if (selfMatch) {
+      return {
+        ...node,
+        children: node.children,
+      }
+    }
+    const kids = node.children
       .map(filt)
       .filter((x): x is DataTreeNodeT => x != null)
-    const selfMatch = n.name.toLowerCase().includes(needle)
-    if (selfMatch || kids.length > 0) {
-      return { ...n, children: kids }
+    if (kids.length > 0) {
+      return { ...node, children: kids }
     }
     return null
   }

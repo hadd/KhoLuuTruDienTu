@@ -6,7 +6,10 @@
   },
   "loading": "Đang tải…",
   "search": {
-    "placeholder": "Tìm thư mục và tài liệu..."
+    "placeholder": "Tìm thư mục và tài liệu...",
+    "searching": "Đang tìm kiếm...",
+    "noResults": "Không tìm thấy kết quả",
+    "noResultsDesc": "Không có thư mục hoặc tài liệu nào phù hợp với \"{{query}}\""
   },
   "project": {
     "label": "Dự án",
@@ -44,6 +47,7 @@
     "collapse": "Thu gọn",
     "assigned": "Đã phân công",
     "signed": "Đã ký",
+    "editComplete": "Đã biên tập xong file này",
     "project": "Dự án: {{code}}",
     "noProject": "Chưa gán dự án",
     "actions": {
@@ -100,6 +104,8 @@
     "title": "Chi tiết",
     "type": "Loại",
     "size": "Dung lượng",
+    "fileCount": "Số lượng file",
+    "pageCount": "Số lượng trang",
     "uploadedAt": "Ngày tải lên",
     "uploadedBy": "Người tải lên",
     "editor": "Người biên tập",
@@ -178,7 +184,7 @@
       "title": "Xuất hồ sơ",
       "description": "Chọn định dạng xuất",
       "metadataOption": "Xuất dữ liệu mô tả (Excel/ZIP)",
-      "metadataOptionDescription": "Xuất các trường dữ liệu mô tả dưới dạng tệp ZIP",
+      "metadataOptionDescription": "Xuất các trường dữ liệu mô tả dưới dạng tệp ZIP (Excel + cây PDF/ và TIFF/)",
       "dipOption": "Xuất gói DIP (ZIP)",
       "dipOptionDescription": "Xuất gói DIP dưới dạng tệp ZIP",
       "dipUnavailable": "Không tìm thấy hồ sơ để xuất DIP",
@@ -187,6 +193,12 @@
       "defaultPresetHint": "Mỗi trường một cột, có STT và tiêu đề theo tên hiển thị.",
       "selectedPresetHint": "Xuất theo cột đã cấu hình trong mẫu đã chọn.",
       "loadingPresets": "Đang tải danh sách mẫu xuất...",
+      "fileNamingLabel": "Tên file PDF/TIFF trong ZIP",
+      "fileNamingOriginal": "Theo tên gốc",
+      "fileNamingConfig": "Theo cấu hình tên tài liệu",
+      "fileNamingOriginalHint": "Giữ tên file PDF như đang lưu trong hệ thống (TIFF dùng cùng phần tên).",
+      "fileNamingConfigHint": "Đặt tên PDF theo cấu hình tên tài liệu của hồ sơ; file TIFF dùng cùng phần tên (nếu chưa cấu hình sẽ dùng tên gốc).",
+      "pdfaNotice": "ZIP xuất ra gồm file PDF/A trong thư mục PDF/ và TIFF multipage trong TIFF/ (cùng cây thư mục). File đã ký số được xuất nguyên bản để giữ chữ ký hợp lệ.",
       "cancel": "Hủy"
     },
     "exportConfigDialog": {
@@ -548,7 +560,8 @@
     "columns": {
       "name": "Tên",
       "status": "Trạng thái",
-      "size": "Dung lượng",
+      "fileCount": "Số lượng file",
+      "pageCount": "Số lượng trang",
       "uploadedAt": "Ngày tải lên"
     }
   },

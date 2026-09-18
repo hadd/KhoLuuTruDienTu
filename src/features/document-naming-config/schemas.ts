@@ -29,7 +29,7 @@ export const namingSegmentSchema = z.object({
     'metadata_field',
   ]),
   value: z.string().max(255).nullable().optional(),
-  fieldKey: z.string().max(100).nullable().optional(),
+  fieldKey: z.string().max(255).nullable().optional(),
   padChar: z.string().max(1).nullable().optional(),
 })
 
@@ -51,6 +51,7 @@ export const DOSSIER_SEGMENT_SOURCE_VALUES = [
   ...DATE_SEGMENT_SOURCE_VALUES,
   'fond_field',
   'dossier_field',
+  'metadata_field',
 ] as const
 
 export const FILE_SEGMENT_SOURCE_VALUES = SEGMENT_SOURCE_VALUES

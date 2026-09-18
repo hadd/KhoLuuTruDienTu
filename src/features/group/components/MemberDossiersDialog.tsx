@@ -17,41 +17,55 @@ import { DataFolderTree } from '@/features/data-management/components/DataFolder
 import { filterTreeForSearch } from '@/features/data-management/lib/treeUtils'
 import { buildAssignedDossierTree } from '@/features/group/lib/buildAssignedDossierTree'
 import {
-  assignedGroupDossiersQueryKey,
-  assignedGroupDossiersQueryOptions,
+  groupMemberAssignmentsQueryKey,
+  groupMemberAssignmentsQueryOptions,
 } from '@/features/group/queries'
-import type { Group } from '@/features/group/types'
+import type { MemberDossiersTargetT } from '@/features/group/types'
 
-interface AssignedDossiersDialogProps {
+interface MemberDossiersDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  group: Group | null
+  groupId: string
+  target: MemberDossiersTargetT | null
 }
 
-export function AssignedDossiersDialog({
+export function MemberDossiersDialog({
   open,
   onOpenChange,
-  group,
-}: AssignedDossiersDialogProps) {
+  groupId,
+  target,
+}: MemberDossiersDialogProps) {
   const { t } = useTranslation('group')
   const { t: tCommon } = useTranslation('common')
   const queryClient = useQueryClient()
-  const groupId = group?.id ?? ''
   const [searchQuery, setSearchQuery] = useState('')
   const treeScrollRef = useRef<HTMLDivElement>(null)
 
+  const query = useMemo(() => {
+    if (!target) return null
+    return {
+      userId: target.userId,
+      kind: target.kind,
+      ...(target.kind === 'checker' && target.level != null
+        ? { level: target.level }
+        : {}),
+    }
+  }, [target])
+
   const {
-    data: dossiers,
+    data,
     isPending: isLoading,
     isError,
     refetch,
   } = useQuery({
-    ...assignedGroupDossiersQueryOptions(groupId),
-    enabled: open && Boolean(groupId),
+    ...groupMemberAssignmentsQueryOptions(groupId, query),
+    enabled: open && Boolean(groupId) && Boolean(query?.userId),
   })
 
+  const dossiers = data?.dossiers ?? []
+
   const dossierTree = useMemo(() => {
-    if (!dossiers?.length) return null
+    if (!dossiers.length) return null
     return buildAssignedDossierTree(dossiers)
   }, [dossiers])
 
@@ -85,11 +99,28 @@ export function AssignedDossiersDialog({
   }, [])
 
   const handleRetry = () => {
+    if (!query) return
     void queryClient.invalidateQueries({
-      queryKey: assignedGroupDossiersQueryKey(groupId),
+      queryKey: groupMemberAssignmentsQueryKey(groupId, query),
     })
     void refetch()
   }
+
+  const title =
+    target?.kind === 'checker'
+      ? t('memberDossiers.checkerTitle', {
+          name: target.name,
+          level: target.level ?? 1,
+        })
+      : t('memberDossiers.editorTitle', { name: target?.name ?? '' })
+
+  const description =
+    target?.kind === 'checker'
+      ? t('memberDossiers.checkerDescription', {
+          name: target.name,
+          level: target.level ?? 1,
+        })
+      : t('memberDossiers.editorDescription', { name: target?.name ?? '' })
 
   return (
     <Dialog
@@ -101,10 +132,8 @@ export function AssignedDossiersDialog({
     >
       <DialogContent className="flex max-h-[80vh] flex-col overflow-hidden sm:max-w-lg">
         <DialogHeader className="shrink-0">
-          <DialogTitle>{t('assignedDossiers.title')}</DialogTitle>
-          <DialogDescription>
-            {t('assignedDossiers.description', { name: group?.name ?? '' })}
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -116,7 +145,7 @@ export function AssignedDossiersDialog({
             ) : isError ? (
               <div className="space-y-2 rounded-lg border border-destructive/40 p-4 text-center text-sm">
                 <p className="text-destructive">
-                  {t('assignedDossiers.loadFailed')}
+                  {t('memberDossiers.loadFailed')}
                 </p>
                 <Button
                   type="button"
@@ -124,7 +153,7 @@ export function AssignedDossiersDialog({
                   size="sm"
                   onClick={handleRetry}
                 >
-                  {t('assignedDossiers.retry')}
+                  {t('memberDossiers.retry')}
                 </Button>
               </div>
             ) : filteredTree && hasVisibleNodes ? (
@@ -134,7 +163,7 @@ export function AssignedDossiersDialog({
                   <Input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={t('assignedDossiers.searchPlaceholder')}
+                    placeholder={t('memberDossiers.searchPlaceholder')}
                     className="pl-8"
                   />
                 </div>
@@ -146,18 +175,17 @@ export function AssignedDossiersDialog({
                     tree={filteredTree}
                     onSelect={handleSelect}
                     scrollable={false}
-                    showAssignee
                   />
                 </div>
-                {dossiers?.length ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t('assignedDossiers.count', { count: dossiers.length })}
-                  </p>
-                ) : null}
+                <p className="text-sm text-muted-foreground">
+                  {t('memberDossiers.count', { count: dossiers.length })}
+                </p>
               </div>
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                {t('assignedDossiers.empty')}
+                {target?.kind === 'checker'
+                  ? t('memberDossiers.checkerEmpty')
+                  : t('memberDossiers.editorEmpty')}
               </p>
             )}
           </div>

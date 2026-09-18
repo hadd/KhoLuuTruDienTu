@@ -6,6 +6,10 @@ import {
   updateMetadataExtractSettings,
   type MetadataExtractMode,
 } from '@/features/metadata-extract/api/metadataExtractClient'
+import {
+  getPageQuota,
+  uploadPageQuotaLicense,
+} from '@/features/metadata-extract/api/pageQuotaClient'
 import { translateError } from '@/lib/utils/translate-error'
 
 import {
@@ -53,6 +57,31 @@ export const activeMetadataHiddenFieldsQueryOptions = () =>
     queryFn: getActiveMetadataHiddenFields,
     staleTime: 10_000,
   })
+
+export const pageQuotaQueryKey = ['page-quota'] as const
+
+export const pageQuotaQueryOptions = () =>
+  queryOptions({
+    queryKey: pageQuotaQueryKey,
+    queryFn: getPageQuota,
+    staleTime: 15_000,
+  })
+
+export function useUploadPageQuotaLicenseMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (file: File) => uploadPageQuotaLicense(file),
+    onSuccess: (data) => {
+      queryClient.setQueryData(pageQuotaQueryKey, data)
+      void queryClient.invalidateQueries({ queryKey: pageQuotaQueryKey })
+      toast.success('Đã nạp file license hạn mức trang')
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+}
 
 export function useUpdateMetadataExtractSettingsMutation(options?: {
   successMessage?: string

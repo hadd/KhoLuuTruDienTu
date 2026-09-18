@@ -47,10 +47,13 @@ import {
 import { translateError } from '@/lib/utils/translate-error'
 
 const DEFAULT_PRESET_VALUE = 'default'
+const FILE_NAMING_ORIGINAL = 'original'
+const FILE_NAMING_CONFIG = 'config'
 
 type ExportRequestT = {
   mode: ArchiveWarehouseExportModeT
   presetId?: string
+  useDocumentNaming?: boolean
 }
 
 type PendingPasswordChallengeT =
@@ -74,6 +77,7 @@ export function ArchiveWarehouseExportDialog({
 }) {
   const { t } = useTranslation('archive-warehouse')
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_VALUE)
+  const [fileNamingMode, setFileNamingMode] = useState(FILE_NAMING_ORIGINAL)
   const [isExporting, setIsExporting] = useState(false)
   const [exportingMode, setExportingMode] =
     useState<ArchiveWarehouseExportModeT | null>(null)
@@ -106,6 +110,7 @@ export function ArchiveWarehouseExportDialog({
   useEffect(() => {
     if (!open) return
     setSelectedPresetId(DEFAULT_PRESET_VALUE)
+    setFileNamingMode(FILE_NAMING_ORIGINAL)
     setIsExporting(false)
     setExportingMode(null)
     setExportRequest(null)
@@ -193,12 +198,14 @@ export function ArchiveWarehouseExportDialog({
         request.mode === 'metadata'
           ? await exportDossiersMetadataByIds(targetDossierIds, downloadName, {
               presetId: request.presetId,
+              useDocumentNaming: request.useDocumentNaming,
               dossierAccessPasswords: passwords,
               onProgress: (p) => setExportProgress(p),
               onItemError: (id) =>
                 setFailedDossierIds((prev) => [...prev, id]),
             })
           : await exportDossiersDipByIds(targetDossierIds, downloadName, {
+              useDocumentNaming: request.useDocumentNaming,
               dossierAccessPasswords: passwords,
               onProgress: (p) => setExportProgress(p),
               onItemError: (id) =>
@@ -360,6 +367,7 @@ export function ArchiveWarehouseExportDialog({
         selectedPresetId !== DEFAULT_PRESET_VALUE
           ? selectedPresetId
           : undefined,
+      useDocumentNaming: fileNamingMode === FILE_NAMING_CONFIG,
     }
     passwordByDossierRef.current = new Map()
     zipPassQueueRef.current = []
@@ -533,6 +541,34 @@ export function ArchiveWarehouseExportDialog({
                   : selectedPresetId === DEFAULT_PRESET_VALUE
                     ? t('export.defaultPresetHint')
                     : t('export.selectedPresetHint')}
+              </p>
+            </div>
+
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <Label htmlFor="archive-export-file-naming">
+                {t('export.fileNamingLabel')}
+              </Label>
+              <Select
+                value={fileNamingMode}
+                disabled={exportFlowActive}
+                onValueChange={setFileNamingMode}
+              >
+                <SelectTrigger id="archive-export-file-naming">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={FILE_NAMING_ORIGINAL}>
+                    {t('export.fileNamingOriginal')}
+                  </SelectItem>
+                  <SelectItem value={FILE_NAMING_CONFIG}>
+                    {t('export.fileNamingConfig')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {fileNamingMode === FILE_NAMING_CONFIG
+                  ? t('export.fileNamingConfigHint')
+                  : t('export.fileNamingOriginalHint')}
               </p>
             </div>
 

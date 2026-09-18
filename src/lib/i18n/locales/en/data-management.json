@@ -6,7 +6,10 @@
   },
   "loading": "Loading…",
   "search": {
-    "placeholder": "Search folders and documents..."
+    "placeholder": "Search folders and documents...",
+    "searching": "Searching...",
+    "noResults": "No results found",
+    "noResultsDesc": "No folders or documents match \"{{query}}\""
   },
   "project": {
     "label": "Project",
@@ -44,6 +47,7 @@
     "collapse": "Collapse",
     "assigned": "Assigned",
     "signed": "Signed",
+    "editComplete": "Finished editing this file",
     "project": "Project: {{code}}",
     "noProject": "No project",
     "actions": {
@@ -163,7 +167,7 @@
       "title": "Export dossier",
       "description": "Choose export format",
       "metadataOption": "Metadata export (Excel/ZIP)",
-      "metadataOptionDescription": "Export metadata fields as ZIP",
+      "metadataOptionDescription": "Export metadata fields as ZIP (Excel + PDF/ and TIFF/ trees)",
       "dipOption": "DIP export (ZIP)",
       "dipOptionDescription": "Export DIP package as ZIP",
       "dipUnavailable": "No dossier found for DIP export",
@@ -172,6 +176,12 @@
       "defaultPresetHint": "One column per field with STT and display labels.",
       "selectedPresetHint": "Export using the selected preset column configuration.",
       "loadingPresets": "Loading export presets...",
+      "fileNamingLabel": "PDF/TIFF file names in ZIP",
+      "fileNamingOriginal": "Original file names",
+      "fileNamingConfig": "Document naming configuration",
+      "fileNamingOriginalHint": "Keep PDF names as stored in the system (TIFF uses the same stem).",
+      "fileNamingConfigHint": "Rename PDFs using the dossier document naming config; TIFF files use the same stem (falls back to original names if not configured).",
+      "pdfaNotice": "Exported ZIP includes PDF/A files under PDF/ and converted multipage TIFF under TIFF/ (same folder tree). Digitally signed PDFs are exported as original bytes so signatures stay valid.",
       "cancel": "Cancel"
     },
     "exportConfigDialog": {

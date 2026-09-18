@@ -8,7 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ExportChoiceDialog } from '@/features/data-management/components/ExportChoiceDialog'
 import { FolderContentList } from '@/features/data-management/components/FolderContentList'
 import { RecordDetailPanel } from '@/features/data-management/components/RecordDetailPanel'
-import type { ExportMode } from '@/features/data-management/lib/exportHelpers'
+import type {
+  ExportMode,
+  ExportOptions,
+} from '@/features/data-management/lib/exportHelpers'
 import {
   canExportNode,
   resolveDossierIdForDip,
@@ -50,48 +53,36 @@ function FolderDetailCard({
   const exportContext = showExport ? resolveExportContext(node) : null
 
   useEffect(() => {
-    if (!dialogOpen || !exportContext) {
-      setCanExportDip(Boolean(exportContext?.dossierId))
+    if (!exportContext) {
+      setCanExportDip(false)
       return
     }
-
-    let cancelled = false
-    async function resolveDip() {
-      if (!exportContext) return
-      const dossierId = await resolveDossierIdForDip(exportContext)
-      if (!cancelled) {
-        setCanExportDip(Boolean(dossierId))
-        if (dossierId && !exportContext.dossierId) {
-          exportContext.dossierId = dossierId
-        }
-      }
-    }
-    void resolveDip()
-    return () => {
-      cancelled = true
-    }
-  }, [dialogOpen, exportContext])
+    setCanExportDip(
+      Boolean(
+        exportContext.dossierId ||
+        exportContext.folderId ||
+        exportContext.kind === 'multi_dossiers'
+      )
+    )
+  }, [exportContext])
 
   const handleExport = useCallback(
-    async (mode: ExportMode, options?: { presetId?: string }) => {
+    async (mode: ExportMode, options?: ExportOptions) => {
       if (!exportContext || isExporting) return
 
       setIsExporting(true)
       setExportingMode(mode)
       try {
-        let dossierId = exportContext.dossierId
-        if (mode === 'dip' && !dossierId) {
-          dossierId = await resolveDossierIdForDip(exportContext)
-        }
         await runExport({
           kind: exportContext.kind,
           mode,
           folderId: exportContext.folderId,
-          dossierId,
+          dossierId: exportContext.dossierId,
           downloadName: exportContext.downloadName,
           metadataExportConfig: options?.presetId
             ? { presetId: options.presetId }
             : undefined,
+          useDocumentNaming: options?.useDocumentNaming === true,
         })
         toast.success(t('recordDetail.exportExcelSuccess'))
         setDialogOpen(false)
@@ -166,7 +157,11 @@ export function DataNodeDetailPanel({
 
   focusGroupIndex,
 
+  focusFieldKey,
+
   onFocusDocument,
+
+  onMarkDocumentsComplete,
 
   onSelectNode,
 
@@ -192,7 +187,15 @@ export function DataNodeDetailPanel({
 
   focusGroupIndex?: number
 
-  onFocusDocument?: (documentId: string, groupIndex: number) => void
+  focusFieldKey?: string
+
+  onFocusDocument?: (
+    documentId: string | undefined,
+    groupIndex: number,
+    fieldKey?: string,
+  ) => void
+
+  onMarkDocumentsComplete?: (documentIds: Array<string>) => void
 
   onSelectNode: (id: string) => void
 
@@ -202,7 +205,7 @@ export function DataNodeDetailPanel({
 
   onWorkflowComplete?: (
     dossierId: string,
-    mode?: 'draft' | 'final' | 'error_report',
+    mode?: 'draft' | 'draft_advance' | 'final' | 'error_report',
   ) => void | Promise<void>
   onDigitalSignCompleted?: (dossierId: string) => void
 }) {
@@ -259,7 +262,9 @@ export function DataNodeDetailPanel({
           isEditorDraftView={isEditorDraftView}
           focusDocumentId={focusDocumentId}
           focusGroupIndex={focusGroupIndex}
+          focusFieldKey={focusFieldKey}
           onFocusDocument={onFocusDocument}
+          onMarkDocumentsComplete={onMarkDocumentsComplete}
           onWorkflowComplete={onWorkflowComplete}
           onDigitalSignCompleted={onDigitalSignCompleted}
         />

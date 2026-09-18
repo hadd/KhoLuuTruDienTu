@@ -228,6 +228,8 @@ export interface DataTreeNodeT {
   parentId: string | null
   children: Array<DataTreeNodeT>
   sizeBytes: number
+  fileCount?: number
+  pageCount?: number
   uploadedAt: string
   uploadedBy: string
   mimeType?: string
@@ -262,6 +264,8 @@ export interface DataTreeNodeT {
   dossierStatus?: DataDossierStatus
   /** Backend assignment flag from /all-first-subfolders */
   isAssigned?: boolean
+  /** Cờ đánh dấu node (tài liệu/hồ sơ) khớp trực tiếp từ khóa tìm kiếm */
+  isSearchMatch?: boolean
   /** Hide assignment icon — used for listing folders from /all-parent */
   suppressAssignedIndicator?: boolean
   /** Project scope from folders API (`projectCode` / `project_code`). */
