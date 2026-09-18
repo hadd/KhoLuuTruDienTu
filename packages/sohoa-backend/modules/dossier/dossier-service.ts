@@ -528,8 +528,8 @@ export async function assignFolderProjectCode(
       folderIds.length === 0
         ? []
         : await tx.query.dossiers.findMany({
-            where: activeDossierWhere(inArray(dossiers.folderId, folderIds)),
-          });
+          where: activeDossierWhere(inArray(dossiers.folderId, folderIds)),
+        });
 
     for (const dossier of subtreeDossiers) {
       if (
@@ -1256,6 +1256,8 @@ type MetadataExportInput = {
   useDocumentNaming?: boolean;
   /** Skip APPROVED/ARCHIVED status gate (dossiers.export_any_status). */
   bypassStatus?: boolean;
+  /** When true, ZIP contains only the Excel file (no PDF/TIFF). */
+  excelOnly?: boolean;
 };
 
 async function buildApprovedMetadataExportZip(
@@ -1271,6 +1273,8 @@ async function buildApprovedMetadataExportZip(
     baseFolderName?: string;
   },
 ) {
+  const excelOnly = input?.excelOnly === true;
+
   // Early file-count check using metadata JSON only (no PDF download yet).
   const metadataForCount = await mapInBatches(
     allDossiers,
@@ -1283,32 +1287,39 @@ async function buildApprovedMetadataExportZip(
       return {
         dossier: { ...dossier, files },
         metadata,
-        pdfCount: collectMetadataPdfSources(metadata, files).length,
+        pdfCount: excelOnly
+          ? 0
+          : collectMetadataPdfSources(metadata, files).length,
       };
     },
   );
-  const totalPdfFiles = metadataForCount.reduce(
-    (sum, row) => sum + row.pdfCount,
-    0,
-  );
-  assertExportFileLimit(totalPdfFiles);
+
+  if (!excelOnly) {
+    const totalPdfFiles = metadataForCount.reduce(
+      (sum, row) => sum + row.pdfCount,
+      0,
+    );
+    assertExportFileLimit(totalPdfFiles);
+  }
+
+  // excelOnly / export_any_status: plain ZIP, no watermark, no password
+  const skipProtect = excelOnly || input?.bypassStatus === true;
 
   const dossierIds = allDossiers.map((d) => d.id);
   // Hồ sơ ở trạng thái Đã duyệt: Không áp dụng watermark trừ khi người dùng chủ động bật (applyWatermark === true)
-  const applyWatermark =
-    input?.applyWatermark === true
-      ? await resolveApplyWatermarkForDossiers(dossierIds)
-      : false;
+  const applyWatermark = !skipProtect && input?.applyWatermark === true
+    ? await resolveApplyWatermarkForDossiers(dossierIds)
+    : false;
   const watermarkConfig = applyWatermark
     ? await resolveWatermarkApplyConfig(input?.placementId, true)
     : null;
 
-  const zipResolved = input?.userId
+  const zipResolved = !skipProtect && input?.userId
     ? await resolveExportZipPassword({
-        userId: input.userId,
-        dossierIds,
-        dossierAccessPassword: input.dossierAccessPassword,
-      })
+      userId: input.userId,
+      dossierIds,
+      dossierAccessPassword: input.dossierAccessPassword,
+    })
     : { password: undefined, source: "none" as const };
   const zipPassword = zipResolved.password;
 
@@ -1320,6 +1331,8 @@ async function buildApprovedMetadataExportZip(
 
   const excelBuffer = await buildDynamicMetadataExcel(metadataList, {
     exportConfig,
+    dossierFilesList: metadataForCount.map((item) => item.dossier.files ?? []),
+    dossierFolderPaths: metadataForCount.map((item) => item.dossier.folderPath),
   });
 
   const first = metadataForCount[0];
@@ -1338,12 +1351,14 @@ async function buildApprovedMetadataExportZip(
     ? `${zipBaseName}-metadata.xlsx`
     : `${zipBaseName}-metadata-export.xlsx`;
 
-  // Stream ZIP while processing one PDF at a time (peak RAM ≈ 1 file + TIFF).
+  // Stream ZIP while processing PDFs (or Excel-only with empty build).
   const stream = buildFolderMetadataExportZipStreamIncremental({
     excelFileName,
     excelBuffer,
     password: zipPassword,
     build: async (add, usedFolderNames) => {
+      if (excelOnly) return;
+
       for (let dossierIndex = 0; dossierIndex < metadataForCount.length; dossierIndex++) {
         const { dossier, metadata } = metadataForCount[dossierIndex]!;
         const baseName = metadata.ho_so_id || dossier.name || dossier.id;
@@ -1401,6 +1416,13 @@ async function buildApprovedMetadataExportZip(
         const usedNames = new Set<string>();
         const usedPdfNames = new Set<string>();
 
+        // Prefetch next PDF while converting current (peak RAM ≈ 2 files + TIFF).
+        let nextDownload: Promise<
+          Awaited<ReturnType<typeof downloadExportPdfSource>>
+        > | null = pdfSources.length > 0
+          ? downloadExportPdfSource(pdfSources[0]!)
+          : null;
+
         for (let sourceIndex = 0; sourceIndex < pdfSources.length; sourceIndex++) {
           const source = pdfSources[sourceIndex]!;
           const fileName = namingContext
@@ -1416,7 +1438,13 @@ async function buildApprovedMetadataExportZip(
             })
             : source.fileName;
 
-          const downloaded = await downloadExportPdfSource(source);
+          const downloaded = await (nextDownload ??
+            downloadExportPdfSource(source));
+          const nextSource = pdfSources[sourceIndex + 1];
+          nextDownload = nextSource
+            ? downloadExportPdfSource(nextSource)
+            : null;
+
           let pdfFiles = [
             {
               fileName,
@@ -1532,13 +1560,13 @@ async function assignDossiersByFolderId(input: {
       }),
       input.role === WorkerRole.MAKER
         ? db.query.dossierAssignments.findMany({
-            where: and(
-              inArray(dossierAssignments.dossierId, dossierIds),
-              eq(dossierAssignments.role, WorkerRole.MAKER),
-              eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
-            ),
-            columns: { dossierId: true, assigneeId: true },
-          })
+          where: and(
+            inArray(dossierAssignments.dossierId, dossierIds),
+            eq(dossierAssignments.role, WorkerRole.MAKER),
+            eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+          ),
+          columns: { dossierId: true, assigneeId: true },
+        })
         : Promise.resolve([]),
     ]);
 
@@ -1924,9 +1952,9 @@ async function mapAssignmentRowsToResponse(
           currentMetadataUrl,
           ...(issueReportsByDossierId
             ? {
-                issueReports:
-                  issueReportsByDossierId.get(row.dossier!.id) ?? [],
-              }
+              issueReports:
+                issueReportsByDossierId.get(row.dossier!.id) ?? [],
+            }
             : {}),
           dossier: {
             ...row.dossier!,
@@ -1987,8 +2015,8 @@ async function listMyAssignmentsByRole(
   const includeIssueReports = input.role !== WorkerRole.MAKER;
   const issueReportsByDossierId = includeIssueReports
     ? await IssueReportService.listOpenForDossiers(
-        rows.map((row) => row.dossier?.id).filter((id): id is string => !!id),
-      )
+      rows.map((row) => row.dossier?.id).filter((id): id is string => !!id),
+    )
     : undefined;
 
   const assignments = await mapAssignmentRowsToResponse(
@@ -2082,15 +2110,15 @@ async function loadFolderSubtreeForBulkDelete(
 
   const subtreeFolderCondition = permanent
     ? or(
+      eq(folders.id, folderId),
+      like(folders.folderPath, `${rootFolder.folderPath}/%`),
+    )
+    : activeFolderWhere(
+      or(
         eq(folders.id, folderId),
         like(folders.folderPath, `${rootFolder.folderPath}/%`),
-      )
-    : activeFolderWhere(
-        or(
-          eq(folders.id, folderId),
-          like(folders.folderPath, `${rootFolder.folderPath}/%`),
-        ),
-      );
+      ),
+    );
 
   const subtreeFolders = await db.query.folders.findMany({
     where: subtreeFolderCondition,
@@ -2585,12 +2613,12 @@ export const DossierService = {
       const deletedDossierRows =
         dossierIds.length > 0
           ? await tx
-              .update(dossiers)
-              .set({ deletedAt: now, updatedAt: now })
-              .where(
-                and(inArray(dossiers.id, dossierIds), activeDossierWhere()),
-              )
-              .returning({ id: dossiers.id })
+            .update(dossiers)
+            .set({ deletedAt: now, updatedAt: now })
+            .where(
+              and(inArray(dossiers.id, dossierIds), activeDossierWhere()),
+            )
+            .returning({ id: dossiers.id })
           : [];
 
       const deletedFolderIds = await softDeleteFoldersByIds(
@@ -3713,6 +3741,7 @@ export const DossierService = {
   ) {
     const dossier = await db.query.dossiers.findFirst({
       where: activeDossierWhere(eq(dossiers.id, dossierId)),
+      with: { files: true },
     });
 
     if (!dossier) {
@@ -3727,7 +3756,14 @@ export const DossierService = {
     const exportConfig =
       await MetadataExportPresetService.resolveExportConfig(input);
     const metadata = await loadDossierMetadataFromStorage(dossier);
-    return buildMetadataExportPreview([metadata], exportConfig);
+    const files = (dossier.files ?? []).map((f) => ({
+      fileName: f.fileName,
+      filePath: f.filePath,
+    }));
+    return buildMetadataExportPreview([metadata], exportConfig, {
+      dossierFilesList: [files],
+      dossierFolderPaths: [dossier.folderPath],
+    });
   },
 
   async previewApprovedMetadataExportByFolder(
@@ -3755,10 +3791,24 @@ export const DossierService = {
       });
     const exportConfig =
       await MetadataExportPresetService.resolveExportConfig(input);
-    const metadataList = await Promise.all(
-      allDossiers.map((dossier) => loadDossierMetadataFromStorage(dossier)),
+    const loaded = await Promise.all(
+      allDossiers.map(async (dossier) => ({
+        metadata: await loadDossierMetadataFromStorage(dossier),
+        files: (dossier.files ?? []).map((f) => ({
+          fileName: f.fileName,
+          filePath: f.filePath,
+        })),
+        folderPath: dossier.folderPath,
+      })),
     );
-    return buildMetadataExportPreview(metadataList, exportConfig);
+    return buildMetadataExportPreview(
+      loaded.map((item) => item.metadata),
+      exportConfig,
+      {
+        dossierFilesList: loaded.map((item) => item.files),
+        dossierFolderPaths: loaded.map((item) => item.folderPath),
+      },
+    );
   },
 
   async exportDipHoso(

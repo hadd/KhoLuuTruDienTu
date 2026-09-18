@@ -71,6 +71,7 @@ const metadataExportBodySchema = t.Object({
   applyWatermark: t.Optional(t.Boolean()),
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
   useDocumentNaming: t.Optional(t.Boolean()),
+  excelOnly: t.Optional(t.Boolean()),
 });
 
 const multiDossierMetadataExportBodySchema = t.Object({
@@ -83,6 +84,7 @@ const multiDossierMetadataExportBodySchema = t.Object({
   /** When true, only validate access + ZIP password requirements (no ZIP body). */
   checkOnly: t.Optional(t.Boolean()),
   useDocumentNaming: t.Optional(t.Boolean()),
+  excelOnly: t.Optional(t.Boolean()),
 });
 
 const multiDipExportBodySchema = t.Object({
@@ -373,7 +375,8 @@ export function createDossierRouter(basePath: string = "/dossiers") {
       let applyWatermark = false;
       let skippedFileIds = new Set<string>();
 
-      if (!bypassSecurity) {
+      // export_any_status: plain ZIP (no security watermark / password gate)
+      if (!bypassSecurity && !bypassStatus) {
         const sec = await assertSecurityDownload(
           profile,
           request,
@@ -384,7 +387,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
       }
 
       if (body.checkOnly) {
-        if (bypassSecurity) {
+        if (bypassSecurity || bypassStatus) {
           return {
             needsDossierPassword: false,
             needsZipPin: false,
@@ -474,7 +477,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
       let applyWatermark = false;
       let skippedFileIds = new Set<string>();
 
-      if (!bypassSecurity) {
+      if (!bypassSecurity && !bypassStatus) {
         const sec = await assertSecurityDownload(
           profile,
           request,
@@ -485,7 +488,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
       }
 
       if (body.checkOnly) {
-        if (bypassSecurity) {
+        if (bypassSecurity || bypassStatus) {
           return {
             needsDossierPassword: false,
             needsZipPin: false,
@@ -732,11 +735,17 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/:id/dip/export",
     async ({ params, query, profile, request }) => {
       const bypassStatus = assertDossierExportAccess(profile);
-      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
-        profile,
-        request,
-        [params.id],
-      );
+      let applyWatermark = false;
+      let skippedFileIds = new Set<string>();
+      if (!bypassStatus) {
+        const sec = await assertSecurityDownload(
+          profile,
+          request,
+          [params.id],
+        );
+        applyWatermark = sec.applyWatermark;
+        skippedFileIds = sec.skippedFileIds;
+      }
       const meta = clientMetaFromRequest(request);
       const { stream, filename, contentType, zipPasswordSource } =
         await withDownloadLog(
@@ -853,11 +862,17 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/:id/metadata/export",
     async ({ params, body, profile, request }) => {
       const bypassStatus = assertDossierExportAccess(profile);
-      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
-        profile,
-        request,
-        [params.id],
-      );
+      let applyWatermark = false;
+      let skippedFileIds = new Set<string>();
+      if (!bypassStatus) {
+        const sec = await assertSecurityDownload(
+          profile,
+          request,
+          [params.id],
+        );
+        applyWatermark = sec.applyWatermark;
+        skippedFileIds = sec.skippedFileIds;
+      }
       const meta = clientMetaFromRequest(request);
       const { stream, filename, contentType, zipPasswordSource } =
         await withDownloadLog(
@@ -897,11 +912,17 @@ export function createDossierRouter(basePath: string = "/dossiers") {
     "/:id/metadata/export",
     async ({ params, query, profile, request }) => {
       const bypassStatus = assertDossierExportAccess(profile);
-      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
-        profile,
-        request,
-        [params.id],
-      );
+      let applyWatermark = false;
+      let skippedFileIds = new Set<string>();
+      if (!bypassStatus) {
+        const sec = await assertSecurityDownload(
+          profile,
+          request,
+          [params.id],
+        );
+        applyWatermark = sec.applyWatermark;
+        skippedFileIds = sec.skippedFileIds;
+      }
       const meta = clientMetaFromRequest(request);
       const { stream, filename, contentType, zipPasswordSource } =
         await withDownloadLog(

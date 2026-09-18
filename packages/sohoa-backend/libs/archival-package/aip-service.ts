@@ -312,14 +312,15 @@ export async function exportDipHosoBatch(
   }
 
   const resolvedDossierIds = await resolveIdsIntoDossierIds(uniqueInputIds);
-  const applyWatermark = options?.applyWatermark === true
+  const skipProtect = options?.bypassStatus === true;
+  const applyWatermark = !skipProtect && options?.applyWatermark === true
     ? await resolveApplyWatermarkForDossiers(resolvedDossierIds)
     : false;
   const watermarkConfig = applyWatermark
     ? await resolveWatermarkApplyConfig(
-        options?.placementId,
-        true,
-      )
+      options?.placementId,
+      true,
+    )
     : null;
 
   let baseFolderPath = "";
@@ -379,12 +380,12 @@ export async function exportDipHosoBatch(
   const totalPdfFiles = contexts.reduce((sum, ctx) => sum + ctx.pdfCount, 0);
   assertExportFileLimit(totalPdfFiles);
 
-  const zipResolved = options?.userId
+  const zipResolved = !skipProtect && options?.userId
     ? await resolveExportZipPassword({
-        userId: options.userId,
-        dossierIds: resolvedDossierIds,
-        dossierAccessPassword: options.dossierAccessPassword,
-      })
+      userId: options.userId,
+      dossierIds: resolvedDossierIds,
+      dossierAccessPassword: options.dossierAccessPassword,
+    })
     : { password: undefined, source: "none" as const };
   const zipPassword = zipResolved.password;
 

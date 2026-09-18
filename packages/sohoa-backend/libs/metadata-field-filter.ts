@@ -27,6 +27,16 @@ export function normalizeFieldName(fieldName: string): string {
         .replace(/_+/g, "_");
 }
 
+export {
+    canonicalMetadataFieldName,
+    metadataFieldNamesMatch,
+} from "./metadata-normalize.ts";
+
+/**
+ * Slugify OCR field name/display for matching (accents/spaces → UPPER_SNAKE).
+ * Re-exported via canonicalMetadataFieldName aliases in metadata-normalize.
+ */
+
 /**
  * Strip trailing instance index from human-readable labels.
  * Examples: "Số CCCD 1" → "Số CCCD", "Họ và tên 2" → "Họ và tên"

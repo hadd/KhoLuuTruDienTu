@@ -1,0 +1,619 @@
+{
+  "ho_so_id": "CSDL_SOHOA_TUTQ/028.25.05/01/0001",
+  "trang_thai_ho_so": "Đã số hóa",
+  "metadata_groups": [
+    {
+      "group_code": "HO_SO_LUU_TRU",
+      "group_name": "Metadata cấp Ho so luu tru",
+      "source_document": {
+        "file_name": "BIA.pdf",
+        "file_path": "raw/CSDL_SOHOA_TUTQ/028.25.05/01/0001/BIA.pdf"
+      },
+      "fields": [
+        {
+          "name": "TIEU_DE_HO_SO",
+          "display": "Tiêu đề hồ sơ",
+          "type": "string",
+          "value": "HỒ SO QUYẾT ĐỊNH - BAO CAO",
+          "page": 1,
+          "bboxes": [
+            [
+              699.0,
+              1289.0,
+              1639.0,
+              1979.0
+            ]
+          ]
+        },
+        {
+          "name": "NGAY_BAT_DAU",
+          "display": "Ngày bắt đầu",
+          "type": "date",
+          "value": "2022-04-20",
+          "page": 1,
+          "bboxes": [
+            [
+              1285.0,
+              2882.0,
+              2057.0,
+              2965.0
+            ]
+          ]
+        },
+        {
+          "name": "NGAY_KET_THUC",
+          "display": "Ngày kết thúc",
+          "type": "date",
+          "value": "2022-06-15",
+          "page": 1,
+          "bboxes": [
+            [
+              262.0,
+              3001.0,
+              903.0,
+              3093.0
+            ]
+          ]
+        },
+        {
+          "name": "THOI_HAN_BAO_QUAN",
+          "display": "Thời hạn bảo quản",
+          "type": "string",
+          "value": "Vĩnh viễn",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "SO_TRANG",
+          "display": "Số trang",
+          "type": "number",
+          "value": "23",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "SO_TAI_LIEU",
+          "display": "Số Tài Liệu",
+          "type": "number",
+          "value": "3",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "TEN_PHONG",
+          "display": "Tên phông",
+          "type": "string",
+          "value": "ĐOÀN TNCS XÃ TÂN TRỊNH (2022-2027)",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "MA_PHONG",
+          "display": "Phông Số",
+          "type": "string",
+          "value": "028.25.05",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "MUC_LUC_SO",
+          "display": "Mục Lục Số",
+          "type": "string",
+          "value": "01",
+          "page": null,
+          "bboxes": []
+        },
+        {
+          "name": "MA_HO_SO",
+          "display": "Hồ sơ số (ĐVBQ Số)",
+          "type": "string",
+          "value": "0001",
+          "page": null,
+          "bboxes": []
+        }
+      ]
+    },
+    {
+      "group_code": "TAI_LIEU_LUU_TRU",
+      "group_name": "Metadata cấp Tài liệu lưu trữ",
+      "documents": [
+        {
+          "source_document": {
+            "file_name": "0042_2.pdf",
+            "file_path": "raw/CSDL_SOHOA_TUTQ/028.25.05/01/0001/0042_2.pdf"
+          },
+          "fields": [
+            {
+              "name": "TEN_CO_QUAN_BAN_HANH",
+              "display": "Tên cơ quan, tổ chức ban hành văn bản",
+              "type": "string",
+              "value": "BCH ĐOÀN XÃ TÂN TRỊNH",
+              "page": 1,
+              "bboxes": [
+                [
+                  575.0,
+                  457.0,
+                  2248.0,
+                  2309.0
+                ]
+              ]
+            },
+            {
+              "name": "SO_VAN_BAN",
+              "display": "Số của văn bản",
+              "type": "string",
+              "value": "11",
+              "page": 1,
+              "bboxes": [
+                [
+                  616.0,
+                  445.0,
+                  1019.0,
+                  516.0
+                ]
+              ]
+            },
+            {
+              "name": "KY_HIEU_VAN_BAN",
+              "display": "Ký hiệu của văn bản",
+              "type": "string",
+              "value": "QĐ/ĐTN",
+              "page": 1,
+              "bboxes": [
+                [
+                  616.0,
+                  445.0,
+                  1019.0,
+                  516.0
+                ]
+              ]
+            },
+            {
+              "name": "NGAY_KY",
+              "display": "Ngày ký",
+              "type": "date",
+              "value": "2022-04-20",
+              "page": 1,
+              "bboxes": [
+                [
+                  619.0,
+                  373.0,
+                  2358.0,
+                  687.0
+                ]
+              ]
+            },
+            {
+              "name": "TEN_LOAI_VAN_BAN",
+              "display": "Tên loại văn bản",
+              "type": "string",
+              "value": "QUYẾT ĐINH",
+              "page": 1,
+              "bboxes": [
+                [
+                  1195.0,
+                  635.0,
+                  1573.0,
+                  706.0
+                ]
+              ]
+            },
+            {
+              "name": "TRICH_YEU_NOI_DUNG",
+              "display": "Trích yếu nội dung",
+              "type": "string",
+              "value": "Ban hành Quy chế hoạt động của Ban chấp hành Đoàn TNCS Hồ Chí Minh xã Tân Trịnh Khóa XXII, nhiệm kỳ 2022 - 2027",
+              "page": 1,
+              "bboxes": [
+                [
+                  432.0,
+                  694.0,
+                  2329.0,
+                  786.0
+                ]
+              ]
+            },
+            {
+              "name": "NGUOI_KY",
+              "display": "Người ký",
+              "type": "string",
+              "value": "Hoàng Thị Nhung",
+              "page": 1,
+              "bboxes": [
+                [
+                  1609.0,
+                  2642.0,
+                  2059.0,
+                  2693.0
+                ]
+              ]
+            },
+            {
+              "name": "LOAI_BAN",
+              "display": "Loại bản",
+              "type": "string",
+              "value": "Bản sao",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_LUONG_TRANG_VAN_BAN",
+              "display": "Số lượng trang của văn bản",
+              "type": "number",
+              "value": "6",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TU_KHOA",
+              "display": "Từ khóa",
+              "type": "string",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "CHUYEN_DE",
+              "display": "Chuyên đề",
+              "type": "string",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "DIA_CHI_TAI_LIEU_GOC",
+              "display": "Địa chỉ tài liệu gốc",
+              "type": "string",
+              "value": "028.25.05-01-0001",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "NGUOI_NHAP_TIN",
+              "display": "Người nhập tin",
+              "type": "string",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "NGON_NGU",
+              "display": "Ngôn ngữ",
+              "type": "string",
+              "value": "Tiếng Việt",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "DO_MAT",
+              "display": "Độ mật",
+              "type": "string",
+              "value": "Không mật",
+              "page": null,
+              "bboxes": []
+            }
+          ]
+        },
+        {
+          "source_document": {
+            "file_name": "0042_3.pdf",
+            "file_path": "raw/CSDL_SOHOA_TUTQ/028.25.05/01/0001/0042_3.pdf"
+          },
+          "fields": [
+            {
+              "name": "TEN_CO_QUAN_BAN_HANH",
+              "display": "Tên cơ quan, tổ chức ban hành văn bản",
+              "type": "string",
+              "value": "Ban thường vụ Đoàn xã Tân Trịnh",
+              "page": 1,
+              "bboxes": [
+                [
+                  289.0,
+                  238.0,
+                  2333.0,
+                  2611.0
+                ]
+              ]
+            },
+            {
+              "name": "SO_VAN_BAN",
+              "display": "Số của văn bản",
+              "type": "string",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "KY_HIEU_VAN_BAN",
+              "display": "Ký hiệu của văn bản",
+              "type": "string",
+              "value": "Og-BC/ĐTN",
+              "page": 1,
+              "bboxes": [
+                [
+                  606.0,
+                  366.0,
+                  1004.0,
+                  448.0
+                ]
+              ]
+            },
+            {
+              "name": "NGAY_KY",
+              "display": "Ngày ký",
+              "type": "date",
+              "value": "2022-06-05",
+              "page": 1,
+              "bboxes": [
+                [
+                  1418.0,
+                  392.0,
+                  2270.0,
+                  473.0
+                ]
+              ]
+            },
+            {
+              "name": "TEN_LOAI_VAN_BAN",
+              "display": "Tên loại văn bản",
+              "type": "string",
+              "value": "BÁO CÁO",
+              "page": 1,
+              "bboxes": [
+                [
+                  1222.0,
+                  598.0,
+                  1499.0,
+                  660.0
+                ]
+              ]
+            },
+            {
+              "name": "TRICH_YEU_NOI_DUNG",
+              "display": "Trích yếu nội dung",
+              "type": "string",
+              "value": "Kết quả công tác Đoàn và phong trào TTN 6 tháng đầu năm Phương hướng nhiệm vụ 6 tháng cuối năm 2022 Thực hiện chương trình công tác Đoàn và phong trào TTN 6 tháng đầu năm",
+              "page": 1,
+              "bboxes": [
+                [
+                  607.0,
+                  649.0,
+                  2115.0,
+                  811.0
+                ]
+              ]
+            },
+            {
+              "name": "NGUOI_KY",
+              "display": "Người ký",
+              "type": "string",
+              "value": "Hoàng Thị Nhung",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "LOAI_BAN",
+              "display": "Loại bản",
+              "type": "string",
+              "value": "Bản sao",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_LUONG_TRANG_VAN_BAN",
+              "display": "Số lượng trang của văn bản",
+              "type": "number",
+              "value": "14",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TU_KHOA",
+              "display": "Từ khóa",
+              "type": "string",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "CHUYEN_DE",
+              "display": "Chuyên đề",
+              "type": "string",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "DIA_CHI_TAI_LIEU_GOC",
+              "display": "Địa chỉ tài liệu gốc",
+              "type": "string",
+              "value": "028.25.05-01-0001",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "NGUOI_NHAP_TIN",
+              "display": "Người nhập tin",
+              "type": "string",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "NGON_NGU",
+              "display": "Ngôn ngữ",
+              "type": "string",
+              "value": "Tiếng Việt",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "DO_MAT",
+              "display": "Độ mật",
+              "type": "string",
+              "value": "Không mật",
+              "page": null,
+              "bboxes": []
+            }
+          ]
+        },
+        {
+          "source_document": {
+            "file_name": "0042_4.pdf",
+            "file_path": "raw/CSDL_SOHOA_TUTQ/028.25.05/01/0001/0042_4.pdf"
+          },
+          "fields": [
+            {
+              "name": "TEN_CO_QUAN_BAN_HANH",
+              "display": "Tên cơ quan, tổ chức ban hành văn bản",
+              "type": "string",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_VAN_BAN",
+              "display": "Số của văn bản",
+              "type": "string",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "KY_HIEU_VAN_BAN",
+              "display": "Ký hiệu của văn bản",
+              "type": "string",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "NGAY_KY",
+              "display": "Ngày ký",
+              "type": "date",
+              "value": "2025-05-25",
+              "page": 1,
+              "bboxes": [
+                [
+                  1286.0,
+                  1049.0,
+                  2299.0,
+                  1118.0
+                ]
+              ]
+            },
+            {
+              "name": "TEN_LOAI_VAN_BAN",
+              "display": "Tên loại văn bản",
+              "type": "string",
+              "value": "CHỨNG TỪ KẾT THÚC",
+              "page": 1,
+              "bboxes": [
+                [
+                  1002.0,
+                  186.0,
+                  1741.0,
+                  263.0
+                ]
+              ]
+            },
+            {
+              "name": "TRICH_YEU_NOI_DUNG",
+              "display": "Trích yếu nội dung",
+              "type": "string",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "NGUOI_KY",
+              "display": "Người ký",
+              "type": "string",
+              "value": "Văn phòng đảng ủy xã Tân Thịnh",
+              "page": 1,
+              "bboxes": [
+                [
+                  1778.0,
+                  120.0,
+                  2373.0,
+                  176.0
+                ]
+              ]
+            },
+            {
+              "name": "LOAI_BAN",
+              "display": "Loại bản",
+              "type": "string",
+              "value": "Bản sao",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "SO_LUONG_TRANG_VAN_BAN",
+              "display": "Số lượng trang của văn bản",
+              "type": "number",
+              "value": "1",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "TU_KHOA",
+              "display": "Từ khóa",
+              "type": "string",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "CHUYEN_DE",
+              "display": "Chuyên đề",
+              "type": "string",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "DIA_CHI_TAI_LIEU_GOC",
+              "display": "Địa chỉ tài liệu gốc",
+              "type": "string",
+              "value": "028.25.05-01-0001",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "NGUOI_NHAP_TIN",
+              "display": "Người nhập tin",
+              "type": "string",
+              "value": null,
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "NGON_NGU",
+              "display": "Ngôn ngữ",
+              "type": "string",
+              "value": "Tiếng Việt",
+              "page": null,
+              "bboxes": []
+            },
+            {
+              "name": "DO_MAT",
+              "display": "Độ mật",
+              "type": "string",
+              "value": "Không mật",
+              "page": null,
+              "bboxes": []
+            }
+          ]
+        },
+        {
+          "source_document": {
+            "file_name": "MUCLUC.pdf",
+            "file_path": "raw/CSDL_SOHOA_TUTQ/028.25.05/01/0001/MUCLUC.pdf"
+          },
+          "fields": []
+        }
+      ]
+    }
+  ]
+}
