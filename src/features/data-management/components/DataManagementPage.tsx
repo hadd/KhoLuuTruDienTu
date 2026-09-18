@@ -220,7 +220,7 @@ export function DataManagementPage({
 
   const q = typeof search.q === 'string' ? search.q : ''
   const [localSearchQuery, setLocalSearchQuery] = useState(q)
-  
+
   useEffect(() => {
     setLocalSearchQuery(q)
   }, [q])
@@ -446,7 +446,7 @@ export function DataManagementPage({
         focusGroupIndex: resolved.focusGroupIndex,
         focusFieldKey:
           resolved.focusDocumentId === focusDocumentId &&
-          resolved.focusGroupIndex === focusGroupIndex
+            resolved.focusGroupIndex === focusGroupIndex
             ? prev.focusFieldKey
             : undefined,
       }),
@@ -1514,7 +1514,7 @@ export function DataManagementPage({
             </p>
           </div>
         ) : null}
-        
+
         {treeCollapsed && (
           <button
             type="button"
@@ -1535,136 +1535,136 @@ export function DataManagementPage({
               className="flex min-h-0 shrink-0 flex-col overflow-hidden bg-card"
             >
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {showSearch || (isProjectScoped && permissions.canReadProjects) ? (
-              <div className="shrink-0 space-y-1.5 border-b border-border px-2.5 py-1.5">
-                {isProjectScoped && permissions.canReadProjects ? (
-                  <ProjectSelect
-                    className="w-full"
-                    compact
-                    value={projectCode}
-                    onValueChange={handleProjectChange}
-                  />
-                ) : null}
-                {showSearch ? (
-                  <div className="relative flex items-center">
-                    <Search className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      placeholder={t('search.placeholder')}
-                      className="w-full bg-background pl-8 pr-8"
-                      value={localSearchQuery}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        setLocalSearchQuery(val)
-                        if (!val.trim() && q) {
-                          handleSearchInput('')
-                        }
-                      }}
-                      onSearch={(e) => {
-                        const target = e.target as HTMLInputElement
-                        setLocalSearchQuery(target.value)
-                        handleSearchInput(target.value)
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          handleSearchInput(localSearchQuery)
-                        }
-                      }}
-                      aria-label={t('search.placeholder')}
-                    />
-                    {localSearchQuery ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLocalSearchQuery('')
-                          handleSearchInput('')
-                        }}
-                        className="absolute right-2 flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
-                        title="Xóa tìm kiếm"
-                        aria-label="Xóa tìm kiếm"
-                      >
-                        <X className="size-3.5" />
-                      </button>
+                {showSearch || (isProjectScoped && permissions.canReadProjects) ? (
+                  <div className="shrink-0 space-y-1.5 border-b border-border px-2.5 py-1.5">
+                    {isProjectScoped && permissions.canReadProjects ? (
+                      <ProjectSelect
+                        className="w-full"
+                        compact
+                        value={projectCode}
+                        onValueChange={handleProjectChange}
+                      />
+                    ) : null}
+                    {showSearch ? (
+                      <div className="relative flex items-center">
+                        <Search className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground" />
+                        <Input
+                          type="search"
+                          placeholder={t('search.placeholder')}
+                          className="w-full bg-background pl-8 pr-8"
+                          value={localSearchQuery}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setLocalSearchQuery(val)
+                            if (!val.trim() && q) {
+                              handleSearchInput('')
+                            }
+                          }}
+                          onSearch={(e) => {
+                            const target = e.target as HTMLInputElement
+                            setLocalSearchQuery(target.value)
+                            handleSearchInput(target.value)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              handleSearchInput(localSearchQuery)
+                            }
+                          }}
+                          aria-label={t('search.placeholder')}
+                        />
+                        {localSearchQuery ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLocalSearchQuery('')
+                              handleSearchInput('')
+                            }}
+                            className="absolute right-2 flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
+                            title="Xóa tìm kiếm"
+                            aria-label="Xóa tìm kiếm"
+                          >
+                            <X className="size-3.5" />
+                          </button>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
                 ) : null}
-              </div>
-            ) : null}
-            {isSearching && (isSearchFetching || !searchTree) ? (
-              <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center text-sm text-muted-foreground">
-                <Loader2 className="mb-2 size-6 animate-spin text-muted-foreground/60" />
-                <p>{t('search.searching', 'Đang tìm kiếm...')}</p>
-              </div>
-            ) : isSearchEmpty ? (
-              <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center text-sm text-muted-foreground">
-                <Search className="mb-2 size-8 text-muted-foreground/40" />
-                <p className="font-medium text-foreground">
-                  {t('search.noResults', 'Không tìm thấy kết quả')}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t(
-                    'search.noResultsDesc',
-                    'Không có thư mục hoặc tài liệu nào phù hợp với "{{query}}"',
-                    { query: q },
-                  )}
-                </p>
-              </div>
-            ) : displayTree ? (
-              <DataFolderTree
-                key={`tree-${projectCode ?? 'all'}-${isSearching ? `search-${q.trim()}` : 'browse'}`}
-                tree={displayTree}
-                selectedId={focusDocumentId ?? nodeId}
-                selectedIds={selectedRecordIds}
-                multiSelect={batchSignMode || batchExportMode}
-                multiSelectTarget="record"
-                isMultiSelectNode={
-                  batchSignMode
-                    ? isBatchSignSelectableNode
-                    : batchExportMode
-                      ? isBatchExportSelectableNode
-                      : undefined
-                }
-                getMultiSelectCheckedState={
-                  batchExportMode
-                    ? (node) =>
-                        getBatchExportCheckState(node, selectedRecordIds)
-                    : undefined
-                }
-                expandPathToNodeIds={treeExpandToNodeIds}
-                onExpandPathApplied={() => setTreeExpandToNodeIds([])}
-                pendingErrorReportDossierIds={pendingErrorReportDossierIds}
-                completedDocumentIds={completedDocumentIds}
-                showProjectCode={
-                  isProjectScoped && isAllProjects && permissions.canReadProjects
-                }
-                onSelect={(id) => {
-                  void handleSelectNode(id)
-                }}
-                onContextMenuNode={
-                  permissions.canContextMenu
-                    ? (node, x, y) => setContextMenu({ node, x, y })
-                    : undefined
-                }
-                onExpandNode={(id) => {
-                  void loadNodeTree(id).then((updatedTree) => {
-                    const { folderIds, dossierIds } =
-                      collectOcrRoomIdsFromTree(updatedTree)
+                {isSearching && (isSearchFetching || !searchTree) ? (
+                  <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                    <Loader2 className="mb-2 size-6 animate-spin text-muted-foreground/60" />
+                    <p>{t('search.searching', 'Đang tìm kiếm...')}</p>
+                  </div>
+                ) : isSearchEmpty ? (
+                  <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                    <Search className="mb-2 size-8 text-muted-foreground/40" />
+                    <p className="font-medium text-foreground">
+                      {t('search.noResults', 'Không tìm thấy kết quả')}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t(
+                        'search.noResultsDesc',
+                        'Không có thư mục hoặc tài liệu nào phù hợp với "{{query}}"',
+                        { query: q },
+                      )}
+                    </p>
+                  </div>
+                ) : displayTree ? (
+                  <DataFolderTree
+                    key={`tree-${projectCode ?? 'all'}-${isSearching ? `search-${q.trim()}` : 'browse'}`}
+                    tree={displayTree}
+                    selectedId={focusDocumentId ?? nodeId}
+                    selectedIds={selectedRecordIds}
+                    multiSelect={batchSignMode || batchExportMode}
+                    multiSelectTarget="record"
+                    isMultiSelectNode={
+                      batchSignMode
+                        ? isBatchSignSelectableNode
+                        : batchExportMode
+                          ? isBatchExportSelectableNode
+                          : undefined
+                    }
+                    getMultiSelectCheckedState={
+                      batchExportMode
+                        ? (node) =>
+                          getBatchExportCheckState(node, selectedRecordIds)
+                        : undefined
+                    }
+                    expandPathToNodeIds={treeExpandToNodeIds}
+                    onExpandPathApplied={() => setTreeExpandToNodeIds([])}
+                    pendingErrorReportDossierIds={pendingErrorReportDossierIds}
+                    completedDocumentIds={completedDocumentIds}
+                    showProjectCode={
+                      isProjectScoped && isAllProjects && permissions.canReadProjects
+                    }
+                    onSelect={(id) => {
+                      void handleSelectNode(id)
+                    }}
+                    onContextMenuNode={
+                      permissions.canContextMenu
+                        ? (node, x, y) => setContextMenu({ node, x, y })
+                        : undefined
+                    }
+                    onExpandNode={(id) => {
+                      void loadNodeTree(id).then((updatedTree) => {
+                        const { folderIds, dossierIds } =
+                          collectOcrRoomIdsFromTree(updatedTree)
 
-                    if (folderIds.length > 0) {
-                      setOcrWatchFolderIds((prev) => [
-                        ...new Set([...prev, ...folderIds]),
-                      ])
-                    }
-                    if (dossierIds.length > 0) {
-                      setOcrWatchDossierIds((prev) => [
-                        ...new Set([...prev, ...dossierIds]),
-                      ])
-                    }
-                  })
-                }}
-              />
-            ) : null}
+                        if (folderIds.length > 0) {
+                          setOcrWatchFolderIds((prev) => [
+                            ...new Set([...prev, ...folderIds]),
+                          ])
+                        }
+                        if (dossierIds.length > 0) {
+                          setOcrWatchDossierIds((prev) => [
+                            ...new Set([...prev, ...dossierIds]),
+                          ])
+                        }
+                      })
+                    }}
+                  />
+                ) : null}
               </div>
             </ResizablePanel>
             <ResizableHandle className="relative w-px bg-border">

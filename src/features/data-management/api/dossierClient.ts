@@ -212,11 +212,11 @@ async function createDocumentFromStorage(
   dossierId?: string
 }> {
   const body: { key: string; projectCode: string | null; runMode: OcrRunMode } =
-    {
-      key,
-      projectCode: toScopedProjectCode(projectCode) ?? null,
-      runMode: runMode ?? 'auto',
-    }
+  {
+    key,
+    projectCode: toScopedProjectCode(projectCode) ?? null,
+    runMode: runMode ?? 'auto',
+  }
 
   const response = await apiClient.post<Record<string, unknown>>(
     '/api/v1/dossiers/create-document-from-storage',
