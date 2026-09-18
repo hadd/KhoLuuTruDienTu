@@ -27,16 +27,31 @@ export type UpdateMetadataHiddenFieldInputT = {
   isHidden?: boolean
 }
 
-export async function getMetadataHiddenFields(): Promise<Array<MetadataHiddenFieldItemT>> {
+export type MetadataFieldQueryT = {
+  metadataExtractModeCode?: string
+  groupCode?: string
+  fieldCode?: string
+  description?: string
+  isHidden?: boolean | string
+  search?: string
+}
+
+export async function getMetadataHiddenFields(
+  params?: MetadataFieldQueryT,
+): Promise<Array<MetadataHiddenFieldItemT>> {
   const response = await apiClient.get<{ data: Array<MetadataHiddenFieldItemT> }>(
     '/api/v1/metadata-fields',
+    { params },
   )
   return response.data.data
 }
 
-export async function getActiveMetadataHiddenFields(): Promise<Array<string>> {
+export async function getActiveMetadataHiddenFields(
+  params?: MetadataFieldQueryT,
+): Promise<Array<string>> {
   const response = await apiClient.get<{ activeHiddenFields: Array<string> }>(
     '/api/v1/metadata-fields/active',
+    { params },
   )
   return response.data.activeHiddenFields
 }

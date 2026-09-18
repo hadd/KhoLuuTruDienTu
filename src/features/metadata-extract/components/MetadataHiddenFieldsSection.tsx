@@ -1,6 +1,7 @@
 import { useState, useMemo, Fragment } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Eye, EyeOff, Plus, Trash2, Edit2, Loader2, Info, ChevronDown, ChevronRight, CornerDownRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -16,6 +17,13 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -24,6 +32,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
+  DEFAULT_METADATA_EXTRACT_MODE,
+  getMetadataExtractModeSelectOptions,
+  type MetadataExtractMode,
+} from '@/features/metadata-extract/config/metadataExtractModes'
+import {
+  metadataExtractSettingsQueryOptions,
   metadataHiddenFieldsQueryOptions,
   useCreateMetadataHiddenFieldMutation,
   useDeleteMetadataHiddenFieldMutation,
@@ -39,7 +53,19 @@ import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 import { rolePermissionsQueryOptions } from '@/features/permissions/queries'
 
 export function MetadataHiddenFieldsSection() {
-  const { data: fields = [], isLoading } = useQuery(metadataHiddenFieldsQueryOptions())
+  const { t } = useTranslation('metadata-extract-settings')
+
+  // Lấy logic danh sách chế độ bóc tách và nhãn tiếng Việt từ config tập trung
+  const { data: settings } = useQuery(metadataExtractSettingsQueryOptions())
+  const systemMode = settings?.mode ?? DEFAULT_METADATA_EXTRACT_MODE
+  const selectOptions = getMetadataExtractModeSelectOptions(systemMode, t)
+
+  const [selectedMode, setSelectedMode] = useState<MetadataExtractMode | null>(null)
+  const currentMode = selectedMode ?? systemMode
+
+  const { data: fields = [], isLoading } = useQuery(
+    metadataHiddenFieldsQueryOptions(currentMode),
+  )
   const createMutation = useCreateMetadataHiddenFieldMutation()
   const updateMutation = useUpdateMetadataHiddenFieldMutation()
   const deleteMutation = useDeleteMetadataHiddenFieldMutation()
@@ -92,6 +118,7 @@ export function MetadataHiddenFieldsSection() {
       await updateMutation.mutateAsync({
         id: editingItem.id,
         input: {
+          metadataExtractModeCode: editingItem.metadataExtractModeCode || currentMode,
           fieldCode: fieldCode.trim(),
           description: description.trim() || null,
           isHidden,
@@ -99,6 +126,7 @@ export function MetadataHiddenFieldsSection() {
       })
     } else {
       await createMutation.mutateAsync({
+        metadataExtractModeCode: currentMode,
         fieldCode: fieldCode.trim(),
         description: description.trim() || null,
         isHidden,
@@ -183,24 +211,45 @@ export function MetadataHiddenFieldsSection() {
 
   return (
     <Card className="shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <div>
-          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-            <EyeOff className="size-5 text-primary" />
-            Cấu hình Ẩn / Hiển thị trường Metadata
-          </CardTitle>
+      <CardHeader className="space-y-3 pb-4">
+        <div className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+              <EyeOff className="size-5 text-primary" />
+              Cấu hình Ẩn / Hiển thị trường Metadata
+            </CardTitle>
 
-          <CardDescription className="mt-1 text-sm text-muted-foreground">
-            Thêm các mã trường metadata để ẩn hoặc hiện ở màn hình quản lý dữ liệu.
-          </CardDescription>
+            <CardDescription className="mt-1 text-sm text-muted-foreground">
+              Thêm các mã trường metadata để ẩn hoặc hiện ở màn hình quản lý dữ liệu.
+            </CardDescription>
+          </div>
+
+          {canUpdate && (
+            <Button onClick={openAddDialog} size="sm" className="gap-1.5">
+              <Plus className="size-4" />
+              Thêm trường ẩn
+            </Button>
+          )}
         </div>
 
-        {canUpdate && (
-          <Button onClick={openAddDialog} size="sm" className="gap-1.5">
-            <Plus className="size-4" />
-            Thêm trường ẩn
-          </Button>
-        )}
+        {/* Ô chọn danh sách chế độ bóc tách (vùng khoanh đỏ) */}
+        <div className="w-[320px]">
+          <Select
+            value={currentMode}
+            onValueChange={(value) => setSelectedMode(value as MetadataExtractMode)}
+          >
+            <SelectTrigger id="metadata-extract-mode" className="w-full bg-background">
+              <SelectValue placeholder="Chọn chế độ bóc tách" />
+            </SelectTrigger>
+            <SelectContent>
+              {selectOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </CardHeader>
 
       <CardContent>
