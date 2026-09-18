@@ -527,8 +527,8 @@ export async function assignFolderProjectCode(
       folderIds.length === 0
         ? []
         : await tx.query.dossiers.findMany({
-            where: activeDossierWhere(inArray(dossiers.folderId, folderIds)),
-          });
+          where: activeDossierWhere(inArray(dossiers.folderId, folderIds)),
+        });
 
     for (const dossier of subtreeDossiers) {
       if (
@@ -1289,10 +1289,10 @@ async function buildApprovedMetadataExportZip(
 
   const zipResolved = input?.userId
     ? await resolveExportZipPassword({
-        userId: input.userId,
-        dossierIds,
-        dossierAccessPassword: input.dossierAccessPassword,
-      })
+      userId: input.userId,
+      dossierIds,
+      dossierAccessPassword: input.dossierAccessPassword,
+    })
     : { password: undefined, source: "none" as const };
   const zipPassword = zipResolved.password;
 
@@ -1510,13 +1510,13 @@ async function assignDossiersByFolderId(input: {
       }),
       input.role === WorkerRole.MAKER
         ? db.query.dossierAssignments.findMany({
-            where: and(
-              inArray(dossierAssignments.dossierId, dossierIds),
-              eq(dossierAssignments.role, WorkerRole.MAKER),
-              eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
-            ),
-            columns: { dossierId: true, assigneeId: true },
-          })
+          where: and(
+            inArray(dossierAssignments.dossierId, dossierIds),
+            eq(dossierAssignments.role, WorkerRole.MAKER),
+            eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+          ),
+          columns: { dossierId: true, assigneeId: true },
+        })
         : Promise.resolve([]),
     ]);
 
@@ -1902,9 +1902,9 @@ async function mapAssignmentRowsToResponse(
           currentMetadataUrl,
           ...(issueReportsByDossierId
             ? {
-                issueReports:
-                  issueReportsByDossierId.get(row.dossier!.id) ?? [],
-              }
+              issueReports:
+                issueReportsByDossierId.get(row.dossier!.id) ?? [],
+            }
             : {}),
           dossier: {
             ...row.dossier!,
@@ -1965,8 +1965,8 @@ async function listMyAssignmentsByRole(
   const includeIssueReports = input.role !== WorkerRole.MAKER;
   const issueReportsByDossierId = includeIssueReports
     ? await IssueReportService.listOpenForDossiers(
-        rows.map((row) => row.dossier?.id).filter((id): id is string => !!id),
-      )
+      rows.map((row) => row.dossier?.id).filter((id): id is string => !!id),
+    )
     : undefined;
 
   const assignments = await mapAssignmentRowsToResponse(
@@ -2060,15 +2060,15 @@ async function loadFolderSubtreeForBulkDelete(
 
   const subtreeFolderCondition = permanent
     ? or(
+      eq(folders.id, folderId),
+      like(folders.folderPath, `${rootFolder.folderPath}/%`),
+    )
+    : activeFolderWhere(
+      or(
         eq(folders.id, folderId),
         like(folders.folderPath, `${rootFolder.folderPath}/%`),
-      )
-    : activeFolderWhere(
-        or(
-          eq(folders.id, folderId),
-          like(folders.folderPath, `${rootFolder.folderPath}/%`),
-        ),
-      );
+      ),
+    );
 
   const subtreeFolders = await db.query.folders.findMany({
     where: subtreeFolderCondition,
@@ -2563,12 +2563,12 @@ export const DossierService = {
       const deletedDossierRows =
         dossierIds.length > 0
           ? await tx
-              .update(dossiers)
-              .set({ deletedAt: now, updatedAt: now })
-              .where(
-                and(inArray(dossiers.id, dossierIds), activeDossierWhere()),
-              )
-              .returning({ id: dossiers.id })
+            .update(dossiers)
+            .set({ deletedAt: now, updatedAt: now })
+            .where(
+              and(inArray(dossiers.id, dossierIds), activeDossierWhere()),
+            )
+            .returning({ id: dossiers.id })
           : [];
 
       const deletedFolderIds = await softDeleteFoldersByIds(

@@ -202,9 +202,9 @@ async function loadArchivedDossierContext(dossierId: string): Promise<{
   }
 
   // BYPASS FOR TESTING: Cho phép xuất DIP không cần trạng thái ARCHIVED
-if (dossier.status !== DossierStatus.APPROVED && dossier.status !== DossierStatus.ARCHIVED) {
+  if (dossier.status !== DossierStatus.APPROVED && dossier.status !== DossierStatus.ARCHIVED) {
     throw httpError.badRequest("Dossier must be approved or archived before DIP export");
-}
+  }
 
   if (!dossier.currentMetadataKey) {
     throw httpError.badRequest("Dossier has no current metadata");
@@ -303,9 +303,9 @@ export async function exportDipHosoBatch(
     : false;
   const watermarkConfig = applyWatermark
     ? await resolveWatermarkApplyConfig(
-        options?.placementId,
-        true,
-      )
+      options?.placementId,
+      true,
+    )
     : null;
 
   let baseFolderPath = "";
@@ -330,7 +330,7 @@ export async function exportDipHosoBatch(
     async (id) => {
       const { metadata, hoSoId, dossier } =
         await loadArchivedDossierContext(id);
-      
+
       const files = options?.skippedFileIds
         ? (dossier.files ?? []).filter(f => !options.skippedFileIds!.has(f.id))
         : (dossier.files ?? []);
@@ -365,10 +365,10 @@ export async function exportDipHosoBatch(
 
   const zipResolved = options?.userId
     ? await resolveExportZipPassword({
-        userId: options.userId,
-        dossierIds: resolvedDossierIds,
-        dossierAccessPassword: options.dossierAccessPassword,
-      })
+      userId: options.userId,
+      dossierIds: resolvedDossierIds,
+      dossierAccessPassword: options.dossierAccessPassword,
+    })
     : { password: undefined, source: "none" as const };
   const zipPassword = zipResolved.password;
 

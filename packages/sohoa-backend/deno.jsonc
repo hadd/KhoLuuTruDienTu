@@ -23,6 +23,5 @@
     "search:ping": "deno run -A ./scripts/ping-search.ts",
     "search:verify-nested": "deno run -A ./scripts/verify-nested-search.ts"
   },
-  "imports": {
-}
+  "imports": {}
 }
