@@ -2,14 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { activeArchiveFondsQueryOptions } from '@/features/archive-fond/queries'
+import { MetadataSearchableSelect } from '@/features/data-management/components/MetadataSearchableSelect'
 import { cn } from '@/lib/utils/cn'
 
 function resolveFondOptionValue(
@@ -68,6 +62,15 @@ export function MetadataFondFieldSelect({
     [options, value],
   )
 
+  const searchableOptions = useMemo(
+    () =>
+      options.map((fond) => ({
+        value: fond.id,
+        label: fond.fondName,
+      })),
+    [options],
+  )
+
   if (disabled) {
     return (
       <p className={cn('text-sm text-foreground', className)}>
@@ -86,24 +89,28 @@ export function MetadataFondFieldSelect({
         ? t('recordDetail.fondEmpty')
         : t('recordDetail.fondSelectPlaceholder')
 
+  const displayLabel =
+    selectedValue.trim() && !fondsQuery.isPending
+      ? resolveFondDisplayLabel(value, options)
+      : undefined
+
   return (
-    <Select
-      value={selectedValue || undefined}
+    <MetadataSearchableSelect
+      options={searchableOptions}
+      value={selectedValue}
       onValueChange={(next) => onValueChange?.(next)}
+      placeholder={placeholder}
+      searchPlaceholder={t('recordDetail.fondSearchPlaceholder')}
+      emptyText={t('recordDetail.fondEmpty')}
+      noResultsText={t('recordDetail.searchNoResults')}
       disabled={
-        disabled || fondsQuery.isPending || fondsQuery.isError || options.length === 0
+        disabled ||
+        fondsQuery.isPending ||
+        fondsQuery.isError ||
+        options.length === 0
       }
-    >
-      <SelectTrigger className={cn('w-full', className)}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((fond) => (
-          <SelectItem key={fond.id} value={fond.id}>
-            {fond.fondName}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      className={className}
+      displayLabel={displayLabel === '—' ? undefined : displayLabel}
+    />
   )
 }

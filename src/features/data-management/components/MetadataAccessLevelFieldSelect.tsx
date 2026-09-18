@@ -2,13 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { MetadataSearchableSelect } from '@/features/data-management/components/MetadataSearchableSelect'
 import { activeSecurityLevelsQueryOptions } from '@/features/security-level/queries'
 import type { SecurityLevelT } from '@/features/security-level/types'
 import { cn } from '@/lib/utils/cn'
@@ -24,9 +18,7 @@ function resolveAccessLevelOptionValue(
 ): string {
   const trimmed = rawValue.trim()
   if (!trimmed) return ''
-  // Direct id match
   if (options.some((o) => o.id === trimmed)) return trimmed
-  // Match by name (e.g. "Công khai", "Hạn chế")
   const byName = options.find(
     (o) => o.name.trim().toLowerCase() === trimmed.toLowerCase(),
   )
@@ -74,6 +66,15 @@ export function MetadataAccessLevelFieldSelect({
     [options, value],
   )
 
+  const searchableOptions = useMemo(
+    () =>
+      options.map((level) => ({
+        value: level.id,
+        label: level.name,
+      })),
+    [options],
+  )
+
   if (disabled) {
     return (
       <p className={cn('text-sm text-foreground', className)}>
@@ -92,29 +93,32 @@ export function MetadataAccessLevelFieldSelect({
         ? t('recordDetail.accessLevelEmpty')
         : t('recordDetail.accessLevelSelectPlaceholder')
 
+  const displayLabel =
+    selectedValue.trim() && !levelsQuery.isPending
+      ? resolveAccessLevelDisplayLabel(value, options)
+      : undefined
+
   return (
-    <Select
-      value={selectedValue || undefined}
+    <MetadataSearchableSelect
+      options={searchableOptions}
+      value={selectedValue}
       onValueChange={(next) => {
         const selected = options.find((o) => o.id === next)
-        // Store the human-readable name so backend metadata stays text-based
         const label = selected ? selected.name : next
         onValueChange?.(label)
       }}
+      placeholder={placeholder}
+      searchPlaceholder={t('recordDetail.accessLevelSearchPlaceholder')}
+      emptyText={t('recordDetail.accessLevelEmpty')}
+      noResultsText={t('recordDetail.searchNoResults')}
       disabled={
-        disabled || levelsQuery.isPending || levelsQuery.isError || options.length === 0
+        disabled ||
+        levelsQuery.isPending ||
+        levelsQuery.isError ||
+        options.length === 0
       }
-    >
-      <SelectTrigger className={cn('w-full', className)}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((level) => (
-          <SelectItem key={level.id} value={level.id}>
-            {level.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      className={className}
+      displayLabel={displayLabel === '—' ? undefined : displayLabel}
+    />
   )
 }
