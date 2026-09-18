@@ -96,6 +96,7 @@ import {
   resolveDocumentFocusNavigation,
   buildDefaultDataManagementNavigation,
   resolveDossierUpdateId,
+  resolveFolderExportId,
   resolveFoldersToReloadAfterDelete,
   resolveRecordDossierId,
   resolveSelectionAfterDelete,
@@ -928,6 +929,20 @@ export function DataManagementPage({
     } else {
       setCanExportDip(false)
     }
+    setExportDialogOpen(true)
+  }
+
+  function handleExportByFolderStructure(node: DataTreeNodeT) {
+    if (!canExportDossiers) return
+    if (node.type !== 'folder' || node.id === DATA_TREE_ROOT_ID) return
+
+    setExportContext({
+      kind: 'folder',
+      folderId: resolveFolderExportId(node),
+      dossierId: findDescendantDossierTarget(node)?.dossierId ?? null,
+      downloadName: node.name,
+    })
+    setCanExportDip(true)
     setExportDialogOpen(true)
   }
 
@@ -1900,6 +1915,9 @@ export function DataManagementPage({
           setViewInfoOpen(true)
         }}
         onExportExcel={(node) => void handleExportExcel(node)}
+        onExportByFolderStructure={(node) =>
+          void handleExportByFolderStructure(node)
+        }
         onUploadDossier={(node) => {
           setUploadTargetFolder(node)
           setUploadOpen(true)

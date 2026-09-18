@@ -74,6 +74,7 @@
     "revokeAssignments": "Thu hồi phân công",
     "delete": "Xóa",
     "exportExcel": "Xuất Hồ Sơ",
+    "exportByFolderStructure": "Xuất hồ sơ theo cấu trúc thư mục",
     "uploadDossier": "Tải lên hồ sơ",
     "uploadDocument": "Tải lên tài liệu",
     "assignDocument": "Thay tài liệu (PDF)",
@@ -180,6 +181,9 @@
     "exportExcelBatchAction": "Xuất {{count}} hồ sơ đã chọn",
     "exportExcelMissingMetadata": "Không thể xuất: Một số hồ sơ chưa có dữ liệu mô tả (metadata): {{names}}",
     "exportExcelPendingApproval": "Không thể xuất: Một số hồ sơ chưa hoàn tất duyệt hoặc lưu kho: {{names}}",
+    "exportByFolderStructureExporting": "Đang xuất hồ sơ theo cấu trúc thư mục…",
+    "exportByFolderStructureSuccess": "Đã tải xuống gói hồ sơ theo cấu trúc thư mục.",
+    "exportByFolderStructureError": "Xuất hồ sơ theo cấu trúc thư mục thất bại.",
     "exportDialog": {
       "title": "Xuất hồ sơ",
       "description": "Chọn định dạng xuất",

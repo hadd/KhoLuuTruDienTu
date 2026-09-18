@@ -74,6 +74,7 @@
     "revokeAssignments": "Revoke assignments",
     "delete": "Delete",
     "exportExcel": "Export dossier",
+    "exportByFolderStructure": "Export dossiers by folder structure",
     "uploadDossier": "Upload dossier",
     "uploadDocument": "Upload document",
     "assignProject": "Assign project",
@@ -163,6 +164,9 @@
     "exportExcelBatchAction": "Export {{count}} selected dossiers",
     "exportExcelMissingMetadata": "Cannot export: Some dossiers are missing metadata: {{names}}",
     "exportExcelPendingApproval": "Cannot export: Some dossiers must be approved or archived: {{names}}",
+    "exportByFolderStructureExporting": "Exporting dossiers by folder structure…",
+    "exportByFolderStructureSuccess": "Folder-structure dossier package downloaded.",
+    "exportByFolderStructureError": "Failed to export dossiers by folder structure.",
     "exportDialog": {
       "title": "Export dossier",
       "description": "Choose export format",
