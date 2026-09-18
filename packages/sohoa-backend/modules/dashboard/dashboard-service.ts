@@ -295,6 +295,163 @@ async function aggregateQcAssignmentStats(
     return new Map(rows.map((row) => [row.assigneeId, row]));
 }
 
+/** Build admin dashboard group cards with a few batched queries (no per-group N+1). */
+async function buildGroupSummaries(
+    activeGroups: Array<{ id: string; name: string }>,
+) {
+    if (activeGroups.length === 0) {
+        return [];
+    }
+
+    const groupIds = activeGroups.map((group) => group.id);
+
+    const [dossierRows, members] = await Promise.all([
+        db
+            .select({
+                groupId: dossiers.assignedGroupId,
+                totalDossiers: sql<number>`count(*)`.mapWith(Number),
+                approved: sql<number>`coalesce(sum(case when ${dossiers.status} = ${DossierStatus.APPROVED} then 1 else 0 end), 0)`.mapWith(Number),
+            })
+            .from(dossiers)
+            .where(activeDossierWhere(inArray(dossiers.assignedGroupId, groupIds)))
+            .groupBy(dossiers.assignedGroupId),
+        db.query.groupMembers.findMany({
+            where: and(
+                inArray(groupMembers.groupId, groupIds),
+                isNull(groupMembers.expiredAt),
+            ),
+            columns: {
+                groupId: true,
+                userId: true,
+                role: true,
+            },
+        }),
+    ]);
+
+    const dossierByGroup = new Map(
+        dossierRows
+            .filter((row) => row.groupId != null)
+            .map((row) => [row.groupId as string, row]),
+    );
+
+    const membersByGroup = new Map<string, Array<{ userId: string; role: string }>>();
+    for (const member of members) {
+        const list = membersByGroup.get(member.groupId) ?? [];
+        list.push({ userId: member.userId, role: member.role });
+        membersByGroup.set(member.groupId, list);
+    }
+
+    const editorUserIds = [
+        ...new Set(
+            members
+                .filter((member) => member.role === "editor")
+                .map((member) => member.userId),
+        ),
+    ];
+    const qcUserIds = [
+        ...new Set(
+            members
+                .filter((member) => member.role.startsWith("qc"))
+                .map((member) => member.userId),
+        ),
+    ];
+
+    const editorRows = editorUserIds.length === 0
+        ? []
+        : await db
+            .select({
+                groupId: dossiers.assignedGroupId,
+                assigneeId: dossierAssignments.assigneeId,
+                correct: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.workQuality} = ${WorkQuality.CORRECT} then 1 else 0 end), 0)`.mapWith(Number),
+                incorrect: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.workQuality} = ${WorkQuality.INCORRECT} then 1 else 0 end), 0)`.mapWith(Number),
+            })
+            .from(dossierAssignments)
+            .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
+            .where(activeDossierWhere(
+                inArray(dossierAssignments.assigneeId, editorUserIds),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                inArray(dossiers.assignedGroupId, groupIds),
+            ))
+            .groupBy(dossiers.assignedGroupId, dossierAssignments.assigneeId);
+
+    const qcRows = qcUserIds.length === 0
+        ? []
+        : await db
+            .select({
+                groupId: dossiers.assignedGroupId,
+                assigneeId: dossierAssignments.assigneeId,
+                reviewed: sql<number>`count(*)`.mapWith(Number),
+                approved: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then 1 else 0 end), 0)`.mapWith(Number),
+            })
+            .from(dossierAssignments)
+            .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
+            .where(activeDossierWhere(
+                inArray(dossierAssignments.assigneeId, qcUserIds),
+                inArray(dossierAssignments.role, CHECKER_ROLES),
+                inArray(dossierAssignments.status, [
+                    AssignmentStatus.COMPLETED,
+                    AssignmentStatus.REJECTED,
+                ]),
+                inArray(dossiers.assignedGroupId, groupIds),
+            ))
+            .groupBy(dossiers.assignedGroupId, dossierAssignments.assigneeId);
+
+    const editorRateByGroupUser = new Map<string, number>();
+    for (const row of editorRows) {
+        if (!row.groupId) continue;
+        editorRateByGroupUser.set(
+            `${row.groupId}:${row.assigneeId}`,
+            calcRate(row.correct, row.correct + row.incorrect),
+        );
+    }
+
+    const qcRateByGroupUser = new Map<string, number>();
+    for (const row of qcRows) {
+        if (!row.groupId) continue;
+        qcRateByGroupUser.set(
+            `${row.groupId}:${row.assigneeId}`,
+            calcRate(row.approved, row.reviewed),
+        );
+    }
+
+    return activeGroups.map((group) => {
+        const dossierSummary = dossierByGroup.get(group.id);
+        const groupMembersList = membersByGroup.get(group.id) ?? [];
+        const editorMembers = groupMembersList.filter((member) => member.role === "editor");
+        const qcMemberUserIds = groupMembersList
+            .filter((member) => member.role.startsWith("qc"))
+            .map((member) => member.userId);
+
+        const editorRates = editorMembers.map((member) =>
+            editorRateByGroupUser.get(`${group.id}:${member.userId}`) ?? 0
+        );
+        const qcRates = qcMemberUserIds.map((userId) =>
+            qcRateByGroupUser.get(`${group.id}:${userId}`) ?? 0
+        );
+
+        const avgEditorCorrectRate = editorRates.length > 0
+            ? Math.round((editorRates.reduce((sum, rate) => sum + rate, 0) / editorRates.length) * 100) / 100
+            : 0;
+        const avgQcApprovalRate = qcRates.length > 0
+            ? Math.round((qcRates.reduce((sum, rate) => sum + rate, 0) / qcRates.length) * 100) / 100
+            : 0;
+
+        const totalGroupDossiers = dossierSummary?.totalDossiers ?? 0;
+        const approvedGroupDossiers = dossierSummary?.approved ?? 0;
+
+        return {
+            groupId: group.id,
+            groupName: group.name,
+            totalDossiers: totalGroupDossiers,
+            approved: approvedGroupDossiers,
+            progressRate: calcRate(approvedGroupDossiers, totalGroupDossiers),
+            editorCount: editorMembers.length,
+            avgEditorCorrectRate,
+            avgQcApprovalRate,
+        };
+    });
+}
+
 export const DashboardService = {
     async getEditorStats(userId: string) {
         const [summary] = await db
@@ -504,7 +661,7 @@ export const DashboardService = {
                     like(dossierFiles.fileName, "%.pdf"),
                     eq(dossierFiles.pageCount, 1),
                 ),
-                limit: 50,
+                limit: 20,
             });
 
             for (const file of uncountedPdfFiles) {
@@ -527,7 +684,8 @@ export const DashboardService = {
         dateFrom?: string | Date,
         dateTo?: string | Date,
     ) {
-        await this.syncExistingPdfPageCounts();
+        // Never block dashboard/API on MinIO page-count sync (can take >30s on remote storage).
+        void this.syncExistingPdfPageCounts();
         const activeUsers = await db.query.userProfiles.findMany({
             where: and(
                 eq(userProfiles.active, true),
@@ -953,80 +1111,7 @@ export const DashboardService = {
             }
         }
 
-        const groupSummaries = await Promise.all(activeGroups.map(async (group) => {
-            const [dossierSummary] = await db
-                .select({
-                    totalDossiers: sql<number>`count(*)`.mapWith(Number),
-                    approved: sql<number>`coalesce(sum(case when ${dossiers.status} = ${DossierStatus.APPROVED} then 1 else 0 end), 0)`.mapWith(Number),
-                })
-                .from(dossiers)
-                .where(activeDossierWhere(
-                    eq(dossiers.assignedGroupId, group.id),
-                ));
-
-            const members = await db.query.groupMembers.findMany({
-                where: and(
-                    eq(groupMembers.groupId, group.id),
-                    isNull(groupMembers.expiredAt),
-                ),
-                columns: {
-                    userId: true,
-                    role: true,
-                },
-            });
-
-            const editorMembers = members.filter((member) => member.role === "editor");
-            const qcMemberUserIds = members
-                .filter((member) => member.role.startsWith("qc"))
-                .map((member) => member.userId);
-
-            const editorStatsMap = await aggregateEditorAssignmentStats(
-                editorMembers.map((member) => member.userId),
-                group.id,
-            );
-            const qcStatsMap = await aggregateQcAssignmentStats(
-                qcMemberUserIds,
-                CHECKER_ROLES,
-                group.id,
-            );
-
-            const editorRates = editorMembers.map((member) => {
-                const stats = editorStatsMap.get(member.userId);
-                if (!stats) {
-                    return 0;
-                }
-                return calcRate(stats.correct, stats.correct + stats.incorrect);
-            });
-
-            const qcRates = qcMemberUserIds.map((memberId) => {
-                const stats = qcStatsMap.get(memberId);
-                if (!stats) {
-                    return 0;
-                }
-                return calcRate(stats.approved, stats.reviewed);
-            });
-
-            const avgEditorCorrectRate = editorRates.length > 0
-                ? Math.round((editorRates.reduce((sum, rate) => sum + rate, 0) / editorRates.length) * 100) / 100
-                : 0;
-            const avgQcApprovalRate = qcRates.length > 0
-                ? Math.round((qcRates.reduce((sum, rate) => sum + rate, 0) / qcRates.length) * 100) / 100
-                : 0;
-
-            const totalGroupDossiers = dossierSummary?.totalDossiers ?? 0;
-            const approvedGroupDossiers = dossierSummary?.approved ?? 0;
-
-            return {
-                groupId: group.id,
-                groupName: group.name,
-                totalDossiers: totalGroupDossiers,
-                approved: approvedGroupDossiers,
-                progressRate: calcRate(approvedGroupDossiers, totalGroupDossiers),
-                editorCount: editorMembers.length,
-                avgEditorCorrectRate,
-                avgQcApprovalRate,
-            };
-        }));
+        const groupSummaries = await buildGroupSummaries(activeGroups);
 
             const employeeKpis = await this.aggregateEmployeeKpis(
                 projectCodes,

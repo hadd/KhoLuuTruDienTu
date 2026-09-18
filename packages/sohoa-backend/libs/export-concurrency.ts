@@ -4,8 +4,8 @@
  */
 
 export const MAX_EXPORT_FILES = 50000000000;
-export const EXPORT_DOWNLOAD_CONCURRENCY = 10;
-export const EXPORT_DOSSIER_CONCURRENCY = 5;
+export const EXPORT_DOWNLOAD_CONCURRENCY = 20;
+export const EXPORT_DOSSIER_CONCURRENCY = 10;
 
 export async function mapWithConcurrency<T, R>(
   items: T[],

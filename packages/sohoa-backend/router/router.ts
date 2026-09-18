@@ -29,6 +29,7 @@ import { createMetadataExtractRouter } from "../modules/metadata-extract/index.t
 import { createPageQuotaRouter } from "../modules/page-quota/index.ts"
 import { createMetadataHiddenFieldRouter } from "../modules/metadata-hidden-field/index.ts"
 import { createDashboardWarehouseRouter } from "../modules/dashboard/dashboard.warehouse-router.ts"
+import { createExportDownloadRouter } from "../modules/export-download/export-download.router.ts"
 
 export const apiV1Router = new Elysia({
     prefix: "/api/v1",
@@ -53,6 +54,7 @@ export const apiV1Router = new Elysia({
     .use(createMetadataExtractRouter("/metadata"))
     .use(createPageQuotaRouter("/page-quota"))
     .use(createMetadataHiddenFieldRouter("/metadata-hidden-fields"))
+    .use(createExportDownloadRouter("/export-downloads"))
 
     .use(createProjectPlanRouter())
     .use(createPaperSizeRouter())
