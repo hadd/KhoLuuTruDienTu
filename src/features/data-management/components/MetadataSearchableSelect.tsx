@@ -116,8 +116,8 @@ export function MetadataSearchableSelect({
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] p-0"
-        align="start"
+        className="min-w-[var(--radix-popover-trigger-width)] w-[min(36rem,calc(100vw-2rem))] p-0"
+        align="end"
         onWheel={(event) => event.stopPropagation()}
         style={{ overscrollBehavior: 'contain' }}
       >
@@ -137,7 +137,7 @@ export function MetadataSearchableSelect({
         </div>
 
         <div
-          className="max-h-60 space-y-1 overflow-y-auto overscroll-contain p-1"
+          className="max-h-72 space-y-1 overflow-y-auto overscroll-contain p-1"
           onWheel={(event) => event.stopPropagation()}
         >
           {filteredOptions.length === 0 ? (
@@ -152,17 +152,17 @@ export function MetadataSearchableSelect({
                   key={option.value}
                   type="button"
                   className={cn(
-                    'flex w-full items-center justify-between rounded-sm px-3 py-2 text-left text-sm transition-colors hover:bg-muted',
+                    'flex w-full items-start justify-between gap-2 rounded-sm px-3 py-2 text-left text-sm transition-colors hover:bg-muted',
                     isSelected && 'bg-muted/60',
                   )}
                   onClick={() => selectOption(option.value)}
                 >
-                  <span className="truncate font-medium text-foreground">
+                  <span className="min-w-0 flex-1 whitespace-normal break-words font-medium text-foreground">
                     {option.label}
                   </span>
                   <div
                     className={cn(
-                      'ml-2 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-primary transition-all',
+                      'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-primary transition-all',
                       isSelected
                         ? 'bg-primary text-primary-foreground'
                         : 'opacity-50',
