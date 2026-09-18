@@ -1,4 +1,4 @@
-import { httpError } from "@shared/common-lib";
+import { httpError } from "../../../../shared/common-lib/mod.ts";
 import { and, desc, eq, ilike, isNull, or } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
 import { documentNamingConfigs } from "../../db/schemas/document-naming-config.ts";
@@ -11,6 +11,25 @@ import {
     type DocumentNamingSegment,
     type DocumentNamingTargetType,
 } from "../../libs/document-naming-types.ts";
+import {
+    downloadJsonFromStorage,
+    resolveMetadataJsonKey,
+} from "../data-entry/data-entry-s3-utils.ts";
+import { parseDossierMetadata } from "../../libs/metadata-normalize.ts";
+
+const DEFAULT_MOCK_METADATA: Record<string, string> = {
+    "HO_SO_LUU_TRU.MUC_LUC_SO": "07",
+    "HO_SO_LUU_TRU.MA_HO_SO": "0123",
+    "HO_SO_LUU_TRU.SO_VA_KY_HIEU_HO_SO": "0123",
+    "HO_SO_LUU_TRU.TIEU_DE_HO_SO": "Hồ sơ mẫu",
+    "TAI_LIEU_LUU_TRU.SO_THU_TU_VAN_BAN": "001",
+    "TAI_LIEU_LUU_TRU.STT_VAN_BAN": "001",
+    "TAI_LIEU_LUU_TRU.TEN_LOAI_TAI_LIEU": "BC",
+    "TAI_LIEU_LUU_TRU.SO_CUA_VAN_BAN": "0001",
+    "TAI_LIEU_LUU_TRU.KY_HIEU_CUA_VAN_BAN": "BC-01",
+    "TAI_LIEU_LUU_TRU.NAM": "1998",
+    "TAI_LIEU_LUU_TRU.NGAY_THANG_NAM_BAN_HANH": "1998",
+};
 
 function mapConfig(row: {
     id: string;
@@ -210,6 +229,34 @@ export const DocumentNamingConfigService = {
             );
         }
 
+        let metadataMap: Record<string, string> = { ...DEFAULT_MOCK_METADATA };
+        const metadataKey = dossier?.currentMetadataKey ?? dossier?.ocrMetadataKey;
+        if (metadataKey) {
+            try {
+                const rawJson = await downloadJsonFromStorage(resolveMetadataJsonKey(metadataKey));
+                const parsed = parseDossierMetadata(rawJson);
+                if (parsed) {
+                    for (const group of parsed.metadata_groups ?? []) {
+                        for (const field of group.fields ?? []) {
+                            if (field.name && field.value != null) {
+                                metadataMap[`${group.group_code}.${field.name}`] = String(field.value);
+                            }
+                        }
+                        const doc = group.documents?.[0] ?? group.document?.[0];
+                        if (doc?.fields) {
+                            for (const field of doc.fields) {
+                                if (field.name && field.value != null) {
+                                    metadataMap[`${group.group_code}.${field.name}`] = String(field.value);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch {
+                // Fallback to DEFAULT_MOCK_METADATA
+            }
+        }
+
         const autoIncrementStart = parseAutoIncrementStart(input.segments);
         const previews = buildDocumentNamePreviewSamples({
             segments: input.segments,
@@ -231,6 +278,7 @@ export const DocumentNamingConfigService = {
                 fileName: "sample.pdf",
                 documentTypeId: "sample-type",
             },
+            metadataMap,
             autoIncrementStart,
         });
 

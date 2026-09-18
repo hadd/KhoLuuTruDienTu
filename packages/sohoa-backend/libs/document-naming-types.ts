@@ -11,6 +11,7 @@ export const DOCUMENT_NAMING_SEGMENT_SOURCES = [
     "fond_field",
     "dossier_field",
     "file_field",
+    "metadata_field",
 ] as const;
 export type DocumentNamingSegmentSource =
     (typeof DOCUMENT_NAMING_SEGMENT_SOURCES)[number];
@@ -59,8 +60,21 @@ function padSegmentValue(
     padChar: string,
 ): string {
     if (length <= 0) return value;
-    if (value.length > length) return value;
     const char = padChar.length > 0 ? padChar[0] : " ";
+
+    // Xử lý trường hợp số có hậu tố chữ cái (ví dụ: ĐVBQ 123a, 23b)
+    // Phần số cần đủ `length` chữ số, sau đó mới ghép hậu tố
+    const match = value.match(/^(\d+)([a-zA-Z]+)$/);
+    if (match) {
+        const [, num, suffix] = match;
+        if (num.length < length) {
+            const padding = char.repeat(length - num.length);
+            return `${padding}${num}${suffix}`;
+        }
+        return value;
+    }
+
+    if (value.length >= length) return value;
     const padding = char.repeat(length - value.length);
     return `${padding}${value}`;
 }
@@ -100,7 +114,8 @@ export function validateDocumentNamingSegments(
         if (
             segment.source === "fond_field" ||
             segment.source === "dossier_field" ||
-            segment.source === "file_field"
+            segment.source === "file_field" ||
+            segment.source === "metadata_field"
         ) {
             if (!segment.fieldKey?.trim()) {
                 throw new Error(`Segment ${index + 1}: fieldKey is required`);
@@ -118,6 +133,7 @@ export function buildDocumentNamePreview(input: {
     fond?: Record<string, string | null | undefined>;
     dossier?: Record<string, string | null | undefined>;
     file?: Record<string, string | null | undefined>;
+    metadataMap?: Record<string, string | null | undefined>;
     autoIncrementCounter?: number;
     referenceDate?: Date;
 }): string {
@@ -149,6 +165,13 @@ export function buildDocumentNamePreview(input: {
             case "file_field":
                 raw = String(input.file?.[segment.fieldKey ?? ""] ?? "");
                 break;
+            case "metadata_field":
+                raw = String(
+                    input.metadataMap?.[segment.fieldKey ?? ""] ??
+                    segment.value ??
+                    ""
+                );
+                break;
         }
 
         return padSegmentValue(raw, segment.length, padChar);
@@ -160,6 +183,7 @@ export function buildDocumentNamePreviewSamples(input: {
     fond?: Record<string, string | null | undefined>;
     dossier?: Record<string, string | null | undefined>;
     file?: Record<string, string | null | undefined>;
+    metadataMap?: Record<string, string | null | undefined>;
     autoIncrementStart?: number;
     referenceDate?: Date;
 }): string[] {
@@ -172,6 +196,7 @@ export function buildDocumentNamePreviewSamples(input: {
         fond: input.fond,
         dossier: input.dossier,
         file: input.file,
+        metadataMap: input.metadataMap,
         referenceDate: input.referenceDate,
     };
 
