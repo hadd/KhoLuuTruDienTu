@@ -299,16 +299,6 @@ function TreeBranch({
       <div
         className={cn(
           'flex min-w-0 items-start gap-1 rounded-md py-1 pr-2 text-sm',
-<<<<<<< HEAD
-          isChecked && 'bg-accent text-accent-foreground',
-          !isChecked && isSelected && !multiSelect && 'bg-accent text-accent-foreground',
-          !isChecked &&
-            isSelected &&
-            !multiSelect &&
-            node.type === 'document' &&
-            'ring-1 ring-inset ring-primary',
-          !isChecked && selectedId === node.id && multiSelect && 'ring-1 ring-inset ring-primary/40',
-=======
           (isChecked || isPartiallyChecked) &&
             'bg-accent text-accent-foreground',
           !isChecked &&
@@ -321,7 +311,6 @@ function TreeBranch({
             selectedId === node.id &&
             multiSelect &&
             'ring-1 ring-inset ring-primary/40',
->>>>>>> feature/front-end
         )}
         style={{ paddingLeft: `${collapsed ? 6 : depth * 12 + 4}px` }}
         onContextMenu={onContextMenuNode ? handleContextMenu : undefined}
