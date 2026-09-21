@@ -5,6 +5,7 @@ import {
     validateDocumentNamingSegments,
     type DocumentNamingSegment,
 } from "../libs/document-naming-types.ts";
+import { mergeMetadataNamingFieldOptions } from "../libs/document-naming-export.ts";
 
 Deno.test("validateDocumentNamingSegments - rejects metadata_field without fieldKey", () => {
     const invalidSegments: DocumentNamingSegment[] = [
@@ -83,7 +84,7 @@ Deno.test("buildDocumentNamePreview - handles ĐVBQ with suffix a, b (e.g. 123a 
     assertEquals(result, "0123a");
 });
 
-Deno.test("buildDocumentNamePreview - metadata_field with empty metadata value falls back to segment.value instead of space", () => {
+Deno.test("buildDocumentNamePreview - metadata_field with empty metadata value resolves to empty string without label fallback", () => {
     const segments: DocumentNamingSegment[] = [
         {
             length: 1,
@@ -101,8 +102,8 @@ Deno.test("buildDocumentNamePreview - metadata_field with empty metadata value f
         },
     });
 
-    // Must not return " " (space padding)
-    assertEquals(result, "Mã phông");
+    // Must return "" (empty string) and NOT fall back to label "Mã phông"
+    assertEquals(result, "");
 });
 
 Deno.test("buildDocumentNamePreview - does not pad with spaces when padChar is omitted or null", () => {
@@ -193,5 +194,24 @@ Deno.test("DocumentNamingConfigService.resolvePreviewMetadataValues - resolves f
         metadataValues: values,
     });
     assertEquals(previewSamples, ["P00099"]);
+});
+
+Deno.test("mergeMetadataNamingFieldOptions - returns only liveCatalog when live metadata is present", () => {
+    const liveCatalog = [
+        { key: "HO_SO_LUU_TRU.MA_HO_SO", display: "Mã hồ sơ", groupName: "Metadata cấp Hồ sơ" },
+        { key: "HO_SO_LUU_TRU.TIEU_DE_HO_SO", display: "Tiêu đề hồ sơ", groupName: "Metadata cấp Hồ sơ" },
+    ];
+
+    const result = mergeMetadataNamingFieldOptions(liveCatalog);
+    assertEquals(result.length, 2);
+    assertEquals(result[0].key, "HO_SO_LUU_TRU.MA_HO_SO");
+    assertEquals(result[1].key, "HO_SO_LUU_TRU.TIEU_DE_HO_SO");
+});
+
+Deno.test("mergeMetadataNamingFieldOptions - falls back to full static template when liveCatalog is empty", () => {
+    const result = mergeMetadataNamingFieldOptions([]);
+    // Must return full fallback TT05 fields (at least 10 items)
+    assertEquals(result.length > 5, true);
+    assertEquals(result.some((r) => r.key === "HO_SO_LUU_TRU.MUC_LUC_SO"), true);
 });
 

@@ -1059,6 +1059,25 @@ export function buildUnionExportFieldCatalog(
                     display: resolveFieldDisplayHeader(field),
                 });
             }
+
+            const docs = group.documents ?? group.document ?? [];
+            for (const doc of docs) {
+                for (const field of doc.fields ?? []) {
+                    const fieldName = canonicalMetadataFieldName(field.name);
+                    const key = `${group.group_code}.${fieldName}`;
+                    if (seen.has(key)) {
+                        continue;
+                    }
+                    seen.add(key);
+                    catalog.push({
+                        key,
+                        groupCode: group.group_code,
+                        groupName: group.group_name,
+                        fieldName,
+                        display: resolveFieldDisplayHeader(field),
+                    });
+                }
+            }
         }
     }
 

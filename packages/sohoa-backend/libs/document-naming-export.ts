@@ -120,24 +120,21 @@ export function buildStaticMetadataNamingFieldOptions(): DocumentNamingFieldOpti
 export function mergeMetadataNamingFieldOptions(
     liveCatalog: Array<{ key: string; display: string; groupName?: string }>,
 ): DocumentNamingFieldOption[] {
-    const seen = new Set<string>();
-    const options: DocumentNamingFieldOption[] = [];
-
-    for (const item of buildStaticMetadataNamingFieldOptions()) {
-        seen.add(item.key);
-        options.push(item);
+    if (liveCatalog && liveCatalog.length > 0) {
+        const seen = new Set<string>();
+        const options: DocumentNamingFieldOption[] = [];
+        for (const item of liveCatalog) {
+            if (!item.key || seen.has(item.key)) continue;
+            seen.add(item.key);
+            const label = item.groupName
+                ? `${item.display} (${item.groupName})`
+                : item.display || item.key;
+            options.push({ key: item.key, label });
+        }
+        return options;
     }
 
-    for (const item of liveCatalog) {
-        if (!item.key || seen.has(item.key)) continue;
-        seen.add(item.key);
-        const label = item.groupName
-            ? `${item.display} (${item.groupName})`
-            : item.display || item.key;
-        options.push({ key: item.key, label });
-    }
-
-    return options;
+    return buildStaticMetadataNamingFieldOptions();
 }
 
 export type DocumentNamingExportContext = {
