@@ -24,6 +24,8 @@ export async function seedRoles(db: any) {
                     name: roleData.name,
                     description: roleData.description,
                     rules: roleData.rules,
+                    hiddenModules: roleData.hiddenModules,
+                    hiddenPermissions: roleData.hiddenPermissions,
                     isBaseRole: roleData.isBaseRole,
                     updatedAt: new Date(),
                 })

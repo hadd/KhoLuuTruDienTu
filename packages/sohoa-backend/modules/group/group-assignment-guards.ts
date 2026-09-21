@@ -123,7 +123,12 @@ export function buildActiveCheckerDossierIds(
     return new Set(assignments.map((row) => row.dossierId));
 }
 
-/** Chỉ thu hồi hồ sơ READY_FOR_ENTRY, chưa hoàn thành entry và còn phân công/nhóm để thu hồi. */
+const REVOCABLE_DOSSIER_STATUSES = new Set<string>([
+    DossierStatus.READY_FOR_ENTRY,
+    DossierStatus.ENTRY_PROCESSING,
+]);
+
+/** Chỉ thu hồi hồ sơ READY_FOR_ENTRY / ENTRY_PROCESSING, chưa hoàn thành entry và còn phân công/nhóm để thu hồi. */
 export function getDossierRevokeBlockReason(input: {
     dossierStatus: string;
     dossierId: string;
@@ -132,7 +137,7 @@ export function getDossierRevokeBlockReason(input: {
     completedMakerIndex: CompletedMakerIndex;
     hasWorkableAssignment: boolean;
 }): string | null {
-    if (input.dossierStatus !== DossierStatus.READY_FOR_ENTRY) {
+    if (!REVOCABLE_DOSSIER_STATUSES.has(input.dossierStatus)) {
         return "Dossier has already started or completed processing";
     }
 
@@ -153,7 +158,7 @@ export function getDossierRevokeBlockReason(input: {
     return null;
 }
 
-/** Chỉ thu hồi khi hồ sơ thuộc nhóm, còn READY_FOR_ENTRY và chưa hoàn thành entry. */
+/** Chỉ thu hồi khi hồ sơ thuộc nhóm, còn READY_FOR_ENTRY / ENTRY_PROCESSING và chưa hoàn thành entry. */
 export function getFolderRevokeBlockReason(input: {
     dossierStatus: string;
     dossierId: string;
@@ -169,7 +174,7 @@ export function getFolderRevokeBlockReason(input: {
         return "Dossier is assigned to another group";
     }
 
-    if (input.dossierStatus !== DossierStatus.READY_FOR_ENTRY) {
+    if (!REVOCABLE_DOSSIER_STATUSES.has(input.dossierStatus)) {
         return "Dossier has already started or completed processing";
     }
 

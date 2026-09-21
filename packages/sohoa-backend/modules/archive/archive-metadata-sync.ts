@@ -79,7 +79,7 @@ export async function resolveFondIdFromMetadataValue(
         .select({ id: fonds.id })
         .from(fonds)
         .where(and(
-            eq(fonds.id, trimmed),
+            sql`lower(${fonds.id}) = lower(${trimmed})`,
             eq(fonds.isActive, true),
             isNull(fonds.deletedAt),
         ))

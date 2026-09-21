@@ -10,8 +10,10 @@ import {
     assignByFolderToGroupBodySchema,
     createGroupBodySchema,
     metadataPermissionConfigBodySchema,
+    memberAssignmentsQuerySchema,
     permissionAssignmentsBodySchema,
     revokeByFolderFromGroupBodySchema,
+    revokeByMemberFromGroupBodySchema,
     syncQcWorkflowBodySchema,
     updateGroupBodySchema,
     groupListQuerySchema,
@@ -204,9 +206,28 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
             body: revokeByFolderFromGroupBodySchema,
             detail: {
                 tags,
-                summary: "Revoke group folder assignment for unstarted dossiers",
+                summary: "Revoke group folder assignment for unstarted or in-progress entry dossiers",
                 description:
-                    "Cancels IN_PROGRESS MAKER and CHECKER assignments and clears assignedGroupId for dossiers in the given folders that belong to this group and are still READY_FOR_ENTRY (not yet started). Skips dossiers already in ENTRY_PROCESSING, QC, or APPROVED. Accepts multiple folderIds in one request.",
+                    "Cancels IN_PROGRESS/DRAFT MAKER and CHECKER assignments and clears assignedGroupId for dossiers in the given folders that belong to this group and are still READY_FOR_ENTRY or ENTRY_PROCESSING. ENTRY_PROCESSING dossiers are reset to READY_FOR_ENTRY. Skips dossiers already in QC or APPROVED. Accepts multiple folderIds in one request.",
+            },
+        },
+    );
+
+    app.post(
+        "/:id/revoke-by-member",
+        async ({ params, body, profile }) => {
+            authHelper.checkPermission(profile, Permission.GROUPS_START_WORKFLOW);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
+            return await service.revokeByMember(params.id, body, profile.id);
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }) }),
+            body: revokeByMemberFromGroupBodySchema,
+            detail: {
+                tags,
+                summary: "Revoke all entry assignments for one group editor",
+                description:
+                    "Cancels IN_PROGRESS/DRAFT MAKER assignments for the given editor on dossiers assigned to this group that are still READY_FOR_ENTRY or ENTRY_PROCESSING. ENTRY_PROCESSING dossiers are reset to READY_FOR_ENTRY when no other makers remain. Keeps assignedGroupId so dossiers stay in the group queue. Does not affect other makers on field-split dossiers. Skips dossiers already in QC or APPROVED.",
             },
         },
     );
@@ -325,6 +346,61 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
                 summary: "List queued and active dossiers for a group folder pool",
                 description:
                     "Returns dossiers in the folder subtree with assignedGroupId matching the group: queued (no active group MAKER) and activeByEditor.",
+            },
+        },
+    );
+
+    app.get(
+        "/:id/assigned-dossiers",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.GROUPS_READ);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
+            return await service.getAssignedDossiers(params.id);
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }) }),
+            detail: {
+                tags,
+                summary: "List dossiers assigned to a group with maker editors",
+                description:
+                    "Returns all dossiers with assignedGroupId matching the group. Each dossier includes editors (MAKER assignments excluding TRANSFERRED). Queued dossiers (no maker yet) have an empty editors array.",
+            },
+        },
+    );
+
+    app.get(
+        "/:id/assignment-counts",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.GROUPS_READ);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
+            return await service.getAssignmentCounts(params.id);
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }) }),
+            detail: {
+                tags,
+                summary: "Count active assignments per editor and checker",
+                description:
+                    "Editors: active MAKER assignments (IN_PROGRESS/DRAFT) on dossiers assigned to the group. Checkers: active CHECKER_N assignments (IN_PROGRESS/DRAFT) on dossiers assigned to the group, regardless of dossier status.",
+            },
+        },
+    );
+
+    app.get(
+        "/:id/member-assignments",
+        async ({ params, query, profile }) => {
+            authHelper.checkPermission(profile, Permission.GROUPS_READ);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
+            return await service.getMemberAssignments(params.id, query);
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }) }),
+            query: memberAssignmentsQuerySchema,
+            detail: {
+                tags,
+                summary: "List dossiers assigned to a group member for viewing",
+                description:
+                    "kind=editor returns active MAKER dossiers for that editor. kind=checker&level=N returns dossiers with an active CHECKER_N assignment for that checker, regardless of dossier status.",
             },
         },
     );

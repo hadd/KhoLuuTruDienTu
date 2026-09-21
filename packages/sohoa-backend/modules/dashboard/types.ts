@@ -9,6 +9,8 @@ export const adminChartGranularitySchema = t.Union([
 
 export const adminDashboardQuerySchema = t.Object({
     chartGranularity: t.Optional(adminChartGranularitySchema),
+    dateFrom: t.Optional(t.String()),
+    dateTo: t.Optional(t.String()),
 });
 
 export const editorAccuracySchema = t.Object({
@@ -133,6 +135,7 @@ export const employeeKpiSchema = t.Object({
     userId: t.String(),
     fullName: t.String(),
     role: t.String(),
+    groupId: t.Optional(t.Union([t.String(), t.Null()])),
     groupName: t.Union([t.String(), t.Null()]),
     assignedDossiersCount: t.Number(),
     completedDossiersCount: t.Number(),

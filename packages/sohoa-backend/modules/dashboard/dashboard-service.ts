@@ -1,6 +1,6 @@
 import { httpError } from "@shared/common-lib";
 // Bổ sung: desc, isNotNull, lte
-import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, like, lte, ne, or, sql } from "drizzle-orm";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import { db } from "../../db/db-conn.ts";
 import { ArchiveDisposalService } from "../archive-disposal/archive-disposal-service.ts";
@@ -295,6 +295,163 @@ async function aggregateQcAssignmentStats(
     return new Map(rows.map((row) => [row.assigneeId, row]));
 }
 
+/** Build admin dashboard group cards with a few batched queries (no per-group N+1). */
+async function buildGroupSummaries(
+    activeGroups: Array<{ id: string; name: string }>,
+) {
+    if (activeGroups.length === 0) {
+        return [];
+    }
+
+    const groupIds = activeGroups.map((group) => group.id);
+
+    const [dossierRows, members] = await Promise.all([
+        db
+            .select({
+                groupId: dossiers.assignedGroupId,
+                totalDossiers: sql<number>`count(*)`.mapWith(Number),
+                approved: sql<number>`coalesce(sum(case when ${dossiers.status} = ${DossierStatus.APPROVED} then 1 else 0 end), 0)`.mapWith(Number),
+            })
+            .from(dossiers)
+            .where(activeDossierWhere(inArray(dossiers.assignedGroupId, groupIds)))
+            .groupBy(dossiers.assignedGroupId),
+        db.query.groupMembers.findMany({
+            where: and(
+                inArray(groupMembers.groupId, groupIds),
+                isNull(groupMembers.expiredAt),
+            ),
+            columns: {
+                groupId: true,
+                userId: true,
+                role: true,
+            },
+        }),
+    ]);
+
+    const dossierByGroup = new Map(
+        dossierRows
+            .filter((row) => row.groupId != null)
+            .map((row) => [row.groupId as string, row]),
+    );
+
+    const membersByGroup = new Map<string, Array<{ userId: string; role: string }>>();
+    for (const member of members) {
+        const list = membersByGroup.get(member.groupId) ?? [];
+        list.push({ userId: member.userId, role: member.role });
+        membersByGroup.set(member.groupId, list);
+    }
+
+    const editorUserIds = [
+        ...new Set(
+            members
+                .filter((member) => member.role === "editor")
+                .map((member) => member.userId),
+        ),
+    ];
+    const qcUserIds = [
+        ...new Set(
+            members
+                .filter((member) => member.role.startsWith("qc"))
+                .map((member) => member.userId),
+        ),
+    ];
+
+    const editorRows = editorUserIds.length === 0
+        ? []
+        : await db
+            .select({
+                groupId: dossiers.assignedGroupId,
+                assigneeId: dossierAssignments.assigneeId,
+                correct: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.workQuality} = ${WorkQuality.CORRECT} then 1 else 0 end), 0)`.mapWith(Number),
+                incorrect: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.workQuality} = ${WorkQuality.INCORRECT} then 1 else 0 end), 0)`.mapWith(Number),
+            })
+            .from(dossierAssignments)
+            .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
+            .where(activeDossierWhere(
+                inArray(dossierAssignments.assigneeId, editorUserIds),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                inArray(dossiers.assignedGroupId, groupIds),
+            ))
+            .groupBy(dossiers.assignedGroupId, dossierAssignments.assigneeId);
+
+    const qcRows = qcUserIds.length === 0
+        ? []
+        : await db
+            .select({
+                groupId: dossiers.assignedGroupId,
+                assigneeId: dossierAssignments.assigneeId,
+                reviewed: sql<number>`count(*)`.mapWith(Number),
+                approved: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then 1 else 0 end), 0)`.mapWith(Number),
+            })
+            .from(dossierAssignments)
+            .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
+            .where(activeDossierWhere(
+                inArray(dossierAssignments.assigneeId, qcUserIds),
+                inArray(dossierAssignments.role, CHECKER_ROLES),
+                inArray(dossierAssignments.status, [
+                    AssignmentStatus.COMPLETED,
+                    AssignmentStatus.REJECTED,
+                ]),
+                inArray(dossiers.assignedGroupId, groupIds),
+            ))
+            .groupBy(dossiers.assignedGroupId, dossierAssignments.assigneeId);
+
+    const editorRateByGroupUser = new Map<string, number>();
+    for (const row of editorRows) {
+        if (!row.groupId) continue;
+        editorRateByGroupUser.set(
+            `${row.groupId}:${row.assigneeId}`,
+            calcRate(row.correct, row.correct + row.incorrect),
+        );
+    }
+
+    const qcRateByGroupUser = new Map<string, number>();
+    for (const row of qcRows) {
+        if (!row.groupId) continue;
+        qcRateByGroupUser.set(
+            `${row.groupId}:${row.assigneeId}`,
+            calcRate(row.approved, row.reviewed),
+        );
+    }
+
+    return activeGroups.map((group) => {
+        const dossierSummary = dossierByGroup.get(group.id);
+        const groupMembersList = membersByGroup.get(group.id) ?? [];
+        const editorMembers = groupMembersList.filter((member) => member.role === "editor");
+        const qcMemberUserIds = groupMembersList
+            .filter((member) => member.role.startsWith("qc"))
+            .map((member) => member.userId);
+
+        const editorRates = editorMembers.map((member) =>
+            editorRateByGroupUser.get(`${group.id}:${member.userId}`) ?? 0
+        );
+        const qcRates = qcMemberUserIds.map((userId) =>
+            qcRateByGroupUser.get(`${group.id}:${userId}`) ?? 0
+        );
+
+        const avgEditorCorrectRate = editorRates.length > 0
+            ? Math.round((editorRates.reduce((sum, rate) => sum + rate, 0) / editorRates.length) * 100) / 100
+            : 0;
+        const avgQcApprovalRate = qcRates.length > 0
+            ? Math.round((qcRates.reduce((sum, rate) => sum + rate, 0) / qcRates.length) * 100) / 100
+            : 0;
+
+        const totalGroupDossiers = dossierSummary?.totalDossiers ?? 0;
+        const approvedGroupDossiers = dossierSummary?.approved ?? 0;
+
+        return {
+            groupId: group.id,
+            groupName: group.name,
+            totalDossiers: totalGroupDossiers,
+            approved: approvedGroupDossiers,
+            progressRate: calcRate(approvedGroupDossiers, totalGroupDossiers),
+            editorCount: editorMembers.length,
+            avgEditorCorrectRate,
+            avgQcApprovalRate,
+        };
+    });
+}
+
 export const DashboardService = {
     async getEditorStats(userId: string) {
         const [summary] = await db
@@ -504,7 +661,7 @@ export const DashboardService = {
                     like(dossierFiles.fileName, "%.pdf"),
                     eq(dossierFiles.pageCount, 1),
                 ),
-                limit: 50,
+                limit: 20,
             });
 
             for (const file of uncountedPdfFiles) {
@@ -521,8 +678,14 @@ export const DashboardService = {
         }
     },
 
-    async aggregateEmployeeKpis(projectCodes?: string[], includeUnassigned: boolean = false) {
-        await this.syncExistingPdfPageCounts();
+    async aggregateEmployeeKpis(
+        projectCodes?: string[],
+        includeUnassigned: boolean = false,
+        dateFrom?: string | Date,
+        dateTo?: string | Date,
+    ) {
+        // Never block dashboard/API on MinIO page-count sync (can take >30s on remote storage).
+        void this.syncExistingPdfPageCounts();
         const activeUsers = await db.query.userProfiles.findMany({
             where: and(
                 eq(userProfiles.active, true),
@@ -538,12 +701,21 @@ export const DashboardService = {
                     columns: {
                         roleId: true,
                     },
+                    with: {
+                        role: {
+                            columns: {
+                                id: true,
+                                name: true,
+                            },
+                        },
+                    },
                 },
                 groupMembers: {
                     where: isNull(groupMembers.expiredAt),
                     with: {
                         group: {
                             columns: {
+                                id: true,
                                 name: true,
                             },
                         },
@@ -566,6 +738,28 @@ export const DashboardService = {
             .from(dossierFiles)
             .groupBy(dossierFiles.dossierId)
             .as("dossier_file_counts");
+
+        const assignmentConditions = [
+            inArray(dossierAssignments.assigneeId, userIds),
+            ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
+            dossierProjectCondition(projectCodes, includeUnassigned),
+        ];
+
+        if (dateFrom) {
+            const dFrom = typeof dateFrom === "string" ? new Date(dateFrom) : dateFrom;
+            if (!isNaN(dFrom.getTime())) {
+                assignmentConditions.push(gte(dossierAssignments.assignedAt, dFrom));
+            }
+        }
+        if (dateTo) {
+            const dTo = typeof dateTo === "string" ? new Date(dateTo) : dateTo;
+            if (!isNaN(dTo.getTime())) {
+                if (typeof dateTo === "string" && dateTo.length === 10) {
+                    dTo.setHours(23, 59, 59, 999);
+                }
+                assignmentConditions.push(lte(dossierAssignments.assignedAt, dTo));
+            }
+        }
 
         const assignmentStats = await db
             .select({
@@ -590,11 +784,7 @@ export const DashboardService = {
             .from(dossierAssignments)
             .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
             .leftJoin(dossierFileCounts, eq(dossierAssignments.dossierId, dossierFileCounts.dossierId))
-            .where(activeDossierWhere(
-                inArray(dossierAssignments.assigneeId, userIds),
-                ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
-                dossierProjectCondition(projectCodes, includeUnassigned),
-            ))
+            .where(activeDossierWhere(...assignmentConditions))
             .groupBy(dossierAssignments.assigneeId);
 
         const statsMap = new Map(assignmentStats.map((row) => [row.assigneeId, row]));
@@ -619,15 +809,36 @@ export const DashboardService = {
                 qcCompletedPagesCount: 0,
             };
 
-            const roles = user.userRoles?.map((r) => r.roleId) ?? [];
+            const userRolesList = user.userRoles ?? [];
+            const roleIds = userRolesList.map((r) => (r.roleId ?? "").toLowerCase());
+            const roleNames = userRolesList.map((r) => (r.role?.name ?? "").toLowerCase());
+
             let primaryRole = "editor";
-            if (roles.includes("admin") || roles.includes("superadmin")) {
+            if (
+                roleIds.includes("admin") ||
+                roleIds.includes("superadmin") ||
+                roleNames.some((n) => n.includes("quản trị"))
+            ) {
                 primaryRole = "admin";
-            } else if (roles.some((r) => r.startsWith("qc"))) {
+            } else if (
+                roleIds.some((r) => r.startsWith("qc") || r.includes("checker")) ||
+                roleNames.some((n) => n.includes("kiểm duyệt") || n.includes("qc"))
+            ) {
                 primaryRole = "qc";
+            } else if (
+                roleIds.some((r) => r.includes("editor") || r.includes("maker")) ||
+                roleNames.some((n) => n.includes("biên tập"))
+            ) {
+                primaryRole = "editor";
+            } else if (userRolesList.length > 0 && userRolesList[0]?.role?.id) {
+                primaryRole = userRolesList[0].role.id;
+            } else if (userRolesList.length > 0) {
+                primaryRole = userRolesList[0].roleId;
             }
 
-            const groupName = user.groupMembers?.[0]?.group?.name ?? null;
+            const groupObj = user.groupMembers?.[0]?.group;
+            const groupId = groupObj?.id ?? null;
+            const groupName = groupObj?.name ?? null;
 
             const assignedPagesCount = stats.assignedPagesCount;
             const completedPagesCount = stats.completedPagesCount;
@@ -671,6 +882,7 @@ export const DashboardService = {
                 userId: user.id,
                 fullName: user.fullName || "Chưa đặt tên",
                 role: primaryRole,
+                groupId,
                 groupName,
                 assignedDossiersCount: stats.assignedDossiersCount,
                 completedDossiersCount: stats.completedDossiersCount,
@@ -695,12 +907,28 @@ export const DashboardService = {
                 avgProcessingTimeMinutes,
                 kpiStatus,
             };
+        }).filter((item) => {
+            // Ẩn admin tổng / quản trị viên khỏi danh sách KPI nhân sự
+            if (item.role === "admin") {
+                return false;
+            }
+            // Chỉ hiện những người được giao hồ sơ (assignedDossiersCount > 0)
+            const totalAssigned = item.assignedDossiersCount + (item.makerAssignedDossiersCount ?? 0) + (item.qcAssignedDossiersCount ?? 0);
+            if (totalAssigned <= 0 && item.assignedDossiersCount <= 0) {
+                return false;
+            }
+            return true;
         });
     },
 
     async getAdminDashboard(
         chartGranularity: ChartGranularity = "month",
-        options?: { projectCodes?: string[]; includeUnassigned?: boolean },
+        options?: {
+            projectCodes?: string[];
+            includeUnassigned?: boolean;
+            dateFrom?: string | Date;
+            dateTo?: string | Date;
+        },
     ) {
         const projectCodes = options?.projectCodes;
         const includeUnassigned = options?.includeUnassigned ?? false;
@@ -883,82 +1111,14 @@ export const DashboardService = {
             }
         }
 
-        const groupSummaries = await Promise.all(activeGroups.map(async (group) => {
-            const [dossierSummary] = await db
-                .select({
-                    totalDossiers: sql<number>`count(*)`.mapWith(Number),
-                    approved: sql<number>`coalesce(sum(case when ${dossiers.status} = ${DossierStatus.APPROVED} then 1 else 0 end), 0)`.mapWith(Number),
-                })
-                .from(dossiers)
-                .where(activeDossierWhere(
-                    eq(dossiers.assignedGroupId, group.id),
-                ));
+        const groupSummaries = await buildGroupSummaries(activeGroups);
 
-            const members = await db.query.groupMembers.findMany({
-                where: and(
-                    eq(groupMembers.groupId, group.id),
-                    isNull(groupMembers.expiredAt),
-                ),
-                columns: {
-                    userId: true,
-                    role: true,
-                },
-            });
-
-            const editorMembers = members.filter((member) => member.role === "editor");
-            const qcMemberUserIds = members
-                .filter((member) => member.role.startsWith("qc"))
-                .map((member) => member.userId);
-
-            const editorStatsMap = await aggregateEditorAssignmentStats(
-                editorMembers.map((member) => member.userId),
-                group.id,
+            const employeeKpis = await this.aggregateEmployeeKpis(
+                projectCodes,
+                includeUnassigned,
+                options?.dateFrom,
+                options?.dateTo,
             );
-            const qcStatsMap = await aggregateQcAssignmentStats(
-                qcMemberUserIds,
-                CHECKER_ROLES,
-                group.id,
-            );
-
-            const editorRates = editorMembers.map((member) => {
-                const stats = editorStatsMap.get(member.userId);
-                if (!stats) {
-                    return 0;
-                }
-                return calcRate(stats.correct, stats.correct + stats.incorrect);
-            });
-
-            const qcRates = qcMemberUserIds.map((memberId) => {
-                const stats = qcStatsMap.get(memberId);
-                if (!stats) {
-                    return 0;
-                }
-                return calcRate(stats.approved, stats.reviewed);
-            });
-
-            const avgEditorCorrectRate = editorRates.length > 0
-                ? Math.round((editorRates.reduce((sum, rate) => sum + rate, 0) / editorRates.length) * 100) / 100
-                : 0;
-            const avgQcApprovalRate = qcRates.length > 0
-                ? Math.round((qcRates.reduce((sum, rate) => sum + rate, 0) / qcRates.length) * 100) / 100
-                : 0;
-
-            const totalGroupDossiers = dossierSummary?.totalDossiers ?? 0;
-            const approvedGroupDossiers = dossierSummary?.approved ?? 0;
-
-            return {
-                groupId: group.id,
-                groupName: group.name,
-                totalDossiers: totalGroupDossiers,
-                approved: approvedGroupDossiers,
-                progressRate: calcRate(approvedGroupDossiers, totalGroupDossiers),
-                editorCount: editorMembers.length,
-                avgEditorCorrectRate,
-                avgQcApprovalRate,
-            };
-        }));
-
-            const employeeKpis = await this.aggregateEmployeeKpis(projectCodes, includeUnassigned);
 
             return {
                 overview: {

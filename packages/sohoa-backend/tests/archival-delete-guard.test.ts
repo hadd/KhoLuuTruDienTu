@@ -20,6 +20,8 @@ Deno.test("collectDossierStorageKeys excludes aip prefix keys", () => {
 
     assertEquals(keys.has("aip/raw/x/y/ho_so/ho_so-AIP_hoso.zip"), false);
     assertEquals(keys.has("raw/x/y/scan.pdf"), true);
+    assertEquals(keys.has("Export/PDF/x/y/scan.pdf"), true);
+    assertEquals(keys.has("Export/TIFF/x/y/scan.TIFF"), true);
 });
 
 Deno.test("purgeDossierFromMinIO skips protected aip keys via override filter", async () => {

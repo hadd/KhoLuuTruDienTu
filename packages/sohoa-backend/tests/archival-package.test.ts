@@ -5,7 +5,9 @@ import {
     resolveAipObjectKey,
     resolveAipZipFileName,
     resolveDipZipFileName,
+    resolveExportZipRelativePath,
     resolveHoSoId,
+    uniqueZipFolderPath,
 } from "../libs/archival-package/aip-path-utils.ts";
 import { buildAipHosoPackage } from "../libs/archival-package/aip-hoso-builder.ts";
 import { buildDipHosoPackage, buildMultiDipHosoZip } from "../libs/archival-package/dip-hoso-builder.ts";
@@ -144,6 +146,34 @@ Deno.test("buildDipHosoPackage produces zip", async () => {
     assertEquals(result.buffer.length > 50, true);
 });
 
+Deno.test("resolveExportZipRelativePath strips raw prefix and keeps parents", () => {
+    assertEquals(
+        resolveExportZipRelativePath("raw/ProjectA/Batch1/HoSoX", "fallback"),
+        "ProjectA/Batch1/HoSoX",
+    );
+    assertEquals(
+        resolveExportZipRelativePath("raw/Batch1/HoSoX", "fallback"),
+        "Batch1/HoSoX",
+    );
+    assertEquals(resolveExportZipRelativePath("raw", "fallback"), "fallback");
+    assertEquals(
+        resolveExportZipRelativePath("ProjectA/HoSoX", "fallback"),
+        "ProjectA/HoSoX",
+    );
+});
+
+Deno.test("uniqueZipFolderPath keeps nested segments and uniquifies leaf", () => {
+    const used = new Set<string>();
+    assertEquals(
+        uniqueZipFolderPath("ProjectA/Batch1/HoSo", used),
+        "ProjectA/Batch1/HoSo",
+    );
+    assertEquals(
+        uniqueZipFolderPath("ProjectA/Batch1/HoSo", used),
+        "ProjectA/Batch1/HoSo (2)",
+    );
+});
+
 Deno.test("buildMultiDipHosoZip nests each dossier under its hoSoId folder", async () => {
     const pdfData = new TextEncoder().encode("%PDF-1.4 fake");
     const metaA = sampleMetadata();
@@ -163,6 +193,33 @@ Deno.test("buildMultiDipHosoZip nests each dossier under its hoSoId folder", asy
     assertEquals(names.includes("186_CD/documents/b.pdf"), true);
 });
 
+Deno.test("buildMultiDipHosoZip preserves zipFolderPath hierarchy", async () => {
+    const pdfData = new TextEncoder().encode("%PDF-1.4 fake");
+    const metaA = sampleMetadata();
+    const metaB = { ...sampleMetadata(), ho_so_id: "186_CD" };
+    const result = await buildMultiDipHosoZip([
+        {
+            metadata: metaA,
+            hoSoId: "185_CD",
+            zipFolderPath: "ProjectA/Batch1/185_CD",
+            pdfFiles: [{ fileName: "a.pdf", data: pdfData }],
+        },
+        {
+            metadata: metaB,
+            hoSoId: "186_CD",
+            zipFolderPath: "ProjectA/Batch2/186_CD",
+            pdfFiles: [{ fileName: "b.pdf", data: pdfData }],
+        },
+    ]);
+
+    const zip = await JSZip.loadAsync(result.buffer);
+    const names = Object.keys(zip.files).sort();
+    assertEquals(names.includes("ProjectA/Batch1/185_CD/hoso.xml"), true);
+    assertEquals(names.includes("ProjectA/Batch1/185_CD/documents/a.pdf"), true);
+    assertEquals(names.includes("ProjectA/Batch2/186_CD/hoso.xml"), true);
+    assertEquals(names.includes("ProjectA/Batch2/186_CD/documents/b.pdf"), true);
+});
+
 Deno.test("sanitizeMetadataHeaders encodes non-ASCII Vietnamese values to safe ASCII strings", () => {
     const metadata = {
         "package-type": "AIP_hoso",
@@ -178,5 +235,44 @@ Deno.test("sanitizeMetadataHeaders encodes non-ASCII Vietnamese values to safe A
     // Verify all header values contain ONLY valid ASCII characters (0x20 - 0x7E)
     for (const val of Object.values(sanitized)) {
         assertEquals(/^[\x20-\x7E]*$/.test(val), true);
+    }
+});
+
+Deno.test("buildDipExportZipStream streams packages incrementally", {
+    sanitizeOps: false,
+    sanitizeResources: false,
+}, async () => {
+    const { buildDipExportZipStream } = await import(
+        "../libs/archival-package/dip-hoso-builder.ts"
+    );
+    const { readableStreamToUint8Array } = await import("../libs/jszip-stream.ts");
+    const { ZipReader, BlobReader } = await import("@zip.js/zip.js");
+
+    const pdfA = new TextEncoder().encode("%PDF-a");
+    const pdfB = new TextEncoder().encode("%PDF-b");
+    const result = await buildDipExportZipStream([
+        {
+            metadata: sampleMetadata(),
+            pdfFiles: [{ fileName: "a.pdf", data: pdfA }],
+            hoSoId: "HS_A",
+        },
+        {
+            metadata: sampleMetadata(),
+            pdfFiles: [{ fileName: "b.pdf", data: pdfB }],
+            hoSoId: "HS_B",
+        },
+    ]);
+    assertEquals(result.exportedCount, 2);
+    const bytes = await readableStreamToUint8Array(result.stream);
+    const zr = new ZipReader(new BlobReader(new Blob([new Uint8Array(bytes)])));
+    try {
+        const entries = await zr.getEntries();
+        const names = entries.filter((e) => !e.directory).map((e) => e.filename).sort();
+        assertEquals(names.includes("HS_A/hoso.xml"), true);
+        assertEquals(names.includes("HS_A/documents/a.pdf"), true);
+        assertEquals(names.includes("HS_B/hoso.xml"), true);
+        assertEquals(names.includes("HS_B/documents/b.pdf"), true);
+    } finally {
+        await zr.close();
     }
 });

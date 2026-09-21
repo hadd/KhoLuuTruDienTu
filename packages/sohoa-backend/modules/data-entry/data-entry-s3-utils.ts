@@ -1,9 +1,11 @@
 import { AppError, httpError } from "@shared/common-lib";
 import { env } from "../../env.ts";
 import { getS3Client } from "../../libs/s3.ts";
+import { pdfLooksDigitallySigned } from "../../libs/pdf-signature-detect.ts";
 import {
   normalizeStorageKey,
   toSearchablePdfKey,
+  toSignedPdfKey,
 } from "../dossier/dossier-path-utils.ts";
 export {
   buildCuratedMetadataUpdateKey,
@@ -133,6 +135,69 @@ export async function downloadExportPdf(
   }
 
   return await downloadBinaryFromStorage(rawKey);
+}
+
+export type ExportPdfDownloadResult = {
+  data: Uint8Array;
+  preserveSignature: boolean;
+};
+
+async function tryDownloadBinary(
+  objectKey: string,
+): Promise<Uint8Array | null> {
+  try {
+    return await downloadBinaryFromStorage(objectKey);
+  } catch (error) {
+    if (error instanceof AppError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function tryDownloadBinaryFromStorage(
+  objectKey: string,
+): Promise<Uint8Array | null> {
+  return await tryDownloadBinary(objectKey);
+}
+
+/**
+ * Download PDF for export.
+ * Prefer signed/ (DB key or mirrored path), then raw when it embeds a signature;
+ * only then fall back to searchable_pdf. Sets preserveSignature so callers skip
+ * watermark / PDF/A rewrite.
+ */
+export async function downloadExportPdfSource(source: {
+  storageKey: string;
+  downloadKey?: string;
+  preserveSignature?: boolean;
+}): Promise<ExportPdfDownloadResult> {
+  const storageKey = normalizeStorageKey(source.storageKey);
+
+  if (source.preserveSignature || source.downloadKey) {
+    const key = normalizeStorageKey(source.downloadKey ?? storageKey);
+    const data = await downloadBinaryFromStorage(key);
+    return { data, preserveSignature: true };
+  }
+
+  const signedKey = toSignedPdfKey(storageKey);
+  if (signedKey && signedKey !== storageKey) {
+    const signedBytes = await tryDownloadBinary(signedKey);
+    if (signedBytes) {
+      return { data: signedBytes, preserveSignature: true };
+    }
+  }
+
+  const rawBytes = await tryDownloadBinary(storageKey);
+  if (rawBytes && pdfLooksDigitallySigned(rawBytes)) {
+    return { data: rawBytes, preserveSignature: true };
+  }
+
+  const data = await downloadExportPdf(storageKey);
+  if (pdfLooksDigitallySigned(data)) {
+    return { data, preserveSignature: true };
+  }
+  return { data, preserveSignature: false };
 }
 
 export async function downloadJsonFromStorage(

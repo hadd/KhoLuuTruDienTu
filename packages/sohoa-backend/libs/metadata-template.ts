@@ -1,9 +1,10 @@
 import {
-    findMetadataFieldValue,
-    parseDossierMetadata,
     resolveCatalogGroupAliasCodes,
     resolveMetadataGroupCatalogCode,
     TEN_LOAI_TAI_LIEU_FIELD,
+    findMetadataFieldValue,
+    canonicalMetadataFieldName,
+    parseDossierMetadata,
 } from "./metadata-normalize.ts";
 import type { DossierMetadata, MetadataGroup } from "./metadata-types.ts";
 import { normalizeFieldDisplay, normalizeFieldName } from "./metadata-field-filter.ts";
@@ -65,7 +66,7 @@ export function extractFieldCatalog(metadata: DossierMetadata): MetadataFieldCat
         const { groupCode, groupName } = resolveCatalogGroup(group);
 
         for (const field of fields) {
-            const fieldName = normalizeFieldName(field.name);
+            const fieldName = canonicalMetadataFieldName(field.name);
             const key = `${groupCode}.${fieldName}`;
             if (seen.has(key)) {
                 continue;
@@ -82,6 +83,23 @@ export function extractFieldCatalog(metadata: DossierMetadata): MetadataFieldCat
     }
 
     return catalog;
+}
+
+/** Keep stored entries; append live OCR keys that are missing. */
+export function mergeFieldCatalogs(
+    stored: MetadataFieldCatalogEntry[],
+    live: MetadataFieldCatalogEntry[],
+): MetadataFieldCatalogEntry[] {
+    const byKey = new Map<string, MetadataFieldCatalogEntry>();
+    for (const entry of stored) {
+        byKey.set(entry.key, entry);
+    }
+    for (const entry of live) {
+        if (!byKey.has(entry.key)) {
+            byKey.set(entry.key, entry);
+        }
+    }
+    return Array.from(byKey.values());
 }
 
 export function enrichFieldCatalogWithGroupNames(
@@ -137,7 +155,7 @@ export function expandPatternToCatalogKeys(
         );
     }
 
-    const normalizedField = normalizeFieldName(fieldPart);
+    const normalizedField = canonicalMetadataFieldName(fieldPart);
     for (const code of resolveCatalogGroupAliasCodes(groupCode)) {
         const normalized = `${code}.${normalizedField}`;
         if (catalogKeys.includes(normalized)) {

@@ -5,6 +5,7 @@ import {
     extractDossierFileItems,
     isDossierColumn,
     resolveExportColumnValueForFile,
+    type ExportDossierFileInput,
 } from "./metadata-export-field-resolver.ts";
 import { isExportSttColumn } from "./metadata-export-types.ts";
 import type { MetadataExportColumnConfig, MetadataExportConfig } from "./metadata-export-types.ts";
@@ -64,6 +65,10 @@ function applyDataCellStyle(cell: ExcelJS.Cell, options: { isDossierCol: boolean
 
 export interface BuildDynamicMetadataExcelOptions {
     exportConfig?: MetadataExportConfig;
+    /** Parallel to metadataList — dossier PDF files for orphan MUCLUC rows. */
+    dossierFilesList?: Array<ExportDossierFileInput[] | undefined>;
+    /** Parallel to metadataList — dossier folder path (thư mục chứa hồ sơ). */
+    dossierFolderPaths?: Array<string | null | undefined>;
 }
 
 export async function buildDynamicMetadataExcel(
@@ -86,53 +91,53 @@ export async function buildDynamicMetadataExcel(
     writeHeaders(sheet, columns);
 
     let currentRow = FIRST_DATA_ROW;
+    let documentRowNumber = 0;
 
     metadataList.forEach((metadata, dossierIndex) => {
-        const fileItems = extractDossierFileItems(metadata);
-        const fileCount = fileItems.length;
-        const dossierRowCount = Math.max(1, fileCount);
-        const startRow = currentRow;
-        const endRow = startRow + dossierRowCount - 1;
+        const dossierFiles = options.dossierFilesList?.[dossierIndex] ?? [];
+        const dossierFolderPath = options.dossierFolderPaths?.[dossierIndex] ?? null;
+        const fileItems = extractDossierFileItems(metadata, dossierFiles);
+        const closingDocsCount = fileItems.filter((f) => f.kind === "chung_tu_ket_thuc").length;
+        const validDocCount = fileItems.filter((f) => f.kind === "document").length;
+        const dossierRowCount = Math.max(1, fileItems.length);
 
-        columns.forEach((column, colIdx) => {
-            const colNum = colIdx + 1;
-            const isDossierCol = isDossierColumn(column);
+        let dossierDocIndex = 0;
+        for (let k = 0; k < dossierRowCount; k++) {
+            const r = currentRow + k;
+            const fileItem = fileItems[k]!;
+            const kind = fileItem.kind ?? "document";
+            const isExcludedFromStt = kind === "bia" || kind === "mucluc" || kind === "chung_tu_ket_thuc";
+            const rowNumber = isExcludedFromStt
+                ? undefined
+                : ++documentRowNumber;
+            const docIndexInDossier = isExcludedFromStt
+                ? undefined
+                : ++dossierDocIndex;
 
-            if (isDossierCol) {
+            columns.forEach((column, colIdx) => {
+                const colNum = colIdx + 1;
+                const isDossierCol = isDossierColumn(column);
                 const value = resolveExportColumnValueForFile(
                     metadata,
-                    fileItems[0]!,
+                    fileItem,
                     column,
-                    { dossierIndex, fileIndex: 1, fileCount },
+                    {
+                        dossierIndex,
+                        fileIndex: docIndexInDossier ?? k + 1,
+                        fileCount: validDocCount,
+                        validDocCount,
+                        closingDocsCount,
+                        rowNumber,
+                        dossierFolderPath,
+                    },
                 );
-                const cell = sheet.getCell(startRow, colNum);
+                const cell = sheet.getCell(r, colNum);
                 cell.value = value;
-                applyDataCellStyle(cell, { isDossierCol: true });
+                applyDataCellStyle(cell, { isDossierCol });
+            });
+        }
 
-                if (dossierRowCount > 1) {
-                    sheet.mergeCells(startRow, colNum, endRow, colNum);
-                    for (let r = startRow + 1; r <= endRow; r++) {
-                        applyDataCellStyle(sheet.getCell(r, colNum), { isDossierCol: true });
-                    }
-                }
-            } else {
-                for (let k = 0; k < dossierRowCount; k++) {
-                    const r = startRow + k;
-                    const fileItem = fileItems[k]!;
-                    const value = resolveExportColumnValueForFile(
-                        metadata,
-                        fileItem,
-                        column,
-                        { dossierIndex, fileIndex: k + 1, fileCount },
-                    );
-                    const cell = sheet.getCell(r, colNum);
-                    cell.value = value;
-                    applyDataCellStyle(cell, { isDossierCol: false });
-                }
-            }
-        });
-
-        currentRow = endRow + 1;
+        currentRow += dossierRowCount;
     });
 
     columns.forEach((column, index) => {
@@ -162,4 +167,3 @@ export async function buildMultiDossierMetadataExcel(
 export function extractRecordIndex(_fieldName: string): number | null {
     return null;
 }
-

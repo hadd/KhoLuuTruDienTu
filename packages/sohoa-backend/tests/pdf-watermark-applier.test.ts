@@ -226,6 +226,33 @@ Deno.test("applyWatermarkConfigToPdfFiles watermarks every file in batch", async
     assertEquals((await PDFDocument.load(result[1]!.data)).getPageCount(), 2);
 });
 
+Deno.test("applyWatermarkConfigToPdfFiles skips preserveSignature files", async () => {
+    const config = baseConfig({
+        imageEnabled: true,
+        imagePngBytes: makeTinyPng(),
+    });
+    const signedPdf = await makeSamplePdf("Signed");
+    const signedCopy = new Uint8Array(signedPdf);
+
+    const result = await applyWatermarkConfigToPdfFiles(
+        [
+            {
+                fileName: "signed.pdf",
+                data: signedPdf,
+                preserveSignature: true,
+            },
+        ],
+        config,
+    );
+
+    assertEquals(result.length, 1);
+    assertEquals(result[0]!.data, signedPdf);
+    assertEquals(
+        [...result[0]!.data].every((b, i) => b === signedCopy[i]),
+        true,
+    );
+});
+
 Deno.test("applyWatermarkConfigToPdfFiles throws when any PDF fails", async () => {
     const config = baseConfig({
         imageEnabled: true,

@@ -63,6 +63,7 @@ import {
     markAssignmentsIncorrectOnReject,
 } from "../../libs/assignment-work-quality.ts";
 import { generateAndPersistAip } from "../../libs/archival-package/aip-service.ts";
+import { generateAndPersistExportDerivatives } from "../../libs/export-derivatives/generate-export-derivatives.ts";
 import {
     clearDossierDraftState,
     deleteDossierDraftMetadata,
@@ -667,6 +668,9 @@ async function directApproveDossier(
     generateAndPersistAip({ dossierId: dossier.id }).catch((err) => {
         console.error("[AIP] Failed to generate archival package:", err);
     });
+    generateAndPersistExportDerivatives({ dossierId: dossier.id }).catch((err) => {
+        console.error("[ExportDerivatives] Failed to pre-generate PDF/A+TIFF:", err);
+    });
 
     scheduleDossierApprovedNotification({
         dossierId: dossier.id,
@@ -1019,6 +1023,9 @@ async function approveMetadata(input: {
         generateAndPersistAip({ dossierId: dossier.id }).catch((err) => {
             console.error("[AIP] Failed to generate archival package:", err);
         });
+        generateAndPersistExportDerivatives({ dossierId: dossier.id }).catch((err) => {
+            console.error("[ExportDerivatives] Failed to pre-generate PDF/A+TIFF:", err);
+        });
         scheduleDossierApprovedNotification({
             dossierId: dossier.id,
             dossierName: dossier.name,
@@ -1257,7 +1264,11 @@ async function rejectMetadata(input: {
 }
 
 export const DataEntryService = {
-    async getMakerAssignment(assigneeId: string) {
+    async getMakerAssignment(
+        assigneeId: string,
+        options?: { skipDraft?: boolean },
+    ) {
+        const skipDraft = options?.skipDraft === true;
         const claimableStatuses = [
             DossierStatus.ENTRY_PROCESSING,
             DossierStatus.WAITING_ISSUE_RESOLUTION,
@@ -1332,8 +1343,10 @@ export const DataEntryService = {
             return { assignment: row.assignment, dossier: updatedDossier };
         });
 
-        let result = (await findAssignment(AssignmentStatus.IN_PROGRESS))
-            ?? (await findAssignment(AssignmentStatus.DRAFT));
+        let result = await findAssignment(AssignmentStatus.IN_PROGRESS);
+        if (!result && !skipDraft) {
+            result = await findAssignment(AssignmentStatus.DRAFT);
+        }
 
         if (!result) {
             const { reopenTopCompletedMakerAssignmentForClaim } = await import(

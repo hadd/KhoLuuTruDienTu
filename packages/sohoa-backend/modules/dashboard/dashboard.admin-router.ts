@@ -24,6 +24,8 @@ export function createDashboardAdminRouter(basePath: string = "/dashboard") {
             return await service.getAdminDashboard(query.chartGranularity ?? "month", {
                 projectCodes: scope.type === "managed" ? scope.projectCodes : undefined,
                 includeUnassigned,
+                dateFrom: query.dateFrom,
+                dateTo: query.dateTo,
             });
         },
         {

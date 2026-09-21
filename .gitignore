@@ -149,6 +149,7 @@ dist
 # misc
 .DS_Store
 *.pem
+secrets/
 
 # debug
 npm-debug.log*
@@ -170,3 +171,8 @@ vendor
 .env.test
 .coverage-tmp
 packages/sohoa-backend/.env
+
+# AI agent skills & graphify knowledge graph outputs
+.agents/
+graphify-out/
+.graphify*
