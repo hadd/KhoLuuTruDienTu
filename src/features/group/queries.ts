@@ -17,6 +17,7 @@ import {
   getDossiersByAssignGroupId,
   getGroupAssignmentCounts,
   getGroupMemberAssignments,
+  revokeGroupMemberAssignments,
 } from './api/groupClient'
 import {
   getMetadataPermissionConfigs,
@@ -225,6 +226,43 @@ export function useAssignGroupByFolderMutation() {
       void queryClient.invalidateQueries({
         queryKey: ['group', 'member-assignments', variables.groupId],
       })
+    },
+  })
+}
+
+export function useRevokeGroupMemberAssignmentsMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      groupId,
+      userId,
+    }: {
+      groupId: string
+      userId: string
+    }) => revokeGroupMemberAssignments(groupId, { userId }),
+    onSuccess: (data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: assignedGroupDossiersQueryKey(variables.groupId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: groupAssignmentCountsQueryKey(variables.groupId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['group', 'member-assignments', variables.groupId],
+      })
+      toast.success(
+        i18n.t('memberDossiers.revokeAll.success', {
+          ns: 'group',
+          count: data.totalRevoked,
+        }),
+      )
+    },
+    onError: (error: unknown) => {
+      toast.error(
+        translateError(error) ||
+          i18n.t('memberDossiers.revokeAll.error', { ns: 'group' }),
+      )
     },
   })
 }

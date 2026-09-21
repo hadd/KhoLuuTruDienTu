@@ -498,7 +498,8 @@ export function PdfViewer({
     const activeSet = new Set<number>()
     if (!numPages) return activeSet
 
-    const targetCenter = scrollToPage ?? highlight?.page ?? visiblePageNumber ?? 1
+    const targetCenter =
+      scrollToPage ?? highlight?.page ?? visiblePageNumber ?? 1
     const buffer = 3
     const start = Math.max(1, targetCenter - buffer)
     const end = Math.min(numPages, targetCenter + buffer)
@@ -1113,10 +1114,7 @@ export function PdfViewer({
                       pageWrapperRefs.current.delete(pageNumber)
                     }
                   }}
-                  className={cn(
-                    'flex justify-center',
-                    fitEdge ? 'p-0' : 'p-2',
-                  )}
+                  className={cn('flex justify-center', fitEdge ? 'p-0' : 'p-2')}
                 >
                   <div
                     className={cn(
@@ -1144,14 +1142,16 @@ export function PdfViewer({
                               0,
                               Math.min(
                                 100,
-                                ((event.clientX - rect.left) / rect.width) * 100,
+                                ((event.clientX - rect.left) / rect.width) *
+                                  100,
                               ),
                             )
                             const yRatio = Math.max(
                               0,
                               Math.min(
                                 100,
-                                ((event.clientY - rect.top) / rect.height) * 100,
+                                ((event.clientY - rect.top) / rect.height) *
+                                  100,
                               ),
                             )
                             onPageClick({
@@ -1207,7 +1207,8 @@ export function PdfViewer({
                                 if (event.button !== 0) return
                                 event.stopPropagation()
                                 event.preventDefault()
-                                const host = pageCanvasHostRefs.current.get(pageNumber)
+                                const host =
+                                  pageCanvasHostRefs.current.get(pageNumber)
                                 if (!host) return
                                 const rect = host.getBoundingClientRect()
                                 if (rect.width <= 0 || rect.height <= 0) return
@@ -1245,10 +1246,19 @@ export function PdfViewer({
                                   })
                                 }
                                 const handleUp = () => {
-                                  window.removeEventListener('pointermove', handleMove)
-                                  window.removeEventListener('pointerup', handleUp)
+                                  window.removeEventListener(
+                                    'pointermove',
+                                    handleMove,
+                                  )
+                                  window.removeEventListener(
+                                    'pointerup',
+                                    handleUp,
+                                  )
                                 }
-                                window.addEventListener('pointermove', handleMove)
+                                window.addEventListener(
+                                  'pointermove',
+                                  handleMove,
+                                )
                                 window.addEventListener('pointerup', handleUp)
                               }
                             : undefined
@@ -1264,7 +1274,8 @@ export function PdfViewer({
                               if (event.button !== 0) return
                               event.stopPropagation()
                               event.preventDefault()
-                              const host = pageCanvasHostRefs.current.get(pageNumber)
+                              const host =
+                                pageCanvasHostRefs.current.get(pageNumber)
                               if (!host) return
                               const rect = host.getBoundingClientRect()
                               if (rect.width <= 0 || rect.height <= 0) return
@@ -1291,17 +1302,26 @@ export function PdfViewer({
                                   3,
                                   Math.min(
                                     60,
-                                    startHeightPercent + (dy / rect.height) * 100,
+                                    startHeightPercent +
+                                      (dy / rect.height) * 100,
                                   ),
                                 )
                                 onSignaturePlacementResize({
-                                  widthPercent: Math.round(widthPercent * 10) / 10,
-                                  heightPercent: Math.round(heightPercent * 10) / 10,
+                                  widthPercent:
+                                    Math.round(widthPercent * 10) / 10,
+                                  heightPercent:
+                                    Math.round(heightPercent * 10) / 10,
                                 })
                               }
                               const handleUp = () => {
-                                window.removeEventListener('pointermove', handleMove)
-                                window.removeEventListener('pointerup', handleUp)
+                                window.removeEventListener(
+                                  'pointermove',
+                                  handleMove,
+                                )
+                                window.removeEventListener(
+                                  'pointerup',
+                                  handleUp,
+                                )
                               }
                               window.addEventListener('pointermove', handleMove)
                               window.addEventListener('pointerup', handleUp)

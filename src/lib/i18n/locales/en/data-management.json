@@ -415,7 +415,7 @@
     },
     "revokeAssignments": {
       "title": "Revoke assignments",
-      "description": "Are you sure you want to revoke all assignments for this folder?",
+      "description": "Are you sure you want to revoke assignments for this folder? Applies to dossiers ready for entry or currently in entry; dossiers already in QC or approved will be skipped.",
       "submit": "Revoke",
       "success": "Assignments revoked successfully."
     }

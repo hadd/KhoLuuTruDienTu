@@ -385,6 +385,14 @@
     "checkerEmpty": "No dossiers assigned for review",
     "loadFailed": "Failed to load dossiers",
     "retry": "Retry",
-    "count": "{{count}} dossiers"
+    "count": "{{count}} dossiers",
+    "revokeAll": {
+      "button": "Revoke all",
+      "confirmTitle": "Revoke all assignments?",
+      "confirmDescription": "Revoke {{name}}'s assignments for {{count}} dossiers (ready for entry and currently in entry). Dossiers remain in the group for reassignment.",
+      "confirmSubmit": "Revoke",
+      "success": "Revoked {{count}} dossiers.",
+      "error": "Failed to revoke assignments."
+    }
   }
 }

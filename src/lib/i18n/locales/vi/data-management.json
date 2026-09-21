@@ -432,7 +432,7 @@
     },
     "revokeAssignments": {
       "title": "Thu hồi phân công",
-      "description": "Bạn có chắc chắn muốn thu hồi toàn bộ phân công của thư mục này không?",
+      "description": "Bạn có chắc chắn muốn thu hồi phân công của thư mục này không? Áp dụng hồ sơ sẵn sàng nhập liệu và đang nhập liệu; hồ sơ đã sang duyệt/QC sẽ được bỏ qua.",
       "submit": "Thu hồi",
       "success": "Đã thu hồi phân công thành công."
     }

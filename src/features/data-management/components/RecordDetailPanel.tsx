@@ -195,7 +195,9 @@ export function RecordDetailPanel({
     !isDossierMetadataLocked(effectiveDossierStatus) &&
     effectiveDossierStatus !== 'PENDING_ARCHIVE' &&
     effectiveDossierStatus !== 'ARCHIVED'
-  const currentQcStepLevel = getCheckerLevelForDossierStatus(effectiveDossierStatus)
+  const currentQcStepLevel = getCheckerLevelForDossierStatus(
+    effectiveDossierStatus,
+  )
   const currentUserCheckerLevel = resolveCurrentUserCheckerLevel({
     dossierStatus: effectiveDossierStatus,
     userId: currentUser?.id,
@@ -647,9 +649,7 @@ export function RecordDetailPanel({
   )
   const originalPdfUrl = selectedDocument?.fileUrl?.trim() || undefined
   const signedPdfUrl = selectedDocument?.signedFileUrl?.trim() || undefined
-  const canViewSignedPdf = Boolean(
-    selectedDocument?.isSigned && signedPdfUrl,
-  )
+  const canViewSignedPdf = Boolean(selectedDocument?.isSigned && signedPdfUrl)
 
   useEffect(() => {
     setUseOriginalPdfFallback(false)
@@ -660,7 +660,12 @@ export function RecordDetailPanel({
     setPdfCurrentPage(1)
     setPdfScrollToPage(null)
     setPdfNumPages(null)
-  }, [selectedDocument?.id, selectedDocument?.isSigned, ocrPdfUrl, signedPdfUrl])
+  }, [
+    selectedDocument?.id,
+    selectedDocument?.isSigned,
+    ocrPdfUrl,
+    signedPdfUrl,
+  ])
 
   useEffect(() => {
     setPdfCurrentPage(1)
@@ -686,9 +691,9 @@ export function RecordDetailPanel({
 
   const isOcrPdfLayer = Boolean(
     pdfViewMode === 'source' &&
-    activePdfUrl &&
-    ocrPdfUrl &&
-    activePdfUrl === ocrPdfUrl,
+      activePdfUrl &&
+      ocrPdfUrl &&
+      activePdfUrl === ocrPdfUrl,
   )
 
   // Enable text layer for any source PDF (searchable_pdf or raw fallback) so
@@ -811,7 +816,9 @@ export function RecordDetailPanel({
       const toGroup = activeMetadata.metadata_groups[toGroupIndex]
       if (toGroup) {
         stayingIds = new Set(
-          findAllDocumentsForMetadataGroup(toGroup, documents).map((doc) => doc.id),
+          findAllDocumentsForMetadataGroup(toGroup, documents).map(
+            (doc) => doc.id,
+          ),
         )
       }
     }
@@ -993,17 +1000,10 @@ export function RecordDetailPanel({
         documents,
       )
       const groupIndex =
-        matchingGroups[0] ??
-        (selectedGroupIndex >= 0 ? selectedGroupIndex : 0)
+        matchingGroups[0] ?? (selectedGroupIndex >= 0 ? selectedGroupIndex : 0)
       onFocusDocument?.(doc.id, groupIndex)
     },
-    [
-      documents,
-      groups,
-      onFocusDocument,
-      pdfDocs,
-      selectedGroupIndex,
-    ],
+    [documents, groups, onFocusDocument, pdfDocs, selectedGroupIndex],
   )
 
   function handleLinkChange(groupIndex: number, val: string) {
@@ -1038,7 +1038,9 @@ export function RecordDetailPanel({
         file_name = doc.name
         file_path =
           doc.filePath ||
-          (dossierFolderHint ? `raw/${dossierFolderHint}/${doc.name}` : doc.name)
+          (dossierFolderHint
+            ? `raw/${dossierFolderHint}/${doc.name}`
+            : doc.name)
       }
     }
 
@@ -1360,7 +1362,8 @@ export function RecordDetailPanel({
   const isFinalSaving = finalSaveMutation.isPending
 
   function buildFieldRejectMark(groupCode: string, field: DataDocumentFieldT) {
-    if (!isActingAsQc || !canShowSubmitButton || canDirectApprove) return undefined
+    if (!isActingAsQc || !canShowSubmitButton || canDirectApprove)
+      return undefined
 
     const rejectKey = buildRejectFieldKey(groupCode, field.name)
     return {
@@ -1413,14 +1416,13 @@ export function RecordDetailPanel({
 
     return (
       <div className="flex flex-col gap-2">
-        <h3 className="shrink-0 text-sm font-medium text-foreground">{title}</h3>
+        <h3 className="shrink-0 text-sm font-medium text-foreground">
+          {title}
+        </h3>
         <div className="rounded-md border border-border">
           <div className="grid gap-3 p-3">
             {entries.map((entry) =>
-              renderMetadataGroupCard(
-                entry,
-                resolveTitle?.(entry) ?? null,
-              ),
+              renderMetadataGroupCard(entry, resolveTitle?.(entry) ?? null),
             )}
           </div>
         </div>
@@ -1453,8 +1455,8 @@ export function RecordDetailPanel({
       ) : null}
 
       {isEditorRole &&
-        !editorPendingErrorReport &&
-        rejectedErrorReport?.rejectNote?.trim() ? (
+      !editorPendingErrorReport &&
+      rejectedErrorReport?.rejectNote?.trim() ? (
         <EditorErrorReportAlertBanner
           report={rejectedErrorReport}
           alertKey="editorErrorReport.alert.rejected"
@@ -1489,24 +1491,24 @@ export function RecordDetailPanel({
             <>
               {metadataDisplayLayout.hoSoEntry
                 ? renderMetadataGroupsSection(
-                  metadataDisplayLayout.hoSoEntry.group.group_name.trim() ||
-                  t('recordDetail.hoSoMetadataTitle'),
-                  [metadataDisplayLayout.hoSoEntry],
-                )
+                    metadataDisplayLayout.hoSoEntry.group.group_name.trim() ||
+                      t('recordDetail.hoSoMetadataTitle'),
+                    [metadataDisplayLayout.hoSoEntry],
+                  )
                 : null}
               {metadataDisplayLayout.taiLieuEntries.length > 0
                 ? renderMetadataGroupsSection(
-                  metadataDisplayLayout.taiLieuEntries[0]!.group.group_name.trim() ||
-                  t('recordDetail.archivalDocumentsTitle'),
-                  metadataDisplayLayout.taiLieuEntries,
-                  (entry) => getTaiLieuDocumentDisplayTitle(entry.group),
-                )
+                    metadataDisplayLayout.taiLieuEntries[0]!.group.group_name.trim() ||
+                      t('recordDetail.archivalDocumentsTitle'),
+                    metadataDisplayLayout.taiLieuEntries,
+                    (entry) => getTaiLieuDocumentDisplayTitle(entry.group),
+                  )
                 : null}
               {metadataDisplayLayout.legacyEntries.length > 0
                 ? renderMetadataGroupsSection(
-                  t('recordDetail.documentsTitle'),
-                  metadataDisplayLayout.legacyEntries,
-                )
+                    t('recordDetail.documentsTitle'),
+                    metadataDisplayLayout.legacyEntries,
+                  )
                 : null}
             </>
           ) : (
@@ -1522,7 +1524,10 @@ export function RecordDetailPanel({
         </p>
       )}
 
-      {canShowSubmitButton && isActingAsQc && !canDirectApprove && qcReject.isRejectMode ? (
+      {canShowSubmitButton &&
+      isActingAsQc &&
+      !canDirectApprove &&
+      qcReject.isRejectMode ? (
         <QcInlineRejectBar
           selectedCount={qcReject.rejectFieldKeys.size}
           notes={qcReject.rejectNotes}
@@ -1531,10 +1536,7 @@ export function RecordDetailPanel({
           onSubmit={qcReject.submitReject}
           isPending={qcReject.isRejectPending}
         />
-      ) : canShowSubmitButton ||
-        canExport ||
-        canDigitalSign ||
-        isEditorRole ? (
+      ) : canShowSubmitButton || canExport || canDigitalSign || isEditorRole ? (
         <div className="flex shrink-0 justify-end gap-1.5 border-t border-border pt-1.5">
           {isEditorRole ? (
             <Button
@@ -1562,22 +1564,20 @@ export function RecordDetailPanel({
                     toast.error(ready.message, {
                       action: ready.downloadUrl
                         ? {
-                          label: 'Tải Sign Agent',
-                          onClick: () =>
-                            window.open(
-                              ready.downloadUrl ?? SIGN_AGENT_DOWNLOAD_URL,
-                              '_blank',
-                              'noopener,noreferrer',
-                            ),
-                        }
+                            label: 'Tải Sign Agent',
+                            onClick: () =>
+                              window.open(
+                                ready.downloadUrl ?? SIGN_AGENT_DOWNLOAD_URL,
+                                '_blank',
+                                'noopener,noreferrer',
+                              ),
+                          }
                         : undefined,
                     })
                     return
                   }
                   setSignInitialFileId(
-                    selectedDocument?.isSigned
-                      ? selectedDocument.id
-                      : null,
+                    selectedDocument?.isSigned ? selectedDocument.id : null,
                   )
                   setSignDialogOpen(true)
                 })()
@@ -1703,7 +1703,9 @@ export function RecordDetailPanel({
                 value="metadata"
                 className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain data-[state=inactive]:hidden"
               >
-                <div className="flex flex-col gap-3 pb-2">{metadataPanelContent}</div>
+                <div className="flex flex-col gap-3 pb-2">
+                  {metadataPanelContent}
+                </div>
               </TabsContent>
               <TabsContent
                 value="editHistory"
@@ -1723,7 +1725,9 @@ export function RecordDetailPanel({
             </Tabs>
           ) : (
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-              <div className="flex flex-col gap-3 pb-2">{metadataPanelContent}</div>
+              <div className="flex flex-col gap-3 pb-2">
+                {metadataPanelContent}
+              </div>
             </div>
           )}
         </div>
@@ -1782,8 +1786,8 @@ export function RecordDetailPanel({
                       highlight={pdfViewMode === 'source' ? pdfHighlight : null}
                       maskMode={
                         pdfViewMode === 'source' &&
-                          isEditorRole &&
-                          isPdfMaskEnabled
+                        isEditorRole &&
+                        isPdfMaskEnabled
                           ? 'bbox-only'
                           : 'off'
                       }
@@ -1837,7 +1841,9 @@ export function RecordDetailPanel({
                 onVisiblePageChange={setPdfCurrentPage}
                 onNumPagesChange={setPdfNumPages}
                 highlight={pdfHighlight}
-                maskMode={isEditorRole && isPdfMaskEnabled ? 'bbox-only' : 'off'}
+                maskMode={
+                  isEditorRole && isPdfMaskEnabled ? 'bbox-only' : 'off'
+                }
                 revealRegions={pdfRevealRegions}
                 renderTextLayer={shouldRenderTextLayer}
                 renderAnnotationLayer={shouldRenderTextLayer}
