@@ -95,7 +95,9 @@ function normalizeGroup(raw: QcDashboardGroupRawT): QcDashboardGroupT {
 export const getQcDashboard = async (): Promise<QcDashboardT> => {
   const response = await apiClient.get<
     QcDashboardRawT | SingleResourceResponse<QcDashboardRawT>
-  >('/api/v1/dashboard/qc')
+  >('/api/v1/dashboard/qc', {
+    timeout: 90_000,
+  })
 
   return normalizeOverview(unwrapResponse(response.data))
 }
@@ -104,6 +106,7 @@ export const getQcDashboardGroup = async (): Promise<QcDashboardGroupT> => {
   const response = await apiClient.get<
     QcDashboardGroupRawT | SingleResourceResponse<QcDashboardGroupRawT>
   >('/api/v1/dashboard/qc/group', {
+    timeout: 90_000,
     _skipGlobalErrorToast: true,
   })
 

@@ -436,6 +436,7 @@ export const getAdminDashboard = async (params?: {
   const response = await apiClient.get<
     AdminDashboardRawT | SingleResourceResponse<AdminDashboardRawT>
   >('/api/v1/admin/dashboard/', {
+    timeout: 90_000,
     params: {
       ...(params?.dossierTrendGranularity
         ? { granularity: params.dossierTrendGranularity }

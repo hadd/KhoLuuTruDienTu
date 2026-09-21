@@ -4,7 +4,15 @@ import 'react-pdf/dist/Page/TextLayer.css'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 import type { PDFPageProxy } from 'pdfjs-dist/types/src/display/api'
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { Document, Page, pdfjs } from 'react-pdf'
 
@@ -41,6 +49,16 @@ import { cn } from '@/lib/utils/cn'
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 const FALLBACK_WIDTH = 400
+const PAN_DRAG_THRESHOLD_PX = 4
+
+type PdfPanGesture = {
+  pointerId: number
+  startX: number
+  startY: number
+  scrollLeft: number
+  scrollTop: number
+  moved: boolean
+}
 
 export interface PdfFieldHighlight {
   page: number
@@ -87,6 +105,8 @@ interface PdfViewerProps {
   userHighlights?: Array<PdfUserHighlight>
   /** Scroll this page into view when set/changed. */
   scrollToPage?: number | null
+  /** Zoom relative to fit-width (1 = 100%). */
+  scale?: number
   maskMode?: 'off' | 'bbox-only'
   revealRegions?: Array<PdfBboxRevealRegion>
   renderTextLayer?: boolean
@@ -121,6 +141,8 @@ interface PdfViewerProps {
   onSignaturePlacementMove?: (info: { xRatio: number; yRatio: number }) => void
   /** Fired when the most-visible page changes while scrolling. */
   onVisiblePageChange?: (pageNumber: number) => void
+  /** Fired when document page count is known (or cleared on unload/error). */
+  onNumPagesChange?: (numPages: number | null) => void
   /** Enable text-selection capture for highlight/note creation. */
   textSelectMode?: boolean
   onTextSelect?: (info: {
@@ -357,6 +379,7 @@ export function PdfViewer({
   highlight = null,
   userHighlights = [],
   scrollToPage = null,
+  scale = 1,
   maskMode = 'off',
   revealRegions = [],
   renderTextLayer = true,
@@ -368,6 +391,7 @@ export function PdfViewer({
   onSignaturePlacementResize,
   onSignaturePlacementMove,
   onVisiblePageChange,
+  onNumPagesChange,
   textSelectMode = false,
   onTextSelect,
 }: PdfViewerProps) {
@@ -375,7 +399,8 @@ export function PdfViewer({
   const containerRef = useRef<HTMLDivElement>(null)
   const pageWrapperRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const [containerWidth, setContainerWidth] = useState(FALLBACK_WIDTH)
-  const pageWidth = Math.max(containerWidth - (fitEdge ? 0 : 16), 1)
+  const fitWidth = Math.max(containerWidth - (fitEdge ? 0 : 16), 1)
+  const pageWidth = Math.max(fitWidth * Math.max(scale, 0.1), 1)
   const [numPages, setNumPages] = useState<number | null>(null)
   const [documentError, setDocumentError] = useState<Error | null>(null)
   const [pageMetrics, setPageMetrics] = useState<Map<number, PageMetrics>>(
@@ -387,6 +412,9 @@ export function PdfViewer({
     Map<number, number>
   >(() => new Map())
   const [visiblePageNumber, setVisiblePageNumber] = useState<number>(1)
+  const panGestureRef = useRef<PdfPanGesture | null>(null)
+  const suppressContextMenuRef = useRef(false)
+  const [panCursor, setPanCursor] = useState<'grabbing' | null>(null)
 
   const {
     displayUrl,
@@ -430,6 +458,10 @@ export function PdfViewer({
   }, [effectiveFileUrl])
 
   useEffect(() => {
+    onNumPagesChange?.(numPages)
+  }, [numPages, onNumPagesChange])
+
+  useEffect(() => {
     if (!onLoadFailed) return
     if (urlError || documentError) {
       onLoadFailed()
@@ -466,7 +498,8 @@ export function PdfViewer({
     const activeSet = new Set<number>()
     if (!numPages) return activeSet
 
-    const targetCenter = scrollToPage ?? highlight?.page ?? visiblePageNumber ?? 1
+    const targetCenter =
+      scrollToPage ?? highlight?.page ?? visiblePageNumber ?? 1
     const buffer = 3
     const start = Math.max(1, targetCenter - buffer)
     const end = Math.min(numPages, targetCenter + buffer)
@@ -937,6 +970,73 @@ export function PdfViewer({
 
   const errorNode = renderErrorNode('rightPanel.pdfViewer.renderError')
 
+  function handlePanPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 2) return
+    const container = containerRef.current
+    if (!container) return
+    // Do not capture / select-none yet — a plain right-click must keep
+    // text selection so users can copy via context menu or Ctrl+C.
+    const gesture: PdfPanGesture = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      scrollLeft: container.scrollLeft,
+      scrollTop: container.scrollTop,
+      moved: false,
+    }
+    panGestureRef.current = gesture
+
+    const onWindowMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== gesture.pointerId) return
+      const host = containerRef.current
+      if (!host) return
+      const dx = ev.clientX - gesture.startX
+      const dy = ev.clientY - gesture.startY
+      if (!gesture.moved) {
+        if (Math.hypot(dx, dy) < PAN_DRAG_THRESHOLD_PX) return
+        gesture.moved = true
+        if (!host.hasPointerCapture(ev.pointerId)) {
+          try {
+            host.setPointerCapture(ev.pointerId)
+          } catch {
+            // Capture may fail if the pointer was already released.
+          }
+        }
+        setPanCursor('grabbing')
+      }
+      host.scrollLeft = gesture.scrollLeft - dx
+      host.scrollTop = gesture.scrollTop - dy
+    }
+
+    const onWindowEnd = (ev: PointerEvent) => {
+      if (ev.pointerId !== gesture.pointerId) return
+      window.removeEventListener('pointermove', onWindowMove)
+      window.removeEventListener('pointerup', onWindowEnd)
+      window.removeEventListener('pointercancel', onWindowEnd)
+      if (gesture.moved) suppressContextMenuRef.current = true
+      if (panGestureRef.current?.pointerId === gesture.pointerId) {
+        panGestureRef.current = null
+      }
+      setPanCursor(null)
+      const host = containerRef.current
+      if (host?.hasPointerCapture(ev.pointerId)) {
+        host.releasePointerCapture(ev.pointerId)
+      }
+    }
+
+    window.addEventListener('pointermove', onWindowMove)
+    window.addEventListener('pointerup', onWindowEnd)
+    window.addEventListener('pointercancel', onWindowEnd)
+  }
+
+  function handlePanContextMenu(event: ReactMouseEvent<HTMLDivElement>) {
+    const dragged =
+      suppressContextMenuRef.current || panGestureRef.current?.moved === true
+    if (!dragged) return
+    event.preventDefault()
+    suppressContextMenuRef.current = false
+  }
+
   return (
     <div
       className={cn('flex w-full min-w-0 flex-col', className)}
@@ -944,9 +1044,13 @@ export function PdfViewer({
     >
       <div
         ref={containerRef}
+        onPointerDown={handlePanPointerDown}
+        onContextMenu={handlePanContextMenu}
         className={cn(
-          'flex-1 min-h-0 min-w-0 w-full overflow-y-auto overflow-x-hidden rounded-lg bg-background',
+          'flex-1 min-h-0 min-w-0 w-full overflow-y-auto rounded-lg bg-background',
+          scale > 1 ? 'overflow-x-auto' : 'overflow-x-hidden',
           showBorder && 'border border-border',
+          panCursor === 'grabbing' && 'cursor-grabbing select-none',
         )}
       >
         <Document
@@ -1010,10 +1114,7 @@ export function PdfViewer({
                       pageWrapperRefs.current.delete(pageNumber)
                     }
                   }}
-                  className={cn(
-                    'flex justify-center',
-                    fitEdge ? 'p-0' : 'p-2',
-                  )}
+                  className={cn('flex justify-center', fitEdge ? 'p-0' : 'p-2')}
                 >
                   <div
                     className={cn(
@@ -1041,14 +1142,16 @@ export function PdfViewer({
                               0,
                               Math.min(
                                 100,
-                                ((event.clientX - rect.left) / rect.width) * 100,
+                                ((event.clientX - rect.left) / rect.width) *
+                                  100,
                               ),
                             )
                             const yRatio = Math.max(
                               0,
                               Math.min(
                                 100,
-                                ((event.clientY - rect.top) / rect.height) * 100,
+                                ((event.clientY - rect.top) / rect.height) *
+                                  100,
                               ),
                             )
                             onPageClick({
@@ -1101,9 +1204,11 @@ export function PdfViewer({
                         onPointerDown={
                           onSignaturePlacementMove
                             ? (event) => {
+                                if (event.button !== 0) return
                                 event.stopPropagation()
                                 event.preventDefault()
-                                const host = pageCanvasHostRefs.current.get(pageNumber)
+                                const host =
+                                  pageCanvasHostRefs.current.get(pageNumber)
                                 if (!host) return
                                 const rect = host.getBoundingClientRect()
                                 if (rect.width <= 0 || rect.height <= 0) return
@@ -1141,10 +1246,19 @@ export function PdfViewer({
                                   })
                                 }
                                 const handleUp = () => {
-                                  window.removeEventListener('pointermove', handleMove)
-                                  window.removeEventListener('pointerup', handleUp)
+                                  window.removeEventListener(
+                                    'pointermove',
+                                    handleMove,
+                                  )
+                                  window.removeEventListener(
+                                    'pointerup',
+                                    handleUp,
+                                  )
                                 }
-                                window.addEventListener('pointermove', handleMove)
+                                window.addEventListener(
+                                  'pointermove',
+                                  handleMove,
+                                )
                                 window.addEventListener('pointerup', handleUp)
                               }
                             : undefined
@@ -1157,9 +1271,11 @@ export function PdfViewer({
                           <div
                             className="pointer-events-auto absolute -bottom-1.5 -right-1.5 size-3.5 cursor-nwse-resize rounded-sm border border-gray-700 bg-white shadow"
                             onPointerDown={(event) => {
+                              if (event.button !== 0) return
                               event.stopPropagation()
                               event.preventDefault()
-                              const host = pageCanvasHostRefs.current.get(pageNumber)
+                              const host =
+                                pageCanvasHostRefs.current.get(pageNumber)
                               if (!host) return
                               const rect = host.getBoundingClientRect()
                               if (rect.width <= 0 || rect.height <= 0) return
@@ -1186,17 +1302,26 @@ export function PdfViewer({
                                   3,
                                   Math.min(
                                     60,
-                                    startHeightPercent + (dy / rect.height) * 100,
+                                    startHeightPercent +
+                                      (dy / rect.height) * 100,
                                   ),
                                 )
                                 onSignaturePlacementResize({
-                                  widthPercent: Math.round(widthPercent * 10) / 10,
-                                  heightPercent: Math.round(heightPercent * 10) / 10,
+                                  widthPercent:
+                                    Math.round(widthPercent * 10) / 10,
+                                  heightPercent:
+                                    Math.round(heightPercent * 10) / 10,
                                 })
                               }
                               const handleUp = () => {
-                                window.removeEventListener('pointermove', handleMove)
-                                window.removeEventListener('pointerup', handleUp)
+                                window.removeEventListener(
+                                  'pointermove',
+                                  handleMove,
+                                )
+                                window.removeEventListener(
+                                  'pointerup',
+                                  handleUp,
+                                )
                               }
                               window.addEventListener('pointermove', handleMove)
                               window.addEventListener('pointerup', handleUp)

@@ -86,6 +86,33 @@ export const assignGroupByFolder = async (
   return response.data
 }
 
+export type RevokeGroupMemberAssignmentsPayloadT = {
+  userId: string
+}
+
+export type RevokeGroupMemberAssignmentsResponseT = {
+  group: { id: string; name: string }
+  userId: string
+  totalTargeted: number
+  totalRevoked: number
+  totalSkipped: number
+  revokedDossierIds: Array<string>
+  assignmentsCancelled: number
+  skipped: Array<{ dossierId: string; folderId: string; reason: string }>
+}
+
+/** POST /api/v1/admin/groups/:id/revoke-by-member */
+export const revokeGroupMemberAssignments = async (
+  groupId: string,
+  payload: RevokeGroupMemberAssignmentsPayloadT,
+): Promise<RevokeGroupMemberAssignmentsResponseT> => {
+  const response = await apiClient.post<RevokeGroupMemberAssignmentsResponseT>(
+    `/api/v1/admin/groups/${encodeURIComponent(groupId)}/revoke-by-member`,
+    payload,
+  )
+  return response.data
+}
+
 export const deleteAdminGroup = async (groupId: string): Promise<void> => {
   await apiClient.delete(`/api/v1/admin/groups/${encodeURIComponent(groupId)}`)
 }

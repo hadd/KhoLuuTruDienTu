@@ -2,14 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { activeArchiveFondsQueryOptions } from '@/features/archive-fond/queries'
+import { MetadataSearchableSelect } from '@/features/data-management/components/MetadataSearchableSelect'
 import { cn } from '@/lib/utils/cn'
 
 function resolveFondOptionValue(
@@ -79,6 +73,15 @@ export function MetadataFondFieldSelect({
     [options, value],
   )
 
+  const searchableOptions = useMemo(
+    () =>
+      options.map((fond) => ({
+        value: fond.id,
+        label: fond.fondName,
+      })),
+    [options],
+  )
+
   if (disabled && !readOnlyInherited) {
     return (
       <p className={cn('text-sm text-foreground', className)}>
@@ -97,42 +100,39 @@ export function MetadataFondFieldSelect({
         ? t('recordDetail.fondEmpty')
         : t('recordDetail.fondSelectPlaceholder')
 
+  const displayLabel =
+    selectedValue.trim() && !fondsQuery.isPending
+      ? resolveFondDisplayLabel(value, options)
+      : undefined
+
   return (
-    <Select
-      value={selectedValue || undefined}
-      onValueChange={(next) => onValueChange?.(next)}
-      disabled={
-        disabled ||
-        readOnlyInherited ||
-        fondsQuery.isPending ||
-        fondsQuery.isError ||
-        options.length === 0
+    <div
+      title={
+        readOnlyInherited
+          ? 'Phông lưu trữ được tự động áp dụng từ cấp Hồ sơ'
+          : undefined
       }
+      className={cn(readOnlyInherited && 'cursor-not-allowed opacity-90')}
     >
-      <SelectTrigger
-        className={cn(
-          'w-full',
-          readOnlyInherited && 'cursor-not-allowed bg-muted/50 opacity-90',
-          className,
-        )}
-        title={
-          readOnlyInherited
-            ? 'Phông lưu trữ được tự động áp dụng từ cấp Hồ sơ'
-            : undefined
+      <MetadataSearchableSelect
+        options={searchableOptions}
+        value={selectedValue}
+        onValueChange={(next) => onValueChange?.(next)}
+        placeholder={placeholder}
+        searchPlaceholder={t('recordDetail.fondSearchPlaceholder')}
+        emptyText={t('recordDetail.fondEmpty')}
+        noResultsText={t('recordDetail.searchNoResults')}
+        disabled={
+          disabled ||
+          readOnlyInherited ||
+          fondsQuery.isPending ||
+          fondsQuery.isError ||
+          options.length === 0
         }
-      >
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((fond) => (
-          <SelectItem key={fond.id} value={fond.id}>
-            <span>{fond.fondName}</span>
-            <span className="ml-1.5 text-xs text-muted-foreground font-mono">
-              ({fond.id})
-            </span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+        className={cn(readOnlyInherited && 'bg-muted/50 cursor-not-allowed', className)}
+        displayLabel={displayLabel === '—' ? undefined : displayLabel}
+      />
+    </div>
   )
 }
+

@@ -371,7 +371,9 @@
     "retry": "Thử lại",
     "count": "{{count}} hồ sơ",
     "assignedTo": "Gán cho: {{name}}",
-    "unassigned": "Chưa gán người"
+    "assignedToLabel": "Gán cho:",
+    "unassigned": "Chưa gán người",
+    "noSearchResults": "Không tìm thấy hồ sơ khớp tìm kiếm"
   },
   "memberDossiers": {
     "editorTitle": "Hồ sơ đã phân công — {{name}}",
@@ -383,6 +385,14 @@
     "checkerEmpty": "Chưa có hồ sơ nào được phân công duyệt",
     "loadFailed": "Không thể tải danh sách hồ sơ",
     "retry": "Thử lại",
-    "count": "{{count}} hồ sơ"
+    "count": "{{count}} hồ sơ",
+    "revokeAll": {
+      "button": "Thu hồi tất cả",
+      "confirmTitle": "Thu hồi toàn bộ phân công?",
+      "confirmDescription": "Thu hồi phân công của {{name}} cho {{count}} hồ sơ (sẵn sàng nhập liệu và đang nhập liệu). Hồ sơ vẫn thuộc nhóm để phân công lại.",
+      "confirmSubmit": "Thu hồi",
+      "success": "Đã thu hồi {{count}} hồ sơ.",
+      "error": "Không thể thu hồi phân công."
+    }
   }
 }
