@@ -19,7 +19,6 @@ import {
   HO_SO_LUU_TRU_GROUP_CODE,
   isAccessLevelMetadataField,
   isFondMetadataField,
-  isHoSoFondMetadataField,
   isHoSoRetentionMetadataField,
   resolveEffectiveFieldType,
 } from '@/features/data-management/lib/metadataNormalize'
@@ -262,12 +261,6 @@ export function RecordMetadataGroupCard({
             const isFileFondField =
               isFondField && group.group_code !== HO_SO_LUU_TRU_GROUP_CODE
 
-            const syncAttrs = {
-              'data-field-sync': true,
-              'data-group-index': groupIndex,
-              'data-field-index': fieldIndex,
-            } as const
-
             if (isFondField) {
               return (
                 <MetadataFondFieldRow
@@ -414,32 +407,13 @@ export function RecordMetadataGroupCard({
                   } else {
                     fieldInputRefs.current?.delete(refKey)
                   }
-                  onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
-                  isHighlighted={highlightedFieldKey === fieldKey}
-                  index={fieldIndex}
-                  idPrefix={`record-metadata-${groupIndex}`}
-                  disabled={!canEditFields || isSaving}
-                  onKeyDown={(event, _index, isTextArea) =>
-                    onFieldKeyDown(event, groupIndex, fieldIndex, isTextArea)
-                  }
-                  fieldRef={(element) => {
-                    const refKey = `${groupIndex}-${fieldIndex}`
-                    if (
-                      element instanceof HTMLInputElement ||
-                      element instanceof HTMLTextAreaElement
-                    ) {
-                      fieldInputRefs.current?.set(refKey, element)
-                    } else {
-                      fieldInputRefs.current?.delete(refKey)
-                    }
-                  }}
-                  rejectMark={buildFieldRejectMark(group.group_code, field)}
-                  isQcRejectedHighlight={isEditorRejectHighlighted(
-                    group.group_code,
-                    field.name,
-                  )}
-                />
-              </div>
+                }}
+                rejectMark={buildFieldRejectMark(group.group_code, field)}
+                isQcRejectedHighlight={isEditorRejectHighlighted(
+                  group.group_code,
+                  field.name,
+                )}
+              />
             )
           })
         ) : (
