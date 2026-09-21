@@ -67,13 +67,19 @@ function startOfWeek(): Date {
     return new Date(today.getTime() - diff * 24 * 60 * 60 * 1000);
 }
 
-type ChartGranularity = "day" | "month" | "year";
+type ChartGranularity = "day" | "month" | "quarter" | "year";
 
 const CHART_RANGE_LENGTH: Record<ChartGranularity, number> = {
     day: 30,
     month: 12,
+    quarter: 8,
     year: 5,
 };
+
+function startOfQuarter(date: Date): Date {
+    const quarterStartMonth = Math.floor(date.getMonth() / 3) * 3;
+    return new Date(date.getFullYear(), quarterStartMonth, 1);
+}
 
 function startOfChartRange(granularity: ChartGranularity): Date {
     const now = startOfToday();
@@ -83,7 +89,29 @@ function startOfChartRange(granularity: ChartGranularity): Date {
     if (granularity === "month") {
         return new Date(now.getFullYear(), now.getMonth() - (CHART_RANGE_LENGTH.month - 1), 1);
     }
+    if (granularity === "quarter") {
+        const currentQuarterStart = startOfQuarter(now);
+        return new Date(
+            currentQuarterStart.getFullYear(),
+            currentQuarterStart.getMonth() - (CHART_RANGE_LENGTH.quarter - 1) * 3,
+            1,
+        );
+    }
     return new Date(now.getFullYear() - (CHART_RANGE_LENGTH.year - 1), 0, 1);
+}
+
+function parseOptionalDate(value?: string | Date, endOfDay = false): Date | undefined {
+    if (!value) {
+        return undefined;
+    }
+    const date = typeof value === "string" ? new Date(value) : value;
+    if (Number.isNaN(date.getTime())) {
+        return undefined;
+    }
+    if (endOfDay && typeof value === "string" && value.length === 10) {
+        date.setHours(23, 59, 59, 999);
+    }
+    return date;
 }
 
 function formatChartPeriod(date: Date, granularity: ChartGranularity): string {
@@ -92,6 +120,10 @@ function formatChartPeriod(date: Date, granularity: ChartGranularity): string {
     const day = String(date.getDate()).padStart(2, "0");
     if (granularity === "year") {
         return String(year);
+    }
+    if (granularity === "quarter") {
+        const quarter = Math.floor(date.getMonth() / 3) + 1;
+        return `${year}-Q${quarter}`;
     }
     if (granularity === "month") {
         return `${year}-${month}`;
@@ -102,6 +134,9 @@ function formatChartPeriod(date: Date, granularity: ChartGranularity): string {
 function advanceChartPeriod(date: Date, granularity: ChartGranularity): Date {
     if (granularity === "year") {
         return new Date(date.getFullYear() + 1, 0, 1);
+    }
+    if (granularity === "quarter") {
+        return new Date(date.getFullYear(), date.getMonth() + 3, 1);
     }
     if (granularity === "month") {
         return new Date(date.getFullYear(), date.getMonth() + 1, 1);
@@ -144,19 +179,122 @@ function scopedDossierCondition(projectCodes?: string[], includeUnassigned: bool
     return activeDossierWhere(cond);
 }
 
+const UNENTERED_STATUSES = [
+    DossierStatus.NEW,
+    DossierStatus.OCR_PROCESSING,
+    DossierStatus.OCR_FAILED,
+    DossierStatus.READY_FOR_ENTRY,
+] as const;
+
+const ERROR_STATUSES = [
+    DossierStatus.ERROR,
+    DossierStatus.WAITING_ISSUE_RESOLUTION,
+] as const;
+
+type WorkloadVolume = { dossiers: number; files: number; pages: number };
+
+async function aggregateWorkloadStats(
+    projectCodes?: string[],
+    includeUnassigned: boolean = false,
+) {
+    const scope = scopedDossierCondition(projectCodes, includeUnassigned);
+
+    const activeAssignmentExists = sql`exists (
+        select 1 from ${dossierAssignments}
+        where ${dossierAssignments.dossierId} = ${dossiers.id}
+          and ${dossierAssignments.status} <> ${AssignmentStatus.TRANSFERRED}
+    )`;
+
+    const isUnentered = inArray(dossiers.status, [...UNENTERED_STATUSES]);
+    const isError = inArray(dossiers.status, [...ERROR_STATUSES]);
+    const isCompleted = eq(dossiers.status, DossierStatus.APPROVED);
+
+    const [row] = await db
+        .select({
+            totalDossiers: sql<number>`count(distinct ${dossiers.id})`.mapWith(Number),
+            totalFiles: sql<number>`count(${dossierFiles.id})`.mapWith(Number),
+            totalPages: sql<number>`coalesce(sum(coalesce(${dossierFiles.pageCount}, 1)), 0)`.mapWith(Number),
+            unenteredDossiers: sql<number>`count(distinct case when ${isUnentered} then ${dossiers.id} end)`.mapWith(Number),
+            unenteredFiles: sql<number>`count(case when ${isUnentered} then ${dossierFiles.id} end)`.mapWith(Number),
+            unenteredPages: sql<number>`coalesce(sum(case when ${isUnentered} then coalesce(${dossierFiles.pageCount}, 1) else 0 end), 0)`.mapWith(Number),
+            unassignedDossiers: sql<number>`count(distinct case when not ${activeAssignmentExists} then ${dossiers.id} end)`.mapWith(Number),
+            unassignedFiles: sql<number>`count(case when not ${activeAssignmentExists} then ${dossierFiles.id} end)`.mapWith(Number),
+            unassignedPages: sql<number>`coalesce(sum(case when not ${activeAssignmentExists} then coalesce(${dossierFiles.pageCount}, 1) else 0 end), 0)`.mapWith(Number),
+            completedDossiers: sql<number>`count(distinct case when ${isCompleted} then ${dossiers.id} end)`.mapWith(Number),
+            completedFiles: sql<number>`count(case when ${isCompleted} then ${dossierFiles.id} end)`.mapWith(Number),
+            completedPages: sql<number>`coalesce(sum(case when ${isCompleted} then coalesce(${dossierFiles.pageCount}, 1) else 0 end), 0)`.mapWith(Number),
+            errorDossiers: sql<number>`count(distinct case when ${isError} then ${dossiers.id} end)`.mapWith(Number),
+            errorFiles: sql<number>`count(case when ${isError} then ${dossierFiles.id} end)`.mapWith(Number),
+            errorPages: sql<number>`coalesce(sum(case when ${isError} then coalesce(${dossierFiles.pageCount}, 1) else 0 end), 0)`.mapWith(Number),
+        })
+        .from(dossiers)
+        .leftJoin(dossierFiles, eq(dossierFiles.dossierId, dossiers.id))
+        .where(scope);
+
+    return {
+        total: {
+            dossiers: row?.totalDossiers ?? 0,
+            files: row?.totalFiles ?? 0,
+            pages: row?.totalPages ?? 0,
+        },
+        unentered: {
+            dossiers: row?.unenteredDossiers ?? 0,
+            files: row?.unenteredFiles ?? 0,
+            pages: row?.unenteredPages ?? 0,
+        },
+        unassigned: {
+            dossiers: row?.unassignedDossiers ?? 0,
+            files: row?.unassignedFiles ?? 0,
+            pages: row?.unassignedPages ?? 0,
+        },
+        completed: {
+            dossiers: row?.completedDossiers ?? 0,
+            files: row?.completedFiles ?? 0,
+            pages: row?.completedPages ?? 0,
+        },
+        error: {
+            dossiers: row?.errorDossiers ?? 0,
+            files: row?.errorFiles ?? 0,
+            pages: row?.errorPages ?? 0,
+        },
+    } satisfies Record<string, WorkloadVolume>;
+}
+
 async function aggregateDossierChart(
     granularity: ChartGranularity,
     projectCodes?: string[],
     includeUnassigned: boolean = false,
+    dateFrom?: string | Date,
+    dateTo?: string | Date,
 ) {
-    const rangeStart = startOfChartRange(granularity);
-    const rangeEnd = startOfToday();
+    const parsedFrom = parseOptionalDate(dateFrom);
+    const parsedTo = parseOptionalDate(dateTo, true);
+    const rangeStart = parsedFrom
+        ? (granularity === "quarter"
+            ? startOfQuarter(parsedFrom)
+            : granularity === "month"
+                ? new Date(parsedFrom.getFullYear(), parsedFrom.getMonth(), 1)
+                : granularity === "year"
+                    ? new Date(parsedFrom.getFullYear(), 0, 1)
+                    : new Date(parsedFrom.getFullYear(), parsedFrom.getMonth(), parsedFrom.getDate()))
+        : startOfChartRange(granularity);
+    const rangeEnd = parsedTo ?? startOfToday();
 
     const periodBucket = granularity === "day"
         ? sql`date_trunc('day', ${workflowLogs.createdAt})`
         : granularity === "month"
             ? sql`date_trunc('month', ${workflowLogs.createdAt})`
-            : sql`date_trunc('year', ${workflowLogs.createdAt})`;
+            : granularity === "quarter"
+                ? sql`date_trunc('quarter', ${workflowLogs.createdAt})`
+                : sql`date_trunc('year', ${workflowLogs.createdAt})`;
+
+    const chartConditions = [
+        scopedDossierCondition(projectCodes, includeUnassigned),
+        gte(workflowLogs.createdAt, rangeStart),
+    ];
+    if (parsedTo) {
+        chartConditions.push(lte(workflowLogs.createdAt, parsedTo));
+    }
 
     const rows = await db
         .select({
@@ -166,10 +304,7 @@ async function aggregateDossierChart(
         })
         .from(workflowLogs)
         .innerJoin(dossiers, eq(workflowLogs.dossierId, dossiers.id))
-        .where(and(
-            scopedDossierCondition(projectCodes, includeUnassigned),
-            gte(workflowLogs.createdAt, rangeStart),
-        ))
+        .where(and(...chartConditions))
         .groupBy(periodBucket)
         .orderBy(periodBucket);
 
@@ -733,6 +868,7 @@ export const DashboardService = {
         const dossierFileCounts = db
             .select({
                 dossierId: dossierFiles.dossierId,
+                fileCount: sql<number>`count(*)`.mapWith(Number).as("file_count"),
                 pageCount: sql<number>`coalesce(sum(coalesce(${dossierFiles.pageCount}, 1)), 0)`.mapWith(Number).as("page_count"),
             })
             .from(dossierFiles)
@@ -780,6 +916,12 @@ export const DashboardService = {
                 makerCompletedPagesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} = ${WorkerRole.MAKER} and ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then coalesce(${dossierFileCounts.pageCount}, 0) else 0 end), 0)`.mapWith(Number),
                 qcAssignedPagesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} <> ${WorkerRole.MAKER} then coalesce(${dossierFileCounts.pageCount}, 0) else 0 end), 0)`.mapWith(Number),
                 qcCompletedPagesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} <> ${WorkerRole.MAKER} and ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then coalesce(${dossierFileCounts.pageCount}, 0) else 0 end), 0)`.mapWith(Number),
+                assignedFilesCount: sql<number>`coalesce(sum(coalesce(${dossierFileCounts.fileCount}, 0)), 0)`.mapWith(Number),
+                completedFilesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then coalesce(${dossierFileCounts.fileCount}, 0) else 0 end), 0)`.mapWith(Number),
+                makerAssignedFilesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} = ${WorkerRole.MAKER} then coalesce(${dossierFileCounts.fileCount}, 0) else 0 end), 0)`.mapWith(Number),
+                makerCompletedFilesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} = ${WorkerRole.MAKER} and ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then coalesce(${dossierFileCounts.fileCount}, 0) else 0 end), 0)`.mapWith(Number),
+                qcAssignedFilesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} <> ${WorkerRole.MAKER} then coalesce(${dossierFileCounts.fileCount}, 0) else 0 end), 0)`.mapWith(Number),
+                qcCompletedFilesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} <> ${WorkerRole.MAKER} and ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then coalesce(${dossierFileCounts.fileCount}, 0) else 0 end), 0)`.mapWith(Number),
             })
             .from(dossierAssignments)
             .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
@@ -807,6 +949,12 @@ export const DashboardService = {
                 makerCompletedPagesCount: 0,
                 qcAssignedPagesCount: 0,
                 qcCompletedPagesCount: 0,
+                assignedFilesCount: 0,
+                completedFilesCount: 0,
+                makerAssignedFilesCount: 0,
+                makerCompletedFilesCount: 0,
+                qcAssignedFilesCount: 0,
+                qcCompletedFilesCount: 0,
             };
 
             const userRolesList = user.userRoles ?? [];
@@ -842,23 +990,32 @@ export const DashboardService = {
 
             const assignedPagesCount = stats.assignedPagesCount;
             const completedPagesCount = stats.completedPagesCount;
+            const assignedFilesCount = stats.assignedFilesCount;
+            const completedFilesCount = stats.completedFilesCount;
 
             const dossierCompletionRate = calcRate(stats.completedDossiersCount, stats.assignedDossiersCount);
             const pageCompletionRate = calcRate(completedPagesCount, assignedPagesCount);
+            const fileCompletionRate = calcRate(completedFilesCount, assignedFilesCount);
 
             const makerAssignedDossiersCount = stats.makerAssignedDossiersCount || (primaryRole === "editor" ? stats.assignedDossiersCount : 0);
             const makerCompletedDossiersCount = stats.makerCompletedDossiersCount || (primaryRole === "editor" ? stats.completedDossiersCount : 0);
             const makerAssignedPagesCount = stats.makerAssignedPagesCount || (primaryRole === "editor" ? assignedPagesCount : 0);
             const makerCompletedPagesCount = stats.makerCompletedPagesCount || (primaryRole === "editor" ? completedPagesCount : 0);
+            const makerAssignedFilesCount = stats.makerAssignedFilesCount || (primaryRole === "editor" ? assignedFilesCount : 0);
+            const makerCompletedFilesCount = stats.makerCompletedFilesCount || (primaryRole === "editor" ? completedFilesCount : 0);
             const makerDossierCompletionRate = calcRate(makerCompletedDossiersCount, makerAssignedDossiersCount);
             const makerPageCompletionRate = calcRate(makerCompletedPagesCount, makerAssignedPagesCount);
+            const makerFileCompletionRate = calcRate(makerCompletedFilesCount, makerAssignedFilesCount);
 
             const qcAssignedDossiersCount = stats.qcAssignedDossiersCount || (primaryRole === "qc" ? stats.assignedDossiersCount : 0);
             const qcCompletedDossiersCount = stats.qcCompletedDossiersCount || (primaryRole === "qc" ? stats.completedDossiersCount : 0);
             const qcAssignedPagesCount = stats.qcAssignedPagesCount || (primaryRole === "qc" ? assignedPagesCount : 0);
             const qcCompletedPagesCount = stats.qcCompletedPagesCount || (primaryRole === "qc" ? completedPagesCount : 0);
+            const qcAssignedFilesCount = stats.qcAssignedFilesCount || (primaryRole === "qc" ? assignedFilesCount : 0);
+            const qcCompletedFilesCount = stats.qcCompletedFilesCount || (primaryRole === "qc" ? completedFilesCount : 0);
             const qcDossierCompletionRate = calcRate(qcCompletedDossiersCount, qcAssignedDossiersCount);
             const qcPageCompletionRate = calcRate(qcCompletedPagesCount, qcAssignedPagesCount);
+            const qcFileCompletionRate = calcRate(qcCompletedFilesCount, qcAssignedFilesCount);
 
             const reviewedForAccuracy = stats.correctCount + stats.incorrectCount;
             const accuracyRate = reviewedForAccuracy > 0
@@ -889,20 +1046,29 @@ export const DashboardService = {
                 rejectedDossiersCount: stats.rejectedDossiersCount,
                 assignedPagesCount,
                 completedPagesCount,
+                assignedFilesCount,
+                completedFilesCount,
                 dossierCompletionRate,
                 pageCompletionRate,
+                fileCompletionRate,
                 makerAssignedDossiersCount,
                 makerCompletedDossiersCount,
                 makerAssignedPagesCount,
                 makerCompletedPagesCount,
+                makerAssignedFilesCount,
+                makerCompletedFilesCount,
                 makerDossierCompletionRate,
                 makerPageCompletionRate,
+                makerFileCompletionRate,
                 qcAssignedDossiersCount,
                 qcCompletedDossiersCount,
                 qcAssignedPagesCount,
                 qcCompletedPagesCount,
+                qcAssignedFilesCount,
+                qcCompletedFilesCount,
                 qcDossierCompletionRate,
                 qcPageCompletionRate,
+                qcFileCompletionRate,
                 accuracyRate,
                 avgProcessingTimeMinutes,
                 kpiStatus,
@@ -922,12 +1088,9 @@ export const DashboardService = {
     },
 
     async getAdminDashboard(
-        chartGranularity: ChartGranularity = "month",
         options?: {
             projectCodes?: string[];
             includeUnassigned?: boolean;
-            dateFrom?: string | Date;
-            dateTo?: string | Date;
         },
     ) {
         const projectCodes = options?.projectCodes;
@@ -967,7 +1130,7 @@ export const DashboardService = {
             approvedTodayRow,
             approvedWeekRow,
             activeGroups,
-            dossierChart,
+            workloadStats,
         ] = await Promise.all([
             db
                 .select({
@@ -1078,7 +1241,7 @@ export const DashboardService = {
                     name: true,
                 },
             }),
-            aggregateDossierChart(chartGranularity, projectCodes, includeUnassigned),
+            aggregateWorkloadStats(projectCodes, includeUnassigned),
         ]);
 
         const byStatus: Record<string, number> = {};
@@ -1113,13 +1276,6 @@ export const DashboardService = {
 
         const groupSummaries = await buildGroupSummaries(activeGroups);
 
-            const employeeKpis = await this.aggregateEmployeeKpis(
-                projectCodes,
-                includeUnassigned,
-                options?.dateFrom,
-                options?.dateTo,
-            );
-
             return {
                 overview: {
                     totalDossiers,
@@ -1139,7 +1295,7 @@ export const DashboardService = {
                     completed: completedProjects,
                     completionRate: calcRate(completedProjects, totalProjects),
                 },
-                dossierChart,
+                workloadStats,
                 performance: {
                     overallApprovalRate: calcRate(qcApproved, qcReviewed),
                     avgProcessingTimeSeconds: roundSeconds(
@@ -1149,11 +1305,43 @@ export const DashboardService = {
                     dossiersApprovedThisWeek: approvedWeekRow[0]?.count ?? 0,
                 },
                 groups: groupSummaries,
-                employeeKpis,
             };
         },
 
-    async getWarehouseStats(chartGranularity: ChartGranularity = "month") {
+    async getAdminEmployeeKpis(options?: {
+        projectCodes?: string[];
+        includeUnassigned?: boolean;
+        dateFrom?: string | Date;
+        dateTo?: string | Date;
+    }) {
+        const employeeKpis = await this.aggregateEmployeeKpis(
+            options?.projectCodes,
+            options?.includeUnassigned ?? false,
+            options?.dateFrom,
+            options?.dateTo,
+        );
+        return { employeeKpis };
+    },
+
+    async getAdminDossierChart(
+        chartGranularity: ChartGranularity = "month",
+        options?: {
+            projectCodes?: string[];
+            includeUnassigned?: boolean;
+            dateFrom?: string | Date;
+            dateTo?: string | Date;
+        },
+    ) {
+        return await aggregateDossierChart(
+            chartGranularity,
+            options?.projectCodes,
+            options?.includeUnassigned ?? false,
+            options?.dateFrom,
+            options?.dateTo,
+        );
+    },
+
+    async getWarehouseStats(chartGranularity: "day" | "month" | "year" = "month") {
         const dossierScope = scopedDossierCondition();
 
         const [statusRows, dossierChart] = await Promise.all([
