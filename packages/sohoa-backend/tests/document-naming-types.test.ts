@@ -6,6 +6,8 @@ import {
     type DocumentNamingSegment,
 } from "../libs/document-naming-types.ts";
 import { mergeMetadataNamingFieldOptions } from "../libs/document-naming-export.ts";
+import { buildUnionExportFieldCatalog } from "../libs/metadata-export-field-resolver.ts";
+import type { DossierMetadata } from "../libs/metadata-types.ts";
 
 Deno.test("validateDocumentNamingSegments - rejects metadata_field without fieldKey", () => {
     const invalidSegments: DocumentNamingSegment[] = [
@@ -213,5 +215,39 @@ Deno.test("mergeMetadataNamingFieldOptions - falls back to full static template 
     // Must return full fallback TT05 fields (at least 10 items)
     assertEquals(result.length > 5, true);
     assertEquals(result.some((r) => r.key === "HO_SO_LUU_TRU.MUC_LUC_SO"), true);
+});
+
+Deno.test("buildUnionExportFieldCatalog - correctly sets sampleValue and hasValue", () => {
+    const mockMetadata: DossierMetadata[] = [
+        {
+            ho_so_id: "test-dossier",
+            metadata_groups: [
+                {
+                    group_code: "HO_SO_LUU_TRU",
+                    group_name: "Metadata cấp Hồ sơ",
+                    source_document: { file_name: "test.pdf", file_path: "/test.pdf" },
+                    fields: [
+                        { name: "MA_HO_SO", display: "Mã hồ sơ", value: "HS-001", type: "string", page: 1, bbox: [] },
+                        { name: "MUC_LUC_SO", display: "Mục lục số hoặc năm hình thành hồ sơ", value: "", type: "string", page: 1, bbox: [] },
+                        { name: "GHI_CHU", display: "Ghi chú", value: null, type: "string", page: 1, bbox: [] },
+                    ],
+                },
+            ],
+        },
+    ];
+
+    const catalog = buildUnionExportFieldCatalog(mockMetadata);
+    const maHoSo = catalog.find((c) => c.key === "HO_SO_LUU_TRU.MA_HO_SO");
+    const mucLucSo = catalog.find((c) => c.key === "HO_SO_LUU_TRU.MUC_LUC_SO");
+    const ghiChu = catalog.find((c) => c.key === "HO_SO_LUU_TRU.GHI_CHU");
+
+    assertEquals(maHoSo?.hasValue, true);
+    assertEquals(maHoSo?.sampleValue, "HS-001");
+
+    assertEquals(mucLucSo?.hasValue, false);
+    assertEquals(mucLucSo?.sampleValue, null);
+
+    assertEquals(ghiChu?.hasValue, false);
+    assertEquals(ghiChu?.sampleValue, null);
 });
 
