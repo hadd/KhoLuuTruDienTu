@@ -113,8 +113,13 @@ export function MetadataFieldPickerDialog({
             <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-50/70 p-3.5 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200 shadow-sm">
               <Info className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
               <span className="leading-relaxed font-medium">
-                Hồ sơ chưa có metadata. Vui lòng chọn metadata mẫu dưới đây để xem review
+                Hồ sơ chưa có metadata. Đang hiển thị danh mục metadata mẫu theo quy định
               </span>
+            </div>
+          ) : fields.length > 0 ? (
+            <div className="flex items-center gap-2 rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
+              <Check className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span>Đang hiển thị danh mục trường metadata có sẵn của hồ sơ này</span>
             </div>
           ) : null}
 
