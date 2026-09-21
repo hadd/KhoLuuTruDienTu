@@ -76,8 +76,21 @@ function padSegmentValue(
     padChar: string,
 ): string {
     if (length <= 0) return value;
-    if (value.length > length) return value;
     const char = padChar.length > 0 ? padChar[0] : " ";
+
+    // Xử lý trường hợp số có hậu tố chữ cái (ví dụ: ĐVBQ 123a, 23b)
+    // Phần số cần đủ `length` chữ số, sau đó mới ghép hậu tố
+    const match = value.match(/^(\d+)([a-zA-Z]+)$/);
+    if (match) {
+        const [, num, suffix] = match;
+        if (num.length < length) {
+            const padding = char.repeat(length - num.length);
+            return `${padding}${num}${suffix}`;
+        }
+        return value;
+    }
+
+    if (value.length >= length) return value;
     const padding = char.repeat(length - value.length);
     return `${padding}${value}`;
 }
@@ -170,7 +183,11 @@ export function buildDocumentName(input: {
                 raw = String(input.file?.[segment.fieldKey ?? ""] ?? "");
                 break;
             case "metadata_field":
-                raw = String(input.metadataValues?.[segment.fieldKey ?? ""] ?? "");
+                raw = String(
+                    input.metadataValues?.[segment.fieldKey ?? ""] ??
+                    segment.value ??
+                    ""
+                );
                 break;
         }
 
