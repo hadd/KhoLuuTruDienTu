@@ -71,6 +71,7 @@
     "npm:postgres@^3.4.4": "3.4.9",
     "npm:ramda@0.32": "0.32.0",
     "npm:socket.io@^4.8.1": "4.8.3",
+    "npm:utif@*": "3.1.0",
     "npm:uuid@13": "13.0.2",
     "npm:xlsx@0.18.5": "0.18.5",
     "npm:zod@^3.23.8": "3.25.76"
@@ -2873,6 +2874,12 @@
         "listenercount",
         "readable-stream@2.3.8",
         "setimmediate"
+      ]
+    },
+    "utif@3.1.0": {
+      "integrity": "sha512-WEo4D/xOvFW53K5f5QTaTbbiORcm2/pCL9P6qmJnup+17eYfKaEhDeX9PeQkuyEoIxlbGklDuGl8xwuXYMrrXQ==",
+      "dependencies": [
+        "pako@1.0.11"
       ]
     },
     "util-deprecate@1.0.2": {
