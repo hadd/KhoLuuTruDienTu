@@ -185,9 +185,7 @@ export function buildDocumentName(input: {
                 break;
             case "metadata_field": {
                 const metaVal = input.metadataValues?.[segment.fieldKey ?? ""];
-                raw = (metaVal !== undefined && metaVal !== null && metaVal !== "")
-                    ? String(metaVal)
-                    : (segment.value && segment.value.trim() ? segment.value : "");
+                raw = (metaVal !== undefined && metaVal !== null) ? String(metaVal) : "";
                 break;
             }
         }
