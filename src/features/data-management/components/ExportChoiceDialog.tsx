@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileArchive, FileSpreadsheet, Loader2 } from 'lucide-react'
+import { FileArchive, FileSpreadsheet, Info, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -89,7 +89,7 @@ export function ExportChoiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={isExporting ? undefined : onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t('recordDetail.exportDialog.title')}</DialogTitle>
           <DialogDescription>
@@ -97,7 +97,7 @@ export function ExportChoiceDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-3 py-4">
+        <div className="flex flex-col gap-3 py-2">
           <div className="space-y-2 rounded-lg border border-border p-3">
             <Label htmlFor="metadata-export-preset">
               {t('recordDetail.exportDialog.presetLabel')}
@@ -107,7 +107,7 @@ export function ExportChoiceDialog({
               disabled={isExporting || isLoadingPresets}
               onValueChange={setSelectedPresetId}
             >
-              <SelectTrigger id="metadata-export-preset">
+              <SelectTrigger id="metadata-export-preset" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -139,7 +139,7 @@ export function ExportChoiceDialog({
               disabled={isExporting}
               onValueChange={setFileNamingMode}
             >
-              <SelectTrigger id="export-file-naming">
+              <SelectTrigger id="export-file-naming" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -161,23 +161,23 @@ export function ExportChoiceDialog({
           <Button
             type="button"
             variant="outline"
-            className="h-auto w-full justify-start gap-3 px-4 py-3"
+            className="h-auto w-full justify-start gap-3 px-4 py-3 whitespace-normal"
             onClick={() => void handleMetadataExport()}
             disabled={isExporting}
           >
             {isExportingMetadata ? (
-              <Loader2 className="size-5 animate-spin" aria-hidden />
+              <Loader2 className="size-5 shrink-0 animate-spin" aria-hidden />
             ) : (
               <FileSpreadsheet
-                className="size-5 text-muted-foreground"
+                className="size-5 shrink-0 text-muted-foreground"
                 aria-hidden
               />
             )}
-            <div className="flex flex-col items-start gap-0.5 text-left">
-              <span className="font-medium">
+            <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left whitespace-normal">
+              <span className="font-medium text-foreground">
                 {t('recordDetail.exportDialog.metadataOption')}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground leading-normal">
                 {t('recordDetail.exportDialog.metadataOptionDescription')}
               </span>
             </div>
@@ -186,23 +186,23 @@ export function ExportChoiceDialog({
           <Button
             type="button"
             variant="outline"
-            className="h-auto w-full justify-start gap-3 px-4 py-3"
+            className="h-auto w-full justify-start gap-3 px-4 py-3 whitespace-normal"
             onClick={() => void handleDipExport()}
             disabled={isExporting || !canExportDip}
           >
             {isExportingDip ? (
-              <Loader2 className="size-5 animate-spin" aria-hidden />
+              <Loader2 className="size-5 shrink-0 animate-spin" aria-hidden />
             ) : (
               <FileArchive
-                className="size-5 text-muted-foreground"
+                className="size-5 shrink-0 text-muted-foreground"
                 aria-hidden
               />
             )}
-            <div className="flex flex-col items-start gap-0.5 text-left">
-              <span className="font-medium">
+            <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left whitespace-normal">
+              <span className="font-medium text-foreground">
                 {t('recordDetail.exportDialog.dipOption')}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground leading-normal">
                 {canExportDip
                   ? t('recordDetail.exportDialog.dipOptionDescription')
                   : t('recordDetail.exportDialog.dipUnavailable')}
@@ -210,8 +210,11 @@ export function ExportChoiceDialog({
             </div>
           </Button>
 
-          <div className="rounded-md border border-primary/20 bg-primary/5 p-2.5 text-center text-xs font-medium text-primary">
-            {t('recordDetail.exportDialog.pdfaNotice')}
+          <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-left text-xs text-primary flex items-start gap-2.5">
+            <Info className="size-4 shrink-0 mt-0.5 text-primary" aria-hidden />
+            <span className="leading-relaxed font-medium">
+              {t('recordDetail.exportDialog.pdfaNotice')}
+            </span>
           </div>
         </div>
 
@@ -229,3 +232,4 @@ export function ExportChoiceDialog({
     </Dialog>
   )
 }
+

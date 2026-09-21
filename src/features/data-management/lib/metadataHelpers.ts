@@ -14,6 +14,7 @@ import {
   groupMergeKey,
   HO_SO_FOND_FIELD,
   HO_SO_LUU_TRU_GROUP_CODE,
+  isHoSoFondMetadataField,
   isHiddenMetadataFieldName,
   resolveCatalogGroupAliasCodes,
   resolveMetadataGroupCatalogCode,
@@ -1131,13 +1132,13 @@ export function filterDossierMetadataByAllowedFields(
 
     if (group.group_code === HO_SO_LUU_TRU_GROUP_CODE) {
       const fondField = group.fields.find(
-        (field) => field.name.trim().toUpperCase() === HO_SO_FOND_FIELD,
+        (field) => isHoSoFondMetadataField(group.group_code, field.name),
       )
       if (
         fondField &&
         fields.length > 0 &&
         !fields.some(
-          (field) => field.name.trim().toUpperCase() === HO_SO_FOND_FIELD,
+          (field) => isHoSoFondMetadataField(group.group_code, field.name),
         )
       ) {
         fields.unshift(fondField)

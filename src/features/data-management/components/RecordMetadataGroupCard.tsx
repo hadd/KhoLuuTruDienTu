@@ -15,7 +15,14 @@ import {
   getMetadataGroupDisplayName,
   resolveMetadataGroupSourceDocumentPath,
 } from '@/features/data-management/lib/metadataHelpers'
-import { isAccessLevelMetadataField, isHoSoFondMetadataField, isHoSoRetentionMetadataField, resolveEffectiveFieldType } from '@/features/data-management/lib/metadataNormalize'
+import {
+  HO_SO_LUU_TRU_GROUP_CODE,
+  isAccessLevelMetadataField,
+  isFondMetadataField,
+  isHoSoFondMetadataField,
+  isHoSoRetentionMetadataField,
+  resolveEffectiveFieldType,
+} from '@/features/data-management/lib/metadataNormalize'
 import type {
   DataDocumentFieldT,
   DataMetadataGroupT,
@@ -254,10 +261,12 @@ export function RecordMetadataGroupCard({
               : field
             const isStringLike =
               effectiveType === 'string' || effectiveType === 'object'
-            const isFondField = isHoSoFondMetadataField(
+            const isFondField = isFondMetadataField(
               group.group_code,
               field.name,
             )
+            const isFileFondField =
+              isFondField && group.group_code !== HO_SO_LUU_TRU_GROUP_CODE
 
             if (isFondField) {
               return (
@@ -265,7 +274,8 @@ export function RecordMetadataGroupCard({
                   key={`${group.group_code}-${field.name}-${originalIndex}`}
                   field={field}
                   value={fieldValue}
-                  disabled={!canEditFields || isSaving}
+                  disabled={!canEditFields || isSaving || isFileFondField}
+                  readOnlyInherited={isFileFondField}
                   onValueChange={(value) =>
                     onFieldChange(groupIndex, originalIndex, value)
                   }
