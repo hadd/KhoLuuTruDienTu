@@ -518,11 +518,13 @@
       "notesPlaceholder": "Reason for rejection (optional)",
       "selectedCount": "{{count}} field(s) selected",
       "clear": "Clear selection",
-      "confirm": "Reject dossier"
+      "confirm": "Reject dossier",
+      "defaultNote": "QC rejected"
     },
     "editorReject": {
       "title": "QC rejection notes",
-      "fieldHint": "Fields highlighted in red were marked incorrect by QC and need correction."
+      "fieldHint": "Fields highlighted in red were marked incorrect by QC and need correction.",
+      "detailsTitle": "Rejected fields breakdown by document:"
     }
   },
   "dossierStatus": {

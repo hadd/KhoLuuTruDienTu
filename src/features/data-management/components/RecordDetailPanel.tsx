@@ -53,6 +53,7 @@ import { mapMetadataHistoryToBatches } from '@/features/data-management/lib/meta
 import {
   buildDossierRecordContent,
   buildRejectFieldKey,
+  buildRejectedFieldsSummaryByDocument,
   findAllDocumentsForMetadataGroup,
   findAllMetadataGroupIndicesForDocument,
   findDocumentForMetadataGroup,
@@ -61,6 +62,7 @@ import {
   isPdfDocumentRef,
   mergeMetadataFieldChanges,
   resolveDocumentOcrPdfUrl,
+  resolveMetadataGroupRejectScope,
   resolveRecordPanelMetadata,
   serializeDossierMetadataForStorage,
 } from '@/features/data-management/lib/metadataHelpers'
@@ -89,6 +91,7 @@ import type {
   DataDossierStatus,
   DataMetadataEditBatchT,
   DataMetadataEditFieldChangeT,
+  DataMetadataGroupT,
   DataMetadataHistoryFileRefT,
   DataTreeNodeT,
 } from '@/features/data-management/types'
@@ -331,6 +334,13 @@ export function RecordDetailPanel({
     [effectiveNode.children],
   )
   const groups = activeMetadata?.metadata_groups ?? []
+  const rejectedFieldSummary = useMemo(() => {
+    if (!isEditorRole || !node.rejectFields?.length || !activeMetadata) return []
+    return buildRejectedFieldsSummaryByDocument(
+      node.rejectFields,
+      activeMetadata,
+    )
+  }, [isEditorRole, node.rejectFields, activeMetadata])
   const metadataDisplayLayout = useMemo(
     () => partitionMetadataGroupsForDisplay(groups),
     [groups],
@@ -782,27 +792,56 @@ export function RecordDetailPanel({
     )
   }
 
-  function dismissEditorRejectField(groupCode: string, fieldName: string) {
+  function dismissEditorRejectField(
+    group: DataMetadataGroupT,
+    groupIndex: number,
+    fieldName: string,
+  ) {
     if (!isEditorRole) return
-    const rejectKey = buildRejectFieldKey(groupCode, fieldName)
-    if (!qcRejectFieldKeys.has(rejectKey)) return
+    const scope = resolveMetadataGroupRejectScope(group, groupIndex)
+    const scopedKey = buildRejectFieldKey(
+      scope.groupCode,
+      fieldName,
+      scope.fileRef,
+    )
+    const baseKey = buildRejectFieldKey(scope.groupCode, fieldName)
+    const legacyKey = buildRejectFieldKey(group.group_code, fieldName)
+
+    const keysToDismiss = [scopedKey, baseKey, legacyKey].filter((key) =>
+      qcRejectFieldKeys.has(key),
+    )
+    if (keysToDismiss.length === 0) return
+
     setDismissedRejectFieldKeys((prev) => {
-      if (prev.has(rejectKey)) return prev
+      let changed = false
       const next = new Set(prev)
-      next.add(rejectKey)
-      return next
+      for (const k of keysToDismiss) {
+        if (!next.has(k)) {
+          next.add(k)
+          changed = true
+        }
+      }
+      return changed ? next : prev
     })
   }
 
   function isEditorRejectHighlighted(
-    groupCode: string,
+    group: DataMetadataGroupT,
+    groupIndex: number,
     fieldName: string,
   ): boolean {
     if (!isEditorRole) return false
-    const rejectKey = buildRejectFieldKey(groupCode, fieldName)
-    return (
-      qcRejectFieldKeys.has(rejectKey) &&
-      !dismissedRejectFieldKeys.has(rejectKey)
+    const scope = resolveMetadataGroupRejectScope(group, groupIndex)
+    const scopedKey = buildRejectFieldKey(
+      scope.groupCode,
+      fieldName,
+      scope.fileRef,
+    )
+    const baseKey = buildRejectFieldKey(scope.groupCode, fieldName)
+    const legacyKey = buildRejectFieldKey(group.group_code, fieldName)
+
+    return [scopedKey, baseKey, legacyKey].some(
+      (key) => qcRejectFieldKeys.has(key) && !dismissedRejectFieldKeys.has(key),
     )
   }
 
@@ -811,12 +850,10 @@ export function RecordDetailPanel({
     fieldIndex: number,
     value: string,
   ) {
-    const field =
-      activeMetadata?.metadata_groups[targetGroupIndex]?.fields[fieldIndex]
-    const groupCode =
-      activeMetadata?.metadata_groups[targetGroupIndex]?.group_code
-    if (groupCode && field) {
-      dismissEditorRejectField(groupCode, field.name)
+    const targetGroup = activeMetadata?.metadata_groups[targetGroupIndex]
+    const field = targetGroup?.fields[fieldIndex]
+    if (targetGroup && field) {
+      dismissEditorRejectField(targetGroup, targetGroupIndex, field.name)
     }
 
     setMetadataState((prev) => {
@@ -1264,12 +1301,21 @@ export function RecordDetailPanel({
   const isDraftSaving = saveMutation.isPending && !finalSaveMutation.isPending
   const isFinalSaving = finalSaveMutation.isPending
 
-  function buildFieldRejectMark(groupCode: string, field: DataDocumentFieldT) {
+  function buildFieldRejectMark(
+    group: DataMetadataGroupT,
+    groupIndex: number,
+    field: DataDocumentFieldT,
+  ) {
     if (!isActingAsQc || !canShowSubmitButton || canDirectApprove) return undefined
 
-    const rejectKey = buildRejectFieldKey(groupCode, field.name)
+    const scope = resolveMetadataGroupRejectScope(group, groupIndex)
+    const rejectKey = buildRejectFieldKey(
+      scope.groupCode,
+      field.name,
+      scope.fileRef,
+    )
     return {
-      id: `qc-reject-${rejectKey}`,
+      id: `qc-reject-${groupIndex}-${rejectKey}`,
       checked: qcReject.rejectFieldKeys.has(rejectKey),
       onCheckedChange: (checked: boolean) =>
         qcReject.toggleRejectField(rejectKey, checked),
@@ -1366,14 +1412,36 @@ export function RecordDetailPanel({
         />
       ) : null}
 
-      {isEditorRole && node.lastRejectNotes?.trim() ? (
+      {isEditorRole &&
+      (node.lastRejectNotes?.trim() || rejectedFieldSummary.length > 0) ? (
         <div className="shrink-0 rounded-md border border-destructive/40 bg-destructive/5 p-3">
           <p className="text-sm font-medium text-destructive">
             {t('metadata.editorReject.title')}
           </p>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
-            {node.lastRejectNotes.trim()}
-          </p>
+          {node.lastRejectNotes?.trim() ? (
+            <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
+              {node.lastRejectNotes.trim()}
+            </p>
+          ) : null}
+          {rejectedFieldSummary.length > 0 ? (
+            <div className="mt-3 space-y-2 border-t border-destructive/20 pt-2">
+              <p className="text-xs font-semibold text-destructive">
+                {t('metadata.editorReject.detailsTitle')}
+              </p>
+              <ul className="space-y-1.5 text-xs text-foreground">
+                {rejectedFieldSummary.map((item) => (
+                  <li key={item.fileKey} className="flex flex-col gap-0.5">
+                    <span className="font-medium text-destructive">
+                      • {item.fileLabel}:
+                    </span>
+                    <span className="pl-3 text-muted-foreground">
+                      {item.fieldLabels.join(', ')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

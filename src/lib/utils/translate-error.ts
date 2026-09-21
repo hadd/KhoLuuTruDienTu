@@ -237,22 +237,45 @@ export function translateError(error: unknown): string {
   if (isAxiosError(error) && error.response?.data) {
     const data = error.response.data
     if (data && typeof data === 'object') {
-      if ('error' in data && typeof data.error === 'string') {
-        rawMessage = data.error
-      } else if ('message' in data && typeof data.message === 'string') {
-        rawMessage = data.message
-      } else if ('detail' in data && typeof data.detail === 'string') {
-        rawMessage = data.detail
-      } else {
+      if ('message' in data && typeof data.message === 'string' && data.message.trim()) {
+        rawMessage = data.message.trim()
+      } else if ('error' in data && typeof data.error === 'string' && data.error.trim()) {
+        rawMessage = data.error.trim()
+      } else if (
+        'error' in data &&
+        data.error &&
+        typeof data.error === 'object' &&
+        'summary' in (data.error as Record<string, unknown>) &&
+        typeof (data.error as any).summary === 'string'
+      ) {
+        rawMessage = (data.error as any).summary
+      } else if (
+        'error' in data &&
+        data.error &&
+        typeof data.error === 'object' &&
+        'message' in (data.error as Record<string, unknown>) &&
+        typeof (data.error as any).message === 'string'
+      ) {
+        rawMessage = (data.error as any).message
+      } else if ('detail' in data && typeof data.detail === 'string' && data.detail.trim()) {
+        rawMessage = data.detail.trim()
+      } else if (typeof error.message === 'string') {
         rawMessage = error.message
       }
-    } else {
+    } else if (typeof error.message === 'string') {
       rawMessage = error.message
     }
   } else if (error instanceof Error) {
-    rawMessage = error.message
+    rawMessage = typeof error.message === 'string' ? error.message : ''
   } else if (typeof error === 'string') {
     rawMessage = error
+  } else if (error && typeof error === 'object') {
+    const obj = error as Record<string, unknown>
+    if (typeof obj.message === 'string') {
+      rawMessage = obj.message
+    } else if (typeof obj.summary === 'string') {
+      rawMessage = obj.summary
+    }
   }
 
   // Nếu không lấy được message nào hợp lệ, trả về lỗi mặc định

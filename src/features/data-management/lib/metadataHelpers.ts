@@ -20,6 +20,7 @@ import {
   TAI_LIEU_LUU_TRU_GROUP_CODE,
   TEN_LOAI_TAI_LIEU_FIELD,
 } from '@/features/data-management/lib/metadataNormalize'
+import { getTaiLieuDocumentDisplayTitle } from '@/features/data-management/lib/metadataLayout'
 import type {
   DataDocumentFieldT,
   DataDossierMetadataT,
@@ -1636,12 +1637,111 @@ export function handleMetadataFieldNavigationKeyDown(
   }
 }
 
-/** Reject field key sent to checker reject API: `GROUP_CODE.FIELD_NAME`. */
+/** Resolve metadata group reject scope: groupCode + optional fileRef discriminator. */
+export function resolveMetadataGroupRejectScope(
+  group: DataMetadataGroupT,
+  groupIndex?: number,
+): { groupCode: string; fileRef?: string } {
+  const catalogCode = resolveMetadataGroupCatalogCode(group)
+  if (group.group_code === HO_SO_LUU_TRU_GROUP_CODE) {
+    return { groupCode: HO_SO_LUU_TRU_GROUP_CODE }
+  }
+
+  const sourceDocName = group.source_document?.file_name?.trim()
+  if (sourceDocName) {
+    const cleanDocRef = sanitizeFileRef(sourceDocName).replace(/[^A-Za-z0-9_]/g, '_')
+    return { groupCode: catalogCode, fileRef: cleanDocRef }
+  }
+
+  if (groupIndex != null) {
+    return { groupCode: catalogCode, fileRef: `g${groupIndex}` }
+  }
+
+  return { groupCode: catalogCode }
+}
+
+/** Reject field key sent to checker reject API: `GROUP_CODE:FILE_REF.FIELD_NAME` or `GROUP_CODE.FIELD_NAME`. */
 export function buildRejectFieldKey(
   groupCode: string,
   fieldName: string,
+  fileRef?: string,
 ): string {
+  if (fileRef) {
+    return `${groupCode}:${fileRef}.${fieldName}`
+  }
   return `${groupCode}.${fieldName}`
+}
+
+export interface RejectedDocumentSummaryT {
+  fileKey: string
+  fileLabel: string
+  fieldLabels: Array<string>
+}
+
+/** Group rejected fields by document for banner summary display. */
+export function buildRejectedFieldsSummaryByDocument(
+  rejectFields: Array<string> | null | undefined,
+  metadata: DataDossierMetadataT | null | undefined,
+): Array<RejectedDocumentSummaryT> {
+  if (!rejectFields?.length || !metadata?.metadata_groups?.length) return []
+
+  const summaryByDoc = new Map<
+    string,
+    { fileLabel: string; fieldLabels: Array<string> }
+  >()
+
+  for (const [groupIndex, group] of metadata.metadata_groups.entries()) {
+    const scope = resolveMetadataGroupRejectScope(group, groupIndex)
+    const docKey = scope.fileRef
+      ? `${scope.groupCode}:${scope.fileRef}`
+      : scope.groupCode
+    const docLabel =
+      group.group_code === HO_SO_LUU_TRU_GROUP_CODE
+        ? group.group_name?.trim() || 'Hồ sơ lưu trữ'
+        : group.source_document?.file_name?.trim() ||
+          getTaiLieuDocumentDisplayTitle(group) ||
+          getMetadataGroupDisplayName(group)
+
+    for (const field of group.fields) {
+      const scopedKey = buildRejectFieldKey(
+        scope.groupCode,
+        field.name,
+        scope.fileRef,
+      )
+      const baseKey = buildRejectFieldKey(scope.groupCode, field.name)
+      const legacyKey = buildRejectFieldKey(group.group_code, field.name)
+
+      const isMatch =
+        rejectFields.includes(scopedKey) ||
+        rejectFields.includes(baseKey) ||
+        rejectFields.includes(legacyKey)
+
+      if (isMatch) {
+        const fieldLabel = field.display?.trim() || field.name
+        const existing = summaryByDoc.get(docKey) ?? {
+          fileLabel: docLabel,
+          fieldLabels: [],
+        }
+        if (!existing.fieldLabels.includes(fieldLabel)) {
+          existing.fieldLabels.push(fieldLabel)
+        }
+        summaryByDoc.set(docKey, existing)
+      }
+    }
+  }
+
+  const result: Array<RejectedDocumentSummaryT> = []
+  for (const [fileKey, value] of summaryByDoc.entries()) {
+    if (value.fieldLabels.length > 0) {
+      result.push({
+        fileKey,
+        fileLabel: value.fileLabel,
+        fieldLabels: value.fieldLabels,
+      })
+    }
+  }
+
+  return result
 }
 
 export interface RejectFieldOptionT {
