@@ -2,10 +2,8 @@ import {
   ensureFreshAccessToken,
   AuthenticationError,
 } from '@/lib/api/apiClient'
-import {
-  buildSecurityAccessHeaders,
-  type SecurityAccessModule,
-} from '@/features/security-level/lib/securityAccessTokenStore'
+import { buildSecurityAccessHeaders } from '@/features/security-level/lib/securityAccessTokenStore'
+import type { SecurityAccessModule } from '@/features/security-level/lib/securityAccessTokenStore'
 import { notifyZipPasswordLocked } from '@/features/security-level/lib/zipPasswordToast'
 import { env } from '@/lib/utils/env'
 
@@ -23,16 +21,22 @@ export type StreamDownloadOptions = {
   timeoutMs?: number
 }
 
-function resolveDownloadFileName(
-  contentDisposition: string | null,
-  fallbackName: string,
-): string {
-  if (!contentDisposition) return fallbackName
+type ExportDownloadTicketResponse = {
+  id: string
+  downloadUrl: string
+  statusUrl: string
+  expiresAt: number
+}
 
-  const match = /filename\*?=(?:UTF-8''|"?)([^";]+)/i.exec(contentDisposition)
-  if (!match?.[1]) return fallbackName
-
-  return decodeURIComponent(match[1].replace(/"/g, ''))
+type ExportDownloadStatus = {
+  id: string
+  state: 'pending' | 'started' | 'completed' | 'failed'
+  statusCode?: number
+  errorMessage?: string
+  zipPasswordSource?: 'personal_pin' | 'dossier' | 'none'
+  createdAt: number
+  consumedAt?: number
+  expiresAt: number
 }
 
 function normalizeZipFileName(fileName: string): string {
@@ -64,6 +68,15 @@ function buildUrl(
   return url.toString()
 }
 
+function buildRelativeRequestPath(
+  path: string,
+  params?: Record<string, string | boolean | undefined>,
+): string {
+  const absolute = buildUrl(path, params)
+  const url = new URL(absolute)
+  return `${url.pathname}${url.search}`
+}
+
 async function parseErrorMessage(response: Response): Promise<string> {
   try {
     const data = (await response.json()) as {
@@ -93,9 +106,17 @@ type SaveFilePickerWindow = Window & {
     suggestedName?: string
     types?: Array<{
       description?: string
-      accept: Record<string, string[]>
+      accept: Record<string, Array<string>>
     }>
   }) => Promise<FileSystemFileHandle>
+}
+
+type AuthenticatedJsonRequest = {
+  path: string
+  method: 'GET' | 'POST'
+  headers?: Record<string, string>
+  body?: unknown
+  signal: AbortSignal
 }
 
 async function tryOpenSaveFileHandle(
@@ -123,31 +144,25 @@ async function tryOpenSaveFileHandle(
   }
 }
 
-function triggerBlobDownload(blob: Blob, fileName: string): void {
-  const url = window.URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.setAttribute('download', fileName)
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  window.URL.revokeObjectURL(url)
+function createNativeDownloadFrame(downloadUrl: string): HTMLIFrameElement {
+  const frame = document.createElement('iframe')
+  frame.hidden = true
+  frame.setAttribute('aria-hidden', 'true')
+  frame.src = downloadUrl
+  document.body.appendChild(frame)
+  return frame
 }
 
-/**
- * Download a large ZIP via fetch streaming.
- * Prefer File System Access (`showSaveFilePicker`) so the file is written to disk
- * without holding the whole archive in browser heap. Falls back to a single Blob
- * (no `new Blob([data])` copy) when the picker is unavailable.
- *
- * Call this from a user-gesture handler so the save picker can open.
- */
-export async function streamDownloadToDisk(
-  options: StreamDownloadOptions,
-): Promise<void> {
-  const fileHandle = await tryOpenSaveFileHandle(options.fallbackFileName)
+function cleanupNativeDownloadFrame(frame: HTMLIFrameElement) {
+  window.setTimeout(() => {
+    frame.remove()
+  }, 30_000)
+}
 
-  const token = await ensureFreshAccessToken()
+function buildDownloadHeaders(
+  options: StreamDownloadOptions,
+  token: string | null,
+): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: 'application/zip, application/octet-stream, */*',
   }
@@ -163,14 +178,188 @@ export async function streamDownloadToDisk(
     dossierId: options.dossierId,
   })
   Object.assign(headers, securityHeaders)
+  return headers
+}
+
+async function fetchJsonWithAuth(
+  input: AuthenticatedJsonRequest,
+): Promise<Response> {
+  const requestUrl = buildUrl(input.path)
+  const send = async (token: string | null): Promise<Response> => {
+    const headers = { ...(input.headers ?? {}) }
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    } else {
+      delete headers.Authorization
+    }
+    if (input.body !== undefined) {
+      headers['Content-Type'] = headers['Content-Type'] ?? 'application/json'
+    }
+    return await fetch(requestUrl, {
+      method: input.method,
+      headers,
+      body: input.body !== undefined ? JSON.stringify(input.body) : undefined,
+      credentials: 'include',
+      signal: input.signal,
+    })
+  }
+
+  let token = await ensureFreshAccessToken()
+  let response = await send(token)
+  if (response.status !== 401) return response
+
+  token = await ensureFreshAccessToken()
+  if (!token) {
+    throw new AuthenticationError('Authentication failed. Please login again.')
+  }
+  response = await send(token)
+  return response
+}
+
+function abortAwareSleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'))
+      return
+    }
+    const timeoutId = window.setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    const onAbort = () => {
+      window.clearTimeout(timeoutId)
+      signal.removeEventListener('abort', onAbort)
+      reject(new DOMException('Aborted', 'AbortError'))
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
+async function createExportDownloadTicket(
+  requestPath: string,
+  method: 'GET' | 'POST',
+  body: unknown,
+  headers: Record<string, string>,
+  signal: AbortSignal,
+): Promise<ExportDownloadTicketResponse> {
+  const response = await fetchJsonWithAuth({
+    path: '/api/v1/export-downloads',
+    method: 'POST',
+    headers,
+    body: {
+      method,
+      path: requestPath,
+      ...(body !== undefined ? { body } : {}),
+    },
+    signal,
+  })
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response))
+  }
+  return (await response.json()) as ExportDownloadTicketResponse
+}
+
+async function waitForExportDownloadCompletion(
+  statusPath: string,
+  headers: Record<string, string>,
+  signal: AbortSignal,
+): Promise<ExportDownloadStatus> {
+  while (true) {
+    const response = await fetchJsonWithAuth({
+      path: statusPath,
+      method: 'GET',
+      headers,
+      signal,
+    })
+    if (!response.ok) {
+      throw new Error(await parseErrorMessage(response))
+    }
+    const status = (await response.json()) as ExportDownloadStatus
+    if (status.state === 'completed') {
+      return status
+    }
+    if (status.state === 'failed') {
+      throw new Error(
+        status.errorMessage?.trim() ||
+          `Download failed${status.statusCode ? `: ${status.statusCode}` : ''}`,
+      )
+    }
+    await abortAwareSleep(1500, signal)
+  }
+}
+
+async function startNativeExportDownload(
+  options: StreamDownloadOptions,
+  requestPath: string,
+  headers: Record<string, string>,
+  signal: AbortSignal,
+): Promise<void> {
+  const ticket = await createExportDownloadTicket(
+    requestPath,
+    options.method ?? (options.body !== undefined ? 'POST' : 'GET'),
+    options.body,
+    headers,
+    signal,
+  )
+  const frame = createNativeDownloadFrame(buildUrl(ticket.downloadUrl))
+  try {
+    const status = await waitForExportDownloadCompletion(
+      ticket.statusUrl,
+      headers,
+      signal,
+    )
+    notifyZipPasswordLocked({
+      'x-zip-password-source': status.zipPasswordSource ?? 'none',
+    })
+  } finally {
+    cleanupNativeDownloadFrame(frame)
+  }
+}
+
+/**
+ * Download a large ZIP via fetch streaming.
+ * Prefer File System Access (`showSaveFilePicker`) so the file is written to disk
+ * without holding the whole archive in browser heap. When unavailable, create a
+ * short-lived ticket and let the browser handle a native download instead of
+ * buffering the full ZIP in JS memory.
+ *
+ * Call this from a user-gesture handler so the save picker can open.
+ */
+export async function streamDownloadToDisk(
+  options: StreamDownloadOptions,
+): Promise<void> {
+  const fileHandle = await tryOpenSaveFileHandle(options.fallbackFileName)
+  const requestPath = buildRelativeRequestPath(options.path, options.params)
+
+  const token = await ensureFreshAccessToken()
+  const headers = buildDownloadHeaders(options, token)
 
   const controller = new AbortController()
   const timeoutMs = options.timeoutMs ?? EXPORT_TIMEOUT_MS
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
 
+  if (!fileHandle) {
+    try {
+      await startNativeExportDownload(
+        options,
+        requestPath,
+        headers,
+        controller.signal,
+      )
+      return
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw new Error('Request timed out. Please try again.')
+      }
+      throw err
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+  }
+
   let response: Response
   try {
-    response = await fetch(buildUrl(options.path, options.params), {
+    response = await fetch(buildUrl(requestPath), {
       method: options.method ?? (options.body !== undefined ? 'POST' : 'GET'),
       headers,
       body:
@@ -197,7 +386,7 @@ export async function streamDownloadToDisk(
     }
     headers.Authorization = `Bearer ${newToken}`
     try {
-      response = await fetch(buildUrl(options.path, options.params), {
+      response = await fetch(buildUrl(requestPath), {
         method: options.method ?? (options.body !== undefined ? 'POST' : 'GET'),
         headers,
         body:
@@ -219,15 +408,8 @@ export async function streamDownloadToDisk(
     throw new Error(await parseErrorMessage(response))
   }
 
-  const fileName = normalizeZipFileName(
-    resolveDownloadFileName(
-      response.headers.get('content-disposition'),
-      options.fallbackFileName,
-    ),
-  )
-
   try {
-    if (fileHandle && response.body) {
+    if (response.body) {
       const writable = await fileHandle.createWritable()
       try {
         await response.body.pipeTo(writable)
@@ -240,9 +422,7 @@ export async function streamDownloadToDisk(
         throw err
       }
     } else {
-      // Fallback: one Blob in memory (still no double-copy via new Blob([data])).
-      const blob = await response.blob()
-      triggerBlobDownload(blob, fileName)
+      throw new Error('Streaming response unavailable. Please try again.')
     }
     notifyZipPasswordLocked(headersToRecord(response.headers))
   } finally {

@@ -15,7 +15,12 @@ import {
   getMetadataGroupDisplayName,
   resolveMetadataGroupSourceDocumentPath,
 } from '@/features/data-management/lib/metadataHelpers'
-import { isAccessLevelMetadataField, isHoSoFondMetadataField, isHoSoRetentionMetadataField, resolveEffectiveFieldType } from '@/features/data-management/lib/metadataNormalize'
+import {
+  isAccessLevelMetadataField,
+  isHoSoFondMetadataField,
+  isHoSoRetentionMetadataField,
+  resolveEffectiveFieldType,
+} from '@/features/data-management/lib/metadataNormalize'
 import type {
   DataDocumentFieldT,
   DataMetadataGroupT,
@@ -23,7 +28,6 @@ import type {
 } from '@/features/data-management/types'
 import { activeMetadataHiddenFieldsQueryOptions } from '@/features/metadata-extract/queries'
 import { cn } from '@/lib/utils/cn'
-
 
 type PdfDoc = {
   id: string
@@ -66,16 +70,10 @@ export function RecordMetadataGroupCard({
   isSaving: boolean
   highlightedFieldKey: string | null
   groupCardRefs: RefObject<Map<number, HTMLDivElement>>
-  fieldInputRefs: RefObject<
-    Map<string, HTMLInputElement | HTMLTextAreaElement>
-  >
+  fieldInputRefs: RefObject<Map<string, HTMLInputElement | HTMLTextAreaElement>>
   onGroupTitleClick: (groupIndex: number) => void
   onLinkChange: (groupIndex: number, value: string) => void
-  onFieldChange: (
-    groupIndex: number,
-    fieldIndex: number,
-    value: string,
-  ) => void
+  onFieldChange: (groupIndex: number, fieldIndex: number, value: string) => void
   onFieldActivate: (
     groupIndex: number,
     field: DataDocumentFieldT,
@@ -249,9 +247,10 @@ export function RecordMetadataGroupCard({
               field.type,
               field.display,
             )
-            const effectiveField = effectiveType !== field.type
-              ? { ...field, type: effectiveType }
-              : field
+            const effectiveField =
+              effectiveType !== field.type
+                ? { ...field, type: effectiveType }
+                : field
             const isStringLike =
               effectiveType === 'string' || effectiveType === 'object'
             const isFondField = isHoSoFondMetadataField(
@@ -269,7 +268,9 @@ export function RecordMetadataGroupCard({
                   onValueChange={(value) =>
                     onFieldChange(groupIndex, originalIndex, value)
                   }
-                  onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
+                  onHighlight={() =>
+                    onFieldActivate(groupIndex, field, fieldKey)
+                  }
                   isHighlighted={highlightedFieldKey === fieldKey}
                   index={originalIndex}
                   rejectMark={buildFieldRejectMark(group.group_code, field)}
@@ -296,7 +297,9 @@ export function RecordMetadataGroupCard({
                   onValueChange={(value) =>
                     onFieldChange(groupIndex, originalIndex, value)
                   }
-                  onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
+                  onHighlight={() =>
+                    onFieldActivate(groupIndex, field, fieldKey)
+                  }
                   isHighlighted={highlightedFieldKey === fieldKey}
                   index={originalIndex}
                   rejectMark={buildFieldRejectMark(group.group_code, field)}
@@ -323,7 +326,9 @@ export function RecordMetadataGroupCard({
                   onValueChange={(value) =>
                     onFieldChange(groupIndex, originalIndex, value)
                   }
-                  onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
+                  onHighlight={() =>
+                    onFieldActivate(groupIndex, field, fieldKey)
+                  }
                   isHighlighted={highlightedFieldKey === fieldKey}
                   index={originalIndex}
                   rejectMark={buildFieldRejectMark(group.group_code, field)}
