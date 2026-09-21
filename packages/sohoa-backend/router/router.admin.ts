@@ -20,6 +20,7 @@ import { createDocumentNamingConfigAdminRouter } from "../modules/document-namin
 import { createAuditLogConfigAdminRouter } from "../modules/audit-log-config/index.ts";
 import { createArchiveBorrowApprovalClearanceAdminRouter } from "../modules/archive-borrow/index.ts";
 import { createMetadataHiddenFieldRouter } from "../modules/metadata-hidden-field/index.ts";
+import { createMetadataFieldRouter } from "../modules/metadata-field/index.ts";
 
 export const adminRouter = new Elysia({
     prefix: "/api/v1/admin",
@@ -42,5 +43,6 @@ export const adminRouter = new Elysia({
     .use(createDocumentNamingConfigAdminRouter())
     .use(createAuditLogConfigAdminRouter())
     .use(createArchiveBorrowApprovalClearanceAdminRouter())
-    .use(createMetadataHiddenFieldRouter("/metadata-hidden-fields"));
+    .use(createMetadataHiddenFieldRouter("/metadata-hidden-fields"))
+    .use(createMetadataFieldRouter("/metadata-fields"))
 
