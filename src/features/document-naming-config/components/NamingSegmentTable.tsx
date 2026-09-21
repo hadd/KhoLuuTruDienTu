@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, Database, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronUp, Database, Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -292,19 +292,43 @@ export function NamingSegmentTable({
                               className={cn(
                                 'h-9 w-full justify-start text-left font-normal truncate px-2.5',
                                 fieldKeyError && 'border-destructive',
+                                !isFallbackMetadata &&
+                                  selectedMetaField &&
+                                  selectedMetaField.hasValue === false &&
+                                  'border-amber-500/60 bg-amber-50/40 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200',
                               )}
                               onClick={() => setActivePickerIndex(index)}
                             >
                               {segment.fieldKey ? (
-                                <span className="truncate flex items-center gap-1.5 text-xs">
-                                  <Database className="size-3.5 text-primary shrink-0" />
-                                  <span className="font-medium text-foreground">
-                                    {selectedMetaField?.display ?? segment.value ?? segment.fieldKey}
+                                <div className="truncate flex items-center justify-between w-full gap-1.5 text-xs">
+                                  <span className="truncate flex items-center gap-1.5 min-w-0">
+                                    <Database className="size-3.5 text-primary shrink-0" />
+                                    <span className="font-medium text-foreground truncate">
+                                      {selectedMetaField?.display ?? segment.value ?? segment.fieldKey}
+                                    </span>
+                                    <span className="text-[11px] font-mono text-muted-foreground truncate">
+                                      ({selectedMetaField?.fieldName ?? segment.fieldKey})
+                                    </span>
                                   </span>
-                                  <span className="text-[11px] font-mono text-muted-foreground">
-                                    ({selectedMetaField?.fieldName ?? segment.fieldKey})
-                                  </span>
-                                </span>
+                                  {!isFallbackMetadata && selectedMetaField ? (
+                                    selectedMetaField.hasValue ? (
+                                      <span
+                                        className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-mono max-w-[100px] truncate"
+                                        title={`Giá trị trong hồ sơ: "${selectedMetaField.sampleValue}"`}
+                                      >
+                                        "{selectedMetaField.sampleValue}"
+                                      </span>
+                                    ) : (
+                                      <span
+                                        className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-medium flex items-center gap-0.5"
+                                        title="Trường này chưa có dữ liệu trong hồ sơ"
+                                      >
+                                        <AlertTriangle className="size-2.5 shrink-0" />
+                                        Trống
+                                      </span>
+                                    )
+                                  ) : null}
+                                </div>
                               ) : (
                                 <span className="text-muted-foreground text-xs italic flex items-center gap-1">
                                   <Database className="size-3.5 text-muted-foreground" />
@@ -346,6 +370,16 @@ export function NamingSegmentTable({
                             </div>
                           )}
                         </div>
+                        {!isFallbackMetadata &&
+                        segment.source === 'metadata_field' &&
+                        segment.fieldKey &&
+                        selectedMetaField &&
+                        !selectedMetaField.hasValue ? (
+                          <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 leading-tight">
+                            <AlertTriangle className="size-3 shrink-0" />
+                            <span>Chưa có dữ liệu trong hồ sơ (sẽ bị rỗng khi xuất)</span>
+                          </p>
+                        ) : null}
                         {valueError || fieldKeyError ? (
                           <p className="text-xs text-destructive">
                             {valueError ?? fieldKeyError}

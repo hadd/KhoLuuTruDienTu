@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { Eye, Info, Loader2, Save } from 'lucide-react'
+import { AlertTriangle, Eye, Info, Loader2, Save } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -317,20 +317,35 @@ export function DocumentNamingConfigPage() {
               </div>
 
               {dossierPreviewItems.length > 0 ? (
-                <div className="rounded-lg border border-border bg-muted/40 p-4">
+                <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
                   <p className="text-sm font-medium">{t('preview.label')}</p>
-                  <ul className="mt-2 space-y-1">
-                        {dossierPreviewItems.map((previewItem, index) => (
-                          <li
-                            key={`dossier-preview-${index}`}
-                            className="font-mono text-sm text-foreground"
-                          >
-                            {dossierPreviewItems.length > 1
-                              ? `${t('preview.sample', { index: index + 1 })} ${previewItem}`
-                              : previewItem}
-                          </li>
-                        ))}
+                  <ul className="space-y-1">
+                    {dossierPreviewItems.map((previewItem, index) => (
+                      <li
+                        key={`dossier-preview-${index}`}
+                        className="font-mono text-sm text-foreground"
+                      >
+                        {dossierPreviewItems.length > 1
+                          ? `${t('preview.sample', { index: index + 1 })} ${previewItem}`
+                          : previewItem}
+                      </li>
+                    ))}
                   </ul>
+                  {!isFallbackMetadata && (() => {
+                    const emptyFields = dossierSegments
+                      .filter((s) => s.source === 'metadata_field' && s.fieldKey)
+                      .map((s) => metadataFields.find((f) => f.key === s.fieldKey || f.fieldName === s.fieldKey))
+                      .filter((f) => Boolean(f && f.hasValue === false))
+                    if (emptyFields.length === 0) return null
+                    return (
+                      <div className="flex items-start gap-2 rounded-md border border-amber-300/80 bg-amber-50/90 dark:border-amber-800 dark:bg-amber-950/40 p-2.5 text-xs text-amber-800 dark:text-amber-200">
+                        <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                        <div>
+                          <span className="font-semibold">Lưu ý về dữ liệu metadata:</span> Có {emptyFields.length} trường ({emptyFields.map((f) => f?.display || f?.fieldName).join(', ')}) hiện <strong>chưa có dữ liệu</strong> trong hồ sơ này nên phần tương ứng trong tên hồ sơ sẽ bị để trống.
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               ) : null}
             </section>
@@ -415,9 +430,9 @@ export function DocumentNamingConfigPage() {
                   </div>
 
                   {filePreviewItems.length > 0 ? (
-                    <div className="rounded-lg border border-border bg-muted/40 p-4">
+                    <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
                       <p className="text-sm font-medium">{t('preview.label')}</p>
-                      <ul className="mt-2 space-y-1">
+                      <ul className="space-y-1">
                         {filePreviewItems.map((previewItem, index) => (
                           <li
                             key={`file-preview-${index}`}
@@ -429,6 +444,21 @@ export function DocumentNamingConfigPage() {
                           </li>
                         ))}
                       </ul>
+                      {!isFallbackMetadata && (() => {
+                        const emptyFields = fileSegments
+                          .filter((s) => s.source === 'metadata_field' && s.fieldKey)
+                          .map((s) => metadataFields.find((f) => f.key === s.fieldKey || f.fieldName === s.fieldKey))
+                          .filter((f) => Boolean(f && f.hasValue === false))
+                        if (emptyFields.length === 0) return null
+                        return (
+                          <div className="flex items-start gap-2 rounded-md border border-amber-300/80 bg-amber-50/90 dark:border-amber-800 dark:bg-amber-950/40 p-2.5 text-xs text-amber-800 dark:text-amber-200">
+                            <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                            <div>
+                              <span className="font-semibold">Lưu ý về dữ liệu metadata:</span> Có {emptyFields.length} trường ({emptyFields.map((f) => f?.display || f?.fieldName).join(', ')}) hiện <strong>chưa có dữ liệu</strong> trong hồ sơ này nên phần tương ứng trong tên file sẽ bị để trống khi xuất.
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </div>
                   ) : null}
                 </>

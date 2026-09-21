@@ -17,6 +17,8 @@ export type DocumentNamingMetadataFieldOptionT = {
   groupName: string
   fieldName: string
   display: string
+  sampleValue?: string | null
+  hasValue?: boolean
 }
 
 export type DocumentNamingSegmentT = {

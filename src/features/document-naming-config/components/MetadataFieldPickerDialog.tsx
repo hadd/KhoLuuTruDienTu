@@ -34,17 +34,28 @@ export function MetadataFieldPickerDialog({
   const { t } = useTranslation('document-naming-config')
   const [search, setSearch] = useState('')
 
+  const [onlyWithValues, setOnlyWithValues] = useState(false)
+
   const normalizedSearch = search.trim().toLowerCase()
 
+  const fieldsWithValueCount = useMemo(
+    () => fields.filter((f) => f.hasValue).length,
+    [fields],
+  )
+
   const filteredFields = useMemo(() => {
-    if (!normalizedSearch) return fields
-    return fields.filter(
+    let result = fields
+    if (!isFallback && onlyWithValues && fieldsWithValueCount > 0) {
+      result = result.filter((f) => f.hasValue)
+    }
+    if (!normalizedSearch) return result
+    return result.filter(
       (f) =>
         f.display.toLowerCase().includes(normalizedSearch) ||
         f.fieldName.toLowerCase().includes(normalizedSearch) ||
         f.key.toLowerCase().includes(normalizedSearch),
     )
-  }, [fields, normalizedSearch])
+  }, [fields, isFallback, onlyWithValues, fieldsWithValueCount, normalizedSearch])
 
   const groupedFields = useMemo(() => {
     const groups: Record<
@@ -86,14 +97,14 @@ export function MetadataFieldPickerDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="px-6 py-4 border-b border-border bg-background">
-          <div className="relative">
+        <div className="px-6 py-3 border-b border-border bg-background flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
             <Input
               autoFocus
               value={search}
               placeholder={t('metadataPicker.searchPlaceholder')}
-              className="pl-10 pr-9 h-10 text-sm rounded-lg"
+              className="pl-10 pr-9 h-9 text-sm rounded-lg"
               onChange={(e) => setSearch(e.target.value)}
             />
             {search ? (
@@ -106,6 +117,24 @@ export function MetadataFieldPickerDialog({
               </button>
             ) : null}
           </div>
+
+          {!isFallback && fieldsWithValueCount > 0 ? (
+            <div className="flex items-center gap-2 shrink-0">
+              <label
+                htmlFor="only-with-values-toggle"
+                className="flex items-center gap-2 cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground select-none bg-muted/50 px-2.5 py-1.5 rounded-md border border-border"
+              >
+                <input
+                  id="only-with-values-toggle"
+                  type="checkbox"
+                  checked={onlyWithValues}
+                  onChange={(e) => setOnlyWithValues(e.target.checked)}
+                  className="rounded border-border text-primary focus:ring-primary size-3.5"
+                />
+                <span>Chỉ hiện trường có dữ liệu ({fieldsWithValueCount}/{fields.length})</span>
+              </label>
+            </div>
+          ) : null}
         </div>
 
         <div className="max-h-[560px] min-h-[300px] overflow-y-auto px-6 py-5 space-y-6">
@@ -155,10 +184,11 @@ export function MetadataFieldPickerDialog({
                           type="button"
                           onClick={() => handleSelectField(field)}
                           className={cn(
-                            'group relative flex flex-col justify-between rounded-lg border p-3.5 text-left transition-all cursor-pointer',
+                            'group relative flex flex-col justify-between rounded-lg border p-3 text-left transition-all cursor-pointer min-h-[96px]',
                             isSelected
                               ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary/30'
                               : 'border-border/70 bg-card hover:bg-accent/40 hover:border-primary/50 hover:shadow-sm',
+                            !isFallback && !field.hasValue && 'opacity-75 bg-muted/20 border-dashed',
                           )}
                         >
                           <div className="flex items-start justify-between gap-2 w-full">
@@ -177,10 +207,38 @@ export function MetadataFieldPickerDialog({
                             ) : null}
                           </div>
 
-                          <div className="mt-2.5 pt-1.5 border-t border-border/40 flex items-center justify-between">
-                            <span className="text-xs font-mono text-muted-foreground bg-muted/80 px-2 py-0.5 rounded">
+                          {!isFallback ? (
+                            <div className="mt-2 text-xs truncate">
+                              {field.hasValue ? (
+                                <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-medium">
+                                  <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                  <span className="truncate">Giá trị: "{field.sampleValue}"</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                                  <span className="size-1.5 rounded-full bg-amber-500 shrink-0" />
+                                  <span className="italic">Chưa có dữ liệu</span>
+                                </div>
+                              )}
+                            </div>
+                          ) : null}
+
+                          <div className="mt-2 pt-1.5 border-t border-border/40 flex items-center justify-between text-xs">
+                            <span className="font-mono text-muted-foreground bg-muted/80 px-1.5 py-0.5 rounded text-[11px]">
                               {field.fieldName}
                             </span>
+                            {!isFallback && (
+                              <span
+                                className={cn(
+                                  'text-[11px] font-medium px-1.5 py-0.5 rounded',
+                                  field.hasValue
+                                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                                    : 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+                                )}
+                              >
+                                {field.hasValue ? 'Có dữ liệu' : 'Trống'}
+                              </span>
+                            )}
                           </div>
                         </button>
                       )
