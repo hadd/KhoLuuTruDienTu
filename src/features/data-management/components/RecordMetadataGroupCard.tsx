@@ -255,25 +255,32 @@ export function RecordMetadataGroupCard({
               field.name,
             )
 
+            const syncAttrs = {
+              'data-field-sync': true,
+              'data-group-index': groupIndex,
+              'data-field-index': fieldIndex,
+            } as const
+
             if (isFondField) {
               return (
-                <MetadataFondFieldRow
-                  key={`${group.group_code}-${field.name}-${fieldIndex}`}
-                  field={field}
-                  value={fieldValue}
-                  disabled={!canEditFields || isSaving}
-                  onValueChange={(value) =>
-                    onFieldChange(groupIndex, fieldIndex, value)
-                  }
-                  onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
-                  isHighlighted={highlightedFieldKey === fieldKey}
-                  index={fieldIndex}
-                  rejectMark={buildFieldRejectMark(group.group_code, field)}
-                  isQcRejectedHighlight={isEditorRejectHighlighted(
-                    group.group_code,
-                    field.name,
-                  )}
-                />
+                <div key={`${group.group_code}-${field.name}-${fieldIndex}`} {...syncAttrs}>
+                  <MetadataFondFieldRow
+                    field={field}
+                    value={fieldValue}
+                    disabled={!canEditFields || isSaving}
+                    onValueChange={(value) =>
+                      onFieldChange(groupIndex, fieldIndex, value)
+                    }
+                    onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
+                    isHighlighted={highlightedFieldKey === fieldKey}
+                    index={fieldIndex}
+                    rejectMark={buildFieldRejectMark(group.group_code, field)}
+                    isQcRejectedHighlight={isEditorRejectHighlighted(
+                      group.group_code,
+                      field.name,
+                    )}
+                  />
+                </div>
               )
             }
 
@@ -284,23 +291,24 @@ export function RecordMetadataGroupCard({
 
             if (isRetentionField) {
               return (
-                <MetadataRetentionFieldRow
-                  key={`${group.group_code}-${field.name}-${fieldIndex}`}
-                  field={field}
-                  value={fieldValue}
-                  disabled={!canEditFields || isSaving}
-                  onValueChange={(value) =>
-                    onFieldChange(groupIndex, fieldIndex, value)
-                  }
-                  onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
-                  isHighlighted={highlightedFieldKey === fieldKey}
-                  index={fieldIndex}
-                  rejectMark={buildFieldRejectMark(group.group_code, field)}
-                  isQcRejectedHighlight={isEditorRejectHighlighted(
-                    group.group_code,
-                    field.name,
-                  )}
-                />
+                <div key={`${group.group_code}-${field.name}-${fieldIndex}`} {...syncAttrs}>
+                  <MetadataRetentionFieldRow
+                    field={field}
+                    value={fieldValue}
+                    disabled={!canEditFields || isSaving}
+                    onValueChange={(value) =>
+                      onFieldChange(groupIndex, fieldIndex, value)
+                    }
+                    onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
+                    isHighlighted={highlightedFieldKey === fieldKey}
+                    index={fieldIndex}
+                    rejectMark={buildFieldRejectMark(group.group_code, field)}
+                    isQcRejectedHighlight={isEditorRejectHighlighted(
+                      group.group_code,
+                      field.name,
+                    )}
+                  />
+                </div>
               )
             }
 
@@ -311,95 +319,98 @@ export function RecordMetadataGroupCard({
 
             if (isAccessLevelField) {
               return (
-                <MetadataAccessLevelFieldRow
-                  key={`${group.group_code}-${field.name}-${fieldIndex}`}
-                  field={field}
-                  value={fieldValue}
+                <div key={`${group.group_code}-${field.name}-${fieldIndex}`} {...syncAttrs}>
+                  <MetadataAccessLevelFieldRow
+                    field={field}
+                    value={fieldValue}
+                    disabled={!canEditFields || isSaving}
+                    onValueChange={(value) =>
+                      onFieldChange(groupIndex, fieldIndex, value)
+                    }
+                    onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
+                    isHighlighted={highlightedFieldKey === fieldKey}
+                    index={fieldIndex}
+                    rejectMark={buildFieldRejectMark(group.group_code, field)}
+                    isQcRejectedHighlight={isEditorRejectHighlighted(
+                      group.group_code,
+                      field.name,
+                    )}
+                  />
+                </div>
+              )
+            }
+
+            return !canEditFields || isStringLike ? (
+              <div key={`${group.group_code}-${field.name}-${fieldIndex}`} {...syncAttrs}>
+                <MetadataFieldRow
+                  field={effectiveField}
+                  value={coerceMetadataText(field.value)}
                   disabled={!canEditFields || isSaving}
+                  editDisplay={false}
                   onValueChange={(value) =>
                     onFieldChange(groupIndex, fieldIndex, value)
                   }
                   onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
                   isHighlighted={highlightedFieldKey === fieldKey}
                   index={fieldIndex}
+                  onKeyDown={
+                    canEditFields
+                      ? (event) =>
+                          onFieldKeyDown(event, groupIndex, fieldIndex)
+                      : undefined
+                  }
+                  fieldRef={(element) => {
+                    const refKey = `${groupIndex}-${fieldIndex}`
+                    if (
+                      element instanceof HTMLInputElement ||
+                      element instanceof HTMLTextAreaElement
+                    ) {
+                      fieldInputRefs.current?.set(refKey, element)
+                    } else {
+                      fieldInputRefs.current?.delete(refKey)
+                    }
+                  }}
                   rejectMark={buildFieldRejectMark(group.group_code, field)}
                   isQcRejectedHighlight={isEditorRejectHighlighted(
                     group.group_code,
                     field.name,
                   )}
                 />
-              )
-            }
-
-            return !canEditFields || isStringLike ? (
-              <MetadataFieldRow
-                key={`${group.group_code}-${field.name}-${fieldIndex}`}
-                field={effectiveField}
-                value={coerceMetadataText(field.value)}
-                disabled={!canEditFields || isSaving}
-                editDisplay={false}
-                onValueChange={(value) =>
-                  onFieldChange(groupIndex, fieldIndex, value)
-                }
-                onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
-                isHighlighted={highlightedFieldKey === fieldKey}
-                index={fieldIndex}
-                onKeyDown={
-                  canEditFields
-                    ? (event) =>
-                        onFieldKeyDown(event, groupIndex, fieldIndex)
-                    : undefined
-                }
-                fieldRef={(element) => {
-                  const refKey = `${groupIndex}-${fieldIndex}`
-                  if (
-                    element instanceof HTMLInputElement ||
-                    element instanceof HTMLTextAreaElement
-                  ) {
-                    fieldInputRefs.current?.set(refKey, element)
-                  } else {
-                    fieldInputRefs.current?.delete(refKey)
-                  }
-                }}
-                rejectMark={buildFieldRejectMark(group.group_code, field)}
-                isQcRejectedHighlight={isEditorRejectHighlighted(
-                  group.group_code,
-                  field.name,
-                )}
-              />
+              </div>
             ) : (
-              <MetadataFieldInput
-                key={`${group.group_code}-${field.name}-${fieldIndex}`}
-                field={effectiveField}
-                value={coerceMetadataText(field.value)}
-                onChange={(value) =>
-                  onFieldChange(groupIndex, fieldIndex, value)
-                }
-                onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
-                isHighlighted={highlightedFieldKey === fieldKey}
-                index={fieldIndex}
-                idPrefix={`record-metadata-${groupIndex}`}
-                disabled={!canEditFields || isSaving}
-                onKeyDown={(event, _index, isTextArea) =>
-                  onFieldKeyDown(event, groupIndex, fieldIndex, isTextArea)
-                }
-                fieldRef={(element) => {
-                  const refKey = `${groupIndex}-${fieldIndex}`
-                  if (
-                    element instanceof HTMLInputElement ||
-                    element instanceof HTMLTextAreaElement
-                  ) {
-                    fieldInputRefs.current?.set(refKey, element)
-                  } else {
-                    fieldInputRefs.current?.delete(refKey)
+              <div key={`${group.group_code}-${field.name}-${fieldIndex}`} {...syncAttrs}>
+                <MetadataFieldInput
+                  field={effectiveField}
+                  value={coerceMetadataText(field.value)}
+                  onChange={(value) =>
+                    onFieldChange(groupIndex, fieldIndex, value)
                   }
-                }}
-                rejectMark={buildFieldRejectMark(group.group_code, field)}
-                isQcRejectedHighlight={isEditorRejectHighlighted(
-                  group.group_code,
-                  field.name,
-                )}
-              />
+                  onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
+                  isHighlighted={highlightedFieldKey === fieldKey}
+                  index={fieldIndex}
+                  idPrefix={`record-metadata-${groupIndex}`}
+                  disabled={!canEditFields || isSaving}
+                  onKeyDown={(event, _index, isTextArea) =>
+                    onFieldKeyDown(event, groupIndex, fieldIndex, isTextArea)
+                  }
+                  fieldRef={(element) => {
+                    const refKey = `${groupIndex}-${fieldIndex}`
+                    if (
+                      element instanceof HTMLInputElement ||
+                      element instanceof HTMLTextAreaElement
+                    ) {
+                      fieldInputRefs.current?.set(refKey, element)
+                    } else {
+                      fieldInputRefs.current?.delete(refKey)
+                    }
+                  }}
+                  rejectMark={buildFieldRejectMark(group.group_code, field)}
+                  isQcRejectedHighlight={isEditorRejectHighlighted(
+                    group.group_code,
+                    field.name,
+                  )}
+                />
+              </div>
             )
           })
         ) : (
