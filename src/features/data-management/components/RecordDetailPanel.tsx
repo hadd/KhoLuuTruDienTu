@@ -77,6 +77,9 @@ import {
 import {
   findHoSoFondFieldValue,
   hasHoSoFondField,
+  isFondFieldName,
+  propagateHoSoFondToDocuments,
+  syncFondValueAcrossMetadata,
 } from '@/features/data-management/lib/metadataNormalize'
 import { resolveEditorPdfMaskEnabled } from '@/features/data-management/lib/pdfMaskPolicy'
 import {
@@ -340,7 +343,9 @@ export function RecordDetailPanel({
     return `${effectiveNode.id}:${metadata?.ho_so_id ?? ''}:${groupKey}`
   }, [effectiveNode.id, metadata?.ho_so_id, metadata?.metadata_groups])
   const [metadataState, setMetadataState] =
-    useState<DataDossierMetadataT | null>(metadata ?? null)
+    useState<DataDossierMetadataT | null>(() =>
+      metadata ? propagateHoSoFondToDocuments(metadata) : null,
+    )
   const activeMetadata = metadataState ?? metadata ?? null
   const documents = useMemo(
     () => effectiveNode.children.filter((child) => child.type === 'document'),
@@ -543,7 +548,10 @@ export function RecordDetailPanel({
     const currentNode = nodeRef.current
     const nextMetadata =
       resolveRecordPanelMetadata(currentNode, managementRole) ?? null
-    setMetadataState(nextMetadata)
+    const normalizedMetadata = nextMetadata
+      ? propagateHoSoFondToDocuments(nextMetadata)
+      : null
+    setMetadataState(normalizedMetadata)
     baseMetadataRef.current =
       currentNode.fullDossierMetadata ?? nextMetadata ?? null
     setDetailTab('metadata')
@@ -950,8 +958,15 @@ export function RecordDetailPanel({
       dismissEditorRejectField(groupCode, field.name)
     }
 
+    const isFondField = Boolean(field && isFondFieldName(field.name))
+
     setMetadataState((prev) => {
       if (!prev) return prev
+      if (isFondField) {
+        const next = syncFondValueAcrossMetadata(prev, value)
+        metadataStateRef.current = next
+        return next
+      }
       const nextGroups = prev.metadata_groups.map((group, groupIndex) => {
         if (groupIndex !== targetGroupIndex) return group
         return {

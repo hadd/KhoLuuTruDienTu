@@ -397,6 +397,8 @@ export interface MetadataExportFieldCatalogItemT {
   groupName: string
   fieldName: string
   display: string
+  sampleValue?: string | null
+  hasValue?: boolean
 }
 
 export async function exportDossierMetadataExcel(

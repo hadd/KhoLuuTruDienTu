@@ -503,7 +503,7 @@ export function ArchiveWarehouseExportDialog({
         open={open}
         onOpenChange={exportFlowActive ? undefined : onOpenChange}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{t('export.title')}</DialogTitle>
             <DialogDescription>
@@ -511,7 +511,7 @@ export function ArchiveWarehouseExportDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-3 py-4">
+          <div className="flex flex-col gap-3 py-2">
             <div className="space-y-2 rounded-lg border border-border p-3">
               <Label htmlFor="archive-export-preset">
                 {t('export.presetLabel')}
@@ -521,7 +521,7 @@ export function ArchiveWarehouseExportDialog({
                 disabled={exportFlowActive || isLoadingPresets}
                 onValueChange={setSelectedPresetId}
               >
-                <SelectTrigger id="archive-export-preset">
+                <SelectTrigger id="archive-export-preset" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -553,7 +553,7 @@ export function ArchiveWarehouseExportDialog({
                 disabled={exportFlowActive}
                 onValueChange={setFileNamingMode}
               >
-                <SelectTrigger id="archive-export-file-naming">
+                <SelectTrigger id="archive-export-file-naming" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -579,23 +579,23 @@ export function ArchiveWarehouseExportDialog({
             <Button
               type="button"
               variant="outline"
-              className="h-auto w-full justify-start gap-3 px-4 py-3"
+              className="h-auto w-full justify-start gap-3 px-4 py-3 whitespace-normal"
               onClick={() => void runExport('metadata')}
               disabled={exportFlowActive}
             >
               {isExportingMetadata ? (
-                <Loader2 className="size-5 animate-spin" aria-hidden />
+                <Loader2 className="size-5 shrink-0 animate-spin" aria-hidden />
               ) : (
                 <FileSpreadsheet
-                  className="size-5 text-muted-foreground"
+                  className="size-5 shrink-0 text-muted-foreground"
                   aria-hidden
                 />
               )}
-              <div className="flex flex-col items-start gap-0.5 text-left">
-                <span className="font-medium">
+              <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left whitespace-normal">
+                <span className="font-medium text-foreground">
                   {t('export.metadataOption')}
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground leading-normal">
                   {t('export.metadataOptionDescription')}
                 </span>
               </div>
@@ -604,21 +604,21 @@ export function ArchiveWarehouseExportDialog({
             <Button
               type="button"
               variant="outline"
-              className="h-auto w-full justify-start gap-3 px-4 py-3"
+              className="h-auto w-full justify-start gap-3 px-4 py-3 whitespace-normal"
               onClick={() => void runExport('dip')}
               disabled={exportFlowActive}
             >
               {isExportingDip ? (
-                <Loader2 className="size-5 animate-spin" aria-hidden />
+                <Loader2 className="size-5 shrink-0 animate-spin" aria-hidden />
               ) : (
                 <FileArchive
-                  className="size-5 text-muted-foreground"
+                  className="size-5 shrink-0 text-muted-foreground"
                   aria-hidden
                 />
               )}
-              <div className="flex flex-col items-start gap-0.5 text-left">
-                <span className="font-medium">{t('export.dipOption')}</span>
-                <span className="text-xs text-muted-foreground">
+              <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left whitespace-normal">
+                <span className="font-medium text-foreground">{t('export.dipOption')}</span>
+                <span className="text-xs text-muted-foreground leading-normal">
                   {t('export.dipOptionDescription')}
                 </span>
               </div>

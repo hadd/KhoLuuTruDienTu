@@ -11,6 +11,16 @@ export type DocumentNamingSegmentSourceT =
   | 'file_field'
   | 'metadata_field'
 
+export type DocumentNamingMetadataFieldOptionT = {
+  key: string
+  groupCode: string
+  groupName: string
+  fieldName: string
+  display: string
+  sampleValue?: string | null
+  hasValue?: boolean
+}
+
 export type DocumentNamingSegmentT = {
   length: number
   source: DocumentNamingSegmentSourceT

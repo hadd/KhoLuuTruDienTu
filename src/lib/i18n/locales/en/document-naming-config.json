@@ -57,6 +57,7 @@
       "file_field": "File info",
       "metadata_field": "Dossier/file metadata"
     },
+    "selectMetadataField": "Select metadata field...",
     "validation": {
       "segmentsRequired": "Add at least one segment",
       "invalidSource": "Segment {{position}}: source is not allowed for this rule type",
@@ -89,5 +90,12 @@
     "saveFailed": "Failed to save naming configuration",
     "previewFailed": "Failed to generate preview",
     "segmentsRequired": "Add at least one segment before saving"
+  },
+  "metadataPicker": {
+    "title": "Select Metadata Field",
+    "searchPlaceholder": "Search by field name or code (e.g. catalog, doc number)...",
+    "empty": "No matching metadata field found",
+    "groupDossier": "Dossier Metadata",
+    "groupDocument": "Document Metadata"
   }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileArchive, FileSpreadsheet, Files, Loader2 } from 'lucide-react'
+import { FileArchive, FileSpreadsheet, Files, Info, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -124,7 +124,7 @@ export function ExportChoiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={isExporting ? undefined : onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t('recordDetail.exportDialog.title')}</DialogTitle>
           <DialogDescription>
@@ -251,9 +251,12 @@ export function ExportChoiceDialog({
           ) : null}
 
           {showPackageNotice ? (
-            <p className="text-xs text-muted-foreground">
-              {t('recordDetail.exportDialog.pdfaNotice')}
-            </p>
+            <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-left text-xs text-primary flex items-start gap-2.5">
+              <Info className="size-4 shrink-0 mt-0.5 text-primary" aria-hidden />
+              <span className="leading-relaxed font-medium">
+                {t('recordDetail.exportDialog.pdfaNotice')}
+              </span>
+            </div>
           ) : null}
         </div>
 
@@ -281,3 +284,4 @@ export function ExportChoiceDialog({
     </Dialog>
   )
 }
+
