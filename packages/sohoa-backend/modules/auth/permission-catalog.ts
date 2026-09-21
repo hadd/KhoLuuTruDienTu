@@ -21,6 +21,7 @@ export const Permission = {
   DOSSIERS_WRITE: "dossiers.write",
   DOSSIERS_ASSIGN: "dossiers.assign",
   DOSSIERS_EXPORT: "dossiers.export",
+  DOSSIERS_EXPORT_ANY_STATUS: "dossiers.export_any_status",
   DOSSIERS_SIGN: "dossiers.sign",
   DOSSIERS_DIRECT_APPROVE: "dossiers.direct_approve",
   DOSSIERS_METADATA_SUMMARY_EDIT: "dossiers.metadata.summary.edit",
@@ -173,6 +174,12 @@ export const PROJECT_SELECTION_READ_PERMISSIONS = [
   Permission.SCAN_INTAKE_USE,
   Permission.DATA_ENTRY_MAKER,
   Permission.DATA_ENTRY_CHECKER,
+] as const;
+
+/** Permissions that grant dossier metadata/DIP export (status gate may still apply). */
+export const DOSSIERS_EXPORT_ACCESS = [
+  Permission.DOSSIERS_EXPORT,
+  Permission.DOSSIERS_EXPORT_ANY_STATUS,
 ] as const;
 
 /** Permissions that grant read access to dossier workflow data (assignments, history, issue reports). */
@@ -512,6 +519,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     label: "Xuất hồ sơ",
     description:
       "Xuất metadata, gói DIP/AIP và file Excel theo hồ sơ hoặc bộ hồ sơ",
+  },
+  {
+    key: Permission.DOSSIERS_EXPORT_ANY_STATUS,
+    module: "dossiers",
+    label: "Xuất hồ sơ mọi trạng thái",
+    description:
+      "Xuất metadata, gói DIP và Excel mà không yêu cầu hồ sơ ở trạng thái đã duyệt hoặc đã lưu trữ",
   },
   {
     key: Permission.DOSSIERS_SIGN,

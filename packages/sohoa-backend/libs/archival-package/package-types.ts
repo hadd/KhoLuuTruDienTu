@@ -4,6 +4,7 @@ export interface PackagePdfFile {
     fileName: string;
     data: Uint8Array;
     groupCode?: string;
+    preserveSignature?: boolean;
 }
 
 export interface PackageBuildInput {

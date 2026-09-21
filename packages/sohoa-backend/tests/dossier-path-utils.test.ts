@@ -3,6 +3,7 @@ import {
     deriveFolderPathFromProcessedKey,
     deriveHoSoIdFromProcessedKey,
     expandKeysWithDocJsonMirrors,
+    expandKeysWithExportDerivatives,
     folderNameFromPath,
     normalizeStorageKey,
     splitFolderSegments,
@@ -10,8 +11,13 @@ import {
     storageDirname,
     toDocJsonDataLakeKey,
     toDocJsonDataLakePrefix,
+    toExportPdfKey,
+    toExportPdfPrefix,
+    toExportTiffKey,
+    toExportTiffPrefix,
     toProcessedMetadataKey,
     toTt05MetadataKey,
+    toTuyenQuangMetadataKey,
     toSearchablePdfKey,
     isCanonicalOcrOutputKey,
 } from "../modules/dossier/dossier-path-utils.ts";
@@ -41,7 +47,7 @@ Deno.test("toDocJsonDataLakeKey mirrors raw only and maps .pdf to .json", () => 
     assertEquals(toDocJsonDataLakePrefix("raw/batch-1/ho-so-123"), "doc_json/batch-1/ho-so-123/");
 });
 
-Deno.test("toSearchablePdfKey mirrors raw only with same inner path", () => {
+Deno.test("toSearchablePdfKey mirrors raw/signed/processed with same inner path", () => {
     assertEquals(
         toSearchablePdfKey("raw/batch-1/ho-so-123/scan.pdf"),
         "searchable_pdf/batch-1/ho-so-123/scan.pdf",
@@ -50,7 +56,10 @@ Deno.test("toSearchablePdfKey mirrors raw only with same inner path", () => {
         toSearchablePdfKey("raw/batch-1/ho-so-123/metadata/ocr-result.json"),
         "searchable_pdf/batch-1/ho-so-123/metadata/ocr-result.json",
     );
-    assertEquals(toSearchablePdfKey("processed/batch-1/ho-so-123/ho-so-123.json"), null);
+    assertEquals(
+        toSearchablePdfKey("processed/batch-1/ho-so-123/ho-so-123.json"),
+        "searchable_pdf/batch-1/ho-so-123/ho-so-123.json",
+    );
     assertEquals(
         toSearchablePdfKey("searchable_pdf/batch-1/ho-so-123/scan.pdf"),
         "searchable_pdf/batch-1/ho-so-123/scan.pdf",
@@ -71,6 +80,14 @@ Deno.test("toTt05MetadataKey mirrors raw folder to nested tt05_metadata json", (
         "tt05_metadata/batch-1/ho-so-123/ho-so-123.json",
     );
     assertEquals(toTt05MetadataKey("imports/a/ho-so"), null);
+});
+
+Deno.test("toTuyenQuangMetadataKey mirrors raw folder to nested tuyen_quang_metadata json", () => {
+    assertEquals(
+        toTuyenQuangMetadataKey("raw/batch-1/ho-so-123"),
+        "tuyen_quang_metadata/batch-1/ho-so-123/ho-so-123.json",
+    );
+    assertEquals(toTuyenQuangMetadataKey("imports/a/ho-so"), null);
 });
 
 Deno.test("deriveFolderPathFromProcessedKey maps nested processed json to raw folder", () => {
@@ -130,9 +147,72 @@ Deno.test("isCanonicalOcrOutputKey accepts tt05_metadata canonical key", () => {
     );
 });
 
+Deno.test("isCanonicalOcrOutputKey accepts tuyen_quang_metadata canonical key", () => {
+    const base = "tuyen_quang_metadata/BO_HS2_3_CAI/HS2/HS2.json";
+    assertEquals(isCanonicalOcrOutputKey(base), true);
+    assertEquals(isCanonicalOcrOutputKey(`/${base}`), true);
+    assertEquals(
+        isCanonicalOcrOutputKey(
+            "tuyen_quang_metadata/BO_HS2_3_CAI/HS2/HS2_EDITOR.json",
+        ),
+        false,
+    );
+});
+
 Deno.test("storageDirname and basename parse nested key", () => {
     const key = "imports/2024/ho-so-123/scan.pdf";
     assertEquals(storageDirname(key), "imports/2024/ho-so-123");
     assertEquals(storageBasename(key), "scan.pdf");
     assertEquals(folderNameFromPath(storageDirname(key)), "ho-so-123");
+});
+
+Deno.test("toExportPdfKey / toExportTiffKey mirror raw and signed PDF paths", () => {
+    assertEquals(
+        toExportPdfKey("raw/batch-1/ho-so-123/scan.pdf"),
+        "Export/PDF/batch-1/ho-so-123/scan.pdf",
+    );
+    assertEquals(
+        toExportTiffKey("raw/batch-1/ho-so-123/scan.pdf"),
+        "Export/TIFF/batch-1/ho-so-123/scan.TIFF",
+    );
+    assertEquals(
+        toExportPdfKey("signed/batch-1/ho-so-123/scan.pdf"),
+        "Export/PDF/batch-1/ho-so-123/scan.pdf",
+    );
+    assertEquals(
+        toExportTiffKey("signed/batch-1/ho-so-123/scan.pdf"),
+        "Export/TIFF/batch-1/ho-so-123/scan.TIFF",
+    );
+    assertEquals(
+        toExportPdfKey("Export/PDF/batch-1/ho-so-123/scan.pdf"),
+        "Export/PDF/batch-1/ho-so-123/scan.pdf",
+    );
+    assertEquals(toExportPdfKey("raw/batch-1/ho-so-123/meta.json"), null);
+    assertEquals(toExportPdfKey("processed/batch-1/ho-so-123/ho-so.json"), null);
+});
+
+Deno.test("toExportPdfPrefix / toExportTiffPrefix mirror raw folder paths", () => {
+    assertEquals(
+        toExportPdfPrefix("raw/batch-1/ho-so-123"),
+        "Export/PDF/batch-1/ho-so-123/",
+    );
+    assertEquals(
+        toExportTiffPrefix("raw/batch-1/ho-so-123"),
+        "Export/TIFF/batch-1/ho-so-123/",
+    );
+    assertEquals(toExportPdfPrefix("processed/batch-1/ho-so-123"), null);
+});
+
+Deno.test("expandKeysWithExportDerivatives adds Export/PDF and Export/TIFF", () => {
+    const keys = new Set([
+        "raw/a/ho-so/scan.pdf",
+        "raw/a/ho-so/metadata/ocr-result.json",
+        "signed/a/ho-so/signed-scan.pdf",
+    ]);
+    expandKeysWithExportDerivatives(keys);
+    assertEquals(keys.has("Export/PDF/a/ho-so/scan.pdf"), true);
+    assertEquals(keys.has("Export/TIFF/a/ho-so/scan.TIFF"), true);
+    assertEquals(keys.has("Export/PDF/a/ho-so/signed-scan.pdf"), true);
+    assertEquals(keys.has("Export/TIFF/a/ho-so/signed-scan.TIFF"), true);
+    assertEquals(keys.has("Export/PDF/a/ho-so/metadata/ocr-result.json"), false);
 });

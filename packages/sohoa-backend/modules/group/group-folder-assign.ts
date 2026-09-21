@@ -61,6 +61,7 @@ export type GroupFolderAssignInput = {
     targets: DossierAssignTarget[];
     rootFolder: { id: string; folderPath: string; folderName: string };
     leafFolders: Array<{ id: string; folderPath: string; folderName: string }>;
+    roundRobinOffset?: number;
     createDossierAssignmentInTx: (
         tx: DbTx,
         input: {
@@ -200,6 +201,43 @@ function sortTargetsByInputOrder(
     );
 }
 
+function normalizeRoundRobinOffset(offset: number, editorCount: number) {
+    if (editorCount <= 0) return 0;
+    const normalized = offset % editorCount;
+    return normalized < 0 ? normalized + editorCount : normalized;
+}
+
+type SingleModeMakerAssignment = {
+    target: DossierAssignTarget;
+    dossier: typeof dossiers.$inferSelect;
+    assigneeId: string;
+    allowedFields: string | null;
+};
+
+function buildSingleModeMakerAssignments(input: {
+    poolTargets: DossierAssignTarget[];
+    dossierById: Map<string, typeof dossiers.$inferSelect>;
+    editorUserIds: EditorRef[];
+    startOffset: number;
+}): { assignments: SingleModeMakerAssignment[]; nextOffset: number } {
+    const editorCount = input.editorUserIds.length;
+    let editorIndex = normalizeRoundRobinOffset(input.startOffset, editorCount);
+    const assignments: SingleModeMakerAssignment[] = [];
+
+    for (const target of input.poolTargets) {
+        const editor = input.editorUserIds[editorIndex]!;
+        editorIndex = (editorIndex + 1) % editorCount;
+        assignments.push({
+            target,
+            dossier: input.dossierById.get(target.dossierId)!,
+            assigneeId: editor.userId,
+            allowedFields: null,
+        });
+    }
+
+    return { assignments, nextOffset: editorIndex };
+}
+
 function buildFieldSplitMakerAssignments(input: {
     poolTargets: DossierAssignTarget[];
     dossierById: Map<string, typeof dossiers.$inferSelect>;
@@ -279,6 +317,7 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
         checkerAssignmentsCreated: 0,
         dossiersQcCountUpdated: 0,
         queueSummary: { queued: 0, active: 0 },
+        nextRoundRobinOffset: input.roundRobinOffset ?? 0,
     };
 
     if (input.targets.length === 0 || input.editorUserIds.length === 0) {
@@ -469,7 +508,10 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
                 startOrdinal,
             }));
         } else {
-            let editorIndex = 0;
+            let editorIndex = normalizeRoundRobinOffset(
+                input.roundRobinOffset ?? 0,
+                input.editorUserIds.length,
+            );
             for (const target of orderedPoolTargets) {
                 const dossier = dossierById.get(target.dossierId)!;
                 let assigned = false;
@@ -502,6 +544,7 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
                     });
                 }
             }
+            emptyResult.nextRoundRobinOffset = editorIndex;
         }
 
         const assignResult = await runAssignmentTransaction({
@@ -546,45 +589,14 @@ export async function executeGroupFolderAssignment(input: GroupFolderAssignInput
             startOrdinal: 0,
         }));
     } else {
-        // Single mode: round-robin with dossiersPerEditor quota.
-        const quotaByEditor = new Map(
-            input.editorUserIds.map((editor) => [editor.userId, 0]),
-        );
-        const maxPerEditor = input.dossiersPerEditor;
-        let editorIndex = 0;
-
-        for (const target of orderedPoolTargets) {
-            const dossier = dossierById.get(target.dossierId)!;
-            let assigned = false;
-
-            for (let attempt = 0; attempt < input.editorUserIds.length; attempt++) {
-                const editor = input.editorUserIds[editorIndex];
-                editorIndex = (editorIndex + 1) % input.editorUserIds.length;
-
-                const currentCount = quotaByEditor.get(editor.userId) ?? 0;
-                if (currentCount >= maxPerEditor) {
-                    continue;
-                }
-
-                quotaByEditor.set(editor.userId, currentCount + 1);
-                assignmentsToCreate.push({
-                    target,
-                    dossier,
-                    assigneeId: editor.userId,
-                    allowedFields: null,
-                });
-                assigned = true;
-                break;
-            }
-
-            if (!assigned) {
-                skipped.push({
-                    dossierId: target.dossierId,
-                    folderId: target.folderId,
-                    reason: "All editors have reached their dossier quota",
-                });
-            }
-        }
+        const roundRobin = buildSingleModeMakerAssignments({
+            poolTargets: orderedPoolTargets,
+            dossierById,
+            editorUserIds: input.editorUserIds,
+            startOffset: input.roundRobinOffset ?? 0,
+        });
+        assignmentsToCreate.push(...roundRobin.assignments);
+        emptyResult.nextRoundRobinOffset = roundRobin.nextOffset;
     }
 
     const assignResult = await runAssignmentTransaction({

@@ -35,8 +35,14 @@ export function flattenFields(meta: DossierMetadata): Map<string, string | null>
     }
 
     for (const group of expanded.metadata_groups) {
+        // Include document reference for file-level tracking
+        const docRef = group.source_document?.file_name || group.source_document?.file_path || "";
         for (const field of group.fields) {
-            map.set(`${group.group_code}.${field.name}`, normalizeFieldValue(field.value));
+            // Format: groupCode.documentRef.fieldName for document-level tracking
+            const fieldKey = docRef 
+                ? `${group.group_code}.${docRef}.${field.name}`
+                : `${group.group_code}.${field.name}`;
+            map.set(fieldKey, normalizeFieldValue(field.value));
         }
     }
     return map;

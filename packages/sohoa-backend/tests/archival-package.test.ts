@@ -237,3 +237,42 @@ Deno.test("sanitizeMetadataHeaders encodes non-ASCII Vietnamese values to safe A
         assertEquals(/^[\x20-\x7E]*$/.test(val), true);
     }
 });
+
+Deno.test("buildDipExportZipStream streams packages incrementally", {
+    sanitizeOps: false,
+    sanitizeResources: false,
+}, async () => {
+    const { buildDipExportZipStream } = await import(
+        "../libs/archival-package/dip-hoso-builder.ts"
+    );
+    const { readableStreamToUint8Array } = await import("../libs/jszip-stream.ts");
+    const { ZipReader, BlobReader } = await import("@zip.js/zip.js");
+
+    const pdfA = new TextEncoder().encode("%PDF-a");
+    const pdfB = new TextEncoder().encode("%PDF-b");
+    const result = await buildDipExportZipStream([
+        {
+            metadata: sampleMetadata(),
+            pdfFiles: [{ fileName: "a.pdf", data: pdfA }],
+            hoSoId: "HS_A",
+        },
+        {
+            metadata: sampleMetadata(),
+            pdfFiles: [{ fileName: "b.pdf", data: pdfB }],
+            hoSoId: "HS_B",
+        },
+    ]);
+    assertEquals(result.exportedCount, 2);
+    const bytes = await readableStreamToUint8Array(result.stream);
+    const zr = new ZipReader(new BlobReader(new Blob([new Uint8Array(bytes)])));
+    try {
+        const entries = await zr.getEntries();
+        const names = entries.filter((e) => !e.directory).map((e) => e.filename).sort();
+        assertEquals(names.includes("HS_A/hoso.xml"), true);
+        assertEquals(names.includes("HS_A/documents/a.pdf"), true);
+        assertEquals(names.includes("HS_B/hoso.xml"), true);
+        assertEquals(names.includes("HS_B/documents/b.pdf"), true);
+    } finally {
+        await zr.close();
+    }
+});

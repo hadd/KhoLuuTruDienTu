@@ -11,6 +11,7 @@ export const DOCUMENT_NAMING_SEGMENT_SOURCES = [
     "fond_field",
     "dossier_field",
     "file_field",
+    "metadata_field",
 ] as const;
 export type DocumentNamingSegmentSource =
     (typeof DOCUMENT_NAMING_SEGMENT_SOURCES)[number];
@@ -32,7 +33,22 @@ export type DocumentNamingFieldCatalog = {
     fond: DocumentNamingFieldOption[];
     dossier: DocumentNamingFieldOption[];
     file: DocumentNamingFieldOption[];
+    metadata: DocumentNamingFieldOption[];
 };
+
+export const DOCUMENT_NAMING_SYNTHETIC_METADATA_FIELDS: DocumentNamingFieldOption[] = [
+    { key: "__stt", label: "STT hồ sơ" },
+    { key: "__file_stt", label: "STT văn bản trong hồ sơ" },
+    { key: "__file_count", label: "Tổng số văn bản trong hồ sơ" },
+    { key: "__ho_so_id", label: "Mã hồ sơ (basename)" },
+    { key: "__file_path", label: "Đường dẫn file" },
+    { key: "__file_name", label: "Tên file" },
+    { key: "__file_identifier", label: "Mã định danh văn bản" },
+    { key: "__document_type_name", label: "Tên loại văn bản" },
+    { key: "__date_day", label: "Ngày (từ ngày văn bản)" },
+    { key: "__date_month", label: "Tháng (từ ngày văn bản)" },
+    { key: "__date_year", label: "Năm (từ ngày văn bản)" },
+];
 
 export const DOCUMENT_NAMING_FIELD_CATALOG: DocumentNamingFieldCatalog = {
     fond: [
@@ -51,16 +67,31 @@ export const DOCUMENT_NAMING_FIELD_CATALOG: DocumentNamingFieldCatalog = {
         { key: "fileName", label: "Tên file" },
         { key: "documentTypeId", label: "Loại tài liệu" },
     ],
+    metadata: [...DOCUMENT_NAMING_SYNTHETIC_METADATA_FIELDS],
 };
 
 function padSegmentValue(
     value: string,
     length: number,
-    padChar: string,
+    padChar?: string | null,
 ): string {
     if (length <= 0) return value;
-    if (value.length > length) return value;
-    const char = padChar.length > 0 ? padChar[0] : " ";
+    if (!padChar || padChar.length === 0) return value;
+    const char = padChar[0];
+
+    // Xử lý trường hợp số có hậu tố chữ cái (ví dụ: ĐVBQ 123a, 23b)
+    // Phần số cần đủ `length` chữ số, sau đó mới ghép hậu tố
+    const match = value.match(/^(\d+)([a-zA-Z]+)$/);
+    if (match) {
+        const [, num, suffix] = match;
+        if (num.length < length) {
+            const padding = char.repeat(length - num.length);
+            return `${padding}${num}${suffix}`;
+        }
+        return value;
+    }
+
+    if (value.length >= length) return value;
     const padding = char.repeat(length - value.length);
     return `${padding}${value}`;
 }
@@ -100,7 +131,8 @@ export function validateDocumentNamingSegments(
         if (
             segment.source === "fond_field" ||
             segment.source === "dossier_field" ||
-            segment.source === "file_field"
+            segment.source === "file_field" ||
+            segment.source === "metadata_field"
         ) {
             if (!segment.fieldKey?.trim()) {
                 throw new Error(`Segment ${index + 1}: fieldKey is required`);
@@ -113,11 +145,13 @@ export function validateDocumentNamingSegments(
     }
 }
 
-export function buildDocumentNamePreview(input: {
+export function buildDocumentName(input: {
     segments: DocumentNamingSegment[];
     fond?: Record<string, string | null | undefined>;
     dossier?: Record<string, string | null | undefined>;
     file?: Record<string, string | null | undefined>;
+    /** Pre-resolved metadata field values keyed by GROUP.FIELD or __synthetic. */
+    metadataValues?: Record<string, string | null | undefined>;
     autoIncrementCounter?: number;
     referenceDate?: Date;
 }): string {
@@ -149,10 +183,22 @@ export function buildDocumentNamePreview(input: {
             case "file_field":
                 raw = String(input.file?.[segment.fieldKey ?? ""] ?? "");
                 break;
+            case "metadata_field": {
+                const metaVal = input.metadataValues?.[segment.fieldKey ?? ""];
+                raw = (metaVal !== undefined && metaVal !== null) ? String(metaVal) : "";
+                break;
+            }
         }
 
         return padSegmentValue(raw, segment.length, padChar);
     }).join("");
+}
+
+/** @deprecated Prefer buildDocumentName — kept for existing call sites. */
+export function buildDocumentNamePreview(
+    input: Parameters<typeof buildDocumentName>[0],
+): string {
+    return buildDocumentName(input);
 }
 
 export function buildDocumentNamePreviewSamples(input: {
@@ -160,6 +206,7 @@ export function buildDocumentNamePreviewSamples(input: {
     fond?: Record<string, string | null | undefined>;
     dossier?: Record<string, string | null | undefined>;
     file?: Record<string, string | null | undefined>;
+    metadataValues?: Record<string, string | null | undefined>;
     autoIncrementStart?: number;
     referenceDate?: Date;
 }): string[] {
@@ -172,17 +219,18 @@ export function buildDocumentNamePreviewSamples(input: {
         fond: input.fond,
         dossier: input.dossier,
         file: input.file,
+        metadataValues: input.metadataValues,
         referenceDate: input.referenceDate,
     };
 
     if (!hasAutoIncrement) {
-        return [buildDocumentNamePreview({
+        return [buildDocumentName({
             ...previewInput,
             autoIncrementCounter: start,
         })];
     }
 
-    return [0, 1, 2].map((offset) => buildDocumentNamePreview({
+    return [0, 1, 2].map((offset) => buildDocumentName({
         ...previewInput,
         autoIncrementCounter: start + offset,
     }));

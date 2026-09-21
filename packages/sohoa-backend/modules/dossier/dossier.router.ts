@@ -3,7 +3,7 @@ import { IdParam } from "@shared/common-lib";
 import { DossierService as service } from "./dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
-import { Permission, SECURITY_LEVEL_CONTENT_ACCESS_PERMISSIONS } from "../auth/permission-catalog.ts";
+import { Permission, SECURITY_LEVEL_CONTENT_ACCESS_PERMISSIONS, DOSSIERS_EXPORT_ACCESS } from "../auth/permission-catalog.ts";
 import {
   assignByFolderIdBodySchema,
   assignDossierBodySchema,
@@ -44,6 +44,19 @@ import {
   securityAccessHeadersFromRequest,
 } from "../security-level/security-enforcement.ts";
 import type { RequestWithAuditMeta } from "../audit-log/audit-log-activity.ts";
+import type { UserWithRoles } from "../../libs/plugins/auth-profile.ts";
+
+function resolveExportBypassStatus(profile: UserWithRoles): boolean {
+  return authHelper.hasPermission(
+    profile,
+    Permission.DOSSIERS_EXPORT_ANY_STATUS,
+  );
+}
+
+function assertDossierExportAccess(profile: UserWithRoles): boolean {
+  authHelper.checkPermissionAny(profile, DOSSIERS_EXPORT_ACCESS);
+  return resolveExportBypassStatus(profile);
+}
 
 const metadataExportColumnSchema = t.Object({
   header: t.String({ minLength: 1, maxLength: 255 }),
@@ -57,6 +70,8 @@ const metadataExportBodySchema = t.Object({
   placementId: t.Optional(t.String({ format: "uuid" })),
   applyWatermark: t.Optional(t.Boolean()),
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
+  useDocumentNaming: t.Optional(t.Boolean()),
+  excelOnly: t.Optional(t.Boolean()),
 });
 
 const multiDossierMetadataExportBodySchema = t.Object({
@@ -68,6 +83,8 @@ const multiDossierMetadataExportBodySchema = t.Object({
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
   /** When true, only validate access + ZIP password requirements (no ZIP body). */
   checkOnly: t.Optional(t.Boolean()),
+  useDocumentNaming: t.Optional(t.Boolean()),
+  excelOnly: t.Optional(t.Boolean()),
 });
 
 const multiDipExportBodySchema = t.Object({
@@ -78,6 +95,7 @@ const multiDipExportBodySchema = t.Object({
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
   checkOnly: t.Optional(t.Boolean()),
   baseFolderId: t.Optional(t.String({ format: "uuid" })),
+  useDocumentNaming: t.Optional(t.Boolean()),
 });
 
 async function assertSecurityDownload(
@@ -336,6 +354,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.post(
     "/metadata/export",
     async ({ body, profile, request }) => {
+      const bypassStatus = resolveExportBypassStatus(profile);
       let bypassSecurity = false;
       if (body.dossierIds.length > 0) {
         const records = await db.select({ status: dossiers.status })
@@ -346,7 +365,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         }
       }
 
-      if (!bypassSecurity) {
+      if (!bypassSecurity && !bypassStatus) {
         authHelper.checkPermission(
           profile,
           Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
@@ -356,7 +375,8 @@ export function createDossierRouter(basePath: string = "/dossiers") {
       let applyWatermark = false;
       let skippedFileIds = new Set<string>();
 
-      if (!bypassSecurity) {
+      // export_any_status: plain ZIP (no security watermark / password gate)
+      if (!bypassSecurity && !bypassStatus) {
         const sec = await assertSecurityDownload(
           profile,
           request,
@@ -367,7 +387,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
       }
 
       if (body.checkOnly) {
-        if (bypassSecurity) {
+        if (bypassSecurity || bypassStatus) {
           return {
             needsDossierPassword: false,
             needsZipPin: false,
@@ -398,9 +418,11 @@ export function createDossierRouter(basePath: string = "/dossiers") {
           () =>
             service.exportMetadataExcelByIds(body.dossierIds, {
               ...body,
+              excelOnly: body.excelOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
+              bypassStatus,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {
@@ -434,6 +456,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
 
       // Resolve folder IDs into actual dossier IDs (recursive subtree)
       const resolvedDossierIds = await service.resolveInputIdsToDossierIds(allInputIds);
+      const bypassStatus = resolveExportBypassStatus(profile);
 
       let bypassSecurity = false;
       if (resolvedDossierIds.length > 0) {
@@ -445,7 +468,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         }
       }
 
-      if (!bypassSecurity) {
+      if (!bypassSecurity && !bypassStatus) {
         authHelper.checkPermission(
           profile,
           Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
@@ -455,7 +478,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
       let applyWatermark = false;
       let skippedFileIds = new Set<string>();
 
-      if (!bypassSecurity) {
+      if (!bypassSecurity && !bypassStatus) {
         const sec = await assertSecurityDownload(
           profile,
           request,
@@ -466,7 +489,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
       }
 
       if (body.checkOnly) {
-        if (bypassSecurity) {
+        if (bypassSecurity || bypassStatus) {
           return {
             needsDossierPassword: false,
             needsZipPin: false,
@@ -502,6 +525,8 @@ export function createDossierRouter(basePath: string = "/dossiers") {
               dossierAccessPassword: body.dossierAccessPassword,
               skippedFileIds,
               baseFolderId: body.baseFolderId,
+              useDocumentNaming: body.useDocumentNaming === true,
+              bypassStatus,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {
@@ -710,12 +735,18 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.get(
     "/:id/dip/export",
     async ({ params, query, profile, request }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
-        profile,
-        request,
-        [params.id],
-      );
+      const bypassStatus = assertDossierExportAccess(profile);
+      let applyWatermark = false;
+      let skippedFileIds = new Set<string>();
+      if (!bypassStatus) {
+        const sec = await assertSecurityDownload(
+          profile,
+          request,
+          [params.id],
+        );
+        applyWatermark = sec.applyWatermark;
+        skippedFileIds = sec.skippedFileIds;
+      }
       const meta = clientMetaFromRequest(request);
       const { stream, filename, contentType, zipPasswordSource } =
         await withDownloadLog(
@@ -735,6 +766,8 @@ export function createDossierRouter(basePath: string = "/dossiers") {
               userId: profile.id,
               dossierAccessPassword: query.dossierAccessPassword,
               skippedFileIds,
+              useDocumentNaming: query.useDocumentNaming === true,
+              bypassStatus,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {
@@ -749,6 +782,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         dossierAccessPassword: t.Optional(
           t.String({ minLength: 1, maxLength: 128 }),
         ),
+        useDocumentNaming: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,
@@ -765,7 +799,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.get(
     "/:id/aip/status",
     async ({ params, profile, request }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+      authHelper.checkPermissionAny(profile, DOSSIERS_EXPORT_ACCESS);
       const headers = securityAccessHeadersFromRequest(request);
       const record = await service.get(params.id);
       await assertSecurityResourceAccess({
@@ -797,7 +831,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.get(
     "/:id/metadata/export/fields",
     async ({ params, profile }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+      authHelper.checkPermissionAny(profile, DOSSIERS_EXPORT_ACCESS);
       return await service.getDossierMetadataExportFields(params.id);
     },
     {
@@ -812,7 +846,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.post(
     "/:id/metadata/export/preview",
     async ({ params, body, profile }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
+      authHelper.checkPermissionAny(profile, DOSSIERS_EXPORT_ACCESS);
       return await service.previewDossierMetadataExport(params.id, body);
     },
     {
@@ -828,12 +862,18 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.post(
     "/:id/metadata/export",
     async ({ params, body, profile, request }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
-        profile,
-        request,
-        [params.id],
-      );
+      const bypassStatus = assertDossierExportAccess(profile);
+      let applyWatermark = false;
+      let skippedFileIds = new Set<string>();
+      if (!bypassStatus) {
+        const sec = await assertSecurityDownload(
+          profile,
+          request,
+          [params.id],
+        );
+        applyWatermark = sec.applyWatermark;
+        skippedFileIds = sec.skippedFileIds;
+      }
       const meta = clientMetaFromRequest(request);
       const { stream, filename, contentType, zipPasswordSource } =
         await withDownloadLog(
@@ -849,9 +889,11 @@ export function createDossierRouter(basePath: string = "/dossiers") {
           () =>
             service.exportMetadataExcel(params.id, {
               ...body,
+              excelOnly: body.excelOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
+              bypassStatus,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {
@@ -871,12 +913,18 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   app.get(
     "/:id/metadata/export",
     async ({ params, query, profile, request }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_EXPORT);
-      const { applyWatermark, skippedFileIds } = await assertSecurityDownload(
-        profile,
-        request,
-        [params.id],
-      );
+      const bypassStatus = assertDossierExportAccess(profile);
+      let applyWatermark = false;
+      let skippedFileIds = new Set<string>();
+      if (!bypassStatus) {
+        const sec = await assertSecurityDownload(
+          profile,
+          request,
+          [params.id],
+        );
+        applyWatermark = sec.applyWatermark;
+        skippedFileIds = sec.skippedFileIds;
+      }
       const meta = clientMetaFromRequest(request);
       const { stream, filename, contentType, zipPasswordSource } =
         await withDownloadLog(
@@ -895,6 +943,9 @@ export function createDossierRouter(basePath: string = "/dossiers") {
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
+              useDocumentNaming: query.useDocumentNaming === true,
+              excelOnly: query.excelOnly === true,
+              bypassStatus,
             }),
         );
       return zipStreamResponse(stream, filename, contentType, {
@@ -906,6 +957,8 @@ export function createDossierRouter(basePath: string = "/dossiers") {
       query: t.Object({
         placementId: t.Optional(t.String({ format: "uuid" })),
         applyWatermark: t.Optional(t.Boolean()),
+        useDocumentNaming: t.Optional(t.Boolean()),
+        excelOnly: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,

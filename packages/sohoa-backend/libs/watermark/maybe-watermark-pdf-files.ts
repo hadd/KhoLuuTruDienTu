@@ -10,6 +10,7 @@ import {
 } from "../../db/schemas/watermark.ts";
 import { downloadBinaryFromStorage } from "../../modules/data-entry/data-entry-s3-utils.ts";
 import { mapWithConcurrency } from "../export-concurrency.ts";
+import { pdfLooksDigitallySigned } from "../pdf-signature-detect.ts";
 import {
   applyWatermarkToPdfBytes,
   type WatermarkApplyConfig,
@@ -22,6 +23,7 @@ import {
 export type WatermarkablePdfFile = {
   fileName: string;
   data: Uint8Array;
+  preserveSignature?: boolean;
 };
 
 /** Parallelism for CPU-heavy pdf-lib / mupdf work. */
@@ -199,10 +201,24 @@ export async function applyWatermarkConfigToPdfFiles<
     return pdfFiles;
   }
 
+  for (const file of pdfFiles) {
+    if (
+      !file.preserveSignature &&
+      pdfLooksDigitallySigned(file.data)
+    ) {
+      file.preserveSignature = true;
+    }
+  }
+
+  const toWatermark = pdfFiles.filter((file) => !file.preserveSignature);
+  if (toWatermark.length === 0) {
+    return pdfFiles;
+  }
+
   const security = await loadPdfSecurityRestrictions();
 
   const outcomes = await mapWithConcurrency(
-    pdfFiles,
+    toWatermark,
     WATERMARK_CONCURRENCY,
     async (file) => {
       try {
@@ -241,10 +257,11 @@ export async function applyWatermarkConfigToPdfFiles<
   logApi.info(
     {
       count: outcomes.length,
-      files: pdfFiles.map((f) => f.fileName),
+      skipped: pdfFiles.length - toWatermark.length,
+      files: toWatermark.map((f) => f.fileName),
       pdfSecurityEnabled: security.enabled,
     },
-    "[watermark] Applied watermark to all PDFs in batch",
+    "[watermark] Applied watermark to PDFs in batch (signed files skipped)",
   );
 
   return pdfFiles;

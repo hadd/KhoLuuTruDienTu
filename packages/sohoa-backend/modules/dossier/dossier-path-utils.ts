@@ -7,14 +7,21 @@ export const PROCESSED_STORAGE_PREFIX = "processed";
 export const TT05_METADATA_STORAGE_PREFIX = "tt05_metadata";
 /** PVEP metadata worker output root (parallel to processed/). */
 export const PVEP_METADATA_STORAGE_PREFIX = "pvep_metadata";
+/** Tuyên Quang metadata worker output root (parallel to processed/). */
+export const TUYEN_QUANG_METADATA_STORAGE_PREFIX = "tuyen_quang_metadata";
 export const METADATA_OUTPUT_STORAGE_PREFIXES = [
     PROCESSED_STORAGE_PREFIX,
     TT05_METADATA_STORAGE_PREFIX,
     PVEP_METADATA_STORAGE_PREFIX,
+    TUYEN_QUANG_METADATA_STORAGE_PREFIX,
 ] as const;
 export type MetadataOutputStoragePrefix =
     (typeof METADATA_OUTPUT_STORAGE_PREFIXES)[number];
 export const SEARCHABLE_PDF_STORAGE_PREFIX = "searchable_pdf";
+/** Pre-generated PDF/A-2b for metadata export (sibling of raw/). */
+export const EXPORT_PDF_STORAGE_PREFIX = "Export/PDF";
+/** Pre-generated TIFF for metadata export (sibling of raw/). */
+export const EXPORT_TIFF_STORAGE_PREFIX = "Export/TIFF";
 
 /** Return processed/ or tt05_metadata/ prefix if present on the key. */
 export function getMetadataOutputPrefix(
@@ -146,6 +153,95 @@ export function toSearchablePdfKey(objectKey: string): string | null {
 }
 
 /**
+ * Inner path after raw/ (or signed/) for Export mirrors.
+ * raw/a/b/doc.pdf → a/b/doc.pdf
+ */
+function rawInnerSuffix(objectKey: string): string | null {
+    const normalized = normalizeStorageKey(objectKey);
+    const rawPrefix = resolveRawStoragePrefix();
+    const signedPrefix = resolveSignedStoragePrefix();
+
+    if (normalized.startsWith(`${rawPrefix}/`)) {
+        return normalized.slice(rawPrefix.length + 1);
+    }
+    if (normalized.startsWith(`${signedPrefix}/`)) {
+        return normalized.slice(signedPrefix.length + 1);
+    }
+    if (normalized.startsWith(`${EXPORT_PDF_STORAGE_PREFIX}/`)) {
+        return normalized.slice(EXPORT_PDF_STORAGE_PREFIX.length + 1);
+    }
+    if (normalized.startsWith(`${EXPORT_TIFF_STORAGE_PREFIX}/`)) {
+        return normalized.slice(EXPORT_TIFF_STORAGE_PREFIX.length + 1);
+    }
+    return null;
+}
+
+/** Mirror raw/signed key → Export/PDF/{inner} (same filename, PDF/A-2b content). */
+export function toExportPdfKey(objectKey: string): string | null {
+    const normalized = normalizeStorageKey(objectKey);
+    if (normalized.startsWith(`${EXPORT_PDF_STORAGE_PREFIX}/`)) {
+        return normalized;
+    }
+    const suffix = rawInnerSuffix(objectKey);
+    if (!suffix || !/\.pdf$/i.test(suffix)) {
+        return null;
+    }
+    return `${EXPORT_PDF_STORAGE_PREFIX}/${suffix}`;
+}
+
+/** Mirror raw/signed key → Export/TIFF/{inner} with .TIFF extension. */
+export function toExportTiffKey(objectKey: string): string | null {
+    const normalized = normalizeStorageKey(objectKey);
+    if (normalized.startsWith(`${EXPORT_TIFF_STORAGE_PREFIX}/`)) {
+        return normalized;
+    }
+    const suffix = rawInnerSuffix(objectKey);
+    if (!suffix || !/\.pdf$/i.test(suffix)) {
+        return null;
+    }
+    const tiffSuffix = suffix.replace(/\.pdf$/i, ".TIFF");
+    return `${EXPORT_TIFF_STORAGE_PREFIX}/${tiffSuffix}`;
+}
+
+/** Prefix for listing Export/PDF objects mirroring a raw folder path. */
+export function toExportPdfPrefix(folderOrKeyPath: string): string | null {
+    const rawPrefix = resolveRawStoragePrefix();
+    const normalized = normalizeStorageKey(folderOrKeyPath);
+    if (!normalized.startsWith(`${rawPrefix}/`) && normalized !== rawPrefix) {
+        // Try via a synthetic pdf key under the folder
+        const asFolder = normalized.replace(/\/?$/, "/");
+        if (!asFolder.startsWith(`${rawPrefix}/`)) return null;
+        const suffix = asFolder.slice(rawPrefix.length + 1);
+        return `${EXPORT_PDF_STORAGE_PREFIX}/${suffix}`;
+    }
+    const suffix = normalized === rawPrefix
+        ? ""
+        : normalized.slice(rawPrefix.length + 1);
+    const withSlash = suffix ? `${suffix.replace(/\/?$/, "/")}` : "";
+    return `${EXPORT_PDF_STORAGE_PREFIX}/${withSlash}`;
+}
+
+/** Prefix for listing Export/TIFF objects mirroring a raw folder path. */
+export function toExportTiffPrefix(folderOrKeyPath: string): string | null {
+    const pdfPrefix = toExportPdfPrefix(folderOrKeyPath);
+    if (!pdfPrefix) return null;
+    return pdfPrefix.replace(
+        `${EXPORT_PDF_STORAGE_PREFIX}/`,
+        `${EXPORT_TIFF_STORAGE_PREFIX}/`,
+    );
+}
+
+/** Add Export/PDF + Export/TIFF mirrors for every raw/signed PDF key in the set. */
+export function expandKeysWithExportDerivatives(keys: Set<string>): void {
+    for (const key of [...keys]) {
+        const pdfKey = toExportPdfKey(key);
+        if (pdfKey) keys.add(pdfKey);
+        const tiffKey = toExportTiffKey(key);
+        if (tiffKey) keys.add(tiffKey);
+    }
+}
+
+/**
  * Mirror a raw/ object key to doc_json/ with the same inner path.
  * Leaf .pdf files become .json; other extensions are unchanged.
  */
@@ -223,6 +319,14 @@ export function toTt05MetadataKey(folderPath: string): string | null {
  */
 export function toPvepMetadataKey(folderPath: string): string | null {
     return toMetadataOutputKey(folderPath, PVEP_METADATA_STORAGE_PREFIX);
+}
+
+/**
+ * Mirror a raw/ folder path to Tuyên Quang metadata key.
+ * raw/<root>/<ho_so_id> -> tuyen_quang_metadata/<root>/<ho_so_id>/<ho_so_id>.json
+ */
+export function toTuyenQuangMetadataKey(folderPath: string): string | null {
+    return toMetadataOutputKey(folderPath, TUYEN_QUANG_METADATA_STORAGE_PREFIX);
 }
 
 /**

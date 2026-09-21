@@ -102,3 +102,4 @@ export const apiAuditLogsRelations = relations(apiAuditLogs, ({ one }) => ({
     references: [userProfiles.id],
   }),
 }));
+
