@@ -73,10 +73,11 @@ export const DOCUMENT_NAMING_FIELD_CATALOG: DocumentNamingFieldCatalog = {
 function padSegmentValue(
     value: string,
     length: number,
-    padChar: string,
+    padChar?: string | null,
 ): string {
     if (length <= 0) return value;
-    const char = padChar.length > 0 ? padChar[0] : " ";
+    if (!padChar || padChar.length === 0) return value;
+    const char = padChar[0];
 
     // Xử lý trường hợp số có hậu tố chữ cái (ví dụ: ĐVBQ 123a, 23b)
     // Phần số cần đủ `length` chữ số, sau đó mới ghép hậu tố
@@ -182,13 +183,13 @@ export function buildDocumentName(input: {
             case "file_field":
                 raw = String(input.file?.[segment.fieldKey ?? ""] ?? "");
                 break;
-            case "metadata_field":
-                raw = String(
-                    input.metadataValues?.[segment.fieldKey ?? ""] ??
-                    segment.value ??
-                    ""
-                );
+            case "metadata_field": {
+                const metaVal = input.metadataValues?.[segment.fieldKey ?? ""];
+                raw = (metaVal !== undefined && metaVal !== null && metaVal !== "")
+                    ? String(metaVal)
+                    : (segment.value && segment.value.trim() ? segment.value : "");
                 break;
+            }
         }
 
         return padSegmentValue(raw, segment.length, padChar);
