@@ -90,7 +90,9 @@ export function canQcSubmitAtAssignedLevel({
 
 export function canExportDossierMetadata(
   dossierStatus: DataDossierStatus | undefined,
+  options?: { bypassStatus?: boolean },
 ): boolean {
+  if (options?.bypassStatus) return true
   return dossierStatus === 'APPROVED' || dossierStatus === 'ARCHIVED'
 }
 

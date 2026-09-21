@@ -142,6 +142,8 @@ function createEmptyRoot(): DataTreeNodeT {
     parentId: null,
     children: [],
     sizeBytes: 0,
+    fileCount: 0,
+    pageCount: 0,
     uploadedAt: new Date().toISOString(),
     uploadedBy: 'System',
   }
@@ -332,6 +334,8 @@ async function assembleEditorTreeFromClaim(
     parentId: DATA_TREE_ROOT_ID,
     children,
     sizeBytes: children.reduce((sum, doc) => sum + doc.sizeBytes, 0),
+    fileCount: children.length,
+    pageCount: children.reduce((sum, doc) => sum + (doc.pageCount || 0), 0),
     uploadedAt: new Date().toISOString(),
     uploadedBy: 'System',
     dossierId,
@@ -407,6 +411,7 @@ const DOSSIER_STATUSES = new Set<DataDossierStatus>([
   'OCR_PROCESSING',
   'OCR_FAILED',
   'READY_FOR_ENTRY',
+  'ENTRY_DRAFT',
   'ENTRY_PROCESSING',
   'WAITING_CHECKER_1',
   'CHECKER_1_PROCESSING',
@@ -442,6 +447,7 @@ function parseDossierStatus(value: unknown): DataDossierStatus | undefined {
 }
 
 function isDossierFolderChild(child: Record<string, unknown>): boolean {
+  if (child.type === 'record' || child.dossierId != null) return true
   return parseDossierStatus(child.status) != null
 }
 
@@ -501,6 +507,10 @@ function applyNodeSizeFromPayload(
   if (sizeBytes > 0) {
     node.sizeBytes = sizeBytes
   }
+  const fileCount = Number(source.fileCount ?? source.file_count ?? 0)
+  if (fileCount > 0) node.fileCount = fileCount
+  const pageCount = Number(source.pageCount ?? source.page_count ?? 0)
+  if (pageCount > 0) node.pageCount = pageCount
 }
 
 function sumChildrenSizeBytes(children: Array<DataTreeNodeT>): number {
@@ -524,8 +534,15 @@ function applyDossierFields(
   if (projectCode) node.projectCode = projectCode
   const fondId = extractFondId(source)
   if (fondId) node.fondId = fondId
-  if (source.name != null && String(source.name).trim()) {
-    node.name = String(source.name)
+  // Keep listing label (folderName). Dossier.name can differ / match a parent
+  // segment; overwriting here causes the tree rename-on-select bug.
+  const folderName =
+    source.folderName != null ? String(source.folderName).trim() : ''
+  const dossierName = source.name != null ? String(source.name).trim() : ''
+  if (folderName) {
+    node.name = folderName
+  } else if (dossierName && !String(node.name ?? '').trim()) {
+    node.name = dossierName
   }
   applyCheckerAssignmentsToNode(node, source)
 }
@@ -547,6 +564,8 @@ function mapFolderChild(child: Record<string, unknown>): DataTreeNodeT {
     parentId: child.parentId != null ? String(child.parentId) : null,
     children: [],
     sizeBytes: sizeKbToBytes(child.totalSizeKb ?? child.total_size_kb),
+    fileCount: Number(child.fileCount ?? child.file_count ?? 0),
+    pageCount: Number(child.pageCount ?? child.page_count ?? 0),
     uploadedAt: String(child.createdAt || new Date().toISOString()),
     uploadedBy: 'System',
     ...(entityType ? { entityType } : {}),
@@ -590,8 +609,12 @@ async function loadEditorDossierFromDraft(
   return cloneTree(dynamicTree)
 }
 
-async function buildEditorClaimTree(): Promise<DataTreeNodeT> {
-  const claim = await claimMakerAssignment()
+async function buildEditorClaimTree(options?: {
+  skipDraft?: boolean
+}): Promise<DataTreeNodeT> {
+  const claim = await claimMakerAssignment(
+    options?.skipDraft ? { skipDraft: true } : undefined,
+  )
   editorClaimSnapshot = claim
   editorDraftDossierId = null
   dynamicTree = await assembleEditorTreeFromClaim(claim)
@@ -636,6 +659,11 @@ export async function refreshDossierContent(
   recordNode.fullDossierMetadata = fullMetadata
   recordNode.sizeBytes = recordContent.children.reduce(
     (sum, document) => sum + document.sizeBytes,
+    0,
+  )
+  recordNode.fileCount = recordContent.children.length
+  recordNode.pageCount = recordContent.children.reduce(
+    (sum, document) => sum + (document.pageCount || 0),
     0,
   )
   const refreshedStatus = parseDossierStatus(
@@ -766,6 +794,8 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
           parentId: currentParentId,
           children: [],
           sizeBytes: 0,
+          fileCount: 0,
+          pageCount: 0,
           uploadedAt: String(dossier.updatedAt || new Date().toISOString()),
           uploadedBy: 'System',
         }
@@ -791,6 +821,11 @@ async function buildAssignmentTree(role: 'qc'): Promise<DataTreeNodeT> {
           newNode.fullDossierMetadata =
             recordContent.fullDossierMetadata ?? recordContent.dossierMetadata
           newNode.sizeBytes = sumChildrenSizeBytes(recordContent.children)
+          newNode.fileCount = recordContent.children.length
+          newNode.pageCount = recordContent.children.reduce(
+            (sum, document) => sum + (document.pageCount || 0),
+            0,
+          )
           loadedNodes.add(dossierId)
         }
 
@@ -910,7 +945,7 @@ export async function getDataTree(
       resetTreeCache(role)
       editorClaimSnapshot = null
       editorDraftDossierId = null
-      dynamicTree = await buildEditorClaimTree()
+      dynamicTree = await buildEditorClaimTree({ skipDraft: true })
       return cloneTree(dynamicTree)
     }
 
@@ -1342,6 +1377,8 @@ export async function assignPdfDocument({
       parentId: parentNode.id,
       children: [],
       sizeBytes: file.size,
+      fileCount: 1,
+      pageCount: 1,
       uploadedAt: createdAt,
       uploadedBy: 'System',
       projectCode: oldNode.projectCode,
@@ -1428,6 +1465,8 @@ export async function addDataFolder(parentId: string): Promise<DataTreeNodeT> {
     parentId,
     children: [],
     sizeBytes: 0,
+    fileCount: 0,
+    pageCount: 0,
     uploadedAt: createdAt,
     uploadedBy: 'System',
   }
@@ -1725,4 +1764,107 @@ export function getRecordAssignmentTarget(
   if (status === 'pendingApproval' || status === 'approved1') return 'reviewer2'
   if (status === 'approved2' || status === 'final') return 'reviewer3'
   return null
+}
+
+export async function getSearchTree(
+  role: DataManagementRole,
+  options: { projectCode?: string; q: string },
+): Promise<DataTreeNodeT> {
+  const scopedProjectCode = toScopedProjectCode(options.projectCode)
+  const params = scopedProjectCode
+    ? { projectCode: scopedProjectCode, q: options.q }
+    : { q: options.q }
+
+  const response = await apiClient.get<Record<string, unknown>>(
+    `/api/v1/folders/search-tree`,
+    { params },
+  )
+
+  const data = response.data
+  const rootNode = createEmptyRoot()
+  const children = Array.isArray(data.children) ? data.children : []
+  rootNode.children = children.map((c) =>
+    mapSearchTreeChild(c as Record<string, unknown>),
+  )
+  rootNode.sizeBytes = rootNode.children.reduce((acc, c) => acc + c.sizeBytes, 0)
+  rootNode.fileCount = rootNode.children.reduce((acc, c) => acc + c.fileCount, 0)
+  rootNode.pageCount = rootNode.children.reduce(
+    (acc, c) => acc + (c.pageCount || 0),
+    0,
+  )
+  return rootNode
+}
+
+function mapSearchTreeChild(child: Record<string, unknown>): DataTreeNodeT {
+  // Document/file node — backend sets type: 'document' explicitly
+  if (child.type === 'document') {
+    const parentId = child.dossierId
+      ? String(child.dossierId)
+      : child.parentId
+        ? String(child.parentId)
+        : DATA_TREE_ROOT_ID
+    return {
+      id: String(child.id),
+      name: String(child.name),
+      type: 'document',
+      parentId,
+      children: [],
+      sizeBytes: sizeKbToBytes(Number(child.totalSizeKb || 0)),
+      pageCount: Number(child.pageCount || 0),
+      fileCount: 0,
+      uploadedAt: String(child.createdAt || new Date().toISOString()),
+      uploadedBy: 'System',
+      filePath: child.filePath ? String(child.filePath) : undefined,
+      isSearchMatch: Boolean(child.isSearchMatch),
+    }
+  }
+
+  // Dossier/record node — has a workflow status field or explicit type/dossierId
+  if (child.type === 'record' || isDossierFolderChild(child)) {
+    const dossierId = String(child.dossierId || child.id)
+    const dossierStatus = parseDossierStatus(child.status)
+    const projectCode = extractProjectCode(child)
+    const fondId = extractFondId(child)
+    const folderId = extractDossierFolderId(child)
+    const mappedChildren = Array.isArray(child.children)
+      ? child.children.map((c) =>
+          mapSearchTreeChild(c as Record<string, unknown>),
+        )
+      : []
+    return {
+      id: dossierId,
+      name: String(child.name),
+      type: 'record',
+      parentId: folderId ?? DATA_TREE_ROOT_ID,
+      children: mappedChildren,
+      sizeBytes: mappedChildren.reduce((acc, c) => acc + c.sizeBytes, 0),
+      fileCount: mappedChildren.length,
+      pageCount: mappedChildren.reduce((acc, c) => acc + (c.pageCount || 0), 0),
+      uploadedAt: String(child.createdAt || new Date().toISOString()),
+      uploadedBy: 'System',
+      dossierId,
+      entityType: 'DOCUMENT',
+      ...(dossierStatus ? { dossierStatus } : {}),
+      ...(projectCode ? { projectCode } : {}),
+      ...(fondId ? { fondId } : {}),
+      ...(folderId ? { folderId } : {}),
+      isAssigned: parseIsAssigned(child),
+      isSearchMatch: Boolean(child.isSearchMatch),
+    }
+  }
+
+  // Folder node
+  const node = mapFolderChild(child)
+  if (Array.isArray(child.children)) {
+    node.children = child.children.map((c) =>
+      mapSearchTreeChild(c as Record<string, unknown>),
+    )
+    node.sizeBytes = node.children.reduce((acc, c) => acc + c.sizeBytes, 0)
+    node.fileCount = node.children.reduce(
+      (acc, c) => acc + (c.type === 'document' ? 1 : c.fileCount),
+      0,
+    )
+    node.pageCount = node.children.reduce((acc, c) => acc + (c.pageCount || 0), 0)
+  }
+  return node
 }

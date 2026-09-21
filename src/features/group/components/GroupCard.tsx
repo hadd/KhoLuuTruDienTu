@@ -22,13 +22,13 @@ import {
   getQcLevelUserIdsFromGroup,
 } from '@/features/group/lib/groupPayload'
 import { buildQcLevelsDisplay } from '@/features/group/lib/qcLevels'
-import { useUpdateGroup } from '@/features/group/queries'
+import { useUpdateGroup, groupAssignmentCountsQueryOptions } from '@/features/group/queries'
 import { groupConfigStore, useGroupConfig } from '@/features/group/store'
 import { DATA_ENTRY_CHECKER_PERMISSION } from '@/features/data-management/lib/resolveDataManagementRole'
 import { DASHBOARD_PERMISSION_KEYS } from '@/features/permissions/lib/dashboardAccess'
 import { adminUsersByPermissionQueryOptions } from '@/features/user/queries'
 
-import type { Group, GroupQcMemberT, Member } from '../types'
+import type { Group, GroupQcMemberT, Member, MemberDossiersTargetT } from '../types'
 import { AddApproverDialog } from './AddApproverDialog'
 import { ApprovalRoundStepper } from './ApprovalRoundStepper'
 import { AssignedDossiersDialog } from './AssignedDossiersDialog'
@@ -38,6 +38,7 @@ import { GroupConfigTemplateSelect } from './GroupConfigTemplateSelect'
 import { GroupDefaultMembersView } from './GroupDefaultMembersView'
 import { GroupPermissionSlotsView } from './GroupPermissionSlotsView'
 import { GroupProjectLabel } from './GroupProjectLabel'
+import { MemberDossiersDialog } from './MemberDossiersDialog'
 
 interface GroupCardProps {
   group: Group
@@ -49,8 +50,6 @@ interface GroupCardProps {
   setSelectedGroup: (group: Group | null) => void
   setAddMemberOpen: (open: boolean) => void
   setDeleteOpen: (open: boolean) => void
-  setSelectedMember: (member: Member) => void
-  setMemberProfileOpen: (open: boolean) => void
   setMemberToRemove: (
     payload: { groupId: string; member: Member } | null,
   ) => void
@@ -66,8 +65,6 @@ export function GroupCard({
   setSelectedGroup,
   setAddMemberOpen,
   setDeleteOpen,
-  setSelectedMember,
-  setMemberProfileOpen,
   setMemberToRemove,
 }: GroupCardProps) {
   const { t } = useTranslation('group')
@@ -106,7 +103,35 @@ export function GroupCard({
   )
   const [assignFolderOpen, setAssignFolderOpen] = useState(false)
   const [assignedDossiersOpen, setAssignedDossiersOpen] = useState(false)
+  const [memberDossiersOpen, setMemberDossiersOpen] = useState(false)
+  const [memberDossiersTarget, setMemberDossiersTarget] =
+    useState<MemberDossiersTargetT | null>(null)
   const [isHandling, setIsHandling] = useState(false)
+
+  const { data: assignmentCounts } = useQuery(
+    groupAssignmentCountsQueryOptions(group.id),
+  )
+
+  const editorCounts = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const row of assignmentCounts?.editors ?? []) {
+      map[row.userId] = row.count
+    }
+    return map
+  }, [assignmentCounts?.editors])
+
+  const checkerCounts = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const row of assignmentCounts?.checkers ?? []) {
+      map[`${row.level}:${row.userId}`] = row.count
+    }
+    return map
+  }, [assignmentCounts?.checkers])
+
+  const handleOpenMemberDossiers = (target: MemberDossiersTargetT) => {
+    setMemberDossiersTarget(target)
+    setMemberDossiersOpen(true)
+  }
 
   useEffect(() => {
     const value = group.dossiersPerEditor ?? 1
@@ -584,6 +609,19 @@ export function GroupCard({
                 levels={displayQcLevels}
                 isEditing={isEditing}
                 canManageMembers={canManageMembers}
+                checkerCounts={checkerCounts}
+                onMemberClick={
+                  isEditing || canManageMembers
+                    ? undefined
+                    : (qcMember, level) => {
+                        handleOpenMemberDossiers({
+                          kind: 'checker',
+                          userId: qcMember.userId,
+                          name: qcMember.name,
+                          level,
+                        })
+                      }
+                }
                 onRemoveMember={handleRemoveQcMember}
                 onRemoveLevel={handleRemoveQcLevel}
                 onAddApprovers={handleOpenAddApprover}
@@ -595,8 +633,9 @@ export function GroupCard({
             group={group}
             isEditing={isEditing}
             displayQcLevels={displayQcLevels}
-            setSelectedMember={setSelectedMember}
-            setMemberProfileOpen={setMemberProfileOpen}
+            editorCounts={editorCounts}
+            checkerCounts={checkerCounts}
+            onOpenMemberDossiers={handleOpenMemberDossiers}
             setMemberToRemove={setMemberToRemove}
             onRemoveApprover={handleRemoveQcMember}
             onRemoveApprovalLevel={handleRemoveQcLevel}
@@ -620,6 +659,16 @@ export function GroupCard({
         open={assignedDossiersOpen}
         onOpenChange={setAssignedDossiersOpen}
         group={group}
+      />
+
+      <MemberDossiersDialog
+        open={memberDossiersOpen}
+        onOpenChange={(open) => {
+          setMemberDossiersOpen(open)
+          if (!open) setMemberDossiersTarget(null)
+        }}
+        groupId={group.id}
+        target={memberDossiersTarget}
       />
 
       <AddApproverDialog

@@ -10,13 +10,20 @@ import type {
   UpsertDocumentNamingConfigPayloadT,
 } from '@/features/document-naming-config/types'
 
-export const getDocumentNamingFieldCatalog =
-  async (): Promise<DocumentNamingFieldCatalogT> => {
-    const response = await apiClient.get<DocumentNamingFieldCatalogT>(
-      '/api/v1/admin/document-naming-configs/field-catalog',
-    )
-    return response.data
+export const getDocumentNamingFieldCatalog = async (params?: {
+  dossierId?: string
+}): Promise<DocumentNamingFieldCatalogT> => {
+  const searchParams = new URLSearchParams()
+  if (params?.dossierId) searchParams.set('dossierId', params.dossierId)
+  const query = searchParams.toString()
+  const response = await apiClient.get<DocumentNamingFieldCatalogT>(
+    `/api/v1/admin/document-naming-configs/field-catalog${query ? `?${query}` : ''}`,
+  )
+  return {
+    ...response.data,
+    metadata: response.data.metadata ?? [],
   }
+}
 
 export const getDocumentNamingDossierOptions = async (params: {
   fondId: string

@@ -2,13 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { MetadataSearchableSelect } from '@/features/data-management/components/MetadataSearchableSelect'
 import { activeRetentionPeriodsQueryOptions } from '@/features/retention-period/queries'
 import { formatRetentionDurationLabel } from '@/features/retention-period/lib/formatRetentionDuration'
 import type { RetentionPeriodT } from '@/features/retention-period/types'
@@ -26,9 +20,7 @@ function resolveRetentionOptionValue(
 ): string {
   const trimmed = rawValue.trim()
   if (!trimmed) return ''
-  // Direct id match
   if (options.some((o) => o.id === trimmed)) return trimmed
-  // Match by formatted label (e.g. "Vĩnh viễn", "10 năm")
   const byLabel = options.find(
     (o) =>
       formatRetentionDurationLabel(o, t).toLowerCase() ===
@@ -78,6 +70,15 @@ export function MetadataRetentionFieldSelect({
     [options, value, t],
   )
 
+  const searchableOptions = useMemo(
+    () =>
+      options.map((period) => ({
+        value: period.id,
+        label: formatRetentionDurationLabel(period, t),
+      })),
+    [options, t],
+  )
+
   if (disabled) {
     return (
       <p className={cn('text-sm text-foreground', className)}>
@@ -96,29 +97,34 @@ export function MetadataRetentionFieldSelect({
         ? tDm('recordDetail.retentionEmpty')
         : tDm('recordDetail.retentionSelectPlaceholder')
 
+  const displayLabel =
+    selectedValue.trim() && !periodsQuery.isPending
+      ? resolveRetentionDisplayLabel(value, options, t)
+      : undefined
+
   return (
-    <Select
-      value={selectedValue || undefined}
+    <MetadataSearchableSelect
+      options={searchableOptions}
+      value={selectedValue}
       onValueChange={(next) => {
         const selected = options.find((o) => o.id === next)
-        // Store the human-readable label so backend metadata stays text-based
-        const label = selected ? formatRetentionDurationLabel(selected, t) : next
+        const label = selected
+          ? formatRetentionDurationLabel(selected, t)
+          : next
         onValueChange?.(label)
       }}
+      placeholder={placeholder}
+      searchPlaceholder={tDm('recordDetail.retentionSearchPlaceholder')}
+      emptyText={tDm('recordDetail.retentionEmpty')}
+      noResultsText={tDm('recordDetail.searchNoResults')}
       disabled={
-        disabled || periodsQuery.isPending || periodsQuery.isError || options.length === 0
+        disabled ||
+        periodsQuery.isPending ||
+        periodsQuery.isError ||
+        options.length === 0
       }
-    >
-      <SelectTrigger className={cn('w-full', className)}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((period) => (
-          <SelectItem key={period.id} value={period.id}>
-            {formatRetentionDurationLabel(period, t)}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      className={className}
+      displayLabel={displayLabel === '—' ? undefined : displayLabel}
+    />
   )
 }

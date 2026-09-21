@@ -101,25 +101,28 @@ export const Route = createFileRoute('/app/dashboard/')({
 
     const targetTab = permInfo.isWarehouseOnly ? 'warehouse' : search.tab ?? 'overview'
 
+    // Prefetch in background so route paint is not blocked by slow public-IP / heavy stats.
     try {
       if (targetTab === 'warehouse' && permInfo.hasWarehouseAccess) {
-        await context.queryClient.ensureQueryData(
+        void context.queryClient.prefetchQuery(
           warehouseDashboardQueries.warehouseStats(search.intakeGranularity ?? 'month'),
         )
       } else if (permInfo.hasOverviewAccess) {
         if (permInfo.overviewVariant === 'admin') {
-          await context.queryClient.ensureQueryData(
+          void context.queryClient.prefetchQuery(
             adminDashboardQueryOptions(search.dossierTrendGranularity ?? 'month'),
           )
         } else if (permInfo.overviewVariant === 'qc') {
-          await context.queryClient.ensureQueryData(qcDashboardQueryOptions())
-          try {
-            await context.queryClient.ensureQueryData(qcDashboardGroupQueryOptions())
-          } catch (error) {
-            if (!isQcGroupLeaderOnlyError(error)) throw error
-          }
+          void context.queryClient.prefetchQuery(qcDashboardQueryOptions())
+          void context.queryClient
+            .prefetchQuery(qcDashboardGroupQueryOptions())
+            .catch((error) => {
+              if (!isQcGroupLeaderOnlyError(error)) {
+                console.warn('Dashboard QC group prefetch failed safely:', error)
+              }
+            })
         } else if (permInfo.overviewVariant === 'editor') {
-          await context.queryClient.ensureQueryData(
+          void context.queryClient.prefetchQuery(
             editorDashboardQueryOptions(search.period ?? '30d'),
           )
         }
@@ -246,8 +249,9 @@ function AdminDashboardContent({
   permissions: Array<string>
   groupId?: string
 }) {
+  const [dateRange, setDateRange] = useState<{ dateFrom?: string; dateTo?: string }>({})
   const { data, isLoading } = useQuery(
-    adminDashboardQueryOptions(dossierTrendGranularity),
+    adminDashboardQueryOptions(dossierTrendGranularity, dateRange.dateFrom, dateRange.dateTo),
   )
 
   if (isLoading || !data) {
@@ -261,6 +265,7 @@ function AdminDashboardContent({
       dossierTrendGranularity={dossierTrendGranularity}
       permissions={permissions}
       groupId={groupId}
+      onDateRangeChange={(dateFrom, dateTo) => setDateRange({ dateFrom, dateTo })}
     />
   )
 }

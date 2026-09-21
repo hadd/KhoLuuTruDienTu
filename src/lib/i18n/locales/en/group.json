@@ -369,6 +369,30 @@
     "empty": "No dossiers assigned to this group",
     "loadFailed": "Failed to load assigned dossiers",
     "retry": "Retry",
-    "count": "{{count}} dossiers"
+    "count": "{{count}} dossiers",
+    "assignedTo": "Assigned to: {{name}}",
+    "assignedToLabel": "Assigned to:",
+    "unassigned": "Unassigned",
+    "noSearchResults": "No dossiers match your search"
+  },
+  "memberDossiers": {
+    "editorTitle": "Assigned dossiers — {{name}}",
+    "editorDescription": "Dossiers currently assigned to {{name}}",
+    "checkerTitle": "Assigned for review — {{name}}",
+    "checkerDescription": "Dossiers assigned to {{name}} for approval (Level {{level}})",
+    "searchPlaceholder": "Search dossiers...",
+    "editorEmpty": "No dossiers currently assigned",
+    "checkerEmpty": "No dossiers assigned for review",
+    "loadFailed": "Failed to load dossiers",
+    "retry": "Retry",
+    "count": "{{count}} dossiers",
+    "revokeAll": {
+      "button": "Revoke all",
+      "confirmTitle": "Revoke all assignments?",
+      "confirmDescription": "Revoke {{name}}'s assignments for {{count}} dossiers (ready for entry and currently in entry). Dossiers remain in the group for reassignment.",
+      "confirmSubmit": "Revoke",
+      "success": "Revoked {{count}} dossiers.",
+      "error": "Failed to revoke assignments."
+    }
   }
 }

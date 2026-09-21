@@ -6,6 +6,10 @@ import {
   updateMetadataExtractSettings,
   type MetadataExtractMode,
 } from '@/features/metadata-extract/api/metadataExtractClient'
+import {
+  getPageQuota,
+  uploadPageQuotaLicense,
+} from '@/features/metadata-extract/api/pageQuotaClient'
 import { translateError } from '@/lib/utils/translate-error'
 
 import {
@@ -40,19 +44,54 @@ export const metadataExtractSettingsQueryOptions = () =>
     staleTime: 30_000,
   })
 
-export const metadataHiddenFieldsQueryOptions = () =>
+export const metadataHiddenFieldsQueryOptions = (mode?: string) =>
   queryOptions({
-    queryKey: metadataHiddenFieldsQueryKey,
-    queryFn: getMetadataHiddenFields,
+    queryKey: mode
+      ? ([...metadataHiddenFieldsQueryKey, mode] as const)
+      : metadataHiddenFieldsQueryKey,
+    queryFn: () =>
+      getMetadataHiddenFields(
+        mode ? { metadataExtractModeCode: mode } : undefined,
+      ),
     staleTime: 10_000,
   })
 
-export const activeMetadataHiddenFieldsQueryOptions = () =>
+export const activeMetadataHiddenFieldsQueryOptions = (mode?: string) =>
   queryOptions({
-    queryKey: activeMetadataHiddenFieldsQueryKey,
-    queryFn: getActiveMetadataHiddenFields,
+    queryKey: mode
+      ? ([...activeMetadataHiddenFieldsQueryKey, mode] as const)
+      : activeMetadataHiddenFieldsQueryKey,
+    queryFn: () =>
+      getActiveMetadataHiddenFields(
+        mode ? { metadataExtractModeCode: mode } : undefined,
+      ),
     staleTime: 10_000,
   })
+
+export const pageQuotaQueryKey = ['page-quota'] as const
+
+export const pageQuotaQueryOptions = () =>
+  queryOptions({
+    queryKey: pageQuotaQueryKey,
+    queryFn: getPageQuota,
+    staleTime: 15_000,
+  })
+
+export function useUploadPageQuotaLicenseMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (file: File) => uploadPageQuotaLicense(file),
+    onSuccess: (data) => {
+      queryClient.setQueryData(pageQuotaQueryKey, data)
+      void queryClient.invalidateQueries({ queryKey: pageQuotaQueryKey })
+      toast.success('Đã nạp file license hạn mức trang')
+    },
+    onError: (error) => {
+      toast.error(translateError(error))
+    },
+  })
+}
 
 export function useUpdateMetadataExtractSettingsMutation(options?: {
   successMessage?: string

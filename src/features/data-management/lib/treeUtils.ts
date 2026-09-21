@@ -256,9 +256,21 @@ export function isBatchSignSelectableNode(node: DataTreeNodeT): boolean {
   )
 }
 
-/** True when a tree node can be picked in batch metadata export mode (APPROVED or ARCHIVED). */
-export function isBatchExportSelectableNode(node: DataTreeNodeT): boolean {
-  if (
+/** Dossier folder/record from `/all-first-subfolders` (has workflow `status`). */
+export function isDossierWorkflowNode(node: DataTreeNodeT): boolean {
+  return node.dossierStatus != null || node.entityType === 'DOCUMENT'
+}
+
+/** True when a node is an exportable hồ sơ leaf (APPROVED or ARCHIVED, or any status when bypass). */
+export function isBatchExportDossierLeafNode(
+  node: DataTreeNodeT,
+  options?: { bypassStatus?: boolean },
+): boolean {
+  if (options?.bypassStatus) {
+    if (!isDossierWorkflowNode(node) && node.type !== 'record' && !node.dossierId) {
+      return false
+    }
+  } else if (
     node.dossierStatus !== 'APPROVED' &&
     node.dossierStatus !== 'ARCHIVED'
   ) {
@@ -271,9 +283,100 @@ export function isBatchExportSelectableNode(node: DataTreeNodeT): boolean {
   )
 }
 
-/** Dossier folder/record from `/all-first-subfolders` (has workflow `status`). */
-export function isDossierWorkflowNode(node: DataTreeNodeT): boolean {
-  return node.dossierStatus != null || node.entityType === 'DOCUMENT'
+function hasBatchExportDossierLeafDescendant(
+  node: DataTreeNodeT,
+  options?: { bypassStatus?: boolean },
+): boolean {
+  for (const child of node.children) {
+    if (isBatchExportDossierLeafNode(child, options)) return true
+    if (hasBatchExportDossierLeafDescendant(child, options)) return true
+  }
+  return false
+}
+
+/**
+ * True when a tree node can be picked in batch metadata export mode.
+ * Includes parent folders (not shared raw/) — tick means export whole subtree
+ * via folderId API (no cascade-load into React).
+ */
+export function isBatchExportSelectableNode(
+  node: DataTreeNodeT,
+  options?: { bypassStatus?: boolean },
+): boolean {
+  if (node.type === 'document') return false
+  if (node.id === DATA_TREE_ROOT_ID) return false
+  if (isSharedRawRootFolder(node)) return false
+  if (isBatchExportDossierLeafNode(node, options)) return true
+  // Non-exportable hồ sơ (e.g. READY_FOR_ENTRY) must not show a checkbox —
+  // clicking them loaded the tree then silently dropped selection.
+  if (isDossierWorkflowNode(node) && !options?.bypassStatus) return false
+  if (isDossierWorkflowNode(node) && options?.bypassStatus) {
+    return (
+      node.type === 'record' ||
+      Boolean(node.dossierId) ||
+      node.entityType === 'DOCUMENT'
+    )
+  }
+  if (node.type !== 'folder') return false
+  // Pure container folder — tick means "export whole subtree" via folderId API
+  // (no cascade-load of children into React state).
+  return true
+}
+
+/** Collect this node only (folders are atomic subtree selections). */
+export function collectBatchExportSelectableIds(
+  node: DataTreeNodeT,
+  options?: { bypassStatus?: boolean },
+): Array<string> {
+  if (!isBatchExportSelectableNode(node, options)) return []
+  return [node.id]
+}
+
+/** True when an ancestor folder (not a dossier leaf) is in `selectedIds`. */
+export function isUnderSelectedBatchExportFolder(
+  node: DataTreeNodeT,
+  tree: DataTreeNodeT,
+  selectedIds: Array<string>,
+  options?: { bypassStatus?: boolean },
+): boolean {
+  const selectedSet = new Set(selectedIds)
+  let parentId = node.parentId
+  while (parentId) {
+    if (selectedSet.has(parentId)) {
+      const parent = findNodeById(tree, parentId)
+      if (
+        parent &&
+        parent.type === 'folder' &&
+        !isBatchExportDossierLeafNode(parent, options) &&
+        isBatchExportSelectableNode(parent, options)
+      ) {
+        return true
+      }
+    }
+    const parent = findNodeById(tree, parentId)
+    if (!parent) break
+    parentId = parent.parentId
+  }
+  return false
+}
+
+/** Checkbox state for batch export — folder tick covers whole subtree visually. */
+export function getBatchExportCheckState(
+  node: DataTreeNodeT,
+  selectedIds: Array<string>,
+  options?: { bypassStatus?: boolean },
+  tree?: DataTreeNodeT | null,
+): boolean | 'indeterminate' {
+  if (!isBatchExportSelectableNode(node, options)) return false
+  const selectedSet = new Set(selectedIds)
+  if (selectedSet.has(node.id)) return true
+  if (
+    tree &&
+    isUnderSelectedBatchExportFolder(node, tree, selectedIds, options)
+  ) {
+    return true
+  }
+  return false
 }
 
 /** True when the API marks this node as assigned (`isAssigned: true`). */
@@ -863,11 +966,11 @@ export function updateDossierStatusInTree(
         children: childrenChanged ? nextChildren : node.children,
         ...(node.dossierMetadata
           ? {
-              dossierMetadata: {
-                ...node.dossierMetadata,
-                trang_thai_ho_so: status,
-              },
-            }
+            dossierMetadata: {
+              ...node.dossierMetadata,
+              trang_thai_ho_so: status,
+            },
+          }
           : {}),
       }
       return { node: updatedNode, changed: true }
@@ -1293,19 +1396,19 @@ export function updateDossierMetadataInTree(
     const nextNode =
       isTarget && metadata
         ? syncRecordDocumentFields(
-            {
-              ...node,
-              dossierMetadata: metadata,
-              fullDossierMetadata: metadata,
-            },
-            metadata,
-          )
+          {
+            ...node,
+            dossierMetadata: metadata,
+            fullDossierMetadata: metadata,
+          },
+          metadata,
+        )
         : isTarget
           ? {
-              ...node,
-              dossierMetadata: metadata,
-              fullDossierMetadata: metadata,
-            }
+            ...node,
+            dossierMetadata: metadata,
+            fullDossierMetadata: metadata,
+          }
           : node
     return {
       ...nextNode,
@@ -1327,28 +1430,28 @@ export function updateDossierWorkflowStateInTree(
     const isTarget = node.id === dossierId || node.dossierId === dossierId
     const nextNode = isTarget
       ? {
-          ...node,
-          ...(patch.dossierStatus ? { dossierStatus: patch.dossierStatus } : {}),
-          ...(patch.assignmentStatus
-            ? { assignmentStatus: patch.assignmentStatus }
-            : {}),
-          ...(node.dossierMetadata && patch.dossierStatus
-            ? {
-                dossierMetadata: {
-                  ...node.dossierMetadata,
-                  trang_thai_ho_so: patch.dossierStatus,
-                },
-              }
-            : {}),
-          ...(node.fullDossierMetadata && patch.dossierStatus
-            ? {
-                fullDossierMetadata: {
-                  ...node.fullDossierMetadata,
-                  trang_thai_ho_so: patch.dossierStatus,
-                },
-              }
-            : {}),
-        }
+        ...node,
+        ...(patch.dossierStatus ? { dossierStatus: patch.dossierStatus } : {}),
+        ...(patch.assignmentStatus
+          ? { assignmentStatus: patch.assignmentStatus }
+          : {}),
+        ...(node.dossierMetadata && patch.dossierStatus
+          ? {
+            dossierMetadata: {
+              ...node.dossierMetadata,
+              trang_thai_ho_so: patch.dossierStatus,
+            },
+          }
+          : {}),
+        ...(node.fullDossierMetadata && patch.dossierStatus
+          ? {
+            fullDossierMetadata: {
+              ...node.fullDossierMetadata,
+              trang_thai_ho_so: patch.dossierStatus,
+            },
+          }
+          : {}),
+      }
       : node
     return {
       ...nextNode,
@@ -1467,20 +1570,78 @@ export function filterTreeExcludeArchived(
   return filt(root) ?? { ...root, children: [] }
 }
 
+export function removeVietnameseTones(str: string): string {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .toLowerCase()
+}
+
+export function matchesFuzzyFileName(
+  targetName: string | undefined | null,
+  query: string,
+): boolean {
+  if (!targetName || !query) return false
+  const trimmedQ = query.trim()
+  if (!trimmedQ) return false
+
+  const rawTarget = targetName.toLowerCase()
+  const rawQ = trimmedQ.toLowerCase()
+  if (rawTarget.includes(rawQ)) return true
+
+  const unaccentTarget = removeVietnameseTones(targetName)
+  const unaccentQ = removeVietnameseTones(trimmedQ)
+  if (unaccentTarget.includes(unaccentQ)) return true
+
+  // Stripped alphanumeric matching (e.g. pvep2002 matches PVEP.2002.0964.001)
+  const cleanTarget = unaccentTarget.replace(/[^a-z0-9]/g, '')
+  const cleanQ = unaccentQ.replace(/[^a-z0-9]/g, '')
+  if (cleanQ.length >= 2 && cleanTarget.includes(cleanQ)) {
+    return true
+  }
+
+  // Without .pdf extension check
+  const cleanTargetWithoutExt = unaccentTarget.replace(/\.pdf$/i, '').replace(/[^a-z0-9]/g, '')
+  const cleanQWithoutExt = unaccentQ.replace(/\.pdf$/i, '').replace(/[^a-z0-9]/g, '')
+  if (cleanQWithoutExt.length >= 2 && cleanTargetWithoutExt.includes(cleanQWithoutExt)) {
+    return true
+  }
+
+  // Token matching: all tokens in query exist in target
+  const tokens = unaccentQ.split(/[\s_\-\.]+/).filter(Boolean)
+  if (tokens.length > 1) {
+    const normTarget = unaccentTarget.replace(/[\s_\-\.]+/g, ' ')
+    if (tokens.every((t) => normTarget.includes(t))) {
+      return true
+    }
+  }
+
+  return false
+}
+
 export function filterTreeForSearch(
   root: DataTreeNodeT,
   q: string,
 ): DataTreeNodeT {
-  const needle = q.trim().toLowerCase()
+  const needle = q.trim()
   if (!needle) return root
 
-  function filt(n: DataTreeNodeT): DataTreeNodeT | null {
-    const kids = n.children
+  function filt(node: DataTreeNodeT): DataTreeNodeT | null {
+    const selfMatch =
+      Boolean(node.isSearchMatch) || matchesFuzzyFileName(node.name, needle)
+    if (selfMatch) {
+      return {
+        ...node,
+        children: node.children,
+      }
+    }
+    const kids = node.children
       .map(filt)
       .filter((x): x is DataTreeNodeT => x != null)
-    const selfMatch = n.name.toLowerCase().includes(needle)
-    if (selfMatch || kids.length > 0) {
-      return { ...n, children: kids }
+    if (kids.length > 0) {
+      return { ...node, children: kids }
     }
     return null
   }

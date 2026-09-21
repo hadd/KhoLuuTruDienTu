@@ -20,8 +20,24 @@ import {
 } from '@/features/security-level/lib/securityAccessTokenStore'
 import { env } from '@/lib/utils/env'
 
-// Custom error class for authentication failures
-// This allows error components to detect auth errors and redirect to login
+function coerceApiErrorMessage(
+  responseData: { message?: unknown; error?: unknown } | undefined,
+): string | undefined {
+  if (!responseData) return undefined
+  const err = responseData.error
+  if (typeof err === 'string' && err.trim()) return err.trim()
+  if (err && typeof err === 'object') {
+    const rec = err as { message?: unknown }
+    if (typeof rec.message === 'string' && rec.message.trim()) {
+      return rec.message.trim()
+    }
+  }
+  if (typeof responseData.message === 'string' && responseData.message.trim()) {
+    return responseData.message.trim()
+  }
+  return undefined
+}
+
 export class AuthenticationError extends Error {
   constructor(message: string) {
     super(message)
@@ -29,7 +45,9 @@ export class AuthenticationError extends Error {
   }
 }
 
-// Raw instance for auth calls and base config
+// Custom error class for authentication failures
+// This allows error components to detect auth errors and redirect to login
+
 const axiosInstance = axios.create({
   baseURL: env.API_URL,
   timeout: env.API_TIMEOUT_MS,
@@ -74,6 +92,29 @@ const isNetworkError = (error: AxiosError): boolean => {
     return true
   }
   return false
+}
+
+/** Coerce API error/message fields (string | array | object) into a display string. */
+function normalizeApiErrorMessage(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : undefined
+  }
+  if (Array.isArray(value)) {
+    const parts = value
+      .map((item) => normalizeApiErrorMessage(item))
+      .filter((part): part is string => Boolean(part))
+    return parts.length > 0 ? parts.join('; ') : undefined
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    return (
+      normalizeApiErrorMessage(record.message) ??
+      normalizeApiErrorMessage(record.error) ??
+      normalizeApiErrorMessage(record.summary)
+    )
+  }
+  return undefined
 }
 
 // Internal refresh logic using raw axios instance
@@ -244,20 +285,19 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
     // 4. Handle different error types with toast notifications
     const status = axiosError.response?.status
     let responseData = axiosError.response?.data as
-      | { message?: string; error?: string }
+      | { message?: unknown; error?: unknown }
       | undefined
     if (axiosError.response?.data instanceof Blob) {
       try {
         responseData = JSON.parse(await axiosError.response.data.text()) as {
-          message?: string
-          error?: string
+          message?: unknown
+          error?: unknown
         }
       } catch {
         responseData = undefined
       }
     }
-    const apiErrorMessage =
-      responseData?.error || responseData?.message || undefined
+    const apiErrorMessage = coerceApiErrorMessage(responseData)
 
     // Handle 403 - Access Denied (skip toast for password gates / wrong password — caller shows unlock UI)
     if (status === 403) {

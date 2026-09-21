@@ -20,27 +20,35 @@ const DATE_FIELD_NAMES: ReadonlySet<string> = new Set([
 ])
 
 /**
- * Hardcoded metadata fields that should be hidden when reading JSON in Data Management.
+ * Hardcoded metadata fields hidden from root-level scalar parsing only.
+ * Group fields from JSON are shown as-is on the form (admin hidden-fields config may still hide some).
+ *
+ * REVERSE (restore previous hide-list behavior):
+ * 1. Replace `new Set([])` below with the commented Set body.
+ * 2. Optionally restore migrateTt05MetadataLayout / ensureHoSoFondField /
+ *    hasHoSoFondField from the commented blocks further down in this file.
  */
-export const HIDDEN_METADATA_FIELD_NAMES: ReadonlySet<string> = new Set([
-  'FOND',
-  'PHONG_LUU_TRU',
-  'TEN_PHONG',
-  'MA_HO_SO',
-  'MA_CO_QUAN_LUU_TRU_LICH_SU',
-  'MA_PHONG',
-  'MUC_LUC_SO',
-  'MUC_LUC_SO_HOAC_NAM_HINH_THANH_HO_SO',
-  'TONG_SO_VAN_BAN_TRONG_HO_SO',
-  'CHU_GIAI',
-  'KY_HIEU_THONG_TIN',
-  'TU_KHOA',
-  'TINH_TRANG_VAT_LY',
-  'SO_LUONG_TRANG_CUA_VAN_BAN',
-  'SO_LUONG_TO',
-  'GHI_CHU',
-  'BUT_TICH',
-])
+export const HIDDEN_METADATA_FIELD_NAMES: ReadonlySet<string> = new Set([])
+// Previous hardcoded hide list (restore by swapping into the Set above):
+// export const HIDDEN_METADATA_FIELD_NAMES: ReadonlySet<string> = new Set([
+//   'FOND',
+//   'PHONG_LUU_TRU',
+//   'TEN_PHONG',
+//   'MA_HO_SO',
+//   'MA_CO_QUAN_LUU_TRU_LICH_SU',
+//   'MA_PHONG',
+//   'MUC_LUC_SO',
+//   'MUC_LUC_SO_HOAC_NAM_HINH_THANH_HO_SO',
+//   'TONG_SO_VAN_BAN_TRONG_HO_SO',
+//   'CHU_GIAI',
+//   'KY_HIEU_THONG_TIN',
+//   'TU_KHOA',
+//   'TINH_TRANG_VAT_LY',
+//   'SO_LUONG_TRANG_CUA_VAN_BAN',
+//   'SO_LUONG_TO',
+//   'GHI_CHU',
+//   'BUT_TICH',
+// ])
 
 export function isHiddenMetadataFieldName(fieldName: string): boolean {
   if (!fieldName) return false
@@ -245,19 +253,6 @@ export function collapseTaiLieuDocuments(
   return { ...metadata, metadata_groups: collapsedGroups }
 }
 
-const DEFAULT_FOND_VALUE = ''
-
-const LEGACY_FOND_FIELD_NAMES = [
-  'PHONG_LUU_TRU',
-  'TEN_PHONG',
-  'MA_PHONG',
-] as const
-
-function isLegacyFondFieldName(fieldName: string): boolean {
-  const normalized = fieldName.trim().toUpperCase()
-  return LEGACY_FOND_FIELD_NAMES.some((name) => name === normalized)
-}
-
 function findFieldValue(
   fields: Array<DataDocumentFieldT>,
   fieldName: string,
@@ -271,66 +266,150 @@ function findFieldValue(
   return null
 }
 
-function resolveLegacyFondValue(
-  phongGroup: DataDossierMetadataT['metadata_groups'][number] | undefined,
-  hoSoFields: Array<DataDocumentFieldT>,
-): string {
-  if (phongGroup) {
-    return (
-      findFieldValue(phongGroup.fields, 'TEN_PHONG') ??
-      findFieldValue(phongGroup.fields, 'MA_PHONG') ??
-      DEFAULT_FOND_VALUE
-    )
-  }
+/*
+ * --- PREVIOUS fond-migration helpers (kept for reverse) ---
+ * REVERSE migrateTt05MetadataLayout / ensureHoSoFondField:
+ * 1. Uncomment DEFAULT_FOND_VALUE … resolveLegacyFondValue and the old
+ *    migrateTt05MetadataLayout / ensureHoSoFondField bodies below.
+ * 2. Delete (or comment out) the current pass-through implementations.
+ * 3. For hasHoSoFondField, restore `return false` (see commented body).
+ *
+ * Previous behavior: drop PHONG_LUU_TRU group + legacy fond fields
+ * (TEN_PHONG, MA_PHONG, PHONG_LUU_TRU, FOND) so the form did not show them.
+ */
 
-  return (
-    findFieldValue(hoSoFields, HO_SO_FOND_FIELD) ??
-    findFieldValue(hoSoFields, 'PHONG_LUU_TRU') ??
-    findFieldValue(hoSoFields, 'TEN_PHONG') ??
-    findFieldValue(hoSoFields, 'MA_PHONG') ??
-    DEFAULT_FOND_VALUE
-  )
-}
+// const DEFAULT_FOND_VALUE = ''
+//
+// const LEGACY_FOND_FIELD_NAMES = [
+//   'PHONG_LUU_TRU',
+//   'TEN_PHONG',
+//   'MA_PHONG',
+// ] as const
+//
+// function isLegacyFondFieldName(fieldName: string): boolean {
+//   const normalized = fieldName.trim().toUpperCase()
+//   return LEGACY_FOND_FIELD_NAMES.some((name) => name === normalized)
+// }
+//
+// function resolveLegacyFondValue(
+//   phongGroup: DataDossierMetadataT['metadata_groups'][number] | undefined,
+//   hoSoFields: Array<DataDocumentFieldT>,
+// ): string {
+//   if (phongGroup) {
+//     return (
+//       findFieldValue(phongGroup.fields, 'TEN_PHONG') ??
+//       findFieldValue(phongGroup.fields, 'MA_PHONG') ??
+//       DEFAULT_FOND_VALUE
+//     )
+//   }
+//
+//   return (
+//     findFieldValue(hoSoFields, HO_SO_FOND_FIELD) ??
+//     findFieldValue(hoSoFields, 'PHONG_LUU_TRU') ??
+//     findFieldValue(hoSoFields, 'TEN_PHONG') ??
+//     findFieldValue(hoSoFields, 'MA_PHONG') ??
+//     DEFAULT_FOND_VALUE
+//   )
+// }
 
-/** Drop PHONG_LUU_TRU group/field and legacy fond fields. */
+/** Preserve metadata layout as returned in JSON (no field rewriting). */
 export function migrateTt05MetadataLayout(
   metadata: DataDossierMetadataT,
 ): DataDossierMetadataT {
-  const migrated = structuredClone(metadata) as DataDossierMetadataT
-
-  migrated.metadata_groups = migrated.metadata_groups.filter(
-    (group) => group.group_code !== 'PHONG_LUU_TRU',
-  )
-
-  const hoSoGroup = migrated.metadata_groups.find(
-    (group) => group.group_code === HO_SO_LUU_TRU_GROUP_CODE,
-  )
-  if (hoSoGroup) {
-    hoSoGroup.fields = hoSoGroup.fields.filter(
-      (field) =>
-        field.name.trim().toUpperCase() !== HO_SO_FOND_FIELD &&
-        !isLegacyFondFieldName(field.name),
-    )
-  }
-
-  return migrated
+  return metadata
 }
+
+// Previous: Drop PHONG_LUU_TRU group/field and legacy fond fields.
+// export function migrateTt05MetadataLayout(
+//   metadata: DataDossierMetadataT,
+// ): DataDossierMetadataT {
+//   const migrated = structuredClone(metadata) as DataDossierMetadataT
+//
+//   migrated.metadata_groups = migrated.metadata_groups.filter(
+//     (group) => group.group_code !== 'PHONG_LUU_TRU',
+//   )
+//
+//   const hoSoGroup = migrated.metadata_groups.find(
+//     (group) => group.group_code === HO_SO_LUU_TRU_GROUP_CODE,
+//   )
+//   if (hoSoGroup) {
+//     hoSoGroup.fields = hoSoGroup.fields.filter(
+//       (field) =>
+//         field.name.trim().toUpperCase() !== HO_SO_FOND_FIELD &&
+//         !isLegacyFondFieldName(field.name),
+//     )
+//   }
+//
+//   return migrated
+// }
 
 export function ensureHoSoFondField(
   metadata: DataDossierMetadataT,
   _fondId?: string | null,
 ): DataDossierMetadataT {
-  return migrateTt05MetadataLayout(metadata)
+  return metadata
+}
+
+// Previous:
+// export function ensureHoSoFondField(
+//   metadata: DataDossierMetadataT,
+//   _fondId?: string | null,
+// ): DataDossierMetadataT {
+//   return migrateTt05MetadataLayout(metadata)
+// }
+
+export const FOND_FIELD_NAMES: ReadonlyArray<string> = [
+  HO_SO_FOND_FIELD,
+  'MA_PHONG',
+  'TEN_PHONG',
+  'PHONG_LUU_TRU',
+]
+
+export function isFondFieldName(fieldName: string): boolean {
+  if (!fieldName) return false
+  const normalized = fieldName.trim().toUpperCase()
+  return FOND_FIELD_NAMES.includes(normalized)
+}
+
+export function isFondMetadataField(
+  _groupCode: string,
+  fieldName: string,
+): boolean {
+  return isFondFieldName(fieldName)
 }
 
 export function isHoSoFondMetadataField(
   groupCode: string,
   fieldName: string,
 ): boolean {
-  return (
-    groupCode === HO_SO_LUU_TRU_GROUP_CODE &&
-    fieldName.trim().toUpperCase() === HO_SO_FOND_FIELD
-  )
+  if (groupCode !== HO_SO_LUU_TRU_GROUP_CODE) return false
+  return isFondFieldName(fieldName)
+}
+
+export function syncFondValueAcrossMetadata(
+  metadata: DataDossierMetadataT,
+  fondValue: string,
+): DataDossierMetadataT {
+  if (!metadata?.metadata_groups) return metadata
+  const nextGroups = metadata.metadata_groups.map((group) => {
+    const hasFondField = group.fields.some((f) => isFondFieldName(f.name))
+    if (!hasFondField) return group
+    return {
+      ...group,
+      fields: group.fields.map((field) =>
+        isFondFieldName(field.name) ? { ...field, value: fondValue } : field,
+      ),
+    }
+  })
+  return { ...metadata, metadata_groups: nextGroups }
+}
+
+export function propagateHoSoFondToDocuments(
+  metadata: DataDossierMetadataT,
+): DataDossierMetadataT {
+  const fondValue = findHoSoFondFieldValue(metadata)
+  if (!fondValue) return metadata
+  return syncFondValueAcrossMetadata(metadata, fondValue)
 }
 
 export function findHoSoFondFieldValue(
@@ -339,14 +418,27 @@ export function findHoSoFondFieldValue(
   const hoSoGroup = metadata?.metadata_groups.find(
     (group) => group.group_code === HO_SO_LUU_TRU_GROUP_CODE,
   )
-  return findFieldValue(hoSoGroup?.fields ?? [], HO_SO_FOND_FIELD)
+  if (!hoSoGroup?.fields) return null
+  for (const targetName of FOND_FIELD_NAMES) {
+    const val = findFieldValue(hoSoGroup.fields, targetName)
+    if (val && val.trim()) return val.trim()
+  }
+  return null
 }
 
+/** True when HO_SO_LUU_TRU contains a FOND field (show fond UI if present in JSON). */
 export function hasHoSoFondField(
-  _metadata: DataDossierMetadataT | null | undefined,
+  metadata: DataDossierMetadataT | null | undefined,
 ): boolean {
-  return false
+  return findHoSoFondFieldValue(metadata) != null
 }
+
+// Previous (always hid fond UI regardless of JSON):
+// export function hasHoSoFondField(
+//   _metadata: DataDossierMetadataT | null | undefined,
+// ): boolean {
+//   return false
+// }
 
 const HO_SO_RETENTION_FIELD = 'THOI_HAN_LUU_TRU'
 

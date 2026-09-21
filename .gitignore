@@ -17,3 +17,7 @@ mcp-todos.json
 images/
 .cursor/
 *.tar
+
+# Graphify
+graphify-out/
+.agents/

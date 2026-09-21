@@ -120,6 +120,7 @@ type AdminDashboardPageProps = {
   dossierTrendGranularity: AdminDashboardDossierTrendGranularityT
   permissions?: Array<string>
   groupId?: string
+  onDateRangeChange?: (dateFrom?: string, dateTo?: string) => void
 }
 
 type ChartDatumT = {
@@ -137,6 +138,7 @@ export function AdminDashboardPage({
   dossierTrendGranularity,
   permissions = [],
   groupId,
+  onDateRangeChange,
 }: AdminDashboardPageProps) {
   const { t } = useTranslation('admin-dashboard')
   const language = useCurrentLanguage()
@@ -555,6 +557,7 @@ export function AdminDashboardPage({
           data={data.employeeKpis}
           selectedGroupId={groupId}
           dashboardGroups={data.groups}
+          onDateRangeChange={onDateRangeChange}
         />
       ) : null}
 

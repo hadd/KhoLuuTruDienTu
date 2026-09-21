@@ -6,12 +6,14 @@
     "old": "Thi hành án",
     "tt05": "Thông tư 05",
     "pvep": "PVEP",
+    "tuyen-quang": "Tuyên Quang",
     "off": "Tắt tự động"
   },
   "modeHelp": {
     "old": "Hồ sơ sẽ được bóc tách theo mẫu metadata Thi hành án.",
     "tt05": "Hồ sơ sẽ được bóc tách theo mẫu metadata Thông tư 05.",
     "pvep": "Hồ sơ sẽ được bóc tách theo mẫu metadata PVEP.",
+    "tuyen-quang": "Hồ sơ sẽ được bóc tách theo mẫu metadata Tuyên Quang.",
     "off": "Hệ thống không tự bóc tách. Cần kích hoạt thủ công khi cần."
   },
   "actions": {
@@ -24,5 +26,22 @@
   "errors": {
     "loadFailed": "Không thể tải cấu hình bóc tách metadata"
   },
-  "readOnlyHint": "Bạn chỉ có quyền xem. Cần quyền cập nhật để thay đổi chế độ."
+  "readOnlyHint": "Bạn chỉ có quyền xem. Cần quyền cập nhật để thay đổi chế độ.",
+  "quota": {
+    "title": "Hạn mức số trang bóc tách",
+    "description": "Tổng trang đã bóc tách trên toàn hệ thống. Gia hạn bằng file license do nhà cung cấp ký.",
+    "used": "Đã làm",
+    "limit": "Giới hạn",
+    "remaining": "Còn lại {{remaining}} trang",
+    "pending": "Đã tải chưa bóc: {{pending}} trang",
+    "lowRemaining": "Hạn mức còn rất ít. Không thể tải lượt có tổng số trang lớn hơn số trang còn lại.",
+    "uploadExceeded": "Không đủ hạn mức bóc tách: lượt tải có {{pages}} trang, chỉ còn {{remaining}} trang. Hãy nạp thêm license hoặc giảm số trang.",
+    "uploadExceededGeneric": "Không đủ hạn mức bóc tách. Hãy nạp thêm license hoặc giảm số trang.",
+    "noLicense": "Chưa nạp file license. Hãy nạp file .lic để đặt hạn mức.",
+    "stopped": "Đã hết hạn mức — hệ thống ngừng điều hướng bóc tách Kafka.",
+    "customer": "Khách hàng: {{name}}",
+    "upload": "Nạp file license",
+    "loading": "Đang tải hạn mức…",
+    "loadFailed": "Không thể tải hạn mức số trang"
+  }
 }

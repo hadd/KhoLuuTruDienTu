@@ -15,10 +15,12 @@ export function MetadataFondFieldRow({
   isHighlighted = false,
   rejectMark,
   isQcRejectedHighlight = false,
+  readOnlyInherited = false,
 }: {
   field: DataDocumentFieldT
   value: unknown
   disabled: boolean
+  readOnlyInherited?: boolean
   onValueChange: (value: string) => void
   onHighlight?: (field: DataDocumentFieldT) => void
   isHighlighted?: boolean
@@ -85,11 +87,20 @@ export function MetadataFondFieldRow({
           role={canActivate ? 'button' : undefined}
         >
           {field.display}
+          {readOnlyInherited ? (
+            <span
+              className="ml-1 text-xs font-normal text-muted-foreground"
+              title="Phông lưu trữ được tự động áp dụng từ cấp Hồ sơ"
+            >
+              (từ hồ sơ)
+            </span>
+          ) : null}
         </p>
         <MetadataFondFieldSelect
           value={displayValue}
           onValueChange={onValueChange}
           disabled={disabled}
+          readOnlyInherited={readOnlyInherited}
         />
       </div>
     </div>

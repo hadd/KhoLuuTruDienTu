@@ -102,7 +102,10 @@ describe('metadataNormalize', () => {
     expect(collapsed.metadata_groups[1]?.documents).toHaveLength(2)
   })
 
-  it('migrateTt05MetadataLayout moves fond from legacy PHONG group', () => {
+  // Current: JSON fields are preserved (pass-through migrate).
+  // REVERSE tests: comment out the two "preserves/keeps" cases below and
+  // uncomment the previous "moves fond" / "renames legacy" cases.
+  it('migrateTt05MetadataLayout preserves HO_SO fields and PHONG group as in JSON', () => {
     const migrated = migrateTt05MetadataLayout({
       metadata_groups: [
         {
@@ -122,7 +125,16 @@ describe('metadataNormalize', () => {
         {
           group_code: HO_SO_LUU_TRU_GROUP_CODE,
           group_name: 'Ho so',
-          fields: [],
+          fields: [
+            {
+              name: 'MA_PHONG',
+              display: 'Phong So',
+              type: 'string',
+              value: '0001',
+              page: null,
+              bboxes: [],
+            },
+          ],
         },
       ],
     })
@@ -131,15 +143,15 @@ describe('metadataNormalize', () => {
       migrated.metadata_groups.some(
         (group) => group.group_code === 'PHONG_LUU_TRU',
       ),
-    ).toBe(false)
+    ).toBe(true)
     expect(
-      migrated.metadata_groups[0]?.fields.find(
-        (field) => field.name === HO_SO_FOND_FIELD,
-      )?.value,
-    ).toBe('Phong A')
+      migrated.metadata_groups
+        .find((group) => group.group_code === HO_SO_LUU_TRU_GROUP_CODE)
+        ?.fields.find((field) => field.name === 'MA_PHONG')?.value,
+    ).toBe('0001')
   })
 
-  it('migrateTt05MetadataLayout renames legacy PHONG_LUU_TRU field in HO_SO', () => {
+  it('migrateTt05MetadataLayout keeps legacy PHONG_LUU_TRU field in HO_SO', () => {
     const migrated = migrateTt05MetadataLayout({
       metadata_groups: [
         {
@@ -154,6 +166,14 @@ describe('metadataNormalize', () => {
               page: 1,
               bboxes: [],
             },
+            {
+              name: 'TEN_PHONG',
+              display: 'Ten phong',
+              type: 'string',
+              value: '',
+              page: null,
+              bboxes: [],
+            },
           ],
         },
       ],
@@ -164,11 +184,80 @@ describe('metadataNormalize', () => {
     )
     expect(
       hoSoGroup?.fields.some((field) => field.name === 'PHONG_LUU_TRU'),
-    ).toBe(false)
+    ).toBe(true)
     expect(
-      hoSoGroup?.fields.find((field) => field.name === HO_SO_FOND_FIELD)?.value,
-    ).toBe('Phong legacy field')
+      hoSoGroup?.fields.some((field) => field.name === 'TEN_PHONG'),
+    ).toBe(true)
   })
+
+  // Previous tests (expect migrate to strip legacy fond fields / PHONG group):
+  // it('migrateTt05MetadataLayout moves fond from legacy PHONG group', () => {
+  //   const migrated = migrateTt05MetadataLayout({
+  //     metadata_groups: [
+  //       {
+  //         group_code: 'PHONG_LUU_TRU',
+  //         group_name: 'Phong',
+  //         fields: [
+  //           {
+  //             name: 'TEN_PHONG',
+  //             display: 'Ten phong',
+  //             type: 'string',
+  //             value: 'Phong A',
+  //             page: 1,
+  //             bboxes: [],
+  //           },
+  //         ],
+  //       },
+  //       {
+  //         group_code: HO_SO_LUU_TRU_GROUP_CODE,
+  //         group_name: 'Ho so',
+  //         fields: [],
+  //       },
+  //     ],
+  //   })
+  //
+  //   expect(
+  //     migrated.metadata_groups.some(
+  //       (group) => group.group_code === 'PHONG_LUU_TRU',
+  //     ),
+  //   ).toBe(false)
+  //   expect(
+  //     migrated.metadata_groups[0]?.fields.find(
+  //       (field) => field.name === HO_SO_FOND_FIELD,
+  //     )?.value,
+  //   ).toBe('Phong A')
+  // })
+  //
+  // it('migrateTt05MetadataLayout renames legacy PHONG_LUU_TRU field in HO_SO', () => {
+  //   const migrated = migrateTt05MetadataLayout({
+  //     metadata_groups: [
+  //       {
+  //         group_code: HO_SO_LUU_TRU_GROUP_CODE,
+  //         group_name: 'Ho so',
+  //         fields: [
+  //           {
+  //             name: 'PHONG_LUU_TRU',
+  //             display: 'Phong',
+  //             type: 'string',
+  //             value: 'Phong legacy field',
+  //             page: 1,
+  //             bboxes: [],
+  //           },
+  //         ],
+  //       },
+  //     ],
+  //   })
+  //
+  //   const hoSoGroup = migrated.metadata_groups.find(
+  //     (group) => group.group_code === HO_SO_LUU_TRU_GROUP_CODE,
+  //   )
+  //   expect(
+  //     hoSoGroup?.fields.some((field) => field.name === 'PHONG_LUU_TRU'),
+  //   ).toBe(false)
+  //   expect(
+  //     hoSoGroup?.fields.find((field) => field.name === HO_SO_FOND_FIELD)?.value,
+  //   ).toBe('Phong legacy field')
+  // })
 
   it('ensureHoSoFondField keeps existing fond value over dossier fondId', () => {
     const ensured = ensureHoSoFondField(baseMetadata, 'fond-123')

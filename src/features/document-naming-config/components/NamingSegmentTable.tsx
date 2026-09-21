@@ -1,4 +1,5 @@
-import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { AlertTriangle, ChevronDown, ChevronUp, Database, Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -29,15 +30,19 @@ import {
 } from '@/features/document-naming-config/schemas'
 import type {
   DocumentNamingFieldCatalogT,
+  DocumentNamingMetadataFieldOptionT,
   DocumentNamingSegmentSourceT,
   DocumentNamingSegmentT,
   DocumentNamingTargetTypeT,
 } from '@/features/document-naming-config/types'
+import { MetadataFieldPickerDialog } from '@/features/document-naming-config/components/MetadataFieldPickerDialog'
 import { cn } from '@/lib/utils/cn'
 
 interface NamingSegmentTableProps {
   segments: Array<DocumentNamingSegmentT>
   fieldCatalog: DocumentNamingFieldCatalogT
+  metadataFields?: Array<DocumentNamingMetadataFieldOptionT>
+  isFallbackMetadata?: boolean
   title: string
   targetType: DocumentNamingTargetTypeT
   disabled?: boolean
@@ -58,7 +63,8 @@ function needsFieldKey(source: DocumentNamingSegmentSourceT): boolean {
   return (
     source === 'fond_field' ||
     source === 'dossier_field' ||
-    source === 'file_field'
+    source === 'file_field' ||
+    source === 'metadata_field'
   )
 }
 
@@ -77,6 +83,7 @@ function getFieldOptions(
   if (source === 'fond_field') return fieldCatalog.fond
   if (source === 'dossier_field') return fieldCatalog.dossier
   if (source === 'file_field') return fieldCatalog.file
+  if (source === 'metadata_field') return fieldCatalog.metadata ?? []
   return []
 }
 
@@ -100,6 +107,8 @@ function getCurrentDateValue(source: DocumentNamingSegmentSourceT): string {
 export function NamingSegmentTable({
   segments,
   fieldCatalog,
+  metadataFields,
+  isFallbackMetadata = false,
   title,
   targetType,
   disabled = false,
@@ -107,6 +116,7 @@ export function NamingSegmentTable({
   onChange,
 }: NamingSegmentTableProps) {
   const { t } = useTranslation('document-naming-config')
+  const [activePickerIndex, setActivePickerIndex] = useState<number | null>(null)
   const sourceOptions = SOURCE_OPTIONS_BY_TARGET[targetType]
 
   const updateSegment = (index: number, patch: Partial<DocumentNamingSegmentT>) => {
@@ -172,6 +182,9 @@ export function NamingSegmentTable({
             <TableBody>
               {segments.map((segment, index) => {
                 const fieldOptions = getFieldOptions(segment.source, fieldCatalog)
+                const selectedMetaField = metadataFields?.find(
+                  (f) => f.key === segment.fieldKey || f.fieldName === segment.fieldKey,
+                )
                 const lengthError = getSegmentFieldError(errors, index, 'length')
                 const sourceError = getSegmentFieldError(errors, index, 'source')
                 const valueError = getSegmentFieldError(errors, index, 'value')
@@ -271,6 +284,58 @@ export function NamingSegmentTable({
                                 }
                               />
                             )
+                          ) : segment.source === 'metadata_field' ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={disabled}
+                              className={cn(
+                                'h-9 w-full justify-start text-left font-normal truncate px-2.5',
+                                fieldKeyError && 'border-destructive',
+                                !isFallbackMetadata &&
+                                  selectedMetaField &&
+                                  selectedMetaField.hasValue === false &&
+                                  'border-amber-500/60 bg-amber-50/40 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200',
+                              )}
+                              onClick={() => setActivePickerIndex(index)}
+                            >
+                              {segment.fieldKey ? (
+                                <div className="truncate flex items-center justify-between w-full gap-1.5 text-xs">
+                                  <span className="truncate flex items-center gap-1.5 min-w-0">
+                                    <Database className="size-3.5 text-primary shrink-0" />
+                                    <span className="font-medium text-foreground truncate">
+                                      {selectedMetaField?.display ?? segment.value ?? segment.fieldKey}
+                                    </span>
+                                    <span className="text-[11px] font-mono text-muted-foreground truncate">
+                                      ({selectedMetaField?.fieldName ?? segment.fieldKey})
+                                    </span>
+                                  </span>
+                                  {!isFallbackMetadata && selectedMetaField ? (
+                                    selectedMetaField.hasValue ? (
+                                      <span
+                                        className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-mono max-w-[100px] truncate"
+                                        title={`Giá trị trong hồ sơ: "${selectedMetaField.sampleValue}"`}
+                                      >
+                                        "{selectedMetaField.sampleValue}"
+                                      </span>
+                                    ) : (
+                                      <span
+                                        className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-medium flex items-center gap-0.5"
+                                        title="Trường này chưa có dữ liệu trong hồ sơ"
+                                      >
+                                        <AlertTriangle className="size-2.5 shrink-0" />
+                                        Trống
+                                      </span>
+                                    )
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs italic flex items-center gap-1">
+                                  <Database className="size-3.5 text-muted-foreground" />
+                                  + {t('segments.selectMetadataField', { defaultValue: 'Chọn trường metadata...' })}
+                                </span>
+                              )}
+                            </Button>
                           ) : needsFieldKey(segment.source) ? (
                             <Select
                               value={segment.fieldKey ?? ''}
@@ -305,6 +370,16 @@ export function NamingSegmentTable({
                             </div>
                           )}
                         </div>
+                        {!isFallbackMetadata &&
+                        segment.source === 'metadata_field' &&
+                        segment.fieldKey &&
+                        selectedMetaField &&
+                        !selectedMetaField.hasValue ? (
+                          <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 leading-tight">
+                            <AlertTriangle className="size-3 shrink-0" />
+                            <span>Chưa có dữ liệu trong hồ sơ (sẽ bị rỗng khi xuất)</span>
+                          </p>
+                        ) : null}
                         {valueError || fieldKeyError ? (
                           <p className="text-xs text-destructive">
                             {valueError ?? fieldKeyError}
@@ -379,6 +454,26 @@ export function NamingSegmentTable({
           </Table>
         </div>
       )}
+
+      {activePickerIndex !== null ? (
+        <MetadataFieldPickerDialog
+          open={activePickerIndex !== null}
+          onOpenChange={(open) => {
+            if (!open) setActivePickerIndex(null)
+          }}
+          fields={metadataFields ?? []}
+          isFallback={isFallbackMetadata}
+          selectedKey={segments[activePickerIndex]?.fieldKey}
+          onSelect={(field) => {
+            if (activePickerIndex !== null) {
+              updateSegment(activePickerIndex, {
+                fieldKey: field.key,
+                value: field.display,
+              })
+            }
+          }}
+        />
+      ) : null}
     </div>
   )
 }

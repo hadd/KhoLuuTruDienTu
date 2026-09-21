@@ -12,7 +12,6 @@ import type { DataTreeNodeT } from '@/features/data-management/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { cn } from '@/lib/utils/cn'
 import { formatDate } from '@/lib/utils/date'
-import { formatFileSize } from '@/lib/utils/format'
 
 export function FolderContentList({
   children,
@@ -53,7 +52,10 @@ export function FolderContentList({
                 </th>
               ) : null}
               <th className="px-3 py-2 font-medium text-muted-foreground">
-                {t('folderList.columns.size')}
+                {t('folderList.columns.fileCount')}
+              </th>
+              <th className="px-3 py-2 font-medium text-muted-foreground">
+                {t('folderList.columns.pageCount')}
               </th>
               <th className="px-3 py-2 font-medium text-muted-foreground">
                 {t('folderList.columns.uploadedAt')}
@@ -113,7 +115,10 @@ export function FolderContentList({
                     </td>
                   ) : null}
                   <td className="px-3 py-2 whitespace-nowrap">
-                    {formatFileSize(child.sizeBytes)}
+                    {child.fileCount ?? 0}
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    {child.pageCount ?? 0}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     <div className="flex items-center justify-between gap-2">

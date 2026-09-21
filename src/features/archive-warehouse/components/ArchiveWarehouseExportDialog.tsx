@@ -47,10 +47,13 @@ import {
 import { translateError } from '@/lib/utils/translate-error'
 
 const DEFAULT_PRESET_VALUE = 'default'
+const FILE_NAMING_ORIGINAL = 'original'
+const FILE_NAMING_CONFIG = 'config'
 
 type ExportRequestT = {
   mode: ArchiveWarehouseExportModeT
   presetId?: string
+  useDocumentNaming?: boolean
 }
 
 type PendingPasswordChallengeT =
@@ -74,6 +77,7 @@ export function ArchiveWarehouseExportDialog({
 }) {
   const { t } = useTranslation('archive-warehouse')
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_VALUE)
+  const [fileNamingMode, setFileNamingMode] = useState(FILE_NAMING_ORIGINAL)
   const [isExporting, setIsExporting] = useState(false)
   const [exportingMode, setExportingMode] =
     useState<ArchiveWarehouseExportModeT | null>(null)
@@ -106,6 +110,7 @@ export function ArchiveWarehouseExportDialog({
   useEffect(() => {
     if (!open) return
     setSelectedPresetId(DEFAULT_PRESET_VALUE)
+    setFileNamingMode(FILE_NAMING_ORIGINAL)
     setIsExporting(false)
     setExportingMode(null)
     setExportRequest(null)
@@ -193,12 +198,14 @@ export function ArchiveWarehouseExportDialog({
         request.mode === 'metadata'
           ? await exportDossiersMetadataByIds(targetDossierIds, downloadName, {
               presetId: request.presetId,
+              useDocumentNaming: request.useDocumentNaming,
               dossierAccessPasswords: passwords,
               onProgress: (p) => setExportProgress(p),
               onItemError: (id) =>
                 setFailedDossierIds((prev) => [...prev, id]),
             })
           : await exportDossiersDipByIds(targetDossierIds, downloadName, {
+              useDocumentNaming: request.useDocumentNaming,
               dossierAccessPasswords: passwords,
               onProgress: (p) => setExportProgress(p),
               onItemError: (id) =>
@@ -360,6 +367,7 @@ export function ArchiveWarehouseExportDialog({
         selectedPresetId !== DEFAULT_PRESET_VALUE
           ? selectedPresetId
           : undefined,
+      useDocumentNaming: fileNamingMode === FILE_NAMING_CONFIG,
     }
     passwordByDossierRef.current = new Map()
     zipPassQueueRef.current = []
@@ -495,7 +503,7 @@ export function ArchiveWarehouseExportDialog({
         open={open}
         onOpenChange={exportFlowActive ? undefined : onOpenChange}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{t('export.title')}</DialogTitle>
             <DialogDescription>
@@ -503,7 +511,7 @@ export function ArchiveWarehouseExportDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-3 py-4">
+          <div className="flex flex-col gap-3 py-2">
             <div className="space-y-2 rounded-lg border border-border p-3">
               <Label htmlFor="archive-export-preset">
                 {t('export.presetLabel')}
@@ -513,7 +521,7 @@ export function ArchiveWarehouseExportDialog({
                 disabled={exportFlowActive || isLoadingPresets}
                 onValueChange={setSelectedPresetId}
               >
-                <SelectTrigger id="archive-export-preset">
+                <SelectTrigger id="archive-export-preset" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -536,6 +544,34 @@ export function ArchiveWarehouseExportDialog({
               </p>
             </div>
 
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <Label htmlFor="archive-export-file-naming">
+                {t('export.fileNamingLabel')}
+              </Label>
+              <Select
+                value={fileNamingMode}
+                disabled={exportFlowActive}
+                onValueChange={setFileNamingMode}
+              >
+                <SelectTrigger id="archive-export-file-naming" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={FILE_NAMING_ORIGINAL}>
+                    {t('export.fileNamingOriginal')}
+                  </SelectItem>
+                  <SelectItem value={FILE_NAMING_CONFIG}>
+                    {t('export.fileNamingConfig')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {fileNamingMode === FILE_NAMING_CONFIG
+                  ? t('export.fileNamingConfigHint')
+                  : t('export.fileNamingOriginalHint')}
+              </p>
+            </div>
+
             <p className="text-xs text-muted-foreground">
               {t('export.securityLevelDownloadHint')}
             </p>
@@ -543,23 +579,23 @@ export function ArchiveWarehouseExportDialog({
             <Button
               type="button"
               variant="outline"
-              className="h-auto w-full justify-start gap-3 px-4 py-3"
+              className="h-auto w-full justify-start gap-3 px-4 py-3 whitespace-normal"
               onClick={() => void runExport('metadata')}
               disabled={exportFlowActive}
             >
               {isExportingMetadata ? (
-                <Loader2 className="size-5 animate-spin" aria-hidden />
+                <Loader2 className="size-5 shrink-0 animate-spin" aria-hidden />
               ) : (
                 <FileSpreadsheet
-                  className="size-5 text-muted-foreground"
+                  className="size-5 shrink-0 text-muted-foreground"
                   aria-hidden
                 />
               )}
-              <div className="flex flex-col items-start gap-0.5 text-left">
-                <span className="font-medium">
+              <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left whitespace-normal">
+                <span className="font-medium text-foreground">
                   {t('export.metadataOption')}
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground leading-normal">
                   {t('export.metadataOptionDescription')}
                 </span>
               </div>
@@ -568,21 +604,21 @@ export function ArchiveWarehouseExportDialog({
             <Button
               type="button"
               variant="outline"
-              className="h-auto w-full justify-start gap-3 px-4 py-3"
+              className="h-auto w-full justify-start gap-3 px-4 py-3 whitespace-normal"
               onClick={() => void runExport('dip')}
               disabled={exportFlowActive}
             >
               {isExportingDip ? (
-                <Loader2 className="size-5 animate-spin" aria-hidden />
+                <Loader2 className="size-5 shrink-0 animate-spin" aria-hidden />
               ) : (
                 <FileArchive
-                  className="size-5 text-muted-foreground"
+                  className="size-5 shrink-0 text-muted-foreground"
                   aria-hidden
                 />
               )}
-              <div className="flex flex-col items-start gap-0.5 text-left">
-                <span className="font-medium">{t('export.dipOption')}</span>
-                <span className="text-xs text-muted-foreground">
+              <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left whitespace-normal">
+                <span className="font-medium text-foreground">{t('export.dipOption')}</span>
+                <span className="text-xs text-muted-foreground leading-normal">
                   {t('export.dipOptionDescription')}
                 </span>
               </div>

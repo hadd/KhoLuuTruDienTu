@@ -18,7 +18,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DataConfigSectionTabs } from '@/features/data-config/components/DataConfigSectionTabs'
-import type { MetadataExtractMode } from '@/features/metadata-extract/api/metadataExtractClient'
+import {
+  DEFAULT_METADATA_EXTRACT_MODE,
+  getMetadataExtractModeDescription,
+  getMetadataExtractModeSelectOptions,
+  type MetadataExtractMode,
+} from '@/features/metadata-extract/config/metadataExtractModes'
 import { useMetadataExtractSettingsAccess } from '@/features/metadata-extract/hooks/useMetadataExtractSettingsAccess'
 import {
   metadataExtractSettingsQueryOptions,
@@ -26,8 +31,9 @@ import {
 } from '@/features/metadata-extract/queries'
 
 import { MetadataHiddenFieldsSection } from '@/features/metadata-extract/components/MetadataHiddenFieldsSection'
+import { PageQuotaCard } from '@/features/metadata-extract/components/PageQuotaCard'
 
-const MODE_OPTIONS: MetadataExtractMode[] = ['old', 'tt05', 'pvep']
+const MODE_OPTIONS: MetadataExtractMode[] = ['old', 'tt05', 'pvep', 'tuyen-quang']
 
 export function MetadataExtractSettingsPage() {
   const { t } = useTranslation('metadata-extract-settings')
@@ -39,9 +45,8 @@ export function MetadataExtractSettingsPage() {
     successMessage: t('toast.updated'),
   })
 
-  const currentMode = settings?.mode ?? 'old'
-  const selectOptions: MetadataExtractMode[] =
-    currentMode === 'off' ? [...MODE_OPTIONS, 'off'] : MODE_OPTIONS
+  const currentMode = settings?.mode ?? DEFAULT_METADATA_EXTRACT_MODE
+  const selectOptions = getMetadataExtractModeSelectOptions(currentMode, t)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto">
@@ -87,9 +92,9 @@ export function MetadataExtractSettingsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {selectOptions.map((mode) => (
-                      <SelectItem key={mode} value={mode}>
-                        {t(`mode.${mode}`)}
+                    {selectOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -97,7 +102,7 @@ export function MetadataExtractSettingsPage() {
               </div>
 
               <p className="text-sm text-muted-foreground">
-                {t(`modeHelp.${currentMode}`)}
+                {getMetadataExtractModeDescription(currentMode, t)}
               </p>
 
               {!canUpdate ? (
@@ -114,6 +119,8 @@ export function MetadataExtractSettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      <PageQuotaCard />
     </div>
   )
 }

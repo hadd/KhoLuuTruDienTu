@@ -62,6 +62,8 @@ export function AssignedDossiersDialog({
   }, [dossierTree, searchQuery])
 
   const hasVisibleNodes = (filteredTree?.children.length ?? 0) > 0
+  const hasDossiers = Boolean(dossiers?.length)
+  const hasActiveSearch = Boolean(searchQuery.trim())
 
   useEffect(() => {
     if (!open || !filteredTree) return
@@ -127,7 +129,7 @@ export function AssignedDossiersDialog({
                   {t('assignedDossiers.retry')}
                 </Button>
               </div>
-            ) : filteredTree && hasVisibleNodes ? (
+            ) : hasDossiers ? (
               <div className="flex flex-col gap-2">
                 <div className="relative shrink-0">
                   <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -138,21 +140,30 @@ export function AssignedDossiersDialog({
                     className="pl-8"
                   />
                 </div>
-                <div
-                  ref={treeScrollRef}
-                  className="h-[min(50vh,22rem)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-1 pr-2"
-                >
-                  <DataFolderTree
-                    tree={filteredTree}
-                    onSelect={handleSelect}
-                    scrollable={false}
-                  />
-                </div>
-                {dossiers?.length ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t('assignedDossiers.count', { count: dossiers.length })}
+                {filteredTree && hasVisibleNodes ? (
+                  <>
+                    <div
+                      ref={treeScrollRef}
+                      className="h-[min(50vh,22rem)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-1 pr-2"
+                    >
+                      <DataFolderTree
+                        tree={filteredTree}
+                        onSelect={handleSelect}
+                        scrollable={false}
+                        showAssignee
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {t('assignedDossiers.count', { count: dossiers.length })}
+                    </p>
+                  </>
+                ) : (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    {hasActiveSearch
+                      ? t('assignedDossiers.noSearchResults')
+                      : t('assignedDossiers.empty')}
                   </p>
-                ) : null}
+                )}
               </div>
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">

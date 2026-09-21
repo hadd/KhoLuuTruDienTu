@@ -204,13 +204,33 @@ export interface DataMetadataEditFieldChangeT {
   oldValue: string
   newValue: string
   field: DataDocumentFieldT
+  /** Reference to the specific document this change belongs to (for document-level tracking) */
+  documentRef?: string
+}
+
+/** File linked from a history version via metadata group + tree document id. */
+export interface DataMetadataHistoryFileRefT {
+  documentId: string | null
+  fileName: string
+  groupIndex: number
+  /** @deprecated Use `fileChanges` directly when rendering per-file history. */
+  changes?: Array<DataMetadataEditFieldChangeT>
+  /** Changes scoped to this file (grouped via metadata group). */
+  fileChanges: Array<DataMetadataEditFieldChangeT>
 }
 
 export interface DataMetadataEditBatchT {
   id: string
   editorName: string
   editedAt: string
+  /**
+   * @deprecated Use per-file `file.fileChanges` and `dossierLevelChanges` instead.
+   * Kept for backward compatibility with callers that depend on a flat change list.
+   */
   changes: Array<DataMetadataEditFieldChangeT>
+  files: Array<DataMetadataHistoryFileRefT>
+  /** Changes that do not belong to any file (dossier-level metadata). */
+  dossierLevelChanges: Array<DataMetadataEditFieldChangeT>
   action: string
   notes: string | null
   versionNumber: number
@@ -229,13 +249,15 @@ export interface DataTreeNodeT {
   parentId: string | null
   children: Array<DataTreeNodeT>
   sizeBytes: number
+  fileCount?: number
+  pageCount?: number
   uploadedAt: string
   uploadedBy: string
   mimeType?: string
   /** Logical path for metadata matching (distinct from signed fileUrl). */
   filePath?: string
   fileUrl?: string // Đã sửa lỗi type gốc (ileUrl -> fileUrl)
-  /** OCR/searchable PDF URL — text layer supports copy. */
+  /** OCR/searchable PDF URL when a searchable_pdf/ mirror exists. */
   ocrPdfUrl?: string
   /** True when the PDF has an embedded digital signature (signed_file_path). */
   isSigned?: boolean
@@ -263,6 +285,8 @@ export interface DataTreeNodeT {
   dossierStatus?: DataDossierStatus
   /** Backend assignment flag from /all-first-subfolders */
   isAssigned?: boolean
+  /** Cờ đánh dấu node (tài liệu/hồ sơ) khớp trực tiếp từ khóa tìm kiếm */
+  isSearchMatch?: boolean
   /** Hide assignment icon — used for listing folders from /all-parent */
   suppressAssignedIndicator?: boolean
   /** Project scope from folders API (`projectCode` / `project_code`). */

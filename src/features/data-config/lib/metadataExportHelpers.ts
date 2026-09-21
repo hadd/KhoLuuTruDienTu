@@ -27,6 +27,56 @@ export function groupsToExportFieldCatalog(
   )
 }
 
+export const EXPORT_SYNTHETIC_GROUP_CODE = '__external'
+
+export function buildExportSyntheticFieldCatalog(labels: {
+  groupName: string
+  filePath: string
+  fileName: string
+  rowNumber: string
+  dossierFolder: string
+}): Array<MetadataExportFieldCatalogItemT> {
+  return [
+    {
+      key: '__row_number',
+      groupCode: EXPORT_SYNTHETIC_GROUP_CODE,
+      groupName: labels.groupName,
+      fieldName: 'row_number',
+      display: labels.rowNumber,
+    },
+    {
+      key: '__dossier_folder',
+      groupCode: EXPORT_SYNTHETIC_GROUP_CODE,
+      groupName: labels.groupName,
+      fieldName: 'dossier_folder',
+      display: labels.dossierFolder,
+    },
+    {
+      key: '__file_path',
+      groupCode: EXPORT_SYNTHETIC_GROUP_CODE,
+      groupName: labels.groupName,
+      fieldName: 'file_path',
+      display: labels.filePath,
+    },
+    {
+      key: '__file_name',
+      groupCode: EXPORT_SYNTHETIC_GROUP_CODE,
+      groupName: labels.groupName,
+      fieldName: 'file_name',
+      display: labels.fileName,
+    },
+  ]
+}
+
+export function mergeExportFieldCatalogWithSynthetics(
+  catalog: Array<MetadataExportFieldCatalogItemT>,
+  synthetics: Array<MetadataExportFieldCatalogItemT>,
+): Array<MetadataExportFieldCatalogItemT> {
+  const seen = new Set(catalog.map((item) => item.key))
+  const extras = synthetics.filter((item) => !seen.has(item.key))
+  return extras.length === 0 ? catalog : [...catalog, ...extras]
+}
+
 /** Pick the template whose catalog covers the most assigned export field keys. */
 export function inferReferenceTemplateId(
   columns: Array<MetadataExportColumnConfigT>,
@@ -66,7 +116,9 @@ export function pruneExportColumnsToCatalog(
   const validKeys = new Set(catalog.map((item) => item.key))
   const nextColumns = columns.map((column) => ({
     ...column,
-    fieldKeys: column.fieldKeys.filter((key) => validKeys.has(key)),
+    fieldKeys: column.fieldKeys.filter(
+      (key) => validKeys.has(key) || key.startsWith('__'),
+    ),
   }))
 
   return JSON.stringify(columns) === JSON.stringify(nextColumns)
@@ -77,7 +129,11 @@ export function pruneExportColumnsToCatalog(
 export const EXPORT_SEPARATOR_OPTIONS = [
   { value: ', ', labelKey: 'comma' as const },
   { value: ' ', labelKey: 'space' as const },
-  { value: ' - ', labelKey: 'dash' as const },
+  { value: '-', labelKey: 'dash' as const },
+  { value: '/', labelKey: 'slash' as const },
+  { value: '\\', labelKey: 'backslash' as const },
+  { value: '.', labelKey: 'dot' as const },
+  { value: '_', labelKey: 'underscore' as const },
   { value: '\n', labelKey: 'newline' as const },
 ]
 
@@ -167,45 +223,18 @@ export function toggleFieldInColumn(
   return { ...column, fieldKeys: [...without, fieldKey] }
 }
 
-export function isFieldAssignedToOtherColumn(
-  columns: Array<MetadataExportColumnConfigT>,
-  columnIndex: number,
-  fieldKey: string,
-): boolean {
-  return columns.some(
-    (column, index) =>
-      index !== columnIndex && column.fieldKeys.includes(fieldKey),
-  )
-}
-
-/** Gán trường vào một cột; mỗi trường chỉ thuộc tối đa một cột. */
+/** Toggle field on the target column only; the same field may appear on multiple columns. */
 export function toggleFieldAcrossColumns(
   columns: Array<MetadataExportColumnConfigT>,
   columnIndex: number,
   fieldKey: string,
   checked: boolean,
 ): Array<MetadataExportColumnConfigT> {
-  if (!checked) {
-    return columns.map((column, index) =>
-      index === columnIndex
-        ? toggleFieldInColumn(column, fieldKey, false)
-        : column,
-    )
-  }
-
-  return columns.map((column, index) => {
-    const withoutField = {
-      ...column,
-      fieldKeys: column.fieldKeys.filter((key) => key !== fieldKey),
-    }
-    if (index === columnIndex) {
-      return {
-        ...withoutField,
-        fieldKeys: [...withoutField.fieldKeys, fieldKey],
-      }
-    }
-    return withoutField
-  })
+  return columns.map((column, index) =>
+    index === columnIndex
+      ? toggleFieldInColumn(column, fieldKey, checked)
+      : column,
+  )
 }
 
 export function canExportWithPreset(
@@ -223,10 +252,7 @@ export function isExportColumnsReady(
 ): boolean {
   return (
     columns.length > 0 &&
-    columns.every(
-      (column) =>
-        column.header.trim().length > 0 && column.fieldKeys.length > 0,
-    )
+    columns.every((column) => column.header.trim().length > 0)
   )
 }
 
@@ -253,7 +279,7 @@ export interface MetadataExportValidationResult {
 
 export function validateExportColumnsConfig(
   columns: Array<MetadataExportColumnConfigT>,
-  options: { requireFields?: boolean } = { requireFields: true },
+  options: { requireFields?: boolean } = { requireFields: false },
 ): MetadataExportValidationResult {
   const issues: Array<MetadataExportValidationIssue> = []
   const columnErrors: MetadataExportColumnErrors = {}

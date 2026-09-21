@@ -19,7 +19,6 @@ import { AddMemberDialog } from '@/features/group/components/AddMemberDialog'
 import { DeleteGroupDialog } from '@/features/group/components/DeleteGroupDialog'
 import { GroupCard } from '@/features/group/components/GroupCard'
 import { GroupSetupDialog } from '@/features/group/components/GroupSetupDialog'
-import { MemberProfileDialog } from '@/features/group/components/MemberProfileDialog'
 import {
   groupDetailQueryOptions,
   metadataPermissionConfigsQueryOptions,
@@ -37,8 +36,6 @@ export function GroupDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [addMemberOpen, setAddMemberOpen] = useState(false)
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null)
-  const [memberProfileOpen, setMemberProfileOpen] = useState(false)
   const [setupGroupOpen, setSetupGroupOpen] = useState(false)
   const [editMembersGroupId, setEditMembersGroupId] = useState<string | null>(
     null,
@@ -117,8 +114,6 @@ export function GroupDetailPage() {
           setSelectedGroup={setSelectedGroup}
           setAddMemberOpen={setAddMemberOpen}
           setDeleteOpen={setDeleteOpen}
-          setSelectedMember={setSelectedMember}
-          setMemberProfileOpen={setMemberProfileOpen}
           setMemberToRemove={setMemberToRemove}
         />
       </div>
@@ -138,12 +133,6 @@ export function GroupDetailPage() {
           setSelectedGroup(null)
           handleBack()
         }}
-      />
-
-      <MemberProfileDialog
-        open={memberProfileOpen}
-        onOpenChange={setMemberProfileOpen}
-        member={selectedMember}
       />
 
       <GroupSetupDialog

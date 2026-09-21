@@ -24,6 +24,7 @@ import {
   fetchDossierMetadataHistory,
   fetchDossierWorkflowAssignments,
   getDataTree,
+  getSearchTree,
   loadNodeChildren,
   refreshDossierContent,
   renameDataNode,
@@ -643,6 +644,11 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
         storagePayload,
       }),
     onSuccess: (result, { dossierId, metadata, isDraft }) => {
+      // Draft/auto-save: skip patching the tree while the user is typing —
+      // local metadataState is source of truth until claim-next / final save.
+      if (isDraft) {
+        return
+      }
       qc.setQueriesData<DataTreeNodeT>(
         { queryKey: [role, 'data-management', 'tree'] },
         (currentTree) => {
@@ -653,7 +659,6 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
             metadata,
           )
           if (
-            !isDraft &&
             result &&
             typeof result === 'object' &&
             'dossierStatus' in result &&
@@ -845,3 +850,21 @@ export function useSubmitEditorErrorReportMutation(
     },
   })
 }
+
+export const dataManagementSearchTreeQueryKey = (
+  role: DataManagementRole,
+  projectCode?: string,
+  q?: string
+) => ['data-management', 'search-tree', role, projectCode, q] as const
+
+export const dataManagementSearchTreeQueryOptions = (
+  role: DataManagementRole,
+  projectCode: string | undefined,
+  q: string
+) =>
+  queryOptions({
+    queryKey: dataManagementSearchTreeQueryKey(role, projectCode, q),
+    queryFn: () => getSearchTree(role, { projectCode, q }),
+    staleTime: 30_000,
+    enabled: Boolean(q.trim()) && (!isProjectScopedDataRole(role) || Boolean(projectCode?.trim())),
+  })

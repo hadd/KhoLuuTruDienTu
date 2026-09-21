@@ -4,7 +4,10 @@ import {
   ArrowLeftToLine,
   ArrowRightFromLine,
   FolderUp,
+  Loader2,
   PenLine,
+  Search,
+  X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -13,8 +16,14 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/components/ui/resizable'
+import {
   clearLoadedNodeCache,
   fetchDossierIdByFolderId,
+  getSearchTree,
   isNodeChildrenCached,
   removeNodeFromTree,
 } from '@/features/data-management/api/dataManagementClient'
@@ -41,21 +50,33 @@ import {
   type DataManagementRole,
 } from '@/features/data-management/config/roleConfig'
 import { useDataManagementResolvedPermissions } from '@/features/data-management/hooks/useDataManagementRole'
-import { ALL_PROJECTS_CODE } from '@/features/data-management/lib/constants'
+import {
+  ALL_PROJECTS_CODE,
+  DATA_TREE_ROOT_ID,
+} from '@/features/data-management/lib/constants'
 import type { OcrTerminalCompletePayloadT } from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { useDataManagementOcrSocket } from '@/features/data-management/hooks/useDataManagementOcrSocket'
 import { useDataManagementProjectSelection } from '@/features/data-management/hooks/useDataManagementProjectSelection'
 import { resolveDossierNodeInTree } from '@/features/data-management/lib/dossierNavigation'
+import {
+  loadCompletedDocumentIds,
+  saveCompletedDocumentIds,
+} from '@/features/data-management/lib/documentEditProgress'
 import { collectDossierIdsWithPendingIssueReports } from '@/features/data-management/lib/editorErrorReportHelpers'
 import type {
   ExportContext,
   ExportMode,
+  ExportOptions,
 } from '@/features/data-management/lib/exportHelpers'
 import {
   resolveDossierIdForDip,
   resolveExportContext,
   runExport,
 } from '@/features/data-management/lib/exportHelpers'
+import {
+  canExportAnyStatusPermission,
+  canExportDossiersPermission,
+} from '@/features/data-management/lib/dossierExportAccess'
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import {
   collectOcrRoomIdsFromTree,
@@ -65,16 +86,22 @@ import {
   findNodeByDossierId,
   findNodeById,
   findRecordParentForDocument,
+  getBatchExportCheckState,
   getPathToNode,
+  matchesFuzzyFileName,
   isBatchSignSelectableNode,
+  isBatchExportDossierLeafNode,
   isBatchExportSelectableNode,
+  isUnderSelectedBatchExportFolder,
   isDossierWorkflowNode,
   isNodeForDossier,
+  isNodeUnderAncestor,
   reloadTreePathToNode,
   resolveDataManagementSelection,
   resolveDocumentFocusNavigation,
   buildDefaultDataManagementNavigation,
   resolveDossierUpdateId,
+  resolveFolderExportId,
   resolveFoldersToReloadAfterDelete,
   resolveRecordDossierId,
   resolveSelectionAfterDelete,
@@ -107,7 +134,6 @@ import {
 import { ArchiveSubmitDialog } from '@/features/archive-submission/components/ArchiveSubmitDialog'
 import { useArchiveSubmissionAccess } from '@/features/archive-submission/hooks/useArchiveSubmissionAccess'
 import { useRoleAccess } from '@/features/permissions/hooks/useRoleAccess'
-import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
 
 function wrapDataDigitizationPage(content: ReactNode, className?: string) {
   return (
@@ -138,10 +164,12 @@ export function DataManagementPage({
   const navigate = useNavigate()
   const permissions = useDataManagementResolvedPermissions()
   const { permissions: userPermissions } = useRoleAccess()
-  const canExportDossiers = isPermissionGranted(
-    userPermissions,
-    'dossiers.export',
-    'dossiers',
+  const canExportDossiers = canExportDossiersPermission(userPermissions)
+  const exportStatusOptions = useMemo(
+    () => ({
+      bypassStatus: canExportAnyStatusPermission(userPermissions),
+    }),
+    [userPermissions],
   )
   const { canSubmitArchive } = useArchiveSubmissionAccess()
   const [uploadOpen, setUploadOpen] = useState(false)
@@ -198,6 +226,11 @@ export function DataManagementPage({
   const isAllProjects = projectCode === ALL_PROJECTS_CODE
 
   const q = typeof search.q === 'string' ? search.q : ''
+  const [localSearchQuery, setLocalSearchQuery] = useState(q)
+
+  useEffect(() => {
+    setLocalSearchQuery(q)
+  }, [q])
   const dossierId =
     typeof search.dossierId === 'string' ? search.dossierId : undefined
   const nodeId = typeof search.nodeId === 'string' ? search.nodeId : undefined
@@ -209,6 +242,10 @@ export function DataManagementPage({
     typeof search.focusGroupIndex === 'number' &&
       Number.isFinite(search.focusGroupIndex)
       ? search.focusGroupIndex
+      : undefined
+  const focusFieldKey =
+    typeof search.focusFieldKey === 'string' && search.focusFieldKey.trim()
+      ? search.focusFieldKey.trim()
       : undefined
   const isEditorDraftView = role === 'editor' && Boolean(dossierId?.trim())
   // Only editor scopes the tree query by dossierId (draft view). QC/admin use
@@ -222,25 +259,116 @@ export function DataManagementPage({
   })
 
   const {
-    data: tree,
-    isPending,
-    isError,
-    error,
+    data: baseTree,
+    isPending: isBasePending,
+    isError: isBaseError,
+    error: baseError,
     refetch,
     isRefetching,
   } = useQuery(
     dataManagementTreeQueryOptions(role, projectCode, treeQueryDossierId),
   )
 
+  const {
+    data: searchTree,
+    isPending: isSearchPending,
+    isFetching: isSearchFetching,
+    isError: isSearchError,
+    error: searchError,
+  } = useQuery({
+    queryKey: ['data-management', 'search-tree', role, projectCode, q] as const,
+    queryFn: () => getSearchTree(role, { projectCode, q }),
+    staleTime: 30_000,
+    enabled: Boolean(q.trim()) && (!isProjectScopedDataRole(role) || Boolean(projectCode?.trim())),
+  })
+
+  const isSearching = Boolean(q.trim())
+
+  const tree = isSearching
+    ? (searchTree ?? null)
+    : baseTree
+
+  const isPending = isSearching ? isSearchPending || isBasePending : isBasePending
+  const isError = isSearching ? isSearchError : isBaseError
+  const error = isSearching ? searchError : baseError
+
+  const displayTree = useMemo(() => {
+    if (!tree) return null
+
+    if (isSearching) {
+      if (!searchTree) return null
+      // Search returned 0 results: do NOT merge baseTree, keep search result completely empty
+      if (searchTree.children.length === 0) {
+        return { ...searchTree, children: [] }
+      }
+
+      let currentTree = searchTree
+      if (baseTree) {
+        function mergeChildren(node: DataTreeNodeT, bt: DataTreeNodeT): DataTreeNodeT {
+          const mergedNode = { ...node }
+          // Never merge baseTree into root:
+          if (mergedNode.id === DATA_TREE_ROOT_ID) {
+            mergedNode.children = mergedNode.children.map((child) =>
+              mergeChildren(child, bt),
+            )
+            return mergedNode
+          }
+
+          const baseNode = findNodeById(bt, mergedNode.id)
+          if (baseNode) {
+            if (mergedNode.children.length === 0 && baseNode.children.length > 0) {
+              mergedNode.children = baseNode.children
+            } else if (mergedNode.children.length > 0) {
+              mergedNode.children = mergedNode.children.map((child) =>
+                mergeChildren(child, bt),
+              )
+            }
+
+            if (baseNode.dossierMetadata && !mergedNode.dossierMetadata) {
+              mergedNode.dossierMetadata = baseNode.dossierMetadata
+            }
+            if (mergedNode.type === 'record') {
+              mergedNode.fileCount = baseNode.fileCount || mergedNode.fileCount
+              mergedNode.pageCount = baseNode.pageCount || mergedNode.pageCount
+              mergedNode.sizeBytes = baseNode.sizeBytes || mergedNode.sizeBytes
+              mergedNode.dossierStatus = baseNode.dossierStatus || mergedNode.dossierStatus
+            }
+          } else if (mergedNode.children.length > 0) {
+            mergedNode.children = mergedNode.children.map((child) =>
+              mergeChildren(child, bt),
+            )
+          }
+
+          return mergedNode
+        }
+        currentTree = mergeChildren(currentTree, baseTree)
+      }
+
+      return filterTreeExcludeArchived(currentTree)
+    }
+
+    const afterArchived = filterTreeExcludeArchived(tree)
+    return filterTreeForSearch(afterArchived, q)
+  }, [tree, q, isSearching, baseTree, searchTree])
+
+  const isSearchEmpty =
+    isSearching &&
+    !isSearchPending &&
+    !isSearchError &&
+    displayTree !== null &&
+    displayTree.children.length === 0
+
+  const effectiveTree = displayTree ?? tree
+
   const pendingErrorReportDossierIds = useMemo(
-    () => collectDossierIdsWithPendingIssueReports(tree, { role }),
-    [tree, role],
+    () => collectDossierIdsWithPendingIssueReports(effectiveTree, { role }),
+    [effectiveTree, role],
   )
 
   useEffect(() => {
-    if (role !== 'qc' || !tree) return
-    syncQcIssueReportsFromTree(queryClient, tree)
-  }, [role, tree, queryClient])
+    if (role !== 'qc' || !effectiveTree) return
+    syncQcIssueReportsFromTree(queryClient, effectiveTree)
+  }, [role, effectiveTree, queryClient])
 
   const loadChildrenMutation = useLoadNodeChildrenMutation(role, projectCode)
   const loadChildrenMutationRef = useRef(loadChildrenMutation)
@@ -273,18 +401,63 @@ export function DataManagementPage({
   const showSearch = true
 
   const selectedDossierIds = useMemo(() => {
-    if (!tree) return [] as Array<string>
-    return selectedRecordIds
-      .map((id) => findNodeById(tree, id))
-      .filter(
-        (node): node is DataTreeNodeT =>
-          Boolean(node) &&
-          (batchSignMode
-            ? isBatchSignSelectableNode(node)
-            : isBatchExportSelectableNode(node)),
-      )
+    if (!effectiveTree) return [] as Array<string>
+    const ids = selectedRecordIds
+      .map((id) => findNodeById(effectiveTree, id))
+      .filter((node): node is DataTreeNodeT => {
+        if (!node) return false
+        if (batchSignMode) return isBatchSignSelectableNode(node)
+        if (batchExportMode)
+          return isBatchExportDossierLeafNode(node, exportStatusOptions)
+        return false
+      })
+      .filter((node) => {
+        if (!batchExportMode || !effectiveTree) return true
+        // Covered by a selected ancestor folder — folder API exports the subtree.
+        return !isUnderSelectedBatchExportFolder(
+          node,
+          effectiveTree,
+          selectedRecordIds,
+          exportStatusOptions,
+        )
+      })
       .map((node) => node.dossierId ?? node.id)
-  }, [selectedRecordIds, tree, batchSignMode, batchExportMode])
+    return [...new Set(ids)]
+  }, [
+    selectedRecordIds,
+    effectiveTree,
+    batchSignMode,
+    batchExportMode,
+    exportStatusOptions,
+  ])
+
+  const selectedExportFolderIds = useMemo(() => {
+    if (!effectiveTree || !batchExportMode) return [] as Array<string>
+    const ids = selectedRecordIds
+      .map((id) => findNodeById(effectiveTree, id))
+      .filter((node): node is DataTreeNodeT => {
+        if (!node) return false
+        if (isBatchExportDossierLeafNode(node, exportStatusOptions)) return false
+        if (
+          node.type !== 'folder' ||
+          !isBatchExportSelectableNode(node, exportStatusOptions)
+        ) {
+          return false
+        }
+        // Covered by a selected ancestor folder — one folderId API call is enough.
+        return !isUnderSelectedBatchExportFolder(
+          node,
+          effectiveTree,
+          selectedRecordIds,
+          exportStatusOptions,
+        )
+      })
+      .map((node) => resolveFolderExportId(node))
+    return [...new Set(ids)]
+  }, [selectedRecordIds, effectiveTree, batchExportMode, exportStatusOptions])
+
+  const batchExportSelectionCount =
+    selectedDossierIds.length + selectedExportFolderIds.length
 
   const handleOcrTerminalComplete = useCallback(
     (payload: OcrTerminalCompletePayloadT) => {
@@ -299,7 +472,7 @@ export function DataManagementPage({
   )
 
   useEffect(() => {
-    if (!tree) return
+    if (!effectiveTree) return
 
     const shouldDeferToDossierDeepLink =
       Boolean(dossierId?.trim()) && (isProjectScoped || role === 'qc')
@@ -308,7 +481,7 @@ export function DataManagementPage({
     }
 
     const resolved = resolveDataManagementSelection(
-      tree,
+      effectiveTree,
       { nodeId, focusDocumentId, focusGroupIndex },
       role,
       { isNodeChildrenCached },
@@ -323,11 +496,16 @@ export function DataManagementPage({
         nodeId: resolved.nodeId,
         focusDocumentId: resolved.focusDocumentId,
         focusGroupIndex: resolved.focusGroupIndex,
+        focusFieldKey:
+          resolved.focusDocumentId === focusDocumentId &&
+            resolved.focusGroupIndex === focusGroupIndex
+            ? prev.focusFieldKey
+            : undefined,
       }),
       replace: true,
     })
   }, [
-    tree,
+    effectiveTree,
     nodeId,
     focusDocumentId,
     focusGroupIndex,
@@ -454,6 +632,7 @@ export function DataManagementPage({
             dossierId: undefined,
             focusDocumentId: undefined,
             focusGroupIndex: undefined,
+            focusFieldKey: undefined,
           }),
           replace: true,
         })
@@ -484,7 +663,7 @@ export function DataManagementPage({
   ])
 
   useEffect(() => {
-    if (!tree || !nodeId) return
+    if (!tree || !nodeId || q.trim()) return
     if (isNodeChildrenCached(nodeId)) return
     const node = findNodeById(tree, nodeId)
     if (!node) return
@@ -496,7 +675,7 @@ export function DataManagementPage({
 
     if (!needsLoad) return
     loadChildrenMutationRef.current.mutate(nodeId)
-  }, [tree, nodeId, role])
+  }, [tree, nodeId, role, q])
 
   function loadNodeTree(
     loadNodeId: string,
@@ -519,26 +698,62 @@ export function DataManagementPage({
     })
   }
 
-  const displayTree = useMemo(() => {
-    if (!tree) return null
-    return filterTreeForSearch(filterTreeExcludeArchived(tree), q)
-  }, [tree, q])
+  // Khi có kết quả tìm kiếm, chỉ mở các cấp cha đến node khớp (để node khớp hiển thị trên cây),
+  // KHÔNG tự mở các cấp con bên trong node khớp đó (người dùng tự click nút xổ xuống nếu muốn xem tiếp).
+  useEffect(() => {
+    if (!q.trim() || !searchTree) return
+
+    const trimmedQ = q.trim()
+    const expandIds = new Set<string>()
+
+    function checkNode(node: DataTreeNodeT): boolean {
+      const isDirectMatch =
+        Boolean(node.isSearchMatch) || matchesFuzzyFileName(node.name, trimmedQ)
+      let hasMatchingDescendant = false
+
+      for (const child of node.children) {
+        if (checkNode(child)) {
+          hasMatchingDescendant = true
+        }
+      }
+
+      if (hasMatchingDescendant) {
+        expandIds.add(node.id)
+      }
+
+      return isDirectMatch || hasMatchingDescendant
+    }
+
+    for (const child of searchTree.children) {
+      checkNode(child)
+    }
+
+    setTreeExpandToNodeIds(Array.from(expandIds))
+  }, [searchTree, q])
 
   const selectedNode = useMemo(() => {
-    if (!tree || !nodeId) return null
-    return findNodeById(tree, nodeId)
-  }, [tree, nodeId])
+    if (!effectiveTree || !nodeId) return null
+    const node = findNodeById(effectiveTree, nodeId)
+    // In search mode the searchTree node lacks dossierMetadata/children loaded by
+    // loadChildrenMutation. Prefer the baseTree version if it has richer data.
+    if (q.trim() && baseTree && node && !node.dossierMetadata) {
+      const baseNode = findNodeById(baseTree, nodeId)
+      if (baseNode?.dossierMetadata) return baseNode
+    }
+    return node
+  }, [effectiveTree, nodeId, q, baseTree])
 
   const detailContext = useMemo(() => {
-    if (!tree || !selectedNode) return null
+    if (!effectiveTree || !selectedNode) return null
 
     if (selectedNode.type === 'document') {
-      const parent = findRecordParentForDocument(tree, selectedNode.id)
+      const parent = findRecordParentForDocument(effectiveTree, selectedNode.id)
       if (parent?.type === 'record') {
         return {
           node: parent,
           focusDocumentId: selectedNode.id,
           focusGroupIndex,
+          focusFieldKey,
           dossierId: resolveRecordDossierId(parent),
           dossierStatus: parent.dossierStatus,
         }
@@ -550,6 +765,7 @@ export function DataManagementPage({
         node: selectedNode,
         focusDocumentId,
         focusGroupIndex,
+        focusFieldKey,
         dossierId: resolveRecordDossierId(selectedNode),
         dossierStatus: selectedNode.dossierStatus,
       }
@@ -559,10 +775,44 @@ export function DataManagementPage({
       node: selectedNode,
       focusDocumentId: undefined,
       focusGroupIndex: undefined,
+      focusFieldKey: undefined,
       dossierId: null,
       dossierStatus: undefined,
     }
-  }, [tree, selectedNode, focusDocumentId, focusGroupIndex])
+  }, [tree, selectedNode, focusDocumentId, focusGroupIndex, focusFieldKey])
+
+  const activeDetailDossierId = detailContext?.dossierId?.trim() || ''
+
+  const [completedDocumentIds, setCompletedDocumentIds] = useState<Set<string>>(
+    () => new Set(),
+  )
+
+  useEffect(() => {
+    if (!activeDetailDossierId) {
+      setCompletedDocumentIds(new Set())
+      return
+    }
+    setCompletedDocumentIds(loadCompletedDocumentIds(activeDetailDossierId))
+  }, [activeDetailDossierId])
+
+  const handleMarkDocumentsComplete = useCallback(
+    (documentIds: Array<string>) => {
+      if (!activeDetailDossierId || documentIds.length === 0) return
+      setCompletedDocumentIds((prev) => {
+        const next = new Set(prev)
+        let changed = false
+        for (const id of documentIds) {
+          if (!id || next.has(id)) continue
+          next.add(id)
+          changed = true
+        }
+        if (!changed) return prev
+        saveCompletedDocumentIds(activeDetailDossierId, next)
+        return next
+      })
+    },
+    [activeDetailDossierId],
+  )
 
   useDataManagementOcrSocket({
     role,
@@ -675,21 +925,30 @@ export function DataManagementPage({
 
   function handleExportExcel(node: DataTreeNodeT) {
     if (!canExportDossiers) return
-    const ctx = resolveExportContext(node)
+    const ctx = resolveExportContext(node, exportStatusOptions)
     if (!ctx) return
 
     setExportContext(ctx)
-    setCanExportDip(Boolean(ctx.dossierId))
-    setExportDialogOpen(true)
-
-    if (!ctx.dossierId && ctx.kind === 'folder' && ctx.folderId) {
-      void resolveDossierIdForDip(ctx).then((dossierId) => {
-        if (dossierId) {
-          setCanExportDip(true)
-          setExportContext((prev) => (prev ? { ...prev, dossierId } : prev))
-        }
-      })
+    if (ctx.kind === 'folder' || ctx.kind === 'multi_dossiers' || ctx.dossierId) {
+      setCanExportDip(true)
+    } else {
+      setCanExportDip(false)
     }
+    setExportDialogOpen(true)
+  }
+
+  function handleExportByFolderStructure(node: DataTreeNodeT) {
+    if (!canExportDossiers) return
+    if (node.type !== 'folder' || node.id === DATA_TREE_ROOT_ID) return
+
+    setExportContext({
+      kind: 'folder',
+      folderId: resolveFolderExportId(node),
+      dossierId: findDescendantDossierTarget(node)?.dossierId ?? null,
+      downloadName: node.name,
+    })
+    setCanExportDip(true)
+    setExportDialogOpen(true)
   }
 
   async function handleSubmitArchive(node: DataTreeNodeT) {
@@ -712,7 +971,7 @@ export function DataManagementPage({
   }
 
   const handleExport = useCallback(
-    async (mode: ExportMode, options?: { presetId?: string }) => {
+    async (mode: ExportMode, options?: ExportOptions) => {
       if (!exportContext || isExporting) return
 
       setIsExporting(true)
@@ -732,6 +991,7 @@ export function DataManagementPage({
           metadataExportConfig: options?.presetId
             ? { presetId: options.presetId }
             : undefined,
+          useDocumentNaming: options?.useDocumentNaming === true,
         })
         toast.success(t('recordDetail.exportExcelSuccess'))
         setExportDialogOpen(false)
@@ -752,18 +1012,31 @@ export function DataManagementPage({
   )
 
   const batchExportContext: ExportContext | null = useMemo(() => {
-    if (selectedDossierIds.length === 0) return null
+    if (
+      selectedDossierIds.length === 0 &&
+      selectedExportFolderIds.length === 0
+    ) {
+      return null
+    }
+    const parts: string[] = []
+    if (selectedExportFolderIds.length > 0) {
+      parts.push(`${selectedExportFolderIds.length}-folder`)
+    }
+    if (selectedDossierIds.length > 0) {
+      parts.push(`${selectedDossierIds.length}-hoso`)
+    }
     return {
       kind: 'multi_dossiers',
       dossierId: null,
       folderId: null,
+      folderIds: selectedExportFolderIds,
       dossierIds: selectedDossierIds,
-      downloadName: `multi-export-${selectedDossierIds.length}-hoso`,
+      downloadName: `multi-export-${parts.join('-')}`,
     }
-  }, [selectedDossierIds])
+  }, [selectedDossierIds, selectedExportFolderIds])
 
   const handleBatchExport = useCallback(
-    async (mode: ExportMode, options?: { presetId?: string }) => {
+    async (mode: ExportMode, options?: ExportOptions) => {
       if (!batchExportContext || isExporting) return
 
       setIsExporting(true)
@@ -773,12 +1046,14 @@ export function DataManagementPage({
           kind: batchExportContext.kind,
           mode,
           folderId: batchExportContext.folderId,
+          folderIds: batchExportContext.folderIds,
           dossierId: batchExportContext.dossierId,
           dossierIds: batchExportContext.dossierIds,
           downloadName: batchExportContext.downloadName,
           metadataExportConfig: options?.presetId
             ? { presetId: options.presetId }
             : undefined,
+          useDocumentNaming: options?.useDocumentNaming === true,
         })
         toast.success(
           mode === 'metadata'
@@ -802,23 +1077,37 @@ export function DataManagementPage({
     [batchExportContext, isExporting, t],
   )
 
-  function handleFocusDocument(documentId: string, groupIndex: number) {
+  function handleFocusDocument(
+    documentId: string | undefined,
+    groupIndex: number,
+    fieldKey?: string,
+  ) {
     if (!tree || !nodeId) return
     const recordNode = findNodeById(tree, nodeId)
     if (recordNode?.type !== 'record') return
+
+    const nextDocumentId = documentId ?? focusDocumentId
+    const sameFocus =
+      nextDocumentId === focusDocumentId &&
+      groupIndex === focusGroupIndex &&
+      fieldKey === focusFieldKey
+    if (sameFocus) return
+
     void navigate({
       to: '.',
       search: (prev: DataManagementSearch) => ({
         ...prev,
         nodeId: recordNode.id,
-        focusDocumentId: documentId,
+        focusDocumentId: nextDocumentId,
         focusGroupIndex: groupIndex,
+        focusFieldKey: fieldKey,
       }),
+      replace: true,
     })
   }
 
   function navigateToNode(id: string, treeOverride?: DataTreeNodeT) {
-    const activeTree = treeOverride ?? tree
+    const activeTree = treeOverride ?? effectiveTree
 
     if (!activeTree) {
       void navigate({
@@ -828,6 +1117,7 @@ export function DataManagementPage({
           nodeId: id,
           focusDocumentId: undefined,
           focusGroupIndex: undefined,
+          focusFieldKey: undefined,
         }),
       })
       return
@@ -859,12 +1149,14 @@ export function DataManagementPage({
         nodeId: id,
         focusDocumentId: undefined,
         focusGroupIndex: undefined,
+        focusFieldKey: undefined,
       }),
     })
   }
 
   async function handleSelectNode(id: string) {
-    let workingTree = tree
+    const isSearching = Boolean(q.trim())
+    let workingTree = effectiveTree
 
     try {
       if (workingTree) {
@@ -875,8 +1167,63 @@ export function DataManagementPage({
           targetNode &&
           (batchSignMode
             ? isBatchSignSelectableNode(targetNode)
-            : isBatchExportSelectableNode(targetNode))
+            : isBatchExportSelectableNode(targetNode, exportStatusOptions))
         ) {
+          if (batchExportMode) {
+            // Toggle this node only — folders export via folderId (no subtree load).
+            const appearsChecked =
+              selectedRecordIds.includes(id) ||
+              isUnderSelectedBatchExportFolder(
+                targetNode,
+                workingTree,
+                selectedRecordIds,
+                exportStatusOptions,
+              )
+
+            setSelectedRecordIds((prev) => {
+              if (appearsChecked) {
+                // Uncheck: remove this id and any selected ancestor folders
+                // that were making a leaf appear checked.
+                const next = new Set(prev)
+                next.delete(id)
+                let parentId = targetNode.parentId
+                while (parentId) {
+                  if (next.has(parentId)) {
+                    const parent = findNodeById(workingTree!, parentId)
+                    if (
+                      parent &&
+                      parent.type === 'folder' &&
+                      !isBatchExportDossierLeafNode(
+                        parent,
+                        exportStatusOptions,
+                      )
+                    ) {
+                      next.delete(parentId)
+                    }
+                  }
+                  const parent = findNodeById(workingTree!, parentId)
+                  if (!parent) break
+                  parentId = parent.parentId
+                }
+                return [...next]
+              }
+              // Check: add this id and drop any selected descendants —
+              // folder API already covers the whole subtree.
+              const next = new Set(prev)
+              next.add(id)
+              for (const selectedId of prev) {
+                if (selectedId === id) continue
+                if (
+                  isNodeUnderAncestor(workingTree!, selectedId, id)
+                ) {
+                  next.delete(selectedId)
+                }
+              }
+              return [...next]
+            })
+            return
+          }
+
           setSelectedRecordIds((prev) =>
             prev.includes(id)
               ? prev.filter((recordId) => recordId !== id)
@@ -906,7 +1253,8 @@ export function DataManagementPage({
               parentNode.type !== 'record' ||
               !parentNode.dossierMetadata
             ) {
-              workingTree = await loadNodeTree(loadId)
+              const loaded = await loadNodeTree(loadId)
+              if (!isSearching) workingTree = loaded
             }
           }
         } else if (targetNode?.type === 'folder' && isProjectScoped) {
@@ -916,16 +1264,19 @@ export function DataManagementPage({
             isNodeChildrenCached(id)
 
           if (isStaleDossierFolder || !isNodeChildrenCached(id)) {
-            workingTree = await loadNodeTree(
+            const loaded = await loadNodeTree(
               id,
               isStaleDossierFolder ? { refresh: true } : undefined,
             )
+            if (!isSearching) workingTree = loaded
           }
-        } else if (
-          targetNode?.type === 'record' &&
-          (!isNodeChildrenCached(id) || !targetNode.dossierMetadata)
-        ) {
-          loadChildrenMutation.mutate(id)
+        } else if (targetNode?.type === 'record') {
+          if (!targetNode.dossierMetadata) {
+            const loaded = await loadChildrenMutation
+              .mutateAsync(id)
+              .then((r) => r.tree)
+            if (!isSearching) workingTree = loaded
+          }
         } else if (!isNodeChildrenCached(id)) {
           loadChildrenMutation.mutate(id)
         }
@@ -935,7 +1286,7 @@ export function DataManagementPage({
       return
     }
 
-    navigateToNode(id, workingTree ?? undefined)
+    navigateToNode(id, isSearching ? undefined : (workingTree ?? undefined))
   }
 
   async function handleDeleteSuccess({
@@ -983,6 +1334,7 @@ export function DataManagementPage({
           nodeId: nextNodeId,
           focusDocumentId: undefined,
           focusGroupIndex: undefined,
+          focusFieldKey: undefined,
         }),
       })
     }
@@ -996,6 +1348,7 @@ export function DataManagementPage({
         nodeId: undefined,
         focusDocumentId: undefined,
         focusGroupIndex: undefined,
+        focusFieldKey: undefined,
       }),
       replace: true,
     })
@@ -1017,17 +1370,40 @@ export function DataManagementPage({
     })
   }
 
-  async function handleEditorClaimNext(options?: { clearUrlFirst?: boolean }) {
+  async function handleEditorClaimNext(options?: {
+    clearUrlFirst?: boolean
+    excludeDossierId?: string
+  }) {
     if (options?.clearUrlFirst) {
       await clearDataManagementSelectionInUrl()
     }
     const nextTree = await claimNextMutation.mutateAsync()
+    const nextRecord = nextTree.children.find((child) => child.type === 'record')
+    const nextDossierId = nextRecord
+      ? resolveRecordDossierId(nextRecord)
+      : undefined
+
+    if (
+      !nextDossierId ||
+      (options?.excludeDossierId &&
+        nextDossierId === options.excludeDossierId)
+    ) {
+      await queryClient.invalidateQueries({
+        queryKey: editorDraftDossiersQueryKey,
+      })
+      void navigate({
+        to: '/app/dossiers',
+        search: {},
+      })
+      return
+    }
+
     await navigateToDefaultDataManagementSelection(nextTree)
   }
 
   async function handleMetadataReload(
     reloadDossierId: string,
-    mode: 'draft' | 'final' | 'error_report' = 'draft',
+    mode: 'draft' | 'draft_advance' | 'final' | 'error_report' = 'draft',
   ) {
     try {
       if (role === 'editor') {
@@ -1050,6 +1426,26 @@ export function DataManagementPage({
 
         if (mode === 'error_report') {
           await handleEditorClaimNext({ clearUrlFirst: true })
+          return
+        }
+
+        if (mode === 'draft_advance') {
+          try {
+            await handleEditorClaimNext({
+              clearUrlFirst: true,
+              excludeDossierId: reloadDossierId,
+            })
+          } catch (claimError) {
+            if (isNoAssignedDossierError(claimError)) {
+              toast.info(t('errors.noAssignedDossier'))
+              void navigate({
+                to: '/app/dossiers',
+                search: {},
+              })
+              return
+            }
+            throw claimError
+          }
           return
         }
 
@@ -1171,7 +1567,10 @@ export function DataManagementPage({
 
   const content = (
     <>
-      <div className="relative flex h-0 min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg border border-border">
+      <ResizablePanelGroup
+        direction="horizontal"
+        className="relative flex h-0 min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg border border-border"
+      >
         {isResolvingDossierDeepLink ? (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80">
             <p className="text-sm text-muted-foreground">
@@ -1179,58 +1578,105 @@ export function DataManagementPage({
             </p>
           </div>
         ) : null}
-        <button
-          type="button"
-          onClick={() => setTreeCollapsed((prev) => !prev)}
-          aria-label={treeCollapsed ? t('tree.expand') : t('tree.collapse')}
-          className={cn(
-            'absolute top-3 z-10 flex size-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-[left,transform] duration-300 ease-in-out hover:bg-accent hover:text-foreground',
-            treeCollapsed ? 'left-3' : 'left-72 -translate-x-1/2',
-          )}
-        >
-          {treeCollapsed ? (
-            <ArrowRightFromLine className="size-3.5" />
-          ) : (
-            <ArrowLeftToLine className="size-3.5" />
-          )}
-        </button>
-        <div
-          className={cn(
-            'flex min-h-0 shrink-0 flex-col overflow-hidden border-r border-border bg-card transition-[width,opacity] duration-300 ease-in-out',
-            treeCollapsed
-              ? 'w-0 min-w-0 opacity-0'
-              : 'w-72 min-w-[18rem] opacity-100',
-          )}
-        >
-          <div
-            className={cn(
-              'flex min-h-0 flex-1 flex-col overflow-hidden',
-              treeCollapsed && 'pointer-events-none',
-            )}
+
+        {treeCollapsed && (
+          <button
+            type="button"
+            onClick={() => setTreeCollapsed(false)}
+            aria-label={t('tree.expand')}
+            className="absolute left-3 top-3 z-10 flex size-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:bg-accent hover:text-foreground"
           >
-            {showSearch || (isProjectScoped && permissions.canReadProjects) ? (
-              <div className="shrink-0 space-y-1.5 border-b border-border px-2.5 py-1.5">
-                {isProjectScoped && permissions.canReadProjects ? (
-                  <ProjectSelect
-                    className="w-full"
-                    compact
-                    value={projectCode}
-                    onValueChange={handleProjectChange}
-                  />
+            <ArrowRightFromLine className="size-3.5" />
+          </button>
+        )}
+
+        {!treeCollapsed && (
+          <>
+            <ResizablePanel
+              defaultSize={25}
+              minSize={15}
+              maxSize={40}
+              className="flex min-h-0 shrink-0 flex-col overflow-hidden bg-card"
+            >
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                {showSearch || (isProjectScoped && permissions.canReadProjects) ? (
+                  <div className="shrink-0 space-y-1.5 border-b border-border px-2.5 py-1.5">
+                    {isProjectScoped && permissions.canReadProjects ? (
+                      <ProjectSelect
+                        className="w-full"
+                        compact
+                        value={projectCode}
+                        onValueChange={handleProjectChange}
+                      />
+                    ) : null}
+                    {showSearch ? (
+                      <div className="relative flex items-center">
+                        <Search className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground" />
+                        <Input
+                          type="search"
+                          placeholder={t('search.placeholder')}
+                          className="w-full bg-background pl-8 pr-8"
+                          value={localSearchQuery}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setLocalSearchQuery(val)
+                            if (!val.trim() && q) {
+                              handleSearchInput('')
+                            }
+                          }}
+                          onSearch={(e) => {
+                            const target = e.target as HTMLInputElement
+                            setLocalSearchQuery(target.value)
+                            handleSearchInput(target.value)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              handleSearchInput(localSearchQuery)
+                            }
+                          }}
+                          aria-label={t('search.placeholder')}
+                        />
+                        {localSearchQuery ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLocalSearchQuery('')
+                              handleSearchInput('')
+                            }}
+                            className="absolute right-2 flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground"
+                            title="Xóa tìm kiếm"
+                            aria-label="Xóa tìm kiếm"
+                          >
+                            <X className="size-3.5" />
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
                 ) : null}
-                {showSearch ? (
-                  <Input
-                    className="h-8 border-input bg-background text-xs"
-                    placeholder={t('search.placeholder')}
-                    value={q}
-                    onChange={(e) => handleSearchInput(e.target.value)}
-                    aria-label={t('search.placeholder')}
-                  />
-                ) : null}
+            {isSearching && (isSearchFetching || !searchTree) ? (
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                <Loader2 className="mb-2 size-6 animate-spin text-muted-foreground/60" />
+                <p>{t('search.searching', 'Đang tìm kiếm...')}</p>
               </div>
-            ) : null}
-            {displayTree ? (
+            ) : isSearchEmpty ? (
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                <Search className="mb-2 size-8 text-muted-foreground/40" />
+                <p className="font-medium text-foreground">
+                  {t('search.noResults', 'Không tìm thấy kết quả')}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t(
+                    'search.noResultsDesc',
+                    'Không có thư mục hoặc tài liệu nào phù hợp với "{{query}}"',
+                    { query: q },
+                  )}
+                </p>
+              </div>
+            ) : displayTree ? (
               <DataFolderTree
+                key={`tree-${projectCode ?? 'all'}-${isSearching ? `search-${q.trim()}` : 'browse'}`}
                 tree={displayTree}
                 selectedId={focusDocumentId ?? nodeId}
                 selectedIds={selectedRecordIds}
@@ -1240,12 +1686,25 @@ export function DataManagementPage({
                   batchSignMode
                     ? isBatchSignSelectableNode
                     : batchExportMode
-                      ? isBatchExportSelectableNode
+                      ? (node) =>
+                          isBatchExportSelectableNode(node, exportStatusOptions)
                       : undefined
+                }
+                getMultiSelectCheckedState={
+                  batchExportMode
+                    ? (node) =>
+                        getBatchExportCheckState(
+                          node,
+                          selectedRecordIds,
+                          exportStatusOptions,
+                          effectiveTree,
+                        )
+                    : undefined
                 }
                 expandPathToNodeIds={treeExpandToNodeIds}
                 onExpandPathApplied={() => setTreeExpandToNodeIds([])}
                 pendingErrorReportDossierIds={pendingErrorReportDossierIds}
+                completedDocumentIds={completedDocumentIds}
                 showProjectCode={
                   isProjectScoped && isAllProjects && permissions.canReadProjects
                 }
@@ -1262,28 +1721,48 @@ export function DataManagementPage({
                     const { folderIds, dossierIds } =
                       collectOcrRoomIdsFromTree(updatedTree)
 
-                    if (folderIds.length > 0) {
-                      setOcrWatchFolderIds((prev) => [
-                        ...new Set([...prev, ...folderIds]),
-                      ])
-                    }
-                    if (dossierIds.length > 0) {
-                      setOcrWatchDossierIds((prev) => [
-                        ...new Set([...prev, ...dossierIds]),
-                      ])
-                    }
-                  })
-                }}
-              />
-            ) : null}
-          </div>
-        </div>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                        if (folderIds.length > 0) {
+                          setOcrWatchFolderIds((prev) => [
+                            ...new Set([...prev, ...folderIds]),
+                          ])
+                        }
+                        if (dossierIds.length > 0) {
+                          setOcrWatchDossierIds((prev) => [
+                            ...new Set([...prev, ...dossierIds]),
+                          ])
+                        }
+                      })
+                    }}
+                  />
+                ) : null}
+              </div>
+            </ResizablePanel>
+            <ResizableHandle className="relative w-px bg-border">
+              <button
+                type="button"
+                onClick={() => setTreeCollapsed(true)}
+                aria-label={t('tree.collapse')}
+                className="absolute top-3 z-10 flex size-7 -translate-x-1/2 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:bg-accent hover:text-foreground"
+              >
+                <ArrowLeftToLine className="size-3.5" />
+              </button>
+            </ResizableHandle>
+          </>
+        )}
+
+        <ResizablePanel
+          defaultSize={treeCollapsed ? 100 : 75}
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+        >
           <div className="flex shrink-0 items-center gap-1.5 border-b border-border px-2.5 py-1.5">
             <div
               className={cn('min-w-0 flex-1', treeCollapsed ? 'pl-8' : 'pl-5')}
             >
-              <DataTreeBreadcrumb tree={tree} nodeId={nodeId} role={role} />
+              <DataTreeBreadcrumb
+                tree={effectiveTree ?? tree}
+                nodeId={nodeId}
+                role={role}
+              />
             </div>
             {permissions.canDigitalSign ? (
               <>
@@ -1389,8 +1868,8 @@ export function DataManagementPage({
                   >
                     <FolderUp className="size-3.5" aria-hidden />
                     {t('recordDetail.exportExcelRunBatch', {
-                      count: selectedDossierIds.length,
-                      defaultValue: `Xuất {{count}} hồ sơ đã chọn`,
+                      count: batchExportSelectionCount,
+                      defaultValue: `Xuất {{count}} mục đã chọn`,
                     })}
                   </Button>
                 ) : null}
@@ -1421,7 +1900,9 @@ export function DataManagementPage({
               isEditorDraftView={isEditorDraftView}
               focusDocumentId={detailContext?.focusDocumentId}
               focusGroupIndex={detailContext?.focusGroupIndex}
+              focusFieldKey={detailContext?.focusFieldKey}
               onFocusDocument={handleFocusDocument}
+              onMarkDocumentsComplete={handleMarkDocumentsComplete}
               onSelectNode={(id) => {
                 void handleSelectNode(id)
               }}
@@ -1434,8 +1915,8 @@ export function DataManagementPage({
               onDigitalSignCompleted={handleDigitalSignCompleted}
             />
           </div>
-        </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
       <FolderUploadDialog
         open={uploadOpen}
@@ -1500,6 +1981,9 @@ export function DataManagementPage({
           setViewInfoOpen(true)
         }}
         onExportExcel={(node) => void handleExportExcel(node)}
+        onExportByFolderStructure={(node) =>
+          void handleExportByFolderStructure(node)
+        }
         onUploadDossier={(node) => {
           setUploadTargetFolder(node)
           setUploadOpen(true)
