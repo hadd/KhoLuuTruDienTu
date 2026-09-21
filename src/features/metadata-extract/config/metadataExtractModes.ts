@@ -3,7 +3,12 @@
  * Quản lý cả mã code, tên hiển thị tiếng Việt và mô tả giải thích tại một nơi duy nhất.
  */
 
-export const METADATA_EXTRACT_MODES = ['old', 'tt05', 'pvep'] as const
+export const METADATA_EXTRACT_MODES = [
+  'old',
+  'tt05',
+  'pvep',
+  'tuyen-quang',
+] as const
 
 export type MetadataExtractMode =
   | (typeof METADATA_EXTRACT_MODES)[number]
@@ -44,6 +49,13 @@ export const METADATA_EXTRACT_MODE_CONFIG: Record<
     description: 'Hồ sơ sẽ được bóc tách theo mẫu metadata PVEP.',
     descriptionKey: 'modeHelp.pvep',
   },
+  'tuyen-quang': {
+    value: 'tuyen-quang',
+    label: 'Tuyên Quang',
+    labelKey: 'mode.tuyen-quang',
+    description: 'Hồ sơ sẽ được bóc tách theo mẫu metadata Tuyên Quang.',
+    descriptionKey: 'modeHelp.tuyen-quang',
+  },
   off: {
     value: 'off',
     label: 'Tắt tự động',
@@ -57,6 +69,7 @@ export const METADATA_EXTRACT_MODE_LABELS: Record<MetadataExtractMode, string> =
   old: 'Thi hành án',
   tt05: 'Thông tư 05',
   pvep: 'PVEP',
+  'tuyen-quang': 'Tuyên Quang',
   off: 'Tắt tự động',
 }
 
