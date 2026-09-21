@@ -1039,30 +1039,58 @@ export function resolveExportColumnValue(
 export function buildUnionExportFieldCatalog(
     metadataList: DossierMetadata[],
 ): MetadataExportFieldCatalogItem[] {
-    const seen = new Set<string>();
-    const catalog: MetadataExportFieldCatalogItem[] = [];
+    const fieldMap = new Map<string, MetadataExportFieldCatalogItem>();
 
     for (const metadata of metadataList) {
         for (const group of metadata.metadata_groups) {
             for (const field of group.fields ?? []) {
                 const fieldName = canonicalMetadataFieldName(field.name);
                 const key = `${group.group_code}.${fieldName}`;
-                if (seen.has(key)) {
-                    continue;
+                const val = field.value !== null && field.value !== undefined ? String(field.value).trim() : "";
+                const existing = fieldMap.get(key);
+                if (!existing) {
+                    fieldMap.set(key, {
+                        key,
+                        groupCode: group.group_code,
+                        groupName: group.group_name,
+                        fieldName,
+                        display: resolveFieldDisplayHeader(field),
+                        sampleValue: val || null,
+                        hasValue: Boolean(val),
+                    });
+                } else if (!existing.hasValue && Boolean(val)) {
+                    existing.sampleValue = val;
+                    existing.hasValue = true;
                 }
-                seen.add(key);
-                catalog.push({
-                    key,
-                    groupCode: group.group_code,
-                    groupName: group.group_name,
-                    fieldName,
-                    display: resolveFieldDisplayHeader(field),
-                });
+            }
+
+            const docs = group.documents ?? group.document ?? [];
+            for (const doc of docs) {
+                for (const field of doc.fields ?? []) {
+                    const fieldName = canonicalMetadataFieldName(field.name);
+                    const key = `${group.group_code}.${fieldName}`;
+                    const val = field.value !== null && field.value !== undefined ? String(field.value).trim() : "";
+                    const existing = fieldMap.get(key);
+                    if (!existing) {
+                        fieldMap.set(key, {
+                            key,
+                            groupCode: group.group_code,
+                            groupName: group.group_name,
+                            fieldName,
+                            display: resolveFieldDisplayHeader(field),
+                            sampleValue: val || null,
+                            hasValue: Boolean(val),
+                        });
+                    } else if (!existing.hasValue && Boolean(val)) {
+                        existing.sampleValue = val;
+                        existing.hasValue = true;
+                    }
+                }
             }
         }
     }
 
-    return catalog;
+    return Array.from(fieldMap.values());
 }
 
 function resolveFieldDisplayHeader(field: { name: string; display: string }): string {

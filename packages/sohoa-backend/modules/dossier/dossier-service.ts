@@ -49,6 +49,8 @@ import {
   storageBasename,
   storageDirname,
   toSearchablePdfKey,
+  toExportPdfKey,
+  toExportTiffKey,
   deriveFolderPathFromProcessedKey,
   getMetadataOutputPrefix,
   isCanonicalOcrOutputKey,
@@ -100,6 +102,7 @@ import {
   buildLinkGet,
   buildSummaryMetadataUpdateKey,
   downloadExportPdfSource,
+  tryDownloadBinaryFromStorage,
   downloadJsonFromStorage,
   resolveMetadataJsonKey,
   uploadJsonToStorage,
@@ -118,6 +121,7 @@ import {
   getAipStatus as queryAipStatus,
   resolveIdsIntoDossierIds,
 } from "../../libs/archival-package/aip-service.ts";
+import { generateAndPersistExportDerivatives } from "../../libs/export-derivatives/generate-export-derivatives.ts";
 import {
   applyWatermarkConfigToPdfFiles,
   resolveWatermarkApplyConfig,
@@ -1430,13 +1434,6 @@ async function buildApprovedMetadataExportZip(
           const usedNames = new Set<string>();
           const usedPdfNames = new Set<string>();
 
-          // Prefetch next PDF while converting current (peak RAM ≈ 2 files + TIFF per dossier).
-          let nextDownload: Promise<
-            Awaited<ReturnType<typeof downloadExportPdfSource>>
-          > | null = pdfSources.length > 0
-            ? downloadExportPdfSource(pdfSources[0]!)
-            : null;
-
           for (
             let sourceIndex = 0;
             sourceIndex < pdfSources.length;
@@ -1456,42 +1453,61 @@ async function buildApprovedMetadataExportZip(
               })
               : source.fileName;
 
-            const downloaded = await (nextDownload ??
-              downloadExportPdfSource(source));
-            const nextSource = pdfSources[sourceIndex + 1];
-            nextDownload = nextSource
-              ? downloadExportPdfSource(nextSource)
-              : null;
-
-            let pdfFiles = [
-              {
-                fileName,
-                data: downloaded.data,
-                ...(downloaded.preserveSignature
-                  ? { preserveSignature: true as const }
-                  : {}),
-              },
-            ];
-            pdfFiles = await applyWatermarkConfigToPdfFiles(
-              pdfFiles,
-              watermarkConfig,
+            const usedNamesEntry = uniqueZipEntryName(
+              fileName,
+              usedPdfNames,
             );
-            pdfFiles = await convertBatchToPdfA(pdfFiles, {
-              title: metadata.ho_so_id || dossier.name,
-            });
+            const tiffEntryName = usedNamesEntry.replace(/\.pdf$/i, ".TIFF");
+            const canUsePregen = !watermarkConfig;
 
-            const pdf = pdfFiles[0]!;
-            const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
+            let pdfData: Uint8Array | null = null;
+            let tiffData: Uint8Array | null = null;
+
+            if (canUsePregen) {
+              const exportPdfKey = toExportPdfKey(source.storageKey);
+              const exportTiffKey = toExportTiffKey(source.storageKey);
+              if (exportPdfKey) {
+                pdfData = await tryDownloadBinaryFromStorage(exportPdfKey);
+              }
+              if (exportTiffKey) {
+                tiffData = await tryDownloadBinaryFromStorage(exportTiffKey);
+              }
+            }
+
+            if (!pdfData || !tiffData) {
+              if (!pdfData) {
+                const downloaded = await downloadExportPdfSource(source);
+                let pdfFiles = [
+                  {
+                    fileName,
+                    data: downloaded.data,
+                    ...(downloaded.preserveSignature
+                      ? { preserveSignature: true as const }
+                      : {}),
+                  },
+                ];
+                pdfFiles = await applyWatermarkConfigToPdfFiles(
+                  pdfFiles,
+                  watermarkConfig,
+                );
+                pdfFiles = await convertBatchToPdfA(pdfFiles, {
+                  title: metadata.ho_so_id || dossier.name,
+                });
+                pdfData = pdfFiles[0]!.data;
+              }
+              if (!tiffData) {
+                tiffData = await convertPdfToTiff(pdfData!);
+              }
+            }
+
             await zipMutex.runExclusive(() =>
-              add(`PDF/${folderPrefix}/${entryName}`, pdf.data)
+              add(`PDF/${folderPrefix}/${usedNamesEntry}`, pdfData!)
             );
-
-            const tiffBytes = await convertPdfToTiff(pdf.data);
-            pdf.data = new Uint8Array(0);
-            const tiffEntryName = entryName.replace(/\.pdf$/i, ".TIFF");
+            pdfData = null;
             await zipMutex.runExclusive(() =>
-              add(`TIFF/${folderPrefix}/${tiffEntryName}`, tiffBytes)
+              add(`TIFF/${folderPrefix}/${tiffEntryName}`, tiffData!)
             );
+            tiffData = null;
           }
         },
       );
@@ -3623,6 +3639,9 @@ export const DossierService = {
     if (!result.partial && result.dossierStatus === DossierStatus.APPROVED) {
       generateAndPersistAip({ dossierId }).catch((err) => {
         console.error("[AIP] Failed to generate archival package:", err);
+      });
+      generateAndPersistExportDerivatives({ dossierId }).catch((err) => {
+        console.error("[ExportDerivatives] Failed to pre-generate PDF/A+TIFF:", err);
       });
       scheduleDossierApprovedNotification({
         dossierId,

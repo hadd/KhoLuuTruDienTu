@@ -28,6 +28,7 @@ import { createSecurityLevelRouter, createSecurityPermissionDefRouter } from "..
 import { createMetadataExtractRouter } from "../modules/metadata-extract/index.ts"
 import { createPageQuotaRouter } from "../modules/page-quota/index.ts"
 import { createMetadataHiddenFieldRouter } from "../modules/metadata-hidden-field/index.ts"
+import { createMetadataFieldRouter } from "../modules/metadata-field/index.ts"
 import { createDashboardWarehouseRouter } from "../modules/dashboard/dashboard.warehouse-router.ts"
 import { createExportDownloadRouter } from "../modules/export-download/export-download.router.ts"
 
@@ -54,6 +55,7 @@ export const apiV1Router = new Elysia({
     .use(createMetadataExtractRouter("/metadata"))
     .use(createPageQuotaRouter("/page-quota"))
     .use(createMetadataHiddenFieldRouter("/metadata-hidden-fields"))
+    .use(createMetadataFieldRouter("/metadata-fields"))
     .use(createExportDownloadRouter("/export-downloads"))
 
     .use(createProjectPlanRouter())
