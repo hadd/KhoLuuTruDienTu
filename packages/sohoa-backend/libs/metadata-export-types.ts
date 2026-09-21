@@ -29,6 +29,8 @@ export interface MetadataExportFieldCatalogItem {
     groupName: string;
     fieldName: string;
     display: string;
+    sampleValue?: string | null;
+    hasValue?: boolean;
 }
 
 export function parseExportColumns(json: string): MetadataExportColumnConfig[] {

@@ -436,7 +436,14 @@ export const DocumentNamingConfigService = {
             autoIncrementStart,
         });
 
-        return { previews };
+        const sanitizedPreviews = previews.map((name) => {
+            const safe = name.replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim() || "document";
+            return input.targetType === "file"
+                ? (safe.toLowerCase().endsWith(".pdf") ? safe : `${safe}.pdf`)
+                : safe;
+        });
+
+        return { previews: sanitizedPreviews };
     },
 
     async resolvePreviewMetadataValues(
