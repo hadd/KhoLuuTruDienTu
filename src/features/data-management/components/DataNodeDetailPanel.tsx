@@ -179,7 +179,11 @@ export function DataNodeDetailPanel({
 
   focusGroupIndex?: number
 
-  onFocusDocument?: (documentId: string, groupIndex: number) => void
+  onFocusDocument?: (
+    documentId: string,
+    groupIndex: number,
+    targetTab?: 'metadata' | 'editHistory',
+  ) => void
 
   onSelectNode: (id: string) => void
 

@@ -47,17 +47,10 @@ function MetadataEditFieldChangeRow({
       <button
         type="button"
         className={cn(
-          'w-full text-left text-sm font-medium',
-          change.groupIndex >= 0
-            ? 'cursor-pointer text-foreground hover:underline underline-offset-2'
-            : 'cursor-default text-foreground',
-          isHighlighted && change.groupIndex >= 0 && 'text-primary',
+          'w-full text-left text-sm font-medium cursor-pointer text-foreground hover:underline underline-offset-2',
+          isHighlighted && 'text-primary',
         )}
-        onClick={() => {
-          if (change.groupIndex < 0) return
-          onActivate(change)
-        }}
-        disabled={change.groupIndex < 0}
+        onClick={() => onActivate(change)}
         aria-label={t('recordDetail.viewFieldInPdf')}
       >
         {change.fieldDisplay}

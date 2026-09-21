@@ -989,7 +989,11 @@ export function DataManagementPage({
     [batchExportContext, isExporting, t],
   )
 
-  function handleFocusDocument(documentId: string, groupIndex: number) {
+  function handleFocusDocument(
+    documentId: string,
+    groupIndex: number,
+    targetTab?: 'metadata' | 'editHistory',
+  ) {
     if (!effectiveTree || !nodeId) return
     const recordNode = findNodeById(effectiveTree, nodeId)
     if (recordNode?.type !== 'record') return
@@ -1000,6 +1004,7 @@ export function DataManagementPage({
         nodeId: recordNode.id,
         focusDocumentId: documentId,
         focusGroupIndex: groupIndex,
+        ...(targetTab && { detailTab: targetTab }),
       }),
     })
   }

@@ -126,7 +126,11 @@ export function RecordDetailPanel({
   isEditorDraftView?: boolean
   focusDocumentId?: string
   focusGroupIndex?: number
-  onFocusDocument?: (documentId: string, groupIndex: number) => void
+  onFocusDocument?: (
+    documentId: string,
+    groupIndex: number,
+    targetTab?: 'metadata' | 'editHistory',
+  ) => void
   onWorkflowComplete?: (
     dossierId: string,
     mode?: EditorMetadataSaveMode,
@@ -388,6 +392,17 @@ export function RecordDetailPanel({
   const [detailTab, setDetailTab] = useState<'metadata' | 'editHistory'>(
     'metadata',
   )
+
+  function handleDetailTabChange(value: 'metadata' | 'editHistory') {
+    setDetailTab(value)
+  }
+
+  // Sync detailTab when focusDocumentId changes from external navigation
+  useEffect(() => {
+    if (focusDocumentId && detailTab === 'editHistory') {
+      setDetailTab('metadata')
+    }
+  }, [focusDocumentId, detailTab])
   const qcReject = useQcInlineReject({
     dossierId,
     onSuccess: () => void onWorkflowComplete?.(dossierId),
@@ -894,7 +909,7 @@ export function RecordDetailPanel({
           highlight,
           changeId: changeId ?? null,
         }
-        onFocusDocument?.(targetDocument.id, groupIndex)
+        onFocusDocument?.(targetDocument.id, groupIndex, 'metadata')
         return
       }
     }
@@ -906,13 +921,68 @@ export function RecordDetailPanel({
   }
 
   function handleHistoryFieldActivate(change: DataMetadataEditFieldChangeT) {
-    const fieldKey = `${change.groupIndex}-${change.fieldName}-${change.fieldIndex}`
-    handleMetadataFieldActivate(
-      change.groupIndex,
-      change.field,
-      fieldKey,
-      change.id,
-    )
+    // Use documentRef if available to identify correct document
+    const documentRef = change.documentRef
+
+    if (documentRef) {
+      // Find the matching document in tree
+      const targetDocument = documents.find(
+        (doc) =>
+          doc.name.includes(documentRef) ||
+          doc.filePath?.includes(documentRef) ||
+          doc.fileUrl?.includes(documentRef),
+      )
+
+      if (targetDocument) {
+        // Find group index for this document
+        const groupIndex = findMetadataGroupIndexForDocument(
+          groups,
+          targetDocument,
+          documents,
+        )
+
+        // Store field activation info for after document focus
+        const fieldKey = `${groupIndex}-${change.fieldName}-${change.fieldIndex}`
+        const group = groups[groupIndex]
+        const highlight = group
+          ? fieldToHighlight(change.field, group.fields)
+          : null
+
+        pendingFieldActivationRef.current = {
+          fieldKey,
+          highlight: highlight ?? undefined,
+          changeId: change.id,
+        }
+
+        // Switch to metadata tab if currently on editHistory
+        if (detailTab === 'editHistory') {
+          setDetailTab('metadata')
+        }
+
+        // Focus document with 'metadata' tab (useEffect will sync if needed)
+        onFocusDocument?.(targetDocument.id, groupIndex, 'metadata')
+        return
+      }
+    }
+
+    // Fallback: if we have groupIndex >= 0, use old logic
+    if (change.groupIndex >= 0) {
+      const fieldKey = `${change.groupIndex}-${change.fieldName}-${change.fieldIndex}`
+      handleMetadataFieldActivate(
+        change.groupIndex,
+        change.field,
+        fieldKey,
+        change.id,
+      )
+      return
+    }
+
+    // Last resort: if groupIndex < 0 and no documentRef, still switch to metadata tab
+    // User will see metadata even if exact field cannot be focused
+    if (detailTab === 'editHistory') {
+      setDetailTab('metadata')
+      onFocusDocument?.('', 0, 'metadata')
+    }
   }
 
   function handleHistoryFileFocus(file: DataMetadataHistoryFileRefT) {
@@ -929,7 +999,8 @@ export function RecordDetailPanel({
         )
       }
 
-      onFocusDocument?.(documentId, groupIndex >= 0 ? groupIndex : 0)
+      // useEffect will sync tab to 'metadata' when focusDocumentId changes
+      onFocusDocument?.(documentId, groupIndex >= 0 ? groupIndex : 0, 'metadata')
       window.requestAnimationFrame(() => {
         window.document
           .querySelector(`[data-tree-node-id="${documentId}"]`)
@@ -944,7 +1015,8 @@ export function RecordDetailPanel({
     const linkedDocuments = findAllDocumentsForMetadataGroup(group, documents)
     if (linkedDocuments.length > 0) {
       const targetDocument = linkedDocuments[0]
-      onFocusDocument?.(targetDocument.id, groupIndex)
+      // useEffect will sync tab to 'metadata' when focusDocumentId changes
+      onFocusDocument?.(targetDocument.id, groupIndex, 'metadata')
       window.requestAnimationFrame(() => {
         window.document
           .querySelector(`[data-tree-node-id="${targetDocument.id}"]`)
@@ -954,7 +1026,8 @@ export function RecordDetailPanel({
     }
 
     if (groupIndex !== selectedGroupIndex && onFocusDocument) {
-      onFocusDocument('', groupIndex)
+      // useEffect will sync tab to 'metadata' when focusDocumentId changes
+      onFocusDocument('', groupIndex, 'metadata')
     }
   }
 
