@@ -306,13 +306,15 @@ export function parseDossierMetadata(raw: unknown): DossierMetadata | null {
             normalizeMetadataGroup(group as MetadataGroup)
         ),
     };
-    return expandTaiLieuDocuments(migrateTt05MetadataLayout(normalized));
+    return expandTaiLieuDocuments(
+        propagateHoSoFondToDocuments(migrateTt05MetadataLayout(normalized)),
+    );
 }
 
 export function formatDossierMetadataForStorage(
     metadata: DossierMetadata,
 ): DossierMetadata {
-    return collapseTaiLieuDocuments(metadata);
+    return collapseTaiLieuDocuments(propagateHoSoFondToDocuments(metadata));
 }
 
 /** Group code used in field catalog / allowedFields (TT05: slug from TEN_LOAI_TAI_LIEU). */
@@ -347,13 +349,74 @@ export function findMetadataFieldValue(
     return null;
 }
 
+export const FOND_FIELD_NAMES = [
+    HO_SO_FOND_FIELD,
+    "MA_PHONG",
+    "TEN_PHONG",
+    "PHONG_LUU_TRU",
+] as const;
+
 export function findHoSoFondFieldValue(
     metadata: DossierMetadata | null | undefined,
 ): string | null {
     const hoSoGroup = metadata?.metadata_groups.find(
         (group) => group.group_code === HO_SO_LUU_TRU_GROUP_CODE,
     );
-    return findMetadataFieldValue(hoSoGroup?.fields ?? [], HO_SO_FOND_FIELD);
+    if (hoSoGroup?.fields) {
+        for (const targetName of FOND_FIELD_NAMES) {
+            const val = findMetadataFieldValue(hoSoGroup.fields, targetName);
+            if (val && val.trim()) return val.trim();
+        }
+    }
+
+    const phongGroup = metadata?.metadata_groups.find(
+        (group) => group.group_code === "PHONG_LUU_TRU",
+    );
+    if (phongGroup?.fields) {
+        for (const targetName of FOND_FIELD_NAMES) {
+            const val = findMetadataFieldValue(phongGroup.fields, targetName);
+            if (val && val.trim()) return val.trim();
+        }
+    }
+
+    return null;
+}
+
+export function isFondFieldName(fieldName: string): boolean {
+    if (!fieldName?.trim()) return false;
+    const normalized = fieldName.trim().toUpperCase();
+    return (
+        FOND_FIELD_NAMES.some((name) => name === normalized) ||
+        metadataFieldNamesMatch(fieldName, HO_SO_FOND_FIELD) ||
+        metadataFieldNamesMatch(fieldName, "MA_PHONG") ||
+        metadataFieldNamesMatch(fieldName, "TEN_PHONG") ||
+        metadataFieldNamesMatch(fieldName, "PHONG_LUU_TRU")
+    );
+}
+
+export function propagateHoSoFondToDocuments(
+    metadata: DossierMetadata,
+): DossierMetadata {
+    const fondValue = findHoSoFondFieldValue(metadata);
+    if (!fondValue) return metadata;
+
+    const cloned = structuredClone(metadata) as DossierMetadata;
+    for (const group of cloned.metadata_groups) {
+        if (group.group_code === HO_SO_LUU_TRU_GROUP_CODE) continue;
+        for (const field of group.fields ?? []) {
+            if (isFondFieldName(field.name) || isFondFieldName(field.display)) {
+                field.value = fondValue;
+            }
+        }
+        for (const doc of group.documents ?? []) {
+            for (const field of doc.fields ?? []) {
+                if (isFondFieldName(field.name) || isFondFieldName(field.display)) {
+                    field.value = fondValue;
+                }
+            }
+        }
+    }
+    return cloned;
 }
 
 export function hasHoSoFondField(metadata: unknown): boolean {
