@@ -513,6 +513,38 @@ export async function exportDossierDip(
   )
 }
 
+function buildDipExportBody(input: {
+  dossierIds?: string[]
+  folderIds?: string[]
+  baseFolderId?: string
+  options?: DipExportOptionsT
+}): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    dossierIds: input.dossierIds ?? [],
+  }
+  if (input.folderIds?.length) body.folderIds = input.folderIds
+  if (input.baseFolderId) body.baseFolderId = input.baseFolderId
+  if (input.options?.useDocumentNaming === true) {
+    body.useDocumentNaming = true
+  }
+  return body
+}
+
+export async function exportFolderDip(
+  folderId: string,
+  downloadName?: string,
+  options?: DipExportOptionsT,
+): Promise<void> {
+  const fallbackName = downloadName?.trim()
+    ? `${downloadName.trim()}-dip.zip`
+    : `folder-${folderId}-dip.zip`
+  await downloadConfiguredMetadataExport(
+    `/api/v1/dossiers/dip/export`,
+    fallbackName,
+    buildDipExportBody({ folderIds: [folderId], options }),
+  )
+}
+
 export async function exportMultiDossiersDip(
   dossierIds: string[],
   downloadName?: string,
@@ -531,7 +563,12 @@ export async function exportMultiDossiersDip(
   await downloadConfiguredMetadataExport(
     `/api/v1/dossiers/dip/export`,
     fallbackName,
-    { dossierIds } as unknown as MetadataExportRequestT,
+    buildDipExportBody({
+      dossierIds,
+      folderIds: resolvedFolderIds,
+      baseFolderId,
+      options,
+    }),
   )
 }
 
