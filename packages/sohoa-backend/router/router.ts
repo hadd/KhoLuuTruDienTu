@@ -55,6 +55,7 @@ export const apiV1Router = new Elysia({
     .use(createMetadataExtractRouter("/metadata"))
     .use(createPageQuotaRouter("/page-quota"))
     .use(createMetadataHiddenFieldRouter("/metadata-hidden-fields"))
+    .use(createMetadataFieldRouter("/metadata-fields"))
     .use(createExportDownloadRouter("/export-downloads"))
 
     .use(createProjectPlanRouter())
