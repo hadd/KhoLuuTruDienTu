@@ -5,6 +5,7 @@ import {
   completeExportDownloadTicket,
   consumeExportDownloadTicket,
   createExportDownloadTicket,
+  ensureReplayContentType,
   failExportDownloadTicket,
   getExportDownloadStatus,
   setExportDownloadZipPasswordSource,
@@ -14,6 +15,7 @@ import { plugins } from "../../libs/plugins/_index.ts";
 
 const HEADER_NAMES = [
   "authorization",
+  "content-type",
   "x-security-level-token",
   "x-security-level-tokens",
   "x-dossier-access-token",
@@ -175,9 +177,13 @@ export function createPublicExportDownloadRouter(basePath = "/export-downloads")
 
       let response: Response;
       try {
+        const headers = ensureReplayContentType(
+          ticket.headers,
+          ticket.bodyText,
+        );
         response = await fetch(buildLoopbackUrl(ticket.path), {
           method: ticket.method,
-          headers: ticket.headers,
+          headers,
           body: ticket.bodyText,
         });
       } catch (error) {

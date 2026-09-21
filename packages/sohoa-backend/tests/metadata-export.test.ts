@@ -6,9 +6,15 @@ import {
     resolveExportFieldValue,
 } from "../libs/metadata-export-field-resolver.ts";
 import { buildDynamicMetadataExcel } from "../libs/metadata-excel-export.ts";
-import { collectFolderMetadataExportEntries } from "../libs/metadata-export.ts";
+import { collectFolderMetadataExportEntries, buildFolderMetadataExportZipStream, buildFolderMetadataExportZipStreamIncremental } from "../libs/metadata-export.ts";
 import { buildMetadataExportPreview } from "../libs/metadata-export-preview.ts";
 import type { DossierMetadata } from "../libs/metadata-types.ts";
+import { readableStreamToUint8Array } from "../libs/jszip-stream.ts";
+import {
+    BlobReader,
+    Uint8ArrayWriter,
+    ZipReader,
+} from "@zip.js/zip.js";
 
 const sampleMetadata: DossierMetadata = {
     metadata_groups: [
@@ -811,6 +817,49 @@ Deno.test("buildMetadataExportPreview matches Excel row values for CHUNG TU KET 
     assertEquals(preview.rows[2]?.cells[3], "2");
 });
 
+Deno.test("collectFolderMetadataExportEntries excel-only has no PDF or TIFF entries", () => {
+    const excelBuffer = new Uint8Array([1, 2, 3]);
+    const entries = collectFolderMetadataExportEntries({
+        excelFileName: "export-metadata.xlsx",
+        excelBuffer,
+        dossierPdfBundles: [],
+    });
+    assertEquals(entries.map((e) => e.name), ["export-metadata.xlsx"]);
+    assertEquals(
+        entries.some((e) => e.name.startsWith("PDF/") || e.name.startsWith("TIFF/")),
+        false,
+    );
+});
+
+Deno.test(
+    "buildFolderMetadataExportZipStreamIncremental excel-only build yields only xlsx",
+    { sanitizeOps: false, sanitizeResources: false },
+    async () => {
+    const stream = buildFolderMetadataExportZipStreamIncremental({
+        excelFileName: "meta-only.xlsx",
+        excelBuffer: new Uint8Array([9, 8, 7]),
+        // Mirrors buildApprovedMetadataExportZip when excelOnly === true
+        build: async () => {},
+    });
+    const bytes = await readableStreamToUint8Array(stream);
+    const zr = new ZipReader(new BlobReader(new Blob([new Uint8Array(bytes)])));
+    try {
+        const entries = await zr.getEntries();
+        const names = entries.filter((e) => !e.directory).map((e) => e.filename);
+        assertEquals(names, ["meta-only.xlsx"]);
+        assertEquals(
+            names.some((n) => n.startsWith("PDF/") || n.startsWith("TIFF/")),
+            false,
+        );
+    } finally {
+        await zr.close();
+    }
+});
+
+Deno.test(
+    "buildFolderMetadataExportZipStream includes PDF and TIFF trees",
+    { sanitizeOps: false, sanitizeResources: false },
+    async () => {
     const pdfData = new TextEncoder().encode("%PDF-1.4 mock");
     const tiffData = new Uint8Array([0x49, 0x49, 0x2a, 0x00]);
     const stream = await buildFolderMetadataExportZipStream({

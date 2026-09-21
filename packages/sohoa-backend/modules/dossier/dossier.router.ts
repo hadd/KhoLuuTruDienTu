@@ -418,6 +418,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
           () =>
             service.exportMetadataExcelByIds(body.dossierIds, {
               ...body,
+              excelOnly: body.excelOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
@@ -888,6 +889,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
           () =>
             service.exportMetadataExcel(params.id, {
               ...body,
+              excelOnly: body.excelOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
@@ -942,6 +944,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
               userId: profile.id,
               skippedFileIds,
               useDocumentNaming: query.useDocumentNaming === true,
+              excelOnly: query.excelOnly === true,
               bypassStatus,
             }),
         );
@@ -955,6 +958,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         placementId: t.Optional(t.String({ format: "uuid" })),
         applyWatermark: t.Optional(t.Boolean()),
         useDocumentNaming: t.Optional(t.Boolean()),
+        excelOnly: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,

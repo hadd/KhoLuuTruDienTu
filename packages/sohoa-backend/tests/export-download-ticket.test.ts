@@ -3,6 +3,7 @@ import {
   completeExportDownloadTicket,
   consumeExportDownloadTicket,
   createExportDownloadTicket,
+  ensureReplayContentType,
   failExportDownloadTicket,
   getExportDownloadStatus,
   isAllowedExportDownloadPath,
@@ -14,6 +15,25 @@ Deno.test("isAllowedExportDownloadPath allows export ZIP routes only", () => {
   assertEquals(isAllowedExportDownloadPath("/api/v1/folders/abc/metadata/export?useDocumentNaming=true"), true);
   assertEquals(isAllowedExportDownloadPath("/api/v1/dossiers/metadata/export/preview"), false);
   assertEquals(isAllowedExportDownloadPath("/api/v1/users"), false);
+});
+
+Deno.test("ensureReplayContentType sets application/json when body present", () => {
+  const withBody = ensureReplayContentType(
+    { authorization: "Bearer token" },
+    JSON.stringify({ dossierIds: ["a"], excelOnly: true }),
+  );
+  assertEquals(withBody["content-type"], "application/json");
+  assertEquals(withBody.authorization, "Bearer token");
+
+  const alreadySet = ensureReplayContentType(
+    { "Content-Type": "application/json; charset=utf-8" },
+    '{"excelOnly":true}',
+  );
+  assertEquals(alreadySet["Content-Type"], "application/json; charset=utf-8");
+  assertEquals(alreadySet["content-type"], undefined);
+
+  const noBody = ensureReplayContentType({ authorization: "Bearer x" }, undefined);
+  assertEquals(noBody["content-type"], undefined);
 });
 
 Deno.test("export download tickets are one-shot", () => {

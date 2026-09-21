@@ -130,7 +130,10 @@ import { resolveExportZipPassword } from "../profile/resolve-export-zip-password
 import { assertExportFileLimit } from "../../libs/export-file-limit.ts";
 import {
   EXPORT_DOSSIER_CONCURRENCY,
+  EXPORT_METADATA_DOSSIER_CONCURRENCY,
+  createAsyncMutex,
   mapInBatches,
+  mapWithConcurrency,
 } from "../../libs/export-concurrency.ts";
 import { metadataHistory } from "../../db/schemas/metadata-history.ts";
 import { purgeLinkedMetadataByDossierIds } from "./dossier-delete-utils.ts";
@@ -1257,8 +1260,12 @@ type MetadataExportInput = {
   /** Skip APPROVED/ARCHIVED status gate (dossiers.export_any_status). */
   bypassStatus?: boolean;
   /** When true, ZIP contains only the Excel file (no PDF/TIFF). */
-  excelOnly?: boolean;
+  excelOnly?: boolean | string;
 };
+
+function isExcelOnlyFlag(value: unknown): boolean {
+  return value === true || value === "true";
+}
 
 async function buildApprovedMetadataExportZip(
   allDossiers: DossierWithFiles[],
@@ -1273,7 +1280,7 @@ async function buildApprovedMetadataExportZip(
     baseFolderName?: string;
   },
 ) {
-  const excelOnly = input?.excelOnly === true;
+  const excelOnly = isExcelOnlyFlag(input?.excelOnly);
 
   // Early file-count check using metadata JSON only (no PDF download yet).
   const metadataForCount = await mapInBatches(
@@ -1359,119 +1366,135 @@ async function buildApprovedMetadataExportZip(
     build: async (add, usedFolderNames) => {
       if (excelOnly) return;
 
-      for (let dossierIndex = 0; dossierIndex < metadataForCount.length; dossierIndex++) {
-        const { dossier, metadata } = metadataForCount[dossierIndex]!;
-        const baseName = metadata.ho_so_id || dossier.name || dossier.id;
-        const dossierFolderName = sanitizeExportBaseName(baseName);
-        const zipFolderPath = resolveExportZipRelativePath(
-          dossier.folderPath,
-          dossierFolderName,
-        );
+      const zipMutex = createAsyncMutex();
 
-        let relativeFolderPath: string | undefined;
-        let baseFolderName: string | undefined;
-        if (options.baseFolderPath && options.baseFolderName) {
-          relativeFolderPath = computeRelativeFolderPath(
+      await mapWithConcurrency(
+        metadataForCount,
+        EXPORT_METADATA_DOSSIER_CONCURRENCY,
+        async (row, dossierIndex) => {
+          const { dossier, metadata } = row;
+          const baseName = metadata.ho_so_id || dossier.name || dossier.id;
+          const dossierFolderName = sanitizeExportBaseName(baseName);
+          const zipFolderPath = resolveExportZipRelativePath(
             dossier.folderPath,
-            options.baseFolderPath,
-            options.baseFolderName,
+            dossierFolderName,
           );
-          baseFolderName = options.baseFolderName;
-        }
 
-        const folderPrefix = resolveMetadataExportFolderPrefix(
-          {
-            dossierFolderName: zipFolderPath || dossierFolderName,
-            zipFolderPath,
-            relativeFolderPath,
-            baseFolderName,
-          },
-          usedFolderNames,
-        );
+          let relativeFolderPath: string | undefined;
+          let baseFolderName: string | undefined;
+          if (options.baseFolderPath && options.baseFolderName) {
+            relativeFolderPath = computeRelativeFolderPath(
+              dossier.folderPath,
+              options.baseFolderPath,
+              options.baseFolderName,
+            );
+            baseFolderName = options.baseFolderName;
+          }
 
-        const pdfSources = collectMetadataPdfSources(
-          metadata,
-          dossier.files ?? [],
-        );
-
-        let namingContext: Awaited<
-          ReturnType<
-            typeof DocumentNamingConfigService.loadFileNamingExportContext
-          >
-        > = null;
-        if (input?.useDocumentNaming === true) {
-          namingContext = await DocumentNamingConfigService
-            .loadFileNamingExportContext({
-              fondId: dossier.fondId,
-              dossierId: dossier.id,
-              dossier: {
-                name: dossier.name,
-                folderPath: dossier.folderPath,
-                projectCode: dossier.projectCode,
-                dossierTypeId: dossier.dossierTypeId,
+          const folderPrefix = await zipMutex.runExclusive(() =>
+            resolveMetadataExportFolderPrefix(
+              {
+                dossierFolderName: zipFolderPath || dossierFolderName,
+                zipFolderPath,
+                relativeFolderPath,
+                baseFolderName,
               },
-            });
-        }
+              usedFolderNames,
+            )
+          );
 
-        const usedNames = new Set<string>();
-        const usedPdfNames = new Set<string>();
+          const pdfSources = collectMetadataPdfSources(
+            metadata,
+            dossier.files ?? [],
+          );
 
-        // Prefetch next PDF while converting current (peak RAM ≈ 2 files + TIFF).
-        let nextDownload: Promise<
-          Awaited<ReturnType<typeof downloadExportPdfSource>>
-        > | null = pdfSources.length > 0
-          ? downloadExportPdfSource(pdfSources[0]!)
-          : null;
+          let namingContext: Awaited<
+            ReturnType<
+              typeof DocumentNamingConfigService.loadFileNamingExportContext
+            >
+          > = null;
+          if (input?.useDocumentNaming === true) {
+            namingContext = await DocumentNamingConfigService
+              .loadFileNamingExportContext({
+                fondId: dossier.fondId,
+                dossierId: dossier.id,
+                dossier: {
+                  name: dossier.name,
+                  folderPath: dossier.folderPath,
+                  projectCode: dossier.projectCode,
+                  dossierTypeId: dossier.dossierTypeId,
+                },
+              });
+          }
 
-        for (let sourceIndex = 0; sourceIndex < pdfSources.length; sourceIndex++) {
-          const source = pdfSources[sourceIndex]!;
-          const fileName = namingContext
-            ? resolveNamedPdfFileName({
-              context: namingContext,
-              metadata,
-              originalFileName: source.fileName,
-              storageKey: source.storageKey,
-              sourceIndex,
-              dossierFiles: dossier.files,
-              dossierIndex,
-              usedNames,
-            })
-            : source.fileName;
+          const usedNames = new Set<string>();
+          const usedPdfNames = new Set<string>();
 
-          const downloaded = await (nextDownload ??
-            downloadExportPdfSource(source));
-          const nextSource = pdfSources[sourceIndex + 1];
-          nextDownload = nextSource
-            ? downloadExportPdfSource(nextSource)
+          // Prefetch next PDF while converting current (peak RAM ≈ 2 files + TIFF per dossier).
+          let nextDownload: Promise<
+            Awaited<ReturnType<typeof downloadExportPdfSource>>
+          > | null = pdfSources.length > 0
+            ? downloadExportPdfSource(pdfSources[0]!)
             : null;
 
-          let pdfFiles = [
-            {
-              fileName,
-              data: downloaded.data,
-              ...(downloaded.preserveSignature
-                ? { preserveSignature: true as const }
-                : {}),
-            },
-          ];
-          pdfFiles = await applyWatermarkConfigToPdfFiles(
-            pdfFiles,
-            watermarkConfig,
-          );
-          pdfFiles = await convertBatchToPdfA(pdfFiles, {
-            title: metadata.ho_so_id || dossier.name,
-          });
+          for (
+            let sourceIndex = 0;
+            sourceIndex < pdfSources.length;
+            sourceIndex++
+          ) {
+            const source = pdfSources[sourceIndex]!;
+            const fileName = namingContext
+              ? resolveNamedPdfFileName({
+                context: namingContext,
+                metadata,
+                originalFileName: source.fileName,
+                storageKey: source.storageKey,
+                sourceIndex,
+                dossierFiles: dossier.files,
+                dossierIndex,
+                usedNames,
+              })
+              : source.fileName;
 
-          const pdf = pdfFiles[0]!;
-          const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
-          await add(`PDF/${folderPrefix}/${entryName}`, pdf.data);
+            const downloaded = await (nextDownload ??
+              downloadExportPdfSource(source));
+            const nextSource = pdfSources[sourceIndex + 1];
+            nextDownload = nextSource
+              ? downloadExportPdfSource(nextSource)
+              : null;
 
-          const tiffBytes = await convertPdfToTiff(pdf.data);
-          pdf.data = new Uint8Array(0);
-          const tiffEntryName = entryName.replace(/\.pdf$/i, ".TIFF");
-          await add(`TIFF/${folderPrefix}/${tiffEntryName}`, tiffBytes);
-        }
-      }
+            let pdfFiles = [
+              {
+                fileName,
+                data: downloaded.data,
+                ...(downloaded.preserveSignature
+                  ? { preserveSignature: true as const }
+                  : {}),
+              },
+            ];
+            pdfFiles = await applyWatermarkConfigToPdfFiles(
+              pdfFiles,
+              watermarkConfig,
+            );
+            pdfFiles = await convertBatchToPdfA(pdfFiles, {
+              title: metadata.ho_so_id || dossier.name,
+            });
+
+            const pdf = pdfFiles[0]!;
+            const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
+            await zipMutex.runExclusive(() =>
+              add(`PDF/${folderPrefix}/${entryName}`, pdf.data)
+            );
+
+            const tiffBytes = await convertPdfToTiff(pdf.data);
+            pdf.data = new Uint8Array(0);
+            const tiffEntryName = entryName.replace(/\.pdf$/i, ".TIFF");
+            await zipMutex.runExclusive(() =>
+              add(`TIFF/${folderPrefix}/${tiffEntryName}`, tiffBytes)
+            );
+          }
+        },
+      );
     },
   });
 

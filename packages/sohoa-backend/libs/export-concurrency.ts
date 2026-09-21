@@ -6,6 +6,8 @@
 export const MAX_EXPORT_FILES = 50000000000;
 export const EXPORT_DOWNLOAD_CONCURRENCY = 20;
 export const EXPORT_DOSSIER_CONCURRENCY = 10;
+/** Max dossiers processed in parallel during metadata ZIP (Excel+PDF+TIFF). */
+export const EXPORT_METADATA_DOSSIER_CONCURRENCY = 20;
 
 export async function mapWithConcurrency<T, R>(
   items: T[],
@@ -48,4 +50,25 @@ export async function mapInBatches<T, R>(
     results.push(...batchResults);
   }
   return results;
+}
+
+/** Async mutex so ZipWriter.add / shared Sets stay single-flight. */
+export function createAsyncMutex() {
+  let tail: Promise<void> = Promise.resolve();
+
+  return {
+    async runExclusive<T>(fn: () => Promise<T> | T): Promise<T> {
+      const previous = tail;
+      let release!: () => void;
+      tail = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await previous;
+      try {
+        return await fn();
+      } finally {
+        release();
+      }
+    },
+  };
 }

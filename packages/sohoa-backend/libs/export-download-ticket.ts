@@ -122,6 +122,26 @@ export function isAllowedExportDownloadPath(path: string): boolean {
   return ALLOWED_EXPORT_PATTERNS.some((pattern) => pattern.test(url.pathname));
 }
 
+/**
+ * Ensure loopback replay of a ticket with a JSON body carries Content-Type.
+ * Without it, Elysia may leave the body unparsed and drop flags like excelOnly.
+ */
+export function ensureReplayContentType(
+  headers: Record<string, string>,
+  bodyText: string | undefined,
+): Record<string, string> {
+  const next = { ...headers };
+  if (bodyText !== undefined) {
+    const hasContentType = Object.keys(next).some(
+      (key) => key.toLowerCase() === "content-type",
+    );
+    if (!hasContentType) {
+      next["content-type"] = "application/json";
+    }
+  }
+  return next;
+}
+
 export function createExportDownloadTicket(
   input: ExportDownloadTicketCreateInput,
 ): ExportDownloadTicketSnapshot {

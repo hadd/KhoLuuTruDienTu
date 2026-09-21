@@ -310,6 +310,7 @@ export function createFolderRouter(basePath: string = "/folders") {
           () =>
             dossierService.exportApprovedMetadataByFolders(body.folderIds, {
               ...body,
+              excelOnly: body.excelOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
@@ -417,6 +418,7 @@ export function createFolderRouter(basePath: string = "/folders") {
           () =>
             dossierService.exportApprovedMetadataByFolder(params.id, {
               ...body,
+              excelOnly: body.excelOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
@@ -473,6 +475,7 @@ export function createFolderRouter(basePath: string = "/folders") {
               dossierAccessPassword: query.dossierAccessPassword,
               skippedFileIds,
               useDocumentNaming: query.useDocumentNaming === true,
+              excelOnly: query.excelOnly === true,
               bypassStatus,
             }),
         );
@@ -489,6 +492,7 @@ export function createFolderRouter(basePath: string = "/folders") {
           t.String({ minLength: 1, maxLength: 128 }),
         ),
         useDocumentNaming: t.Optional(t.Boolean()),
+        excelOnly: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,
