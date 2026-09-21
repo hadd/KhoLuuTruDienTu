@@ -1,4 +1,4 @@
-import { httpError } from "@shared/common-lib";
+import { httpError } from "../../../../shared/common-lib/mod.ts";
 import { and, desc, eq, ilike, isNull, or } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
 import { documentNamingConfigs } from "../../db/schemas/document-naming-config.ts";
@@ -25,6 +25,20 @@ import {
     downloadJsonFromStorage,
     resolveMetadataJsonKey,
 } from "../data-entry/data-entry-s3-utils.ts";
+
+const DEFAULT_MOCK_METADATA: Record<string, string> = {
+    "HO_SO_LUU_TRU.MUC_LUC_SO": "07",
+    "HO_SO_LUU_TRU.MA_HO_SO": "0123",
+    "HO_SO_LUU_TRU.SO_VA_KY_HIEU_HO_SO": "0123",
+    "HO_SO_LUU_TRU.TIEU_DE_HO_SO": "Hồ sơ mẫu",
+    "TAI_LIEU_LUU_TRU.SO_THU_TU_VAN_BAN": "001",
+    "TAI_LIEU_LUU_TRU.STT_VAN_BAN": "001",
+    "TAI_LIEU_LUU_TRU.TEN_LOAI_TAI_LIEU": "BC",
+    "TAI_LIEU_LUU_TRU.SO_CUA_VAN_BAN": "0001",
+    "TAI_LIEU_LUU_TRU.KY_HIEU_CUA_VAN_BAN": "BC-01",
+    "TAI_LIEU_LUU_TRU.NAM": "1998",
+    "TAI_LIEU_LUU_TRU.NGAY_THANG_NAM_BAN_HANH": "1998",
+};
 
 function mapConfig(row: {
     id: string;
@@ -292,15 +306,24 @@ export const DocumentNamingConfigService = {
         const metadataKeys = segments
             .filter((segment) => segment.source === "metadata_field" && segment.fieldKey)
             .map((segment) => segment.fieldKey!);
-        if (metadataKeys.length === 0 || !dossier?.currentMetadataKey) {
-            return Object.fromEntries(metadataKeys.map((key) => [key, ""]));
+        if (metadataKeys.length === 0) {
+            return {};
+        }
+
+        const metadataKey = dossier?.currentMetadataKey ?? dossier?.ocrMetadataKey;
+        if (!metadataKey) {
+            return Object.fromEntries(
+                metadataKeys.map((key) => [key, DEFAULT_MOCK_METADATA[key] ?? ""]),
+            );
         }
 
         try {
-            const key = resolveMetadataJsonKey(dossier.currentMetadataKey);
+            const key = resolveMetadataJsonKey(metadataKey);
             const raw = await downloadJsonFromStorage(key);
             if (!isDossierMetadata(raw)) {
-                return Object.fromEntries(metadataKeys.map((k) => [k, ""]));
+                return Object.fromEntries(
+                    metadataKeys.map((k) => [k, DEFAULT_MOCK_METADATA[k] ?? ""]),
+                );
             }
             const fileItems = extractDossierFileItems(raw);
             const fileItem = fileItems[0] ?? {
@@ -310,7 +333,7 @@ export const DocumentNamingConfigService = {
             };
             const values: Record<string, string> = {};
             for (const fieldKey of metadataKeys) {
-                values[fieldKey] = resolveExportColumnValueForFile(
+                const resolved = resolveExportColumnValueForFile(
                     raw,
                     fileItem,
                     { header: fieldKey, fieldKeys: [fieldKey], separator: "" },
@@ -320,10 +343,13 @@ export const DocumentNamingConfigService = {
                         fileCount: fileItems.length,
                     },
                 );
+                values[fieldKey] = resolved || (DEFAULT_MOCK_METADATA[fieldKey] ?? "");
             }
             return values;
         } catch {
-            return Object.fromEntries(metadataKeys.map((k) => [k, ""]));
+            return Object.fromEntries(
+                metadataKeys.map((k) => [k, DEFAULT_MOCK_METADATA[k] ?? ""]),
+            );
         }
     },
 
