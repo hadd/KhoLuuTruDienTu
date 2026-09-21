@@ -36,6 +36,10 @@ export const revokeByFolderFromGroupBodySchema = t.Object({
     folderIds: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
 });
 
+export const revokeByMemberFromGroupBodySchema = t.Object({
+    userId: t.String({ format: "uuid" }),
+});
+
 export const syncQcWorkflowBodySchema = t.Object({
     folderId: t.Optional(t.String({ format: "uuid" })),
 });

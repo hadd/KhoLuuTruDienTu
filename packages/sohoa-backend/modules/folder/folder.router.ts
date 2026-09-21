@@ -607,8 +607,8 @@ export function createFolderRouter(basePath: string = "/folders") {
         summary: "Thu hồi phân công theo thư mục",
         description:
           "Thu hồi phân công cho các hồ sơ trong thư mục đã chọn (gồm thư mục con). " +
-          "Chỉ áp dụng hồ sơ READY_FOR_ENTRY chưa bắt đầu nhập liệu; hủy assignment đang active và xóa assignedGroupId nếu có. " +
-          "Hồ sơ đang ENTRY_PROCESSING, QC hoặc đã duyệt sẽ được bỏ qua.",
+          "Áp dụng hồ sơ READY_FOR_ENTRY hoặc ENTRY_PROCESSING chưa hoàn thành entry; hủy assignment đang active và xóa assignedGroupId nếu có. " +
+          "Hồ sơ ENTRY_PROCESSING được đưa về READY_FOR_ENTRY. Hồ sơ đang QC hoặc đã duyệt sẽ được bỏ qua.",
       },
     },
   );

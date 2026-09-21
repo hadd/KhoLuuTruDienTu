@@ -234,10 +234,17 @@ export async function executeFolderAssignmentRevoke(input: FolderAssignmentRevok
 
             const updated = await tx
                 .update(dossiers)
-                .set({ assignedGroupId: null, updatedAt: now })
+                .set({
+                    assignedGroupId: null,
+                    status: DossierStatus.READY_FOR_ENTRY,
+                    updatedAt: now,
+                })
                 .where(activeDossierWhere(
                     eq(dossiers.id, item.dossierId),
-                    eq(dossiers.status, DossierStatus.READY_FOR_ENTRY),
+                    inArray(dossiers.status, [
+                        DossierStatus.READY_FOR_ENTRY,
+                        DossierStatus.ENTRY_PROCESSING,
+                    ]),
                 ))
                 .returning({ id: dossiers.id });
 

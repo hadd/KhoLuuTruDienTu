@@ -85,6 +85,7 @@ const RESOURCE_LABELS: Record<string, string> = {
     "available-editors": "biên tập viên khả dụng ", // [MỚI]
     "assign-by-folder": "phân công theo thư mục ", // [MỚI]
     "revoke-by-folder": "thu hồi phân công theo thư mục ", // [MỚI]
+    "revoke-by-member": "thu hồi phân công theo thành viên ",
     continue: "tiếp tục phân công ",             // [MỚI]
     "sync-qc-workflow": "đồng bộ quy trình QC ", // [MỚI]
     "metadata-permission-config": "cấu hình phân quyền metadata ", // [MỚI]
@@ -455,6 +456,7 @@ const PATH_LABEL_RULES: PathLabelRule[] = [
     { method: "DELETE", pattern: "/admin/groups/:id", module: "groups", eventType: "delete", summary: "Xóa nhóm" }, // [MỚI]
     { method: "POST", pattern: "/admin/groups/:id/assign-by-folder", module: "groups", eventType: "assign", summary: "Phân công hồ sơ theo thư mục cho nhóm" }, // [MỚI]
     { method: "POST", pattern: "/admin/groups/:id/revoke-by-folder", module: "groups", eventType: "revoke", summary: "Thu hồi phân công theo thư mục" }, // [MỚI]
+    { method: "POST", pattern: "/admin/groups/:id/revoke-by-member", module: "groups", eventType: "revoke", summary: "Thu hồi phân công theo thành viên" },
     { method: "POST", pattern: "/admin/groups/:id/assign-by-folder/continue", module: "groups", eventType: "assign", summary: "Tiếp tục phân công từ hàng đợi" }, // [MỚI]
     { method: "POST", pattern: "/admin/groups/:id/sync-qc-workflow", module: "groups", eventType: "sync", summary: "Đồng bộ quy trình QC nhóm" }, // [MỚI]
     { method: "PATCH", pattern: "/admin/groups/:id/metadata-permission-config", module: "groups", eventType: "edit", summary: "Gán cấu hình phân quyền metadata cho nhóm" }, // [MỚI]

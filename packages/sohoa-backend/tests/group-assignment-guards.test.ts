@@ -100,9 +100,10 @@ Deno.test("countFieldSplitAssignedDossierOrdinals counts active and completed do
     );
 });
 
-Deno.test("getDossierRevokeBlockReason allows unassigned and group-assigned READY_FOR_ENTRY dossiers", () => {
+Deno.test("getDossierRevokeBlockReason allows READY_FOR_ENTRY and ENTRY_PROCESSING dossiers", () => {
     const active = buildActiveMakerIndex([
         { dossierId: "d-individual", assigneeId: "editor-a" },
+        { dossierId: "d-busy", assigneeId: "editor-a" },
     ]);
     const completed = buildCompletedMakerIndex([]);
 
@@ -148,12 +149,27 @@ Deno.test("getDossierRevokeBlockReason allows unassigned and group-assigned READ
             completedMakerIndex: completed,
             hasWorkableAssignment: true,
         }),
+        null,
+    );
+    assertEquals(
+        getDossierRevokeBlockReason({
+            dossierStatus: "WAITING_CHECKER_1",
+            dossierId: "d-qc",
+            assignedGroupId: "group-1",
+            activeMakerIndex: buildActiveMakerIndex([]),
+            completedMakerIndex: buildCompletedMakerIndex([
+                { dossierId: "d-qc", assigneeId: "editor-a" },
+            ]),
+            hasWorkableAssignment: false,
+        }),
         "Dossier has already started or completed processing",
     );
 });
 
-Deno.test("getFolderRevokeBlockReason only allows READY_FOR_ENTRY group dossiers", () => {
-    const active = buildActiveMakerIndex([]);
+Deno.test("getFolderRevokeBlockReason allows READY_FOR_ENTRY and ENTRY_PROCESSING group dossiers", () => {
+    const active = buildActiveMakerIndex([
+        { dossierId: "d1", assigneeId: "editor-a" },
+    ]);
     const completed = buildCompletedMakerIndex([]);
 
     assertEquals(
@@ -175,6 +191,19 @@ Deno.test("getFolderRevokeBlockReason only allows READY_FOR_ENTRY group dossiers
             groupId: "group-1",
             activeMakerIndex: active,
             completedMakerIndex: completed,
+        }),
+        null,
+    );
+    assertEquals(
+        getFolderRevokeBlockReason({
+            dossierStatus: "WAITING_CHECKER_1",
+            dossierId: "d1",
+            assignedGroupId: "group-1",
+            groupId: "group-1",
+            activeMakerIndex: buildActiveMakerIndex([]),
+            completedMakerIndex: buildCompletedMakerIndex([
+                { dossierId: "d1", assigneeId: "editor-a" },
+            ]),
         }),
         "Dossier has already started or completed processing",
     );

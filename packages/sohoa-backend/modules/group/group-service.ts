@@ -27,6 +27,7 @@ import {
 } from "../dossier/dossier-service.ts";
 import { getGroupFolderQueue } from "./group-folder-assign.ts";
 import { executeGroupFolderRevoke } from "./group-folder-revoke.ts";
+import { executeGroupMemberRevoke } from "./group-member-revoke.ts";
 import {
     assertEachQcLevelHasPeers,
     buildQcWorkflowConfig,
@@ -49,6 +50,7 @@ import {
     createGroupBodySchema,
     memberAssignmentsQuerySchema,
     revokeByFolderFromGroupBodySchema,
+    revokeByMemberFromGroupBodySchema,
     syncQcWorkflowBodySchema,
     updateGroupBodySchema,
 } from "./types.ts";
@@ -1870,6 +1872,28 @@ export const GroupService = {
             qcPeersByStep,
             actorId,
         );
+    },
+
+    async revokeByMember(
+        groupId: string,
+        input: Static<typeof revokeByMemberFromGroupBodySchema>,
+        actorId: string,
+    ) {
+        const group = await getActiveGroupOrThrow(groupId);
+        const members = await getActiveMembersForGroup(groupId);
+        const isEditor = members.some(
+            (member) => member.role === "editor" && member.userId === input.userId,
+        );
+        if (!isEditor) {
+            throw httpError.badRequest("User is not an active editor in this group");
+        }
+
+        return await executeGroupMemberRevoke({
+            groupId: group.id,
+            groupName: group.name,
+            userId: input.userId,
+            actorId,
+        });
     },
 
     async continueAssignByFolder(
