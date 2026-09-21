@@ -10,6 +10,7 @@ import type {
   PdfFieldHighlight,
 } from '@/components/common/PdfViewer'
 import { PdfViewer } from '@/components/common/PdfViewer'
+import { PdfViewerToolbar } from '@/components/common/PdfViewerToolbar'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EditorErrorReportAlertBanner } from '@/features/data-management/components/EditorErrorReportAlertBanner'
@@ -398,6 +399,10 @@ export function RecordDetailPanel({
   )
   const [useOriginalPdfFallback, setUseOriginalPdfFallback] = useState(false)
   const [pdfViewMode, setPdfViewMode] = useState<'source' | 'signed'>('source')
+  const [pdfCurrentPage, setPdfCurrentPage] = useState(1)
+  const [pdfScrollToPage, setPdfScrollToPage] = useState<number | null>(null)
+  const [pdfNumPages, setPdfNumPages] = useState<number | null>(null)
+  const [pdfZoomScale, setPdfZoomScale] = useState(1)
   const [highlightedFieldKey, setHighlightedFieldKey] = useState<string | null>(
     null,
   )
@@ -652,7 +657,16 @@ export function RecordDetailPanel({
     setPdfViewMode(
       selectedDocument?.isSigned && signedPdfUrl ? 'signed' : 'source',
     )
+    setPdfCurrentPage(1)
+    setPdfScrollToPage(null)
+    setPdfNumPages(null)
   }, [selectedDocument?.id, selectedDocument?.isSigned, ocrPdfUrl, signedPdfUrl])
+
+  useEffect(() => {
+    setPdfCurrentPage(1)
+    setPdfScrollToPage(null)
+    setPdfNumPages(null)
+  }, [pdfViewMode])
 
   useEffect(() => {
     if (!canViewSignedPdf && pdfViewMode === 'signed') {
@@ -948,6 +962,43 @@ export function RecordDetailPanel({
       isPdfDocumentRef(doc.filePath || doc.name || ''),
     )
   }, [documents])
+
+  const pdfDocumentIndex = useMemo(() => {
+    if (!selectedDocument) return -1
+    return pdfDocs.findIndex((doc) => doc.id === selectedDocument.id)
+  }, [pdfDocs, selectedDocument])
+
+  const handlePdfGoToPage = useCallback((page: number) => {
+    setPdfCurrentPage(page)
+    // Force PdfViewer scroll effect to re-run even when already on this page.
+    setPdfScrollToPage(null)
+    requestAnimationFrame(() => {
+      setPdfScrollToPage(page)
+    })
+  }, [])
+
+  const handlePdfGoToDocument = useCallback(
+    (index: number) => {
+      const doc = pdfDocs[index]
+      if (!doc) return
+      const matchingGroups = findAllMetadataGroupIndicesForDocument(
+        groups,
+        doc,
+        documents,
+      )
+      const groupIndex =
+        matchingGroups[0] ??
+        (selectedGroupIndex >= 0 ? selectedGroupIndex : 0)
+      onFocusDocument?.(doc.id, groupIndex)
+    },
+    [
+      documents,
+      groups,
+      onFocusDocument,
+      pdfDocs,
+      selectedGroupIndex,
+    ],
+  )
 
   function handleLinkChange(groupIndex: number, val: string) {
     const group = activeMetadata?.metadata_groups[groupIndex]
@@ -1698,34 +1749,51 @@ export function RecordDetailPanel({
                 className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
               >
                 {activePdfUrl ? (
-                  <PdfViewer
-                    key={`${selectedDocument?.id ?? 'none'}-${pdfViewMode}-${isOcrPdfLayer ? 'ocr' : 'raw'}`}
-                    fileUrl={activePdfUrl}
-                    fileName={selectedDocument?.name}
-                    className="h-0 min-h-0 flex-1"
-                    showBorder={false}
-                    highlight={pdfViewMode === 'source' ? pdfHighlight : null}
-                    maskMode={
-                      pdfViewMode === 'source' &&
-                        isEditorRole &&
-                        isPdfMaskEnabled
-                        ? 'bbox-only'
-                        : 'off'
-                    }
-                    revealRegions={
-                      pdfViewMode === 'source' ? pdfRevealRegions : []
-                    }
-                    renderTextLayer={isOcrPdfLayer}
-                    renderAnnotationLayer={isOcrPdfLayer}
-                    restrictTextCopyToRevealRegions={
-                      isEditorRole && isPdfMaskEnabled && isOcrPdfLayer
-                    }
-                    onLoadFailed={
-                      isOcrPdfLayer && originalPdfUrl
-                        ? handleOcrPdfLoadFailed
-                        : undefined
-                    }
-                  />
+                  <>
+                    <PdfViewerToolbar
+                      className="mb-1.5"
+                      currentPage={pdfCurrentPage}
+                      numPages={pdfNumPages}
+                      onGoToPage={handlePdfGoToPage}
+                      documentIndex={pdfDocumentIndex}
+                      documentCount={pdfDocs.length}
+                      onGoToDocument={handlePdfGoToDocument}
+                      scale={pdfZoomScale}
+                      onScaleChange={setPdfZoomScale}
+                    />
+                    <PdfViewer
+                      key={`${selectedDocument?.id ?? 'none'}-${pdfViewMode}-${isOcrPdfLayer ? 'ocr' : 'raw'}`}
+                      fileUrl={activePdfUrl}
+                      fileName={selectedDocument?.name}
+                      className="h-0 min-h-0 flex-1"
+                      showBorder={false}
+                      scale={pdfZoomScale}
+                      scrollToPage={pdfScrollToPage}
+                      onVisiblePageChange={setPdfCurrentPage}
+                      onNumPagesChange={setPdfNumPages}
+                      highlight={pdfViewMode === 'source' ? pdfHighlight : null}
+                      maskMode={
+                        pdfViewMode === 'source' &&
+                          isEditorRole &&
+                          isPdfMaskEnabled
+                          ? 'bbox-only'
+                          : 'off'
+                      }
+                      revealRegions={
+                        pdfViewMode === 'source' ? pdfRevealRegions : []
+                      }
+                      renderTextLayer={isOcrPdfLayer}
+                      renderAnnotationLayer={isOcrPdfLayer}
+                      restrictTextCopyToRevealRegions={
+                        isEditorRole && isPdfMaskEnabled && isOcrPdfLayer
+                      }
+                      onLoadFailed={
+                        isOcrPdfLayer && originalPdfUrl
+                          ? handleOcrPdfLoadFailed
+                          : undefined
+                      }
+                    />
+                  </>
                 ) : (
                   <div className="flex h-full min-h-0 items-center justify-center rounded-lg bg-muted/30 p-4">
                     <p className="text-center text-sm text-muted-foreground">
@@ -1736,26 +1804,43 @@ export function RecordDetailPanel({
               </TabsContent>
             </Tabs>
           ) : activePdfUrl ? (
-            <PdfViewer
-              key={`${selectedDocument?.id ?? 'none'}-${isOcrPdfLayer ? 'ocr' : 'original'}`}
-              fileUrl={activePdfUrl}
-              fileName={selectedDocument?.name}
-              className="h-0 min-h-0 flex-1"
-              showBorder={false}
-              highlight={pdfHighlight}
-              maskMode={isEditorRole && isPdfMaskEnabled ? 'bbox-only' : 'off'}
-              revealRegions={pdfRevealRegions}
-              renderTextLayer={isOcrPdfLayer}
-              renderAnnotationLayer={isOcrPdfLayer}
-              restrictTextCopyToRevealRegions={
-                isEditorRole && isPdfMaskEnabled && isOcrPdfLayer
-              }
-              onLoadFailed={
-                isOcrPdfLayer && originalPdfUrl
-                  ? handleOcrPdfLoadFailed
-                  : undefined
-              }
-            />
+            <>
+              <PdfViewerToolbar
+                className="mb-1.5"
+                currentPage={pdfCurrentPage}
+                numPages={pdfNumPages}
+                onGoToPage={handlePdfGoToPage}
+                documentIndex={pdfDocumentIndex}
+                documentCount={pdfDocs.length}
+                onGoToDocument={handlePdfGoToDocument}
+                scale={pdfZoomScale}
+                onScaleChange={setPdfZoomScale}
+              />
+              <PdfViewer
+                key={`${selectedDocument?.id ?? 'none'}-${isOcrPdfLayer ? 'ocr' : 'original'}`}
+                fileUrl={activePdfUrl}
+                fileName={selectedDocument?.name}
+                className="h-0 min-h-0 flex-1"
+                showBorder={false}
+                scale={pdfZoomScale}
+                scrollToPage={pdfScrollToPage}
+                onVisiblePageChange={setPdfCurrentPage}
+                onNumPagesChange={setPdfNumPages}
+                highlight={pdfHighlight}
+                maskMode={isEditorRole && isPdfMaskEnabled ? 'bbox-only' : 'off'}
+                revealRegions={pdfRevealRegions}
+                renderTextLayer={isOcrPdfLayer}
+                renderAnnotationLayer={isOcrPdfLayer}
+                restrictTextCopyToRevealRegions={
+                  isEditorRole && isPdfMaskEnabled && isOcrPdfLayer
+                }
+                onLoadFailed={
+                  isOcrPdfLayer && originalPdfUrl
+                    ? handleOcrPdfLoadFailed
+                    : undefined
+                }
+              />
+            </>
           ) : (
             <div className="flex h-full min-h-0 items-center justify-center rounded-lg bg-muted/30 p-4">
               <p className="text-center text-sm text-muted-foreground">

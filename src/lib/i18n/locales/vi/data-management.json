@@ -166,6 +166,22 @@
       "signed": "Đã ký số",
       "signedUnavailable": "File chưa được ký số"
     },
+    "pdfToolbar": {
+      "firstPage": "Trang đầu",
+      "prevPage": "Trang trước",
+      "nextPage": "Trang sau",
+      "lastPage": "Trang cuối",
+      "pageInput": "Số trang",
+      "pageLabel": "Trang {{page}} / {{total}}",
+      "firstDocument": "Văn bản đầu",
+      "prevDocument": "Văn bản trước",
+      "nextDocument": "Văn bản sau",
+      "lastDocument": "Văn bản cuối",
+      "documentLabel": "Văn bản {{index}} / {{total}}",
+      "noDocument": "Không có văn bản",
+      "zoomIn": "Phóng to",
+      "zoomOut": "Thu nhỏ"
+    },
     "noFields": "Không có trường metadata.",
     "ocrPendingMetadata": "Hồ sơ đang chờ OCR xử lý lại (trạng thái: {{status}}). Metadata sẽ hiển thị sau khi chuyển sang Sẵn sàng nhập liệu.",
     "ocrFailedMetadata": "OCR thất bại. Metadata chưa sẵn sàng — kiểm tra worker OCR hoặc chạy lệnh repair fixture (môi trường dev).",
