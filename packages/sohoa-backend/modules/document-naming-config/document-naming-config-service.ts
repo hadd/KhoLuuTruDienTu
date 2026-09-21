@@ -27,18 +27,152 @@ import {
 } from "../data-entry/data-entry-s3-utils.ts";
 
 const DEFAULT_MOCK_METADATA: Record<string, string> = {
+    // Phông / Cơ quan
+    "HO_SO_LUU_TRU.MA_PHONG": "P00005",
+    "HO_SO_LUU_TRU.FOND": "P00005",
+    "HO_SO_LUU_TRU.PHONG_LUU_TRU": "P00005",
+    "TAI_LIEU_LUU_TRU.MA_PHONG": "P00005",
+    "TAI_LIEU_LUU_TRU.FOND": "P00005",
+    "HO_SO_LUU_TRU.MA_CO_QUAN_LUU_TRU_LICH_SU": "CQ01",
+    "HO_SO_LUU_TRU.MA_CO_QUAN_LUU_TRU": "CQ01",
+    "HO_SO_LUU_TRU.MA_CO_QUAN": "CQ01",
+    "TAI_LIEU_LUU_TRU.MA_CO_QUAN_LUU_TRU_LICH_SU": "CQ01",
+
+    // Hồ sơ
     "HO_SO_LUU_TRU.MUC_LUC_SO": "07",
+    "HO_SO_LUU_TRU.NAM_HINH_THANH_HO_SO": "1998",
+    "TAI_LIEU_LUU_TRU.MUC_LUC_SO": "07",
     "HO_SO_LUU_TRU.MA_HO_SO": "0123",
+    "HO_SO_LUU_TRU.MA_HO_SO_GOC_GIAY": "0123",
+    "TAI_LIEU_LUU_TRU.MA_HO_SO": "0123",
     "HO_SO_LUU_TRU.SO_VA_KY_HIEU_HO_SO": "0123",
+    "HO_SO_LUU_TRU.SO_KY_HIEU_HO_SO": "0123",
+    "TAI_LIEU_LUU_TRU.SO_VA_KY_HIEU_HO_SO": "0123",
+    "TAI_LIEU_LUU_TRU.SO_KY_HIEU_HO_SO": "0123",
     "HO_SO_LUU_TRU.TIEU_DE_HO_SO": "Hồ sơ mẫu",
+    "HO_SO_LUU_TRU.TIEU_DE": "Hồ sơ mẫu",
+    "TAI_LIEU_LUU_TRU.TIEU_DE_HO_SO": "Hồ sơ mẫu",
+    "HO_SO_LUU_TRU.THOI_HAN_LUU_TRU": "Vĩnh viễn",
+    "HO_SO_LUU_TRU.THOI_HAN_BAO_QUAN": "Vĩnh viễn",
+    "HO_SO_LUU_TRU.THOI_GIAN_BAT_DAU": "1998-01-01",
+    "HO_SO_LUU_TRU.THOI_GIAN_KET_THUC": "1998-12-31",
+    "HO_SO_LUU_TRU.TONG_SO_VAN_BAN_TRONG_HO_SO": "10",
+    "HO_SO_LUU_TRU.TONG_SO_TAI_LIEU_TRONG_HO_SO": "10",
+    "HO_SO_LUU_TRU.TONG_SO_VAN_BAN": "10",
+    "HO_SO_LUU_TRU.SO_TAI_LIEU": "10",
+    "HO_SO_LUU_TRU.SO_LUONG_TO": "25",
+    "HO_SO_LUU_TRU.SO_LUONG_TRANG": "50",
+
+    // Tài liệu / Văn bản
+    "TAI_LIEU_LUU_TRU.MA_DINH_DANH_TAI_LIEU": "VB001",
+    "TAI_LIEU_LUU_TRU.MA_DINH_DANH_VAN_BAN": "VB001",
+    "TAI_LIEU_LUU_TRU.MA_VAN_BAN": "VB001",
+    "HO_SO_LUU_TRU.MA_DINH_DANH_VAN_BAN": "VB001",
     "TAI_LIEU_LUU_TRU.SO_THU_TU_VAN_BAN": "001",
     "TAI_LIEU_LUU_TRU.STT_VAN_BAN": "001",
+    "TAI_LIEU_LUU_TRU.STT_VAN_BAN_TRONG_HO_SO": "001",
     "TAI_LIEU_LUU_TRU.TEN_LOAI_TAI_LIEU": "BC",
+    "TAI_LIEU_LUU_TRU.TEN_LOAI_VAN_BAN": "BC",
     "TAI_LIEU_LUU_TRU.SO_CUA_VAN_BAN": "0001",
+    "TAI_LIEU_LUU_TRU.SO_CUA_TAI_LIEU": "0001",
+    "TAI_LIEU_LUU_TRU.SO_VAN_BAN": "0001",
+    "BAN_AN_QUYET_DINH.SO_BAN_AN": "0001",
+    "QUYET_DINH.SO_QD_THA": "0001",
     "TAI_LIEU_LUU_TRU.KY_HIEU_CUA_VAN_BAN": "BC-01",
+    "TAI_LIEU_LUU_TRU.KY_HIEU_CUA_TAI_LIEU": "BC-01",
+    "TAI_LIEU_LUU_TRU.KY_HIEU_VAN_BAN": "BC-01",
+    "TAI_LIEU_LUU_TRU.NGAY": "21",
+    "TAI_LIEU_LUU_TRU.THANG": "09",
     "TAI_LIEU_LUU_TRU.NAM": "1998",
     "TAI_LIEU_LUU_TRU.NGAY_THANG_NAM_BAN_HANH": "1998",
+    "TAI_LIEU_LUU_TRU.NGAY_THANG_NAM_VAN_BAN": "1998",
+    "BAN_AN_QUYET_DINH.NGAY_BAN_HANH_AN_QD": "1998",
+    "QUYET_DINH.NGAY_QUYET_DINH": "1998",
+    "TAI_LIEU_LUU_TRU.TEN_CO_QUAN_BAN_HANH": "UBND",
+    "BAN_AN_QUYET_DINH.CO_QUAN_BAN_HANH": "UBND",
+    "QUYET_DINH.CO_QUAN_BAN_HANH_QUYET_DINH": "UBND",
+    "TAI_LIEU_LUU_TRU.TRICH_YEU_NOI_DUNG": "Báo cáo mẫu",
+    "TAI_LIEU_LUU_TRU.MUC_DO_TIN_CAY": "Chính xác",
+    "HO_SO_LUU_TRU.MUC_DO_TIN_CAY": "Chính xác",
+    "TAI_LIEU_LUU_TRU.NGON_NGU": "Tiếng Việt",
+    "HO_SO_LUU_TRU.NGON_NGU": "Tiếng Việt",
+    "TAI_LIEU_LUU_TRU.TRANG_SO": "1",
+    "TAI_LIEU_LUU_TRU.SO_LUONG_TRANG_CUA_VAN_BAN": "5",
+    "TAI_LIEU_LUU_TRU.SO_LUONG_TRANG": "5",
+    "HO_SO_LUU_TRU.SO_LUONG_TRANG_CUA_VAN_BAN": "5",
+    "TAI_LIEU_LUU_TRU.LOAI_TAI_LIEU": "Văn bản giấy",
+    "HO_SO_LUU_TRU.LOAI_TAI_LIEU": "Văn bản giấy",
+    "HO_SO_LUU_TRU.CHE_DO_SU_DUNG": "Hạn chế",
+    "TAI_LIEU_LUU_TRU.CHE_DO_SU_DUNG": "Hạn chế",
+    "TAI_LIEU_LUU_TRU.MUC_DO_TIEP_CAN": "Hạn chế",
+    "HO_SO_LUU_TRU.MUC_DO_TIEP_CAN": "Hạn chế",
+    "HO_SO_LUU_TRU.TINH_TRANG_VAT_LY": "Bình thường",
+    "TAI_LIEU_LUU_TRU.TINH_TRANG_VAT_LY": "Bình thường",
+    "TAI_LIEU_LUU_TRU.TEP_TIN_TAI_LIEU": "sample.pdf",
+
+    // Synthetic metadata fields
+    "__stt": "001",
+    "__file_stt": "001",
+    "__file_count": "10",
+    "__ho_so_id": "0123",
+    "__file_path": "sample.pdf",
+    "__file_name": "sample.pdf",
+    "__file_identifier": "VB001",
+    "__document_type_name": "BC",
+    "__date_day": "21",
+    "__date_month": "09",
+    "__date_year": "1998",
 };
+
+function resolveMockMetadataValue(
+    fieldKey: string,
+    fond?: { id: string; fondName?: string | null; archiveAgency?: string | null } | null,
+    dossier?: { name?: string | null } | null,
+    fallbackValue?: string | null,
+): string {
+    // Fond ID
+    if (
+        fieldKey === "HO_SO_LUU_TRU.MA_PHONG" ||
+        fieldKey === "TAI_LIEU_LUU_TRU.MA_PHONG" ||
+        fieldKey === "HO_SO_LUU_TRU.FOND" ||
+        fieldKey === "HO_SO_LUU_TRU.PHONG_LUU_TRU" ||
+        fieldKey.endsWith(".MA_PHONG") ||
+        fieldKey.endsWith(".FOND")
+    ) {
+        return fond?.id || "P00005";
+    }
+
+    if (fieldKey.endsWith(".TEN_PHONG") || fieldKey.endsWith(".FOND_NAME")) {
+        return fond?.fondName || "Phông mẫu";
+    }
+
+    if (DEFAULT_MOCK_METADATA[fieldKey]) {
+        return DEFAULT_MOCK_METADATA[fieldKey];
+    }
+
+    const pureKey = fieldKey.includes(".") ? fieldKey.split(".").pop()! : fieldKey;
+    if (pureKey) {
+        if (DEFAULT_MOCK_METADATA[`HO_SO_LUU_TRU.${pureKey}`]) {
+            return DEFAULT_MOCK_METADATA[`HO_SO_LUU_TRU.${pureKey}`];
+        }
+        if (DEFAULT_MOCK_METADATA[`TAI_LIEU_LUU_TRU.${pureKey}`]) {
+            return DEFAULT_MOCK_METADATA[`TAI_LIEU_LUU_TRU.${pureKey}`];
+        }
+        if (DEFAULT_MOCK_METADATA[pureKey]) {
+            return DEFAULT_MOCK_METADATA[pureKey];
+        }
+    }
+
+    if (fieldKey.includes("TIEU_DE") || fieldKey.includes("TEN_HO_SO")) {
+        return dossier?.name || "Hồ sơ mẫu";
+    }
+
+    if (fallbackValue && fallbackValue.trim()) {
+        return fallbackValue.trim();
+    }
+
+    return pureKey || "SAMPLE";
+}
 
 function mapConfig(row: {
     id: string;
@@ -268,6 +402,7 @@ export const DocumentNamingConfigService = {
 
         const autoIncrementStart = parseAutoIncrementStart(input.segments);
         const metadataValues = await this.resolvePreviewMetadataValues(
+            fond,
             dossier,
             input.segments,
         );
@@ -287,7 +422,12 @@ export const DocumentNamingConfigService = {
                     projectCode: dossier.projectCode,
                     dossierTypeId: dossier.dossierTypeId,
                 }
-                : undefined,
+                : {
+                    name: "HS-001",
+                    folderPath: "/sample",
+                    projectCode: "DA01",
+                    dossierTypeId: "sample-dossier-type",
+                },
             file: {
                 fileName: "sample.pdf",
                 documentTypeId: "sample-type",
@@ -300,20 +440,32 @@ export const DocumentNamingConfigService = {
     },
 
     async resolvePreviewMetadataValues(
+        fond: typeof fonds.$inferSelect | null,
         dossier: typeof dossiers.$inferSelect | null,
         segments: DocumentNamingSegment[],
     ): Promise<Record<string, string>> {
-        const metadataKeys = segments
-            .filter((segment) => segment.source === "metadata_field" && segment.fieldKey)
-            .map((segment) => segment.fieldKey!);
-        if (metadataKeys.length === 0) {
+        const metadataSegments = segments.filter(
+            (segment) => segment.source === "metadata_field" && segment.fieldKey,
+        );
+        if (metadataSegments.length === 0) {
             return {};
         }
+
+        const segmentMap = new Map<string, DocumentNamingSegment>();
+        for (const seg of metadataSegments) {
+            if (seg.fieldKey && !segmentMap.has(seg.fieldKey)) {
+                segmentMap.set(seg.fieldKey, seg);
+            }
+        }
+        const metadataKeys = Array.from(segmentMap.keys());
 
         const metadataKey = dossier?.currentMetadataKey ?? dossier?.ocrMetadataKey;
         if (!metadataKey) {
             return Object.fromEntries(
-                metadataKeys.map((key) => [key, DEFAULT_MOCK_METADATA[key] ?? ""]),
+                metadataKeys.map((key) => [
+                    key,
+                    resolveMockMetadataValue(key, fond, dossier, segmentMap.get(key)?.value),
+                ]),
             );
         }
 
@@ -322,7 +474,10 @@ export const DocumentNamingConfigService = {
             const raw = await downloadJsonFromStorage(key);
             if (!isDossierMetadata(raw)) {
                 return Object.fromEntries(
-                    metadataKeys.map((k) => [k, DEFAULT_MOCK_METADATA[k] ?? ""]),
+                    metadataKeys.map((k) => [
+                        k,
+                        resolveMockMetadataValue(k, fond, dossier, segmentMap.get(k)?.value),
+                    ]),
                 );
             }
             const fileItems = extractDossierFileItems(raw);
@@ -343,12 +498,20 @@ export const DocumentNamingConfigService = {
                         fileCount: fileItems.length,
                     },
                 );
-                values[fieldKey] = resolved || (DEFAULT_MOCK_METADATA[fieldKey] ?? "");
+                values[fieldKey] = resolved || resolveMockMetadataValue(
+                    fieldKey,
+                    fond,
+                    dossier,
+                    segmentMap.get(fieldKey)?.value,
+                );
             }
             return values;
         } catch {
             return Object.fromEntries(
-                metadataKeys.map((k) => [k, DEFAULT_MOCK_METADATA[k] ?? ""]),
+                metadataKeys.map((k) => [
+                    k,
+                    resolveMockMetadataValue(k, fond, dossier, segmentMap.get(k)?.value),
+                ]),
             );
         }
     },
