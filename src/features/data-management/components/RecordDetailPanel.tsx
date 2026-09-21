@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { useScrollSyncHighlight } from '@/features/data-management/hooks/useScrollSyncHighlight'
+
 import type {
   PdfBboxRevealRegion,
   PdfFieldHighlight,
@@ -422,6 +424,7 @@ export function RecordDetailPanel({
     Map<string, HTMLInputElement | HTMLTextAreaElement>
   >(new Map())
   const saveButtonRef = useRef<HTMLButtonElement | null>(null)
+  const metadataScrollRef = useRef<HTMLDivElement | null>(null)
   const baseMetadataRef = useRef<DataDossierMetadataT | null>(null)
   const nodeRef = useRef(node)
   nodeRef.current = node
@@ -672,6 +675,7 @@ export function RecordDetailPanel({
   }, [selectedGroupIndex, focusDocumentId])
 
   function handleGroupTitleClick(groupIndex: number) {
+    suppressScrollSync()
     const group = activeMetadata?.metadata_groups[groupIndex]
     if (!group) return
     const matches = findAllDocumentsForMetadataGroup(group, documents)
@@ -705,6 +709,7 @@ export function RecordDetailPanel({
   }
 
   function focusNextMetadataField(groupIndex: number, fieldIndex: number) {
+    suppressScrollSync()
     const key = `${groupIndex}-${fieldIndex}`
     const position = editableFieldKeys.indexOf(key)
     if (position < 0) return
@@ -734,6 +739,7 @@ export function RecordDetailPanel({
   }
 
   function focusPreviousMetadataField(groupIndex: number, fieldIndex: number) {
+    suppressScrollSync()
     const key = `${groupIndex}-${fieldIndex}`
     const position = editableFieldKeys.indexOf(key)
     if (position <= 0) return
@@ -891,6 +897,7 @@ export function RecordDetailPanel({
     fieldKey: string,
     changeId?: string | null,
   ) {
+    suppressScrollSync()
     const group = activeMetadata?.metadata_groups[groupIndex]
     if (!group) return
 
@@ -919,6 +926,28 @@ export function RecordDetailPanel({
     setHighlightedFieldKey(fieldKey)
     setHighlightedChangeId(changeId ?? null)
   }
+
+  // --- Scroll-sync: auto-highlight the most-visible field while scrolling ---
+  const handleScrollSyncFieldChange = useCallback(
+    (groupIndex: number, fieldIndex: number) => {
+      const group = activeMetadata?.metadata_groups[groupIndex]
+      if (!group) return
+      const field = group.fields[fieldIndex]
+      if (!field) return
+      const fieldKey = `${groupIndex}-${field.name}-${fieldIndex}`
+      handleMetadataFieldActivate(groupIndex, field, fieldKey)
+    },
+    // activeMetadata changes identity when fields are edited; the function
+    // body reads it via closure so we track the ref rather than the object.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeMetadata?.metadata_groups, documents, focusDocumentId, selectedGroupIndex],
+  )
+
+  const { suppressScrollSync } = useScrollSyncHighlight({
+    scrollContainerRef: metadataScrollRef,
+    onVisibleFieldChange: handleScrollSyncFieldChange,
+    enabled: detailTab === 'metadata' && visibleMetadataGroupCount > 0,
+  })
 
   function handleHistoryFieldActivate(change: DataMetadataEditFieldChangeT) {
     // Use documentRef if available to identify correct document
@@ -1576,6 +1605,7 @@ export function RecordDetailPanel({
               <TabsContent
                 value="metadata"
                 className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain data-[state=inactive]:hidden"
+                ref={metadataScrollRef}
               >
                 <div className="flex flex-col gap-3 pb-2">{metadataPanelContent}</div>
               </TabsContent>
@@ -1597,7 +1627,7 @@ export function RecordDetailPanel({
               </TabsContent>
             </Tabs>
           ) : (
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" ref={metadataScrollRef}>
               <div className="flex flex-col gap-3 pb-2">{metadataPanelContent}</div>
             </div>
           )}
