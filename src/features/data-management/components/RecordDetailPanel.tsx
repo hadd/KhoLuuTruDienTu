@@ -12,6 +12,7 @@ import type {
   PdfFieldHighlight,
 } from '@/components/common/PdfViewer'
 import { PdfViewer } from '@/components/common/PdfViewer'
+import { PdfViewerToolbar } from '@/components/common/PdfViewerToolbar'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EditorErrorReportAlertBanner } from '@/features/data-management/components/EditorErrorReportAlertBanner'
@@ -30,6 +31,10 @@ import { useEditorErrorReports } from '@/features/data-management/hooks/useEdito
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
 import { useRoleAccess } from '@/features/permissions/hooks/useRoleAccess'
 import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
+import {
+  canExportAnyStatusPermission,
+  canExportDossiersPermission,
+} from '@/features/data-management/lib/dossierExportAccess'
 import { buildPdfFieldHighlight } from '@/features/data-management/lib/bboxCoords'
 import { resolveCurrentUserCheckerLevel } from '@/features/data-management/lib/checkerAssignmentHelpers'
 import {
@@ -47,6 +52,7 @@ import {
 import type {
   ExportContext,
   ExportMode,
+  ExportOptions,
 } from '@/features/data-management/lib/exportHelpers'
 import { runExport } from '@/features/data-management/lib/exportHelpers'
 import { mapMetadataHistoryToBatches } from '@/features/data-management/lib/metadataEditHistoryMapper'
@@ -76,6 +82,9 @@ import {
 import {
   findHoSoFondFieldValue,
   hasHoSoFondField,
+  isFondFieldName,
+  propagateHoSoFondToDocuments,
+  syncFondValueAcrossMetadata,
 } from '@/features/data-management/lib/metadataNormalize'
 import { resolveEditorPdfMaskEnabled } from '@/features/data-management/lib/pdfMaskPolicy'
 import {
@@ -95,7 +104,10 @@ import type {
   DataMetadataHistoryFileRefT,
   DataTreeNodeT,
 } from '@/features/data-management/types'
-import { useSubmitEditorDraftFinalSaveItemsMutation } from '@/features/editor-dossiers/queries'
+import {
+  editorDraftDossiersQueryKey,
+  useSubmitEditorDraftFinalSaveItemsMutation,
+} from '@/features/editor-dossiers/queries'
 import { cn } from '@/lib/utils/cn'
 import { DigitalSignDialog } from '@/features/digital-sign/components/DigitalSignDialog'
 import {
@@ -110,7 +122,13 @@ function fieldToHighlight(
   return buildPdfFieldHighlight(field, groupFields)
 }
 
-export type EditorMetadataSaveMode = 'draft' | 'final' | 'error_report'
+export type EditorMetadataSaveMode =
+  | 'draft'
+  | 'draft_advance'
+  | 'final'
+  | 'error_report'
+
+const AUTO_DRAFT_SAVE_DELAY_MS = 3_000
 
 export function RecordDetailPanel({
   node,
@@ -120,7 +138,9 @@ export function RecordDetailPanel({
   isEditorDraftView = false,
   focusDocumentId,
   focusGroupIndex,
+  focusFieldKey,
   onFocusDocument,
+  onMarkDocumentsComplete,
   onWorkflowComplete,
   onDigitalSignCompleted,
 }: {
@@ -131,11 +151,13 @@ export function RecordDetailPanel({
   isEditorDraftView?: boolean
   focusDocumentId?: string
   focusGroupIndex?: number
+  focusFieldKey?: string
   onFocusDocument?: (
-    documentId: string,
+    documentId: string | undefined,
     groupIndex: number,
-    targetTab?: 'metadata' | 'editHistory',
+    fieldKey?: string,
   ) => void
+  onMarkDocumentsComplete?: (documentIds: Array<string>) => void
   onWorkflowComplete?: (
     dossierId: string,
     mode?: EditorMetadataSaveMode,
@@ -183,7 +205,9 @@ export function RecordDetailPanel({
     !isDossierMetadataLocked(effectiveDossierStatus) &&
     effectiveDossierStatus !== 'PENDING_ARCHIVE' &&
     effectiveDossierStatus !== 'ARCHIVED'
-  const currentQcStepLevel = getCheckerLevelForDossierStatus(effectiveDossierStatus)
+  const currentQcStepLevel = getCheckerLevelForDossierStatus(
+    effectiveDossierStatus,
+  )
   const currentUserCheckerLevel = resolveCurrentUserCheckerLevel({
     dossierStatus: effectiveDossierStatus,
     userId: currentUser?.id,
@@ -209,20 +233,19 @@ export function RecordDetailPanel({
       (isInQcStep
         ? canActAsChecker
         : canManage &&
-        (managementRole !== 'editor' ||
-          canEditorSubmitMetadata({
-            assignmentStatus: node.assignmentStatus,
-            dossierStatus: effectiveDossierStatus,
-          })) &&
-        (managementRole !== 'qc' || canActAsChecker)))
-  const canExportDossiers = isPermissionGranted(
-    userPermissions,
-    'dossiers.export',
-    'dossiers',
-  )
+          (managementRole !== 'editor' ||
+            canEditorSubmitMetadata({
+              assignmentStatus: node.assignmentStatus,
+              dossierStatus: effectiveDossierStatus,
+            })) &&
+          (managementRole !== 'qc' || canActAsChecker)))
+  const canExportDossiers = canExportDossiersPermission(userPermissions)
+  const canExportAnyStatus = canExportAnyStatusPermission(userPermissions)
   const canExport =
     canExportDossiers &&
-    canExportDossierMetadata(dossierStatus ?? node.dossierStatus)
+    canExportDossierMetadata(dossierStatus ?? node.dossierStatus, {
+      bypassStatus: canExportAnyStatus,
+    })
   const canDigitalSign =
     canSignDossiers &&
     permissions.canDigitalSign &&
@@ -327,7 +350,9 @@ export function RecordDetailPanel({
     return `${effectiveNode.id}:${metadata?.ho_so_id ?? ''}:${groupKey}`
   }, [effectiveNode.id, metadata?.ho_so_id, metadata?.metadata_groups])
   const [metadataState, setMetadataState] =
-    useState<DataDossierMetadataT | null>(metadata ?? null)
+    useState<DataDossierMetadataT | null>(() =>
+      metadata ? propagateHoSoFondToDocuments(metadata) : null,
+    )
   const activeMetadata = metadataState ?? metadata ?? null
   const documents = useMemo(
     () => effectiveNode.children.filter((child) => child.type === 'document'),
@@ -395,6 +420,10 @@ export function RecordDetailPanel({
   )
   const [useOriginalPdfFallback, setUseOriginalPdfFallback] = useState(false)
   const [pdfViewMode, setPdfViewMode] = useState<'source' | 'signed'>('source')
+  const [pdfCurrentPage, setPdfCurrentPage] = useState(1)
+  const [pdfScrollToPage, setPdfScrollToPage] = useState<number | null>(null)
+  const [pdfNumPages, setPdfNumPages] = useState<number | null>(null)
+  const [pdfZoomScale, setPdfZoomScale] = useState(1)
   const [highlightedFieldKey, setHighlightedFieldKey] = useState<string | null>(
     null,
   )
@@ -436,14 +465,21 @@ export function RecordDetailPanel({
   const saveButtonRef = useRef<HTMLButtonElement | null>(null)
   const metadataScrollRef = useRef<HTMLDivElement | null>(null)
   const baseMetadataRef = useRef<DataDossierMetadataT | null>(null)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isHandlingSaveRef = useRef(false)
+  const metadataStateRef = useRef<DataDossierMetadataT | null>(null)
+  const runAutoDraftSaveRef = useRef<() => void>(() => {})
   const nodeRef = useRef(node)
   nodeRef.current = node
+  isHandlingSaveRef.current = isHandlingSave
+  metadataStateRef.current = metadataState
   const pendingFieldActivationRef = useRef<{
     fieldKey: string
     highlight: PdfFieldHighlight | null
     changeId?: string | null
   } | null>(null)
   const lastAppliedFocusRef = useRef<string | null>(null)
+  const lastRestoredFocusFieldKeyRef = useRef<string | null>(null)
 
   function focusActivationKey(
     documentId?: string,
@@ -462,6 +498,55 @@ export function RecordDetailPanel({
     })
     return keys
   }, [activeMetadata, canEditFields])
+
+  function clearAutoDraftSaveTimer() {
+    if (autoSaveTimerRef.current == null) return
+    clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = null
+  }
+
+  function isMetadataDirtyForAutoSave(): boolean {
+    const current = metadataStateRef.current ?? metadata ?? null
+    const base = baseMetadataRef.current
+    if (!current) return false
+    if (!base) return true
+    return (
+      JSON.stringify(serializeDossierMetadataForStorage(current)) !==
+      JSON.stringify(serializeDossierMetadataForStorage(base))
+    )
+  }
+
+  function scheduleAutoDraftSave() {
+    if (!isEditorRole || !canEditFields || !isMetadataDirtyForAutoSave()) {
+      clearAutoDraftSaveTimer()
+      return
+    }
+    clearAutoDraftSaveTimer()
+    autoSaveTimerRef.current = setTimeout(() => {
+      autoSaveTimerRef.current = null
+      if (isHandlingSaveRef.current) return
+      if (!isMetadataDirtyForAutoSave()) return
+      runAutoDraftSaveRef.current()
+    }, AUTO_DRAFT_SAVE_DELAY_MS)
+  }
+
+  /** Reset timer only — avoid serializing full metadata on every keystroke. */
+  function rescheduleAutoDraftSaveIfPending() {
+    if (autoSaveTimerRef.current == null) return
+    clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(() => {
+      autoSaveTimerRef.current = null
+      if (isHandlingSaveRef.current) return
+      if (!isMetadataDirtyForAutoSave()) return
+      runAutoDraftSaveRef.current()
+    }, AUTO_DRAFT_SAVE_DELAY_MS)
+  }
+
+  useEffect(() => {
+    return () => {
+      clearAutoDraftSaveTimer()
+    }
+  }, [dossierId])
 
   useEffect(() => {
     const currentFocusKey = focusActivationKey(focusDocumentId, focusGroupIndex)
@@ -489,11 +574,16 @@ export function RecordDetailPanel({
     const currentNode = nodeRef.current
     const nextMetadata =
       resolveRecordPanelMetadata(currentNode, managementRole) ?? null
-    setMetadataState(nextMetadata)
+    const normalizedMetadata = nextMetadata
+      ? propagateHoSoFondToDocuments(nextMetadata)
+      : null
+    setMetadataState(normalizedMetadata)
     baseMetadataRef.current =
       currentNode.fullDossierMetadata ?? nextMetadata ?? null
     setDetailTab('metadata')
     setDismissedRejectFieldKeys(new Set())
+    lastRestoredFocusFieldKeyRef.current = null
+    clearAutoDraftSaveTimer()
   }, [dossierContentKey, managementRole])
 
   useEffect(() => {
@@ -597,9 +687,7 @@ export function RecordDetailPanel({
   )
   const originalPdfUrl = selectedDocument?.fileUrl?.trim() || undefined
   const signedPdfUrl = selectedDocument?.signedFileUrl?.trim() || undefined
-  const canViewSignedPdf = Boolean(
-    selectedDocument?.isSigned && signedPdfUrl,
-  )
+  const canViewSignedPdf = Boolean(selectedDocument?.isSigned && signedPdfUrl)
 
   useEffect(() => {
     setUseOriginalPdfFallback(false)
@@ -607,7 +695,21 @@ export function RecordDetailPanel({
     setPdfViewMode(
       selectedDocument?.isSigned && signedPdfUrl ? 'signed' : 'source',
     )
-  }, [selectedDocument?.id, selectedDocument?.isSigned, ocrPdfUrl, signedPdfUrl])
+    setPdfCurrentPage(1)
+    setPdfScrollToPage(null)
+    setPdfNumPages(null)
+  }, [
+    selectedDocument?.id,
+    selectedDocument?.isSigned,
+    ocrPdfUrl,
+    signedPdfUrl,
+  ])
+
+  useEffect(() => {
+    setPdfCurrentPage(1)
+    setPdfScrollToPage(null)
+    setPdfNumPages(null)
+  }, [pdfViewMode])
 
   useEffect(() => {
     if (!canViewSignedPdf && pdfViewMode === 'signed') {
@@ -627,9 +729,15 @@ export function RecordDetailPanel({
 
   const isOcrPdfLayer = Boolean(
     pdfViewMode === 'source' &&
-    activePdfUrl &&
-    ocrPdfUrl &&
-    activePdfUrl === ocrPdfUrl,
+      activePdfUrl &&
+      ocrPdfUrl &&
+      activePdfUrl === ocrPdfUrl,
+  )
+
+  // Enable text layer for any source PDF (searchable_pdf or raw fallback) so
+  // already-searchable originals still support select/copy when no OCR mirror exists.
+  const shouldRenderTextLayer = Boolean(
+    pdfViewMode === 'source' && activePdfUrl,
   )
 
   const handleOcrPdfLoadFailed = useCallback(() => {
@@ -718,6 +826,49 @@ export function RecordDetailPanel({
     }
   }
 
+  useEffect(() => {
+    if (!focusFieldKey || !canEditFields) return
+    if (!editableFieldKeys.includes(focusFieldKey)) return
+    if (lastRestoredFocusFieldKeyRef.current === focusFieldKey) return
+
+    const frameId = window.requestAnimationFrame(() => {
+      if (!fieldInputRefs.current.has(focusFieldKey)) return
+      lastRestoredFocusFieldKeyRef.current = focusFieldKey
+      focusMetadataField(focusFieldKey)
+    })
+    return () => window.cancelAnimationFrame(frameId)
+  }, [focusFieldKey, canEditFields, editableFieldKeys, dossierContentKey])
+
+  function markDocumentsCompleteWhenLeavingGroup(
+    fromGroupIndex: number,
+    toGroupIndex: number | null,
+  ) {
+    if (!onMarkDocumentsComplete || !activeMetadata) return
+    const fromGroup = activeMetadata.metadata_groups[fromGroupIndex]
+    if (!fromGroup) return
+
+    const leavingDocs = findAllDocumentsForMetadataGroup(fromGroup, documents)
+    if (leavingDocs.length === 0) return
+
+    let stayingIds = new Set<string>()
+    if (toGroupIndex != null) {
+      const toGroup = activeMetadata.metadata_groups[toGroupIndex]
+      if (toGroup) {
+        stayingIds = new Set(
+          findAllDocumentsForMetadataGroup(toGroup, documents).map(
+            (doc) => doc.id,
+          ),
+        )
+      }
+    }
+
+    const completedIds = leavingDocs
+      .map((doc) => doc.id)
+      .filter((id) => !stayingIds.has(id))
+    if (completedIds.length === 0) return
+    onMarkDocumentsComplete(completedIds)
+  }
+
   function focusNextMetadataField(groupIndex: number, fieldIndex: number) {
     suppressScrollSync()
     const key = `${groupIndex}-${fieldIndex}`
@@ -739,12 +890,21 @@ export function RecordDetailPanel({
           nextGroupIndex,
           nextField,
           `${nextGroupIndex}-${nextField.name}-${nextFieldIndex}`,
+          null,
+          nextKey,
         )
+      }
+
+      if (nextGroupIndex !== groupIndex) {
+        markDocumentsCompleteWhenLeavingGroup(groupIndex, nextGroupIndex)
+        scheduleAutoDraftSave()
       }
 
       return
     }
 
+    markDocumentsCompleteWhenLeavingGroup(groupIndex, null)
+    scheduleAutoDraftSave()
     saveButtonRef.current?.focus()
   }
 
@@ -769,6 +929,8 @@ export function RecordDetailPanel({
           prevGroupIndex,
           prevField,
           `${prevGroupIndex}-${prevField.name}-${prevFieldIndex}`,
+          null,
+          prevKey,
         )
       }
 
@@ -856,8 +1018,15 @@ export function RecordDetailPanel({
       dismissEditorRejectField(targetGroup, targetGroupIndex, field.name)
     }
 
+    const isFondField = Boolean(field && isFondFieldName(field.name))
+
     setMetadataState((prev) => {
       if (!prev) return prev
+      if (isFondField) {
+        const next = syncFondValueAcrossMetadata(prev, value)
+        metadataStateRef.current = next
+        return next
+      }
       const nextGroups = prev.metadata_groups.map((group, groupIndex) => {
         if (groupIndex !== targetGroupIndex) return group
         return {
@@ -869,8 +1038,11 @@ export function RecordDetailPanel({
           ),
         }
       })
-      return { ...prev, metadata_groups: nextGroups }
+      const next = { ...prev, metadata_groups: nextGroups }
+      metadataStateRef.current = next
+      return next
     })
+    rescheduleAutoDraftSaveIfPending()
   }
 
   const pdfDocs = useMemo(() => {
@@ -878,6 +1050,36 @@ export function RecordDetailPanel({
       isPdfDocumentRef(doc.filePath || doc.name || ''),
     )
   }, [documents])
+
+  const pdfDocumentIndex = useMemo(() => {
+    if (!selectedDocument) return -1
+    return pdfDocs.findIndex((doc) => doc.id === selectedDocument.id)
+  }, [pdfDocs, selectedDocument])
+
+  const handlePdfGoToPage = useCallback((page: number) => {
+    setPdfCurrentPage(page)
+    // Force PdfViewer scroll effect to re-run even when already on this page.
+    setPdfScrollToPage(null)
+    requestAnimationFrame(() => {
+      setPdfScrollToPage(page)
+    })
+  }, [])
+
+  const handlePdfGoToDocument = useCallback(
+    (index: number) => {
+      const doc = pdfDocs[index]
+      if (!doc) return
+      const matchingGroups = findAllMetadataGroupIndicesForDocument(
+        groups,
+        doc,
+        documents,
+      )
+      const groupIndex =
+        matchingGroups[0] ?? (selectedGroupIndex >= 0 ? selectedGroupIndex : 0)
+      onFocusDocument?.(doc.id, groupIndex)
+    },
+    [documents, groups, onFocusDocument, pdfDocs, selectedGroupIndex],
+  )
 
   function handleLinkChange(groupIndex: number, val: string) {
     const group = activeMetadata?.metadata_groups[groupIndex]
@@ -894,8 +1096,11 @@ export function RecordDetailPanel({
           const { source_document: _, ...rest } = g
           return rest
         })
-        return { ...prev, metadata_groups: nextGroups }
+        const next = { ...prev, metadata_groups: nextGroups }
+        metadataStateRef.current = next
+        return next
       })
+      rescheduleAutoDraftSaveIfPending()
       return
     }
 
@@ -908,7 +1113,9 @@ export function RecordDetailPanel({
         file_name = doc.name
         file_path =
           doc.filePath ||
-          (dossierFolderHint ? `raw/${dossierFolderHint}/${doc.name}` : doc.name)
+          (dossierFolderHint
+            ? `raw/${dossierFolderHint}/${doc.name}`
+            : doc.name)
       }
     }
 
@@ -924,8 +1131,25 @@ export function RecordDetailPanel({
           },
         }
       })
-      return { ...prev, metadata_groups: nextGroups }
+      const next = { ...prev, metadata_groups: nextGroups }
+      metadataStateRef.current = next
+      return next
     })
+    rescheduleAutoDraftSaveIfPending()
+  }
+
+  function resolveNavigationFieldKey(
+    groupIndex: number,
+    fieldKey: string,
+    navigationFieldKey?: string,
+  ): string | undefined {
+    if (navigationFieldKey) return navigationFieldKey
+    const match = /^(\d+)-.+-(\d+)$/.exec(fieldKey)
+    if (match) return `${match[1]}-${match[2]}`
+    if (editableFieldKeys.some((key) => key.startsWith(`${groupIndex}-`))) {
+      return editableFieldKeys.find((key) => key.startsWith(`${groupIndex}-`))
+    }
+    return undefined
   }
 
   function handleMetadataFieldActivate(
@@ -933,6 +1157,7 @@ export function RecordDetailPanel({
     field: DataDocumentFieldT,
     fieldKey: string,
     changeId?: string | null,
+    navigationFieldKey?: string,
   ) {
     suppressScrollSync()
     const group = activeMetadata?.metadata_groups[groupIndex]
@@ -940,6 +1165,11 @@ export function RecordDetailPanel({
 
     const highlight = fieldToHighlight(field, group.fields)
     const linkedDocuments = findAllDocumentsForMetadataGroup(group, documents)
+    const navKey = resolveNavigationFieldKey(
+      groupIndex,
+      fieldKey,
+      navigationFieldKey,
+    )
 
     if (linkedDocuments.length > 0) {
       const targetDocument = linkedDocuments[0]
@@ -953,9 +1183,13 @@ export function RecordDetailPanel({
           highlight,
           changeId: changeId ?? null,
         }
-        onFocusDocument?.(targetDocument.id, groupIndex, 'metadata')
+        onFocusDocument?.(targetDocument.id, groupIndex, navKey)
         return
       }
+
+      // Same PDF/group: update highlight locally — skip router navigate (lag).
+    } else if (groupIndex !== selectedGroupIndex) {
+      onFocusDocument?.(undefined, groupIndex, navKey)
     }
 
     pendingFieldActivationRef.current = null
@@ -1151,7 +1385,7 @@ export function RecordDetailPanel({
   }, [canExport, dossierId, activeMetadata?.ho_so_id, node.name])
 
   const handleExport = useCallback(
-    async (mode: ExportMode, options?: { presetId?: string }) => {
+    async (mode: ExportMode, options?: ExportOptions) => {
       if (!exportContext || isExporting) return
 
       setIsExporting(true)
@@ -1166,6 +1400,7 @@ export function RecordDetailPanel({
           metadataExportConfig: options?.presetId
             ? { presetId: options.presetId }
             : undefined,
+          useDocumentNaming: options?.useDocumentNaming === true,
         })
         toast.success(t('recordDetail.exportExcelSuccess'))
         setExportDialogOpen(false)
@@ -1186,14 +1421,18 @@ export function RecordDetailPanel({
   )
 
   async function handleSaveMetadata(mode: EditorMetadataSaveMode = 'draft') {
-    if (isHandlingSave || !activeMetadata || !dossierId.trim()) return
+    const latestMetadata = metadataStateRef.current ?? activeMetadata
+    if (isHandlingSave || !latestMetadata || !dossierId.trim()) return
 
+    const isDraftMode = mode === 'draft' || mode === 'draft_advance'
+
+    clearAutoDraftSaveTimer()
     setIsHandlingSave(true)
     const hasSlotAcl = isEditorRole && Boolean(node.allowedFields?.length)
-    const baseMetadata = baseMetadataRef.current ?? activeMetadata
+    const baseMetadata = baseMetadataRef.current ?? latestMetadata
     const payload = hasSlotAcl
-      ? activeMetadata
-      : mergeMetadataFieldChanges(baseMetadata, activeMetadata)
+      ? latestMetadata
+      : mergeMetadataFieldChanges(baseMetadata, latestMetadata)
     const storagePayload = serializeDossierMetadataForStorage(payload)
 
     try {
@@ -1219,7 +1458,7 @@ export function RecordDetailPanel({
         }
         baseMetadataRef.current =
           hasSlotAcl && baseMetadataRef.current
-            ? mergeMetadataFieldChanges(baseMetadataRef.current, activeMetadata)
+            ? mergeMetadataFieldChanges(baseMetadataRef.current, latestMetadata)
             : payload
         try {
           await onWorkflowComplete?.(dossierId, 'final')
@@ -1237,23 +1476,39 @@ export function RecordDetailPanel({
       await saveMutation.mutateAsync({
         dossierId,
         metadata: payload,
-        isDraft: isEditorRole && mode === 'draft',
+        isDraft: isEditorRole && isDraftMode,
         saveMode: 'approve',
         storagePayload,
       })
       baseMetadataRef.current =
         hasSlotAcl && baseMetadataRef.current
-          ? mergeMetadataFieldChanges(baseMetadataRef.current, activeMetadata)
+          ? mergeMetadataFieldChanges(baseMetadataRef.current, latestMetadata)
           : payload
+
+      if (isEditorRole && isDraftMode) {
+        // Auto-save: quiet toast (replace same id) + no tree refresh.
+        // Manual Lưu nháp: claim next via onWorkflowComplete.
+        if (mode === 'draft_advance') {
+          toast.success(t('metadata.saveDraftSuccess'))
+          try {
+            await onWorkflowComplete?.(dossierId, mode)
+          } catch {
+            return
+          }
+        } else {
+          toast.success(t('metadata.saveDraftSuccess'), {
+            id: 'metadata-auto-draft-save',
+          })
+          void queryClient.invalidateQueries({
+            queryKey: editorDraftDossiersQueryKey,
+          })
+        }
+        return
+      }
 
       try {
         await onWorkflowComplete?.(dossierId, mode)
       } catch {
-        return
-      }
-
-      if (isEditorRole && mode === 'draft') {
-        toast.success(t('metadata.saveDraftSuccess'))
         return
       }
 
@@ -1265,6 +1520,10 @@ export function RecordDetailPanel({
     } finally {
       setIsHandlingSave(false)
     }
+  }
+
+  runAutoDraftSaveRef.current = () => {
+    void handleSaveMetadata('draft')
   }
 
   if (!activeMetadata) {
@@ -1364,14 +1623,13 @@ export function RecordDetailPanel({
 
     return (
       <div className="flex flex-col gap-2">
-        <h3 className="shrink-0 text-sm font-medium text-foreground">{title}</h3>
+        <h3 className="shrink-0 text-sm font-medium text-foreground">
+          {title}
+        </h3>
         <div className="rounded-md border border-border">
           <div className="grid gap-3 p-3">
             {entries.map((entry) =>
-              renderMetadataGroupCard(
-                entry,
-                resolveTitle?.(entry) ?? null,
-              ),
+              renderMetadataGroupCard(entry, resolveTitle?.(entry) ?? null),
             )}
           </div>
         </div>
@@ -1404,8 +1662,8 @@ export function RecordDetailPanel({
       ) : null}
 
       {isEditorRole &&
-        !editorPendingErrorReport &&
-        rejectedErrorReport?.rejectNote?.trim() ? (
+      !editorPendingErrorReport &&
+      rejectedErrorReport?.rejectNote?.trim() ? (
         <EditorErrorReportAlertBanner
           report={rejectedErrorReport}
           alertKey="editorErrorReport.alert.rejected"
@@ -1462,24 +1720,24 @@ export function RecordDetailPanel({
             <>
               {metadataDisplayLayout.hoSoEntry
                 ? renderMetadataGroupsSection(
-                  metadataDisplayLayout.hoSoEntry.group.group_name.trim() ||
-                  t('recordDetail.hoSoMetadataTitle'),
-                  [metadataDisplayLayout.hoSoEntry],
-                )
+                    metadataDisplayLayout.hoSoEntry.group.group_name.trim() ||
+                      t('recordDetail.hoSoMetadataTitle'),
+                    [metadataDisplayLayout.hoSoEntry],
+                  )
                 : null}
               {metadataDisplayLayout.taiLieuEntries.length > 0
                 ? renderMetadataGroupsSection(
-                  metadataDisplayLayout.taiLieuEntries[0]!.group.group_name.trim() ||
-                  t('recordDetail.archivalDocumentsTitle'),
-                  metadataDisplayLayout.taiLieuEntries,
-                  (entry) => getTaiLieuDocumentDisplayTitle(entry.group),
-                )
+                    metadataDisplayLayout.taiLieuEntries[0]!.group.group_name.trim() ||
+                      t('recordDetail.archivalDocumentsTitle'),
+                    metadataDisplayLayout.taiLieuEntries,
+                    (entry) => getTaiLieuDocumentDisplayTitle(entry.group),
+                  )
                 : null}
               {metadataDisplayLayout.legacyEntries.length > 0
                 ? renderMetadataGroupsSection(
-                  t('recordDetail.documentsTitle'),
-                  metadataDisplayLayout.legacyEntries,
-                )
+                    t('recordDetail.documentsTitle'),
+                    metadataDisplayLayout.legacyEntries,
+                  )
                 : null}
             </>
           ) : (
@@ -1495,7 +1753,10 @@ export function RecordDetailPanel({
         </p>
       )}
 
-      {canShowSubmitButton && isActingAsQc && !canDirectApprove && qcReject.isRejectMode ? (
+      {canShowSubmitButton &&
+      isActingAsQc &&
+      !canDirectApprove &&
+      qcReject.isRejectMode ? (
         <QcInlineRejectBar
           selectedCount={qcReject.rejectFieldKeys.size}
           notes={qcReject.rejectNotes}
@@ -1504,10 +1765,7 @@ export function RecordDetailPanel({
           onSubmit={qcReject.submitReject}
           isPending={qcReject.isRejectPending}
         />
-      ) : canShowSubmitButton ||
-        canExport ||
-        canDigitalSign ||
-        isEditorRole ? (
+      ) : canShowSubmitButton || canExport || canDigitalSign || isEditorRole ? (
         <div className="flex shrink-0 justify-end gap-1.5 border-t border-border pt-1.5">
           {isEditorRole ? (
             <Button
@@ -1535,22 +1793,20 @@ export function RecordDetailPanel({
                     toast.error(ready.message, {
                       action: ready.downloadUrl
                         ? {
-                          label: 'Tải Sign Agent',
-                          onClick: () =>
-                            window.open(
-                              ready.downloadUrl ?? SIGN_AGENT_DOWNLOAD_URL,
-                              '_blank',
-                              'noopener,noreferrer',
-                            ),
-                        }
+                            label: 'Tải Sign Agent',
+                            onClick: () =>
+                              window.open(
+                                ready.downloadUrl ?? SIGN_AGENT_DOWNLOAD_URL,
+                                '_blank',
+                                'noopener,noreferrer',
+                              ),
+                          }
                         : undefined,
                     })
                     return
                   }
                   setSignInitialFileId(
-                    selectedDocument?.isSigned
-                      ? selectedDocument.id
-                      : null,
+                    selectedDocument?.isSigned ? selectedDocument.id : null,
                   )
                   setSignDialogOpen(true)
                 })()
@@ -1566,13 +1822,15 @@ export function RecordDetailPanel({
             <Button
               type="button"
               size="sm"
+              variant={canShowSubmitButton ? 'outline' : 'default'}
               className="gap-1.5"
               onClick={() => setExportDialogOpen(true)}
             >
               <FileDown className="size-3.5" aria-hidden />
               {t('recordDetail.exportExcel')}
             </Button>
-          ) : canShowSubmitButton ? (
+          ) : null}
+          {canShowSubmitButton ? (
             isEditorRole ? (
               <>
                 {!isEditorDraftDossier ? (
@@ -1581,7 +1839,7 @@ export function RecordDetailPanel({
                     size="sm"
                     variant="outline"
                     className="gap-1.5"
-                    onClick={() => void handleSaveMetadata('draft')}
+                    onClick={() => void handleSaveMetadata('draft_advance')}
                     disabled={isSaving}
                   >
                     {isDraftSaving ? (
@@ -1675,7 +1933,9 @@ export function RecordDetailPanel({
                 className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain data-[state=inactive]:hidden"
                 ref={metadataScrollRef}
               >
-                <div className="flex flex-col gap-3 pb-2">{metadataPanelContent}</div>
+                <div className="flex flex-col gap-3 pb-2">
+                  {metadataPanelContent}
+                </div>
               </TabsContent>
               <TabsContent
                 value="editHistory"
@@ -1695,8 +1955,10 @@ export function RecordDetailPanel({
               </TabsContent>
             </Tabs>
           ) : (
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" ref={metadataScrollRef}>
-              <div className="flex flex-col gap-3 pb-2">{metadataPanelContent}</div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <div className="flex flex-col gap-3 pb-2">
+                {metadataPanelContent}
+              </div>
             </div>
           )}
         </div>
@@ -1730,34 +1992,53 @@ export function RecordDetailPanel({
                 className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
               >
                 {activePdfUrl ? (
-                  <PdfViewer
-                    key={`${selectedDocument?.id ?? 'none'}-${pdfViewMode}-${isOcrPdfLayer ? 'ocr' : 'raw'}`}
-                    fileUrl={activePdfUrl}
-                    fileName={selectedDocument?.name}
-                    className="h-0 min-h-0 flex-1"
-                    showBorder={false}
-                    highlight={pdfViewMode === 'source' ? pdfHighlight : null}
-                    maskMode={
-                      pdfViewMode === 'source' &&
+                  <>
+                    <PdfViewerToolbar
+                      className="mb-1.5"
+                      currentPage={pdfCurrentPage}
+                      numPages={pdfNumPages}
+                      onGoToPage={handlePdfGoToPage}
+                      documentIndex={pdfDocumentIndex}
+                      documentCount={pdfDocs.length}
+                      onGoToDocument={handlePdfGoToDocument}
+                      scale={pdfZoomScale}
+                      onScaleChange={setPdfZoomScale}
+                    />
+                    <PdfViewer
+                      key={`${selectedDocument?.id ?? 'none'}-${pdfViewMode}-${isOcrPdfLayer ? 'ocr' : 'raw'}`}
+                      fileUrl={activePdfUrl}
+                      fileName={selectedDocument?.name}
+                      className="h-0 min-h-0 flex-1"
+                      showBorder={false}
+                      scale={pdfZoomScale}
+                      scrollToPage={pdfScrollToPage}
+                      onVisiblePageChange={setPdfCurrentPage}
+                      onNumPagesChange={setPdfNumPages}
+                      highlight={pdfViewMode === 'source' ? pdfHighlight : null}
+                      maskMode={
+                        pdfViewMode === 'source' &&
                         isEditorRole &&
                         isPdfMaskEnabled
-                        ? 'bbox-only'
-                        : 'off'
-                    }
-                    revealRegions={
-                      pdfViewMode === 'source' ? pdfRevealRegions : []
-                    }
-                    renderTextLayer={isOcrPdfLayer}
-                    renderAnnotationLayer={isOcrPdfLayer}
-                    restrictTextCopyToRevealRegions={
-                      isEditorRole && isPdfMaskEnabled && isOcrPdfLayer
-                    }
-                    onLoadFailed={
-                      isOcrPdfLayer && originalPdfUrl
-                        ? handleOcrPdfLoadFailed
-                        : undefined
-                    }
-                  />
+                          ? 'bbox-only'
+                          : 'off'
+                      }
+                      revealRegions={
+                        pdfViewMode === 'source' ? pdfRevealRegions : []
+                      }
+                      renderTextLayer={shouldRenderTextLayer}
+                      renderAnnotationLayer={shouldRenderTextLayer}
+                      restrictTextCopyToRevealRegions={
+                        isEditorRole &&
+                        isPdfMaskEnabled &&
+                        shouldRenderTextLayer
+                      }
+                      onLoadFailed={
+                        isOcrPdfLayer && originalPdfUrl
+                          ? handleOcrPdfLoadFailed
+                          : undefined
+                      }
+                    />
+                  </>
                 ) : (
                   <div className="flex h-full min-h-0 items-center justify-center rounded-lg bg-muted/30 p-4">
                     <p className="text-center text-sm text-muted-foreground">
@@ -1768,26 +2049,45 @@ export function RecordDetailPanel({
               </TabsContent>
             </Tabs>
           ) : activePdfUrl ? (
-            <PdfViewer
-              key={`${selectedDocument?.id ?? 'none'}-${isOcrPdfLayer ? 'ocr' : 'original'}`}
-              fileUrl={activePdfUrl}
-              fileName={selectedDocument?.name}
-              className="h-0 min-h-0 flex-1"
-              showBorder={false}
-              highlight={pdfHighlight}
-              maskMode={isEditorRole && isPdfMaskEnabled ? 'bbox-only' : 'off'}
-              revealRegions={pdfRevealRegions}
-              renderTextLayer={isOcrPdfLayer}
-              renderAnnotationLayer={isOcrPdfLayer}
-              restrictTextCopyToRevealRegions={
-                isEditorRole && isPdfMaskEnabled && isOcrPdfLayer
-              }
-              onLoadFailed={
-                isOcrPdfLayer && originalPdfUrl
-                  ? handleOcrPdfLoadFailed
-                  : undefined
-              }
-            />
+            <>
+              <PdfViewerToolbar
+                className="mb-1.5"
+                currentPage={pdfCurrentPage}
+                numPages={pdfNumPages}
+                onGoToPage={handlePdfGoToPage}
+                documentIndex={pdfDocumentIndex}
+                documentCount={pdfDocs.length}
+                onGoToDocument={handlePdfGoToDocument}
+                scale={pdfZoomScale}
+                onScaleChange={setPdfZoomScale}
+              />
+              <PdfViewer
+                key={`${selectedDocument?.id ?? 'none'}-${isOcrPdfLayer ? 'ocr' : 'original'}`}
+                fileUrl={activePdfUrl}
+                fileName={selectedDocument?.name}
+                className="h-0 min-h-0 flex-1"
+                showBorder={false}
+                scale={pdfZoomScale}
+                scrollToPage={pdfScrollToPage}
+                onVisiblePageChange={setPdfCurrentPage}
+                onNumPagesChange={setPdfNumPages}
+                highlight={pdfHighlight}
+                maskMode={
+                  isEditorRole && isPdfMaskEnabled ? 'bbox-only' : 'off'
+                }
+                revealRegions={pdfRevealRegions}
+                renderTextLayer={shouldRenderTextLayer}
+                renderAnnotationLayer={shouldRenderTextLayer}
+                restrictTextCopyToRevealRegions={
+                  isEditorRole && isPdfMaskEnabled && shouldRenderTextLayer
+                }
+                onLoadFailed={
+                  isOcrPdfLayer && originalPdfUrl
+                    ? handleOcrPdfLoadFailed
+                    : undefined
+                }
+              />
+            </>
           ) : (
             <div className="flex h-full min-h-0 items-center justify-center rounded-lg bg-muted/30 p-4">
               <p className="text-center text-sm text-muted-foreground">

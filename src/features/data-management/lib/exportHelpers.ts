@@ -4,6 +4,7 @@ import {
   exportDossierMetadataExcel,
   exportFolderMetadataExcel,
   exportMultiDossiersMetadataExcel,
+  exportMultiFoldersMetadataExcel,
   exportMultiDossiersDip,
   exportFolderDip,
   type MetadataExportRequestT,
@@ -21,16 +22,20 @@ import type {
 } from '@/features/data-management/types'
 
 export type ExportKind = 'folder' | 'dossier' | 'multi_dossiers'
-export type ExportMode = 'metadata' | 'dip'
+export type ExportMode = 'metadata' | 'dip' | 'excel'
 
 export interface ExportOptions {
   presetId?: string
+  useDocumentNaming?: boolean
 }
 
 export interface ExportContext {
   kind: ExportKind
   folderId: string | null
+  /** Batch: one or more folder subtrees (no cascade-load on FE). */
+  folderIds?: string[]
   dossierId: string | null
+  dossierIds?: string[]
   downloadName: string
 }
 
@@ -55,9 +60,16 @@ function resolveExportableDossierStatus(
   return undefined
 }
 
-/** Export is only available after final approval (admin + QC). */
-export function canExportNode(node: DataTreeNodeT): boolean {
+/** Export is only available after final approval (admin + QC), unless bypassStatus. */
+export function canExportNode(
+  node: DataTreeNodeT,
+  options?: { bypassStatus?: boolean },
+): boolean {
   if (node.type === 'document') return false
+
+  if (options?.bypassStatus) {
+    return node.type === 'record' || node.type === 'folder'
+  }
 
   if (node.type === 'record') {
     return canExportDossierMetadata(node.dossierStatus)
@@ -72,8 +84,9 @@ export function canExportNode(node: DataTreeNodeT): boolean {
 
 export function resolveExportContext(
   node: DataTreeNodeT,
+  options?: { bypassStatus?: boolean },
 ): ExportContext | null {
-  if (!canExportNode(node)) return null
+  if (!canExportNode(node, options)) return null
 
   if (node.type === 'folder') {
     const folderId = resolveFolderExportId(node)
@@ -115,50 +128,108 @@ export interface RunExportParams {
   kind: ExportKind
   mode: ExportMode
   folderId: string | null
+  folderIds?: string[]
   dossierId: string | null
   dossierIds?: string[]
   downloadName: string
   metadataExportConfig?: MetadataExportRequestT
+  useDocumentNaming?: boolean
 }
 
 export async function runExport({
   kind,
   mode,
   folderId,
+  folderIds,
   dossierId,
   dossierIds,
   downloadName,
   metadataExportConfig,
+  useDocumentNaming,
 }: RunExportParams): Promise<void> {
-  if (mode === 'metadata') {
-    if (kind === 'multi_dossiers' && dossierIds && dossierIds.length > 0) {
-      await exportMultiDossiersMetadataExcel(dossierIds, downloadName, metadataExportConfig)
+  const namingFlag = useDocumentNaming === true
+    ? { useDocumentNaming: true as const }
+    : undefined
+  const metadataConfig =
+    metadataExportConfig || namingFlag
+      ? { ...metadataExportConfig, ...namingFlag }
+      : undefined
+
+  const batchFolderIds = [
+    ...new Set(
+      (folderIds?.length ? folderIds : folderId ? [folderId] : []).filter(
+        Boolean,
+      ) as string[],
+    ),
+  ]
+  const batchDossierIds = [...new Set((dossierIds ?? []).filter(Boolean))]
+
+  if (mode === 'metadata' || mode === 'excel') {
+    const configWithExcelFlag: MetadataExportRequestT | undefined =
+      mode === 'excel'
+        ? { ...metadataConfig, excelOnly: true }
+        : metadataConfig
+    if (kind === 'multi_dossiers') {
+      if (batchFolderIds.length > 0) {
+        await exportMultiFoldersMetadataExcel(
+          batchFolderIds,
+          downloadName,
+          configWithExcelFlag,
+        )
+      }
+      if (batchDossierIds.length > 0) {
+        await exportMultiDossiersMetadataExcel(
+          batchDossierIds,
+          downloadName,
+          configWithExcelFlag,
+        )
+      }
+      if (batchFolderIds.length === 0 && batchDossierIds.length === 0) {
+        throw new Error('Missing required IDs for metadata export')
+      }
       return
     }
     if (kind === 'folder' && folderId) {
-      await exportFolderMetadataExcel(folderId, downloadName, metadataExportConfig)
+      await exportFolderMetadataExcel(
+        folderId,
+        downloadName,
+        configWithExcelFlag,
+      )
       return
     }
     if (kind === 'dossier' && dossierId) {
-      await exportDossierMetadataExcel(dossierId, downloadName, metadataExportConfig)
+      await exportDossierMetadataExcel(
+        dossierId,
+        downloadName,
+        configWithExcelFlag,
+      )
       return
     }
     throw new Error('Missing required IDs for metadata export')
   }
 
   if (mode === 'dip') {
-    if (kind === 'multi_dossiers' && dossierIds && dossierIds.length > 0) {
-      await exportMultiDossiersDip(dossierIds, downloadName)
-      return
+    if (kind === 'multi_dossiers') {
+      if (batchFolderIds.length > 0 || batchDossierIds.length > 0) {
+        await exportMultiDossiersDip(
+          batchDossierIds,
+          downloadName,
+          batchFolderIds[0],
+          namingFlag,
+          batchFolderIds,
+        )
+        return
+      }
+      throw new Error('Missing required IDs for DIP export')
     }
     if (kind === 'folder' && folderId) {
-      await exportFolderDip(folderId, downloadName)
+      await exportFolderDip(folderId, downloadName, namingFlag)
       return
     }
     if (!dossierId) {
       throw new Error('DIP export requires dossierId')
     }
-    await exportDossierDip(dossierId, downloadName)
+    await exportDossierDip(dossierId, downloadName, namingFlag)
     return
   }
 

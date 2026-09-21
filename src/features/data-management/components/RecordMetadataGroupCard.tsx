@@ -13,10 +13,15 @@ import { coerceMetadataText } from '@/features/data-management/lib/metadataDate'
 import {
   findAllDocumentsForMetadataGroup,
   getMetadataGroupDisplayName,
-  isInternalMetadataField,
   resolveMetadataGroupSourceDocumentPath,
 } from '@/features/data-management/lib/metadataHelpers'
-import { isAccessLevelMetadataField, isHoSoFondMetadataField, isHoSoRetentionMetadataField, resolveEffectiveFieldType } from '@/features/data-management/lib/metadataNormalize'
+import {
+  HO_SO_LUU_TRU_GROUP_CODE,
+  isAccessLevelMetadataField,
+  isFondMetadataField,
+  isHoSoRetentionMetadataField,
+  resolveEffectiveFieldType,
+} from '@/features/data-management/lib/metadataNormalize'
 import type {
   DataDocumentFieldT,
   DataMetadataGroupT,
@@ -24,7 +29,6 @@ import type {
 } from '@/features/data-management/types'
 import { activeMetadataHiddenFieldsQueryOptions } from '@/features/metadata-extract/queries'
 import { cn } from '@/lib/utils/cn'
-
 
 type PdfDoc = {
   id: string
@@ -67,16 +71,10 @@ export function RecordMetadataGroupCard({
   isSaving: boolean
   highlightedFieldKey: string | null
   groupCardRefs: RefObject<Map<number, HTMLDivElement>>
-  fieldInputRefs: RefObject<
-    Map<string, HTMLInputElement | HTMLTextAreaElement>
-  >
+  fieldInputRefs: RefObject<Map<string, HTMLInputElement | HTMLTextAreaElement>>
   onGroupTitleClick: (groupIndex: number) => void
   onLinkChange: (groupIndex: number, value: string) => void
-  onFieldChange: (
-    groupIndex: number,
-    fieldIndex: number,
-    value: string,
-  ) => void
+  onFieldChange: (groupIndex: number, fieldIndex: number, value: string) => void
   onFieldActivate: (
     groupIndex: number,
     field: DataDocumentFieldT,
@@ -164,15 +162,20 @@ export function RecordMetadataGroupCard({
   }, [activeHiddenFields])
 
   const visibleFields = useMemo(() => {
-    if (activeHiddenSet.size === 0) return group.fields
-    return group.fields.filter((field) => {
-      const nameUpper = field.name.trim().toUpperCase()
-      const normalizedUpper = nameUpper
-        .replace(/_\d+_/g, '_')
-        .replace(/_\d+$/, '')
-        .replace(/^\d+_/, '')
-      return !activeHiddenSet.has(nameUpper) && !activeHiddenSet.has(normalizedUpper)
-    })
+    return group.fields
+      .map((field, originalIndex) => ({ field, originalIndex }))
+      .filter(({ field }) => {
+        if (activeHiddenSet.size === 0) return true
+        const nameUpper = field.name.trim().toUpperCase()
+        const normalizedUpper = nameUpper
+          .replace(/_\d+_/g, '_')
+          .replace(/_\d+$/, '')
+          .replace(/^\d+_/, '')
+        return (
+          !activeHiddenSet.has(nameUpper) &&
+          !activeHiddenSet.has(normalizedUpper)
+        )
+      })
   }, [group.fields, activeHiddenSet])
 
   return (
@@ -241,8 +244,8 @@ export function RecordMetadataGroupCard({
       ) : null}
       <div className="grid gap-2">
         {visibleFields.length > 0 ? (
-          visibleFields.map((field, fieldIndex) => {
-            const fieldKey = `${groupIndex}-${field.name}-${fieldIndex}`
+          visibleFields.map(({ field, originalIndex }) => {
+            const fieldKey = `${groupIndex}-${field.name}-${originalIndex}`
             const fieldValue = coerceMetadataText(field.value)
             const effectiveType = resolveEffectiveFieldType(
               group.group_code,
@@ -250,21 +253,18 @@ export function RecordMetadataGroupCard({
               field.type,
               field.display,
             )
-            const effectiveField = effectiveType !== field.type
-              ? { ...field, type: effectiveType }
-              : field
+            const effectiveField =
+              effectiveType !== field.type
+                ? { ...field, type: effectiveType }
+                : field
             const isStringLike =
               effectiveType === 'string' || effectiveType === 'object'
-            const isFondField = isHoSoFondMetadataField(
+            const isFondField = isFondMetadataField(
               group.group_code,
               field.name,
             )
-
-            const syncAttrs = {
-              'data-field-sync': true,
-              'data-group-index': groupIndex,
-              'data-field-index': fieldIndex,
-            } as const
+            const isFileFondField =
+              isFondField && group.group_code !== HO_SO_LUU_TRU_GROUP_CODE
 
             if (isFondField) {
               return (
@@ -349,14 +349,33 @@ export function RecordMetadataGroupCard({
             }
 
             return !canEditFields || isStringLike ? (
-              <div key={`${group.group_code}-${field.name}-${fieldIndex}`} {...syncAttrs}>
-                <MetadataFieldRow
-                  field={effectiveField}
-                  value={coerceMetadataText(field.value)}
-                  disabled={!canEditFields || isSaving}
-                  editDisplay={false}
-                  onValueChange={(value) =>
-                    onFieldChange(groupIndex, fieldIndex, value)
+              <MetadataFieldRow
+                key={`${group.group_code}-${field.name}-${originalIndex}`}
+                field={effectiveField}
+                value={coerceMetadataText(field.value)}
+                disabled={!canEditFields || isSaving}
+                editDisplay={false}
+                onValueChange={(value) =>
+                  onFieldChange(groupIndex, originalIndex, value)
+                }
+                onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
+                isHighlighted={highlightedFieldKey === fieldKey}
+                index={originalIndex}
+                onKeyDown={
+                  canEditFields
+                    ? (event) =>
+                        onFieldKeyDown(event, groupIndex, originalIndex)
+                    : undefined
+                }
+                fieldRef={(element) => {
+                  const refKey = `${groupIndex}-${originalIndex}`
+                  if (
+                    element instanceof HTMLInputElement ||
+                    element instanceof HTMLTextAreaElement
+                  ) {
+                    fieldInputRefs.current?.set(refKey, element)
+                  } else {
+                    fieldInputRefs.current?.delete(refKey)
                   }
                   onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
                   isHighlighted={highlightedFieldKey === fieldKey}
@@ -387,12 +406,30 @@ export function RecordMetadataGroupCard({
                 />
               </div>
             ) : (
-              <div key={`${group.group_code}-${field.name}-${fieldIndex}`} {...syncAttrs}>
-                <MetadataFieldInput
-                  field={effectiveField}
-                  value={coerceMetadataText(field.value)}
-                  onChange={(value) =>
-                    onFieldChange(groupIndex, fieldIndex, value)
+              <MetadataFieldInput
+                key={`${group.group_code}-${field.name}-${originalIndex}`}
+                field={effectiveField}
+                value={coerceMetadataText(field.value)}
+                onChange={(value) =>
+                  onFieldChange(groupIndex, originalIndex, value)
+                }
+                onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
+                isHighlighted={highlightedFieldKey === fieldKey}
+                index={originalIndex}
+                idPrefix={`record-metadata-${groupIndex}`}
+                disabled={!canEditFields || isSaving}
+                onKeyDown={(event, _index, isTextArea) =>
+                  onFieldKeyDown(event, groupIndex, originalIndex, isTextArea)
+                }
+                fieldRef={(element) => {
+                  const refKey = `${groupIndex}-${originalIndex}`
+                  if (
+                    element instanceof HTMLInputElement ||
+                    element instanceof HTMLTextAreaElement
+                  ) {
+                    fieldInputRefs.current?.set(refKey, element)
+                  } else {
+                    fieldInputRefs.current?.delete(refKey)
                   }
                   onHighlight={() => onFieldActivate(groupIndex, field, fieldKey)}
                   isHighlighted={highlightedFieldKey === fieldKey}

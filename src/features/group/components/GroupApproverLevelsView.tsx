@@ -17,7 +17,8 @@ interface GroupApproverLevelsViewProps {
   isEditing?: boolean
   /** Cho phép thêm/xóa thành viên duyệt khi đã chọn cấu hình phân quyền */
   canManageMembers?: boolean
-  onMemberClick?: (member: GroupQcMemberT) => void
+  checkerCounts?: Record<string, number>
+  onMemberClick?: (member: GroupQcMemberT, level: number) => void
   onRemoveMember?: (level: number, member: GroupQcMemberT) => void
   onRemoveLevel?: (level: number) => void
   onAddApprovers?: (level: number) => void
@@ -30,11 +31,16 @@ function getLevelLabel(
   return t('card.approverLevel', { level: level.level })
 }
 
+function checkerCountKey(userId: string, level: number) {
+  return `${level}:${userId}`
+}
+
 export function GroupApproverLevelsView({
   group,
   levels,
   isEditing = false,
   canManageMembers = false,
+  checkerCounts = {},
   onMemberClick,
   onRemoveMember,
   onRemoveLevel,
@@ -94,35 +100,40 @@ export function GroupApproverLevelsView({
           <CardContent className="min-h-[56px] px-3 py-3 pt-3">
             {level.members.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {level.members.map((member) => (
-                  <div key={member.userId} className="group relative">
-                    <Badge
-                      variant={level.level === 1 ? 'default' : 'secondary'}
-                      className={`py-1 font-normal ${
-                        !canEditMembers && onMemberClick
-                          ? 'cursor-pointer hover:opacity-80'
-                          : ''
-                      } ${canEditMembers ? 'pr-3' : ''}`}
-                      onClick={
-                        !canEditMembers && onMemberClick
-                          ? () => onMemberClick(member)
-                          : undefined
-                      }
-                    >
-                      {member.name}
-                    </Badge>
-                    {canEditMembers && onRemoveMember ? (
-                      <button
-                        type="button"
-                        onClick={() => onRemoveMember(level.level, member)}
-                        className="absolute -right-1.5 -top-1.5 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 shadow transition-opacity hover:bg-destructive/80 group-hover:opacity-100"
-                        aria-label={t('configTemplate.zone.removeMember')}
+                {level.members.map((member) => {
+                  const count =
+                    checkerCounts[checkerCountKey(member.userId, level.level)] ??
+                    0
+                  return (
+                    <div key={member.userId} className="group relative">
+                      <Badge
+                        variant={level.level === 1 ? 'default' : 'secondary'}
+                        className={`py-1 font-normal ${
+                          !canEditMembers && onMemberClick
+                            ? 'cursor-pointer hover:opacity-80'
+                            : ''
+                        } ${canEditMembers ? 'pr-3' : ''}`}
+                        onClick={
+                          !canEditMembers && onMemberClick
+                            ? () => onMemberClick(member, level.level)
+                            : undefined
+                        }
                       >
-                        <X className="h-2.5 w-2.5" />
-                      </button>
-                    ) : null}
-                  </div>
-                ))}
+                        {member.name} ({count})
+                      </Badge>
+                      {canEditMembers && onRemoveMember ? (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveMember(level.level, member)}
+                          className="absolute -right-1.5 -top-1.5 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 shadow transition-opacity hover:bg-destructive/80 group-hover:opacity-100"
+                          aria-label={t('configTemplate.zone.removeMember')}
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      ) : null}
+                    </div>
+                  )
+                })}
               </div>
             ) : (
               <p className="text-xs text-muted-foreground italic">

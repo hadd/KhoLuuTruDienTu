@@ -644,6 +644,11 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
         storagePayload,
       }),
     onSuccess: (result, { dossierId, metadata, isDraft }) => {
+      // Draft/auto-save: skip patching the tree while the user is typing —
+      // local metadataState is source of truth until claim-next / final save.
+      if (isDraft) {
+        return
+      }
       qc.setQueriesData<DataTreeNodeT>(
         { queryKey: [role, 'data-management', 'tree'] },
         (currentTree) => {
@@ -654,7 +659,6 @@ export function useSaveDossierMetadataMutation(role: DataManagementRole) {
             metadata,
           )
           if (
-            !isDraft &&
             result &&
             typeof result === 'object' &&
             'dossierStatus' in result &&

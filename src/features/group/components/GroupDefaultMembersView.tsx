@@ -7,6 +7,7 @@ import type {
   GroupQcLevelT,
   GroupQcMemberT,
   Member,
+  MemberDossiersTargetT,
 } from '@/features/group/types'
 
 import { GroupApproverLevelsView } from './GroupApproverLevelsView'
@@ -15,8 +16,9 @@ interface GroupDefaultMembersViewProps {
   group: Group
   isEditing?: boolean
   displayQcLevels?: Array<GroupQcLevelT>
-  setSelectedMember: (member: Member) => void
-  setMemberProfileOpen: (open: boolean) => void
+  editorCounts?: Record<string, number>
+  checkerCounts?: Record<string, number>
+  onOpenMemberDossiers: (target: MemberDossiersTargetT) => void
   setMemberToRemove: (
     payload: { groupId: string; member: Member } | null,
   ) => void
@@ -25,16 +27,13 @@ interface GroupDefaultMembersViewProps {
   onAddApprovers?: (level: number) => void
 }
 
-function findMemberByUserId(group: Group, userId: string): Member | undefined {
-  return group.members.find((member) => member.userId === userId)
-}
-
 export function GroupDefaultMembersView({
   group,
   isEditing = false,
   displayQcLevels,
-  setSelectedMember,
-  setMemberProfileOpen,
+  editorCounts = {},
+  checkerCounts = {},
+  onOpenMemberDossiers,
   setMemberToRemove,
   onRemoveApprover,
   onRemoveApprovalLevel,
@@ -60,14 +59,17 @@ export function GroupDefaultMembersView({
           group={group}
           levels={displayQcLevels}
           isEditing={isEditing}
+          checkerCounts={checkerCounts}
           onMemberClick={
             isEditing
               ? undefined
-              : (qcMember) => {
-                  const member = findMemberByUserId(group, qcMember.userId)
-                  if (!member) return
-                  setSelectedMember(member)
-                  setMemberProfileOpen(true)
+              : (qcMember, level) => {
+                  onOpenMemberDossiers({
+                    kind: 'checker',
+                    userId: qcMember.userId,
+                    name: qcMember.name,
+                    level,
+                  })
                 }
           }
           onRemoveMember={onRemoveApprover}
@@ -82,44 +84,50 @@ export function GroupDefaultMembersView({
         </div>
         <div className="flex gap-2 flex-wrap">
           {normalMembers.length > 0 ? (
-            normalMembers.map((member) => (
-              <div
-                key={member.id}
-                className="relative group flex flex-col items-start"
-              >
-                <div className="relative">
-                  <Badge
-                    variant="secondary"
-                    className={`font-normal py-1 transition-opacity ${
-                      isEditing ? 'pr-3' : 'cursor-pointer hover:opacity-80'
-                    }`}
-                    onClick={
-                      isEditing
-                        ? undefined
-                        : () => {
-                            setSelectedMember(member)
-                            setMemberProfileOpen(true)
-                          }
-                    }
-                  >
-                    {member.name} ({member.documents?.length || 0})
-                  </Badge>
-                  {isEditing ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setMemberToRemove({ groupId: group.id, member })
-                      }}
-                      className="absolute -top-1.5 -right-1.5 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 shadow transition-opacity hover:bg-destructive/80 group-hover:opacity-100"
-                      aria-label={t('configTemplate.zone.removeMember')}
+            normalMembers.map((member) => {
+              const count = editorCounts[member.userId] ?? 0
+              return (
+                <div
+                  key={member.id}
+                  className="relative group flex flex-col items-start"
+                >
+                  <div className="relative">
+                    <Badge
+                      variant="secondary"
+                      className={`font-normal py-1 transition-opacity ${
+                        isEditing ? 'pr-3' : 'cursor-pointer hover:opacity-80'
+                      }`}
+                      onClick={
+                        isEditing
+                          ? undefined
+                          : () => {
+                              onOpenMemberDossiers({
+                                kind: 'editor',
+                                userId: member.userId,
+                                name: member.name,
+                              })
+                            }
+                      }
                     >
-                      <X className="h-2.5 w-2.5" />
-                    </button>
-                  ) : null}
+                      {member.name} ({count})
+                    </Badge>
+                    {isEditing ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setMemberToRemove({ groupId: group.id, member })
+                        }}
+                        className="absolute -top-1.5 -right-1.5 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 shadow transition-opacity hover:bg-destructive/80 group-hover:opacity-100"
+                        aria-label={t('configTemplate.zone.removeMember')}
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            ))
+              )
+            })
           ) : (
             <span className="text-xs text-muted-foreground italic">
               {t('card.empty')}

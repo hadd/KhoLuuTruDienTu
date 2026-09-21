@@ -8,7 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ExportChoiceDialog } from '@/features/data-management/components/ExportChoiceDialog'
 import { FolderContentList } from '@/features/data-management/components/FolderContentList'
 import { RecordDetailPanel } from '@/features/data-management/components/RecordDetailPanel'
-import type { ExportMode } from '@/features/data-management/lib/exportHelpers'
+import type {
+  ExportMode,
+  ExportOptions,
+} from '@/features/data-management/lib/exportHelpers'
 import {
   canExportNode,
   resolveDossierIdForDip,
@@ -20,7 +23,10 @@ import type {
   DataTreeNodeT,
 } from '@/features/data-management/types'
 import { useRoleAccess } from '@/features/permissions/hooks/useRoleAccess'
-import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
+import {
+  canExportAnyStatusPermission,
+  canExportDossiersPermission,
+} from '@/features/data-management/lib/dossierExportAccess'
 import { translateError } from '@/lib/utils/translate-error'
 
 function FolderDetailCard({
@@ -41,13 +47,15 @@ function FolderDetailCard({
   const [canExportDip, setCanExportDip] = useState(false)
 
   const { permissions: userPermissions } = useRoleAccess()
-  const canExportDossiers = isPermissionGranted(
-    userPermissions,
-    'dossiers.export',
-    'dossiers',
-  )
-  const showExport = canExportDossiers && canExportNode(node)
-  const exportContext = showExport ? resolveExportContext(node) : null
+  const canExportDossiers = canExportDossiersPermission(userPermissions)
+  const exportStatusOptions = {
+    bypassStatus: canExportAnyStatusPermission(userPermissions),
+  }
+  const showExport =
+    canExportDossiers && canExportNode(node, exportStatusOptions)
+  const exportContext = showExport
+    ? resolveExportContext(node, exportStatusOptions)
+    : null
 
   useEffect(() => {
     if (!exportContext) {
@@ -64,7 +72,7 @@ function FolderDetailCard({
   }, [exportContext])
 
   const handleExport = useCallback(
-    async (mode: ExportMode, options?: { presetId?: string }) => {
+    async (mode: ExportMode, options?: ExportOptions) => {
       if (!exportContext || isExporting) return
 
       setIsExporting(true)
@@ -79,6 +87,7 @@ function FolderDetailCard({
           metadataExportConfig: options?.presetId
             ? { presetId: options.presetId }
             : undefined,
+          useDocumentNaming: options?.useDocumentNaming === true,
         })
         toast.success(t('recordDetail.exportExcelSuccess'))
         setDialogOpen(false)
@@ -153,7 +162,11 @@ export function DataNodeDetailPanel({
 
   focusGroupIndex,
 
+  focusFieldKey,
+
   onFocusDocument,
+
+  onMarkDocumentsComplete,
 
   onSelectNode,
 
@@ -179,11 +192,15 @@ export function DataNodeDetailPanel({
 
   focusGroupIndex?: number
 
+  focusFieldKey?: string
+
   onFocusDocument?: (
-    documentId: string,
+    documentId: string | undefined,
     groupIndex: number,
-    targetTab?: 'metadata' | 'editHistory',
+    fieldKey?: string,
   ) => void
+
+  onMarkDocumentsComplete?: (documentIds: Array<string>) => void
 
   onSelectNode: (id: string) => void
 
@@ -193,7 +210,7 @@ export function DataNodeDetailPanel({
 
   onWorkflowComplete?: (
     dossierId: string,
-    mode?: 'draft' | 'final' | 'error_report',
+    mode?: 'draft' | 'draft_advance' | 'final' | 'error_report',
   ) => void | Promise<void>
   onDigitalSignCompleted?: (dossierId: string) => void
 }) {
@@ -250,7 +267,9 @@ export function DataNodeDetailPanel({
           isEditorDraftView={isEditorDraftView}
           focusDocumentId={focusDocumentId}
           focusGroupIndex={focusGroupIndex}
+          focusFieldKey={focusFieldKey}
           onFocusDocument={onFocusDocument}
+          onMarkDocumentsComplete={onMarkDocumentsComplete}
           onWorkflowComplete={onWorkflowComplete}
           onDigitalSignCompleted={onDigitalSignCompleted}
         />

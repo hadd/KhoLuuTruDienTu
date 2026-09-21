@@ -52,6 +52,80 @@ function normalizeFolderPath(folderPath: string): Array<string> {
   return path.split('/').filter(Boolean)
 }
 
+function getEditorNames(dossier: GroupAssignedDossierT): {
+  primaryEditor: { userId: string; fullName: string | null } | undefined
+  editorNames: Array<string>
+} {
+  const editors = dossier.editors ?? []
+  const primaryEditor = editors[0]
+  const editorNames = editors
+    .map((editor) => editor.fullName?.trim() || editor.userId)
+    .filter(Boolean)
+  return { primaryEditor, editorNames }
+}
+
+function createRecordNode(
+  dossier: GroupAssignedDossierT,
+  parentId: string,
+  displayName: string,
+): DataTreeNodeT {
+  const dossierStatus = parseDossierStatus(dossier.status)
+  const { primaryEditor, editorNames } = getEditorNames(dossier)
+
+  return {
+    id: dossier.id,
+    name: displayName,
+    type: 'record',
+    parentId,
+    children: [],
+    sizeBytes: 0,
+    uploadedAt: dossier.updatedAt || dossier.createdAt,
+    uploadedBy: 'System',
+    entityType: 'DOCUMENT',
+    dossierId: dossier.id,
+    folderId: dossier.folderId,
+    isAssigned: true,
+    ...(dossierStatus ? { dossierStatus } : {}),
+    ...(dossier.projectCode ? { projectCode: dossier.projectCode } : {}),
+    ...(dossier.requiredQcCount != null
+      ? { requiredQcCount: dossier.requiredQcCount }
+      : {}),
+    ...(primaryEditor
+      ? {
+          editor: {
+            id: primaryEditor.userId,
+            name: editorNames.join(', '),
+            role: 'editor' as const,
+          },
+        }
+      : {}),
+  }
+}
+
+function upsertRecordFields(
+  existing: DataTreeNodeT,
+  dossier: GroupAssignedDossierT,
+  displayName: string,
+): void {
+  const dossierStatus = parseDossierStatus(dossier.status)
+  const { primaryEditor, editorNames } = getEditorNames(dossier)
+
+  existing.name = displayName
+  existing.dossierId = dossier.id
+  existing.folderId = dossier.folderId
+  existing.isAssigned = true
+  if (dossierStatus) existing.dossierStatus = dossierStatus
+  if (primaryEditor) {
+    existing.editor = {
+      id: primaryEditor.userId,
+      name: editorNames.join(', '),
+      role: 'editor',
+    }
+  } else {
+    delete existing.editor
+  }
+}
+
 /** Build a read-only folder tree from flat assigned dossier rows. */
 export function buildAssignedDossierTree(
   dossiers: Array<GroupAssignedDossierT>,
@@ -61,10 +135,29 @@ export function buildAssignedDossierTree(
   nodesMap.set(DATA_TREE_ROOT_ID, rootNode)
 
   for (const dossier of dossiers) {
-    if (!dossier.folderPath?.trim()) continue
+    const segments = dossier.folderPath?.trim()
+      ? normalizeFolderPath(dossier.folderPath)
+      : []
 
-    const segments = normalizeFolderPath(dossier.folderPath)
-    if (segments.length === 0) continue
+    // Fallback: attach record under root when folderPath is missing / only "raw/"
+    if (segments.length === 0) {
+      const displayName = dossier.name?.trim() || dossier.id
+      if (!nodesMap.has(dossier.id)) {
+        const newNode = createRecordNode(
+          dossier,
+          DATA_TREE_ROOT_ID,
+          displayName,
+        )
+        nodesMap.set(dossier.id, newNode)
+        rootNode.children.push(newNode)
+      } else {
+        const existing = nodesMap.get(dossier.id)
+        if (existing) {
+          upsertRecordFields(existing, dossier, displayName)
+        }
+      }
+      continue
+    }
 
     let currentParentId = DATA_TREE_ROOT_ID
 
@@ -76,32 +169,22 @@ export function buildAssignedDossierTree(
       const nodeId = isLast ? dossierId : `group-assigned-node-${nodePath}`
 
       if (!nodesMap.has(nodeId)) {
-        const dossierStatus = parseDossierStatus(dossier.status)
-        const newNode: DataTreeNodeT = {
-          id: nodeId,
-          name: isLast ? dossier.name || segment : segment,
-          type: isLast ? 'record' : 'folder',
-          parentId: currentParentId,
-          children: [],
-          sizeBytes: 0,
-          uploadedAt: dossier.updatedAt || dossier.createdAt,
-          uploadedBy: 'System',
-          ...(isLast
-            ? {
-                entityType: 'DOCUMENT' as const,
-                dossierId,
-                folderId: dossier.folderId,
-                isAssigned: true,
-                ...(dossierStatus ? { dossierStatus } : {}),
-                ...(dossier.projectCode
-                  ? { projectCode: dossier.projectCode }
-                  : {}),
-                ...(dossier.requiredQcCount != null
-                  ? { requiredQcCount: dossier.requiredQcCount }
-                  : {}),
-              }
-            : {}),
-        }
+        const newNode: DataTreeNodeT = isLast
+          ? createRecordNode(
+              dossier,
+              currentParentId,
+              dossier.name || segment,
+            )
+          : {
+              id: nodeId,
+              name: segment,
+              type: 'folder',
+              parentId: currentParentId,
+              children: [],
+              sizeBytes: 0,
+              uploadedAt: dossier.updatedAt || dossier.createdAt,
+              uploadedBy: 'System',
+            }
 
         nodesMap.set(nodeId, newNode)
         const parent = nodesMap.get(currentParentId)
@@ -111,12 +194,7 @@ export function buildAssignedDossierTree(
       } else if (isLast) {
         const existing = nodesMap.get(nodeId)
         if (existing) {
-          const dossierStatus = parseDossierStatus(dossier.status)
-          existing.name = dossier.name || segment
-          existing.dossierId = dossierId
-          existing.folderId = dossier.folderId
-          existing.isAssigned = true
-          if (dossierStatus) existing.dossierStatus = dossierStatus
+          upsertRecordFields(existing, dossier, dossier.name || segment)
         }
       }
 

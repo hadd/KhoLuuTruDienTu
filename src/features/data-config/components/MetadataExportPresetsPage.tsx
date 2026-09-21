@@ -40,6 +40,8 @@ import {
   focusFirstExportColumnIssue,
   getExportColumnValidationMessage,
   groupsToExportFieldCatalog,
+  buildExportSyntheticFieldCatalog,
+  mergeExportFieldCatalogWithSynthetics,
   inferReferenceTemplateId,
   validateExportColumnsConfig,
 } from '@/features/data-config/lib/metadataExportHelpers'
@@ -181,8 +183,17 @@ export function MetadataExportPresetsPage() {
 
   const fieldCatalog = useMemo<Array<MetadataExportFieldCatalogItemT>>(() => {
     if (!selectedTemplate) return []
-    return groupsToExportFieldCatalog(selectedTemplate.groups)
-  }, [selectedTemplate])
+    return mergeExportFieldCatalogWithSynthetics(
+      groupsToExportFieldCatalog(selectedTemplate.groups),
+      buildExportSyntheticFieldCatalog({
+        groupName: t('metadataExport.synthetic.groupName'),
+        filePath: t('metadataExport.synthetic.filePath'),
+        fileName: t('metadataExport.synthetic.fileName'),
+        rowNumber: t('metadataExport.synthetic.rowNumber'),
+        dossierFolder: t('metadataExport.synthetic.dossierFolder'),
+      }),
+    )
+  }, [selectedTemplate, t])
 
   function rememberReferenceTemplate(presetKey: string, nextTemplateId: string) {
     setReferenceTemplateByPreset((prev) => {
