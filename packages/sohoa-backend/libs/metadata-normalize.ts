@@ -351,7 +351,6 @@ export function findMetadataFieldValue(
 
 export const FOND_FIELD_NAMES = [
     HO_SO_FOND_FIELD,
-    "MA_PHONG",
     "TEN_PHONG",
     "PHONG_LUU_TRU",
 ] as const;
@@ -388,7 +387,6 @@ export function isFondFieldName(fieldName: string): boolean {
     return (
         FOND_FIELD_NAMES.some((name) => name === normalized) ||
         metadataFieldNamesMatch(fieldName, HO_SO_FOND_FIELD) ||
-        metadataFieldNamesMatch(fieldName, "MA_PHONG") ||
         metadataFieldNamesMatch(fieldName, "TEN_PHONG") ||
         metadataFieldNamesMatch(fieldName, "PHONG_LUU_TRU")
     );
