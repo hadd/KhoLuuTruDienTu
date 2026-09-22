@@ -368,3 +368,68 @@ Deno.test("propagateHoSoFondToDocuments applies dossier fond to document fond fi
     assertEquals(doc2Fond, "P00005");
     assertEquals(doc2MaPhong, "028.99.99");
 });
+
+Deno.test("parseDossierMetadata coerces document number fields to string type", () => {
+    const parsed = parseDossierMetadata({
+        metadata_groups: [
+            {
+                group_code: TAI_LIEU_LUU_TRU_GROUP_CODE,
+                group_name: "Tài liệu",
+                source_document: { file_name: "doc.pdf", file_path: "raw/doc.pdf" },
+                fields: [
+                    {
+                        name: "SO_CUA_VAN_BAN",
+                        display: "Số của văn bản",
+                        type: "number",
+                        value: "15A",
+                        page: null,
+                        bbox: null,
+                    },
+                    {
+                        name: "SO_VAN_BAN",
+                        display: "Số văn bản",
+                        type: "number",
+                        value: "11/QĐ",
+                        page: null,
+                        bbox: null,
+                    },
+                    {
+                        name: "TONG_SO_VAN_BAN",
+                        display: "Tổng số văn bản",
+                        type: "number",
+                        value: "3",
+                        page: null,
+                        bbox: null,
+                    },
+                    {
+                        name: "SO_TRANG",
+                        display: "Số trang",
+                        type: "number",
+                        value: "23",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+        ],
+    });
+    if (!parsed) throw new Error("expected parsed metadata");
+
+    const fields = parsed.metadata_groups[0]!.fields;
+    assertEquals(
+        fields.find((field) => field.name === "SO_CUA_VAN_BAN")?.type,
+        "string",
+    );
+    assertEquals(
+        fields.find((field) => field.name === "SO_VAN_BAN")?.type,
+        "string",
+    );
+    assertEquals(
+        fields.find((field) => field.name === "TONG_SO_VAN_BAN")?.type,
+        "number",
+    );
+    assertEquals(
+        fields.find((field) => field.name === "SO_TRANG")?.type,
+        "number",
+    );
+});
