@@ -18,6 +18,33 @@
       "footer": "Avg. time: {{duration}}"
     }
   },
+  "workloadStats": {
+    "labels": {
+      "dossiers": "Dossiers",
+      "files": "Files",
+      "pages": "Pages"
+    },
+    "total": {
+      "title": "System total",
+      "description": "All dossiers, files and pages"
+    },
+    "unentered": {
+      "title": "Not data-entered",
+      "description": "Not yet started entry"
+    },
+    "unassigned": {
+      "title": "Unassigned",
+      "description": "No active assignment"
+    },
+    "completed": {
+      "title": "Completed",
+      "description": "Fully approved dossiers"
+    },
+    "error": {
+      "title": "Reported errors",
+      "description": "Issue resolution / Error status"
+    }
+  },
   "charts": {
     "dossierStatus": {
       "title": "System-wide dossier status",
@@ -39,6 +66,15 @@
     "dossierTrend": {
       "title": "Dossier completion trend",
       "description": "{{from}} – {{to}}",
+      "periodLabel": "Period",
+      "period": {
+        "today": "Today",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+        "month": "This month",
+        "quarter": "This quarter",
+        "custom": "Custom"
+      },
       "granularityLabel": "View by",
       "granularity": {
         "month": "Month",
@@ -102,7 +138,7 @@
   },
   "employeeKpi": {
     "title": "Employee Processing KPI",
-    "description": "Progress of assigned dossiers and pages along with accuracy rate per employee",
+    "description": "Progress of assigned dossiers, files and pages along with accuracy rate per employee",
     "searchPlaceholder": "Search staff name...",
     "periodLabel": "Period",
     "period": {
@@ -110,16 +146,26 @@
       "7d": "Last 7 days",
       "30d": "Last 30 days",
       "month": "This month",
+      "quarter": "This quarter",
       "custom": "Custom"
+    },
+    "groups": {
+      "maker": "Entry work",
+      "qc": "QC work"
     },
     "columns": {
       "employee": "Employee",
       "dossierProgress": "Dossiers (Done / Assigned)",
       "pageProgress": "Pages (Done / Assigned)",
+      "fileProgress": "Files (Done / Assigned)",
+      "dossierCount": "Dossiers",
+      "pageCount": "Pages",
+      "fileCount": "Files",
       "accuracyRate": "Accuracy Rate"
     },
     "dossierCountFormat": "{{completed}} / {{assigned}} dossiers",
     "pageCountFormat": "{{completed}} / {{assigned}} pages",
+    "fileCountFormat": "{{completed}} / {{assigned}} files",
     "pagination": "Showing {{from}} - {{to}} of {{total}} staff members"
   },
   "errors": {

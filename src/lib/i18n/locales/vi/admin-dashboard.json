@@ -18,6 +18,33 @@
       "footer": "Thời gian TB: {{duration}}"
     }
   },
+  "workloadStats": {
+    "labels": {
+      "dossiers": "Hồ sơ",
+      "files": "File",
+      "pages": "Trang"
+    },
+    "total": {
+      "title": "Tổng trong hệ thống",
+      "description": "Toàn bộ hồ sơ, file và trang"
+    },
+    "unentered": {
+      "title": "Chưa nhập liệu",
+      "description": "Chưa bắt đầu biên tập"
+    },
+    "unassigned": {
+      "title": "Chưa gán người",
+      "description": "Chưa có phân công active"
+    },
+    "completed": {
+      "title": "Đã làm",
+      "description": "Hồ sơ đã duyệt hoàn tất"
+    },
+    "error": {
+      "title": "Bị báo lỗi",
+      "description": "Đang xử lý lỗi / trạng thái Error"
+    }
+  },
   "charts": {
     "dossierStatus": {
       "title": "Toàn hệ thống - trạng thái hồ sơ",
@@ -39,6 +66,15 @@
     "dossierTrend": {
       "title": "Xu hướng hoàn thành hồ sơ",
       "description": "{{from}} – {{to}}",
+      "periodLabel": "Thời gian",
+      "period": {
+        "today": "Hôm nay",
+        "7d": "7 ngày qua",
+        "30d": "30 ngày qua",
+        "month": "Tháng này",
+        "quarter": "Quý này",
+        "custom": "Tùy chỉnh"
+      },
       "granularityLabel": "Xem theo",
       "granularity": {
         "month": "Tháng",
@@ -102,7 +138,7 @@
   },
   "employeeKpi": {
     "title": "KPI Xử lý hồ sơ theo nhân viên",
-    "description": "Ghi nhận tiến độ xử lý hồ sơ và trang hồ sơ được giao cùng tỷ lệ chính xác",
+    "description": "Ghi nhận tiến độ xử lý hồ sơ, file và trang được giao cùng tỷ lệ chính xác",
     "searchPlaceholder": "Tìm tên nhân viên...",
     "periodLabel": "Thời gian",
     "period": {
@@ -110,16 +146,26 @@
       "7d": "7 ngày qua",
       "30d": "30 ngày qua",
       "month": "Tháng này",
+      "quarter": "Quý này",
       "custom": "Tùy chỉnh"
+    },
+    "groups": {
+      "maker": "Hồ Sơ Biên Tập",
+      "qc": "Hồ Sơ Duyệt"
     },
     "columns": {
       "employee": "Nhân viên",
       "dossierProgress": "Hồ sơ (Đã làm / Được giao)",
       "pageProgress": "Số trang (Đã làm / Được giao)",
+      "fileProgress": "Số file (Đã làm / Được giao)",
+      "dossierCount": "Số hồ sơ",
+      "pageCount": "Số trang",
+      "fileCount": "Số file",
       "accuracyRate": "Tỷ lệ chính xác"
     },
     "dossierCountFormat": "{{completed}} / {{assigned}} hồ sơ",
     "pageCountFormat": "{{completed}} / {{assigned}} trang",
+    "fileCountFormat": "{{completed}} / {{assigned}} file",
     "pagination": "Hiển thị {{from}} - {{to}} trên tổng số {{total}} nhân sự"
   },
   "errors": {
