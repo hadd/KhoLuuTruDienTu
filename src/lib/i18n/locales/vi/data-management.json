@@ -571,11 +571,13 @@
       "notesPlaceholder": "Lý do từ chối (tùy chọn)",
       "selectedCount": "Đã chọn {{count}} trường",
       "clear": "Bỏ chọn",
-      "confirm": "Từ chối hồ sơ"
+      "confirm": "Từ chối hồ sơ",
+      "defaultNote": "QC từ chối"
     },
     "editorReject": {
       "title": "Ghi chú từ chối của QC",
-      "fieldHint": "Các trường được tô đỏ là trường QC đánh dấu sai — vui lòng chỉnh sửa lại."
+      "fieldHint": "Các trường được tô đỏ là trường QC đánh dấu sai — vui lòng chỉnh sửa lại.",
+      "detailsTitle": "Chi tiết các trường cần chỉnh sửa theo tài liệu:"
     }
   },
   "dossierStatus": {
