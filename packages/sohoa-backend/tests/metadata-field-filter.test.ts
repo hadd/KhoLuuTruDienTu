@@ -369,6 +369,22 @@ Deno.test("filterRejectFieldsForAssignment returns scoped subset per editor", ()
     assertEquals(filterRejectFieldsForAssignment(rejectFields, null), rejectFields);
 });
 
+Deno.test("filterRejectFieldsForAssignment matches scoped reject keys with file discriminator", () => {
+    const slotA = ["QUYET_DINH.*"];
+    const slotB = ["BIEN_LAI.*"];
+    const rejectFields = [
+        "QUYET_DINH:doc_1.SO_KY_HIEU",
+        "BIEN_LAI:doc_2.SO_TIEN",
+    ];
+
+    assertEquals(filterRejectFieldsForAssignment(rejectFields, slotA), [
+        "QUYET_DINH:doc_1.SO_KY_HIEU",
+    ]);
+    assertEquals(filterRejectFieldsForAssignment(rejectFields, slotB), [
+        "BIEN_LAI:doc_2.SO_TIEN",
+    ]);
+});
+
 Deno.test("shouldResetMakerOnReject resets all makers when reject_fields omitted", () => {
     assertEquals(shouldResetMakerOnReject(["GROUP.FIELD"], null), true);
     assertEquals(shouldResetMakerOnReject(null, null), true);
