@@ -13,7 +13,7 @@ export const approveCheckerBodySchema = t.Object({
 });
 
 export const rejectCheckerBodySchema = t.Object({
-    notes: t.String({ minLength: 1 }),
+    notes: t.Optional(t.String()),
     /** Field keys to reject (GROUP.FIELD or GROUP.*). When set, only editors whose allowedFields overlap are reopened. */
     reject_fields: t.Optional(t.Array(t.String({ minLength: 1 }))),
 });

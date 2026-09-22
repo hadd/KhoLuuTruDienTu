@@ -33,6 +33,8 @@ services:
       - KAFKA_TT05_METADATA_TOPIC=tt05-metadata-completed
       - KAFKA_START_METADATA_PVEP_TOPIC=start-metadata-pvep
       - KAFKA_PVEP_METADATA_TOPIC=pvep-metadata-completed
+      - KAFKA_START_METADATA_TUYEN_QUANG_TOPIC=start-metadata-tuyen-quang
+      - KAFKA_TUYEN_QUANG_METADATA_TOPIC=tuyen-quang-metadata-completed
       - SCANNER_ENABLED=true
       - SCANNER_INTERVAL_MS=10000
       - ELASTICSEARCH_ENABLED=true
@@ -43,5 +45,7 @@ services:
       - SMTP_SECURE=false
       - WATERMARK_PDF_OWNER_PASSWORD=SoHoaFsi@1234
       - NIFI_TRIGGER_URL=http://10.10.4.21:8081/trigger-ocr
+      # Customer packs: set PAGE_QUOTA_ENFORCE=true (or NODE_ENV=production).
+      # Local/dev defaults to false so extract routing is not blocked without a .lic.
       # Sender identity: configure via Admin UI
       # PUT /api/v1/admin/notification-configs/email-sender

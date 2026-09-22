@@ -9,6 +9,7 @@ export const MetadataExtractMode = {
     OLD: "old",
     TT05: "tt05",
     PVEP: "pvep",
+    TUYEN_QUANG: "tuyen-quang",
     OFF: "off",
 } as const;
 
@@ -24,6 +25,7 @@ export const metadataExtractModeSchema = t.Union([
     t.Literal(MetadataExtractMode.OLD),
     t.Literal(MetadataExtractMode.TT05),
     t.Literal(MetadataExtractMode.PVEP),
+    t.Literal(MetadataExtractMode.TUYEN_QUANG),
     t.Literal(MetadataExtractMode.OFF),
 ]);
 
@@ -32,6 +34,7 @@ export const MetadataExtractTriggerMode = {
     OLD: "old",
     TT05: "tt05",
     PVEP: "pvep",
+    TUYEN_QUANG: "tuyen-quang",
     BOTH: "both",
 } as const;
 
@@ -42,6 +45,7 @@ export const metadataExtractTriggerModeSchema = t.Union([
     t.Literal(MetadataExtractTriggerMode.OLD),
     t.Literal(MetadataExtractTriggerMode.TT05),
     t.Literal(MetadataExtractTriggerMode.PVEP),
+    t.Literal(MetadataExtractTriggerMode.TUYEN_QUANG),
     t.Literal(MetadataExtractTriggerMode.BOTH),
 ]);
 

@@ -1,6 +1,7 @@
 import { Elysia } from "elysia";
 import { healthPlugin } from "@shared/http-libs";
 import { env } from "../env.ts";
+import { createPublicExportDownloadRouter } from "../modules/export-download/export-download.router.ts";
 
 export const PUBLIC_PREFIX = "/api/public";
 export const publicRouter = new Elysia({
@@ -10,3 +11,5 @@ export const publicRouter = new Elysia({
 publicRouter.use(healthPlugin({
   db_connection_str: env.DATABASE_URL,
 }));
+
+publicRouter.use(createPublicExportDownloadRouter("/export-downloads"));

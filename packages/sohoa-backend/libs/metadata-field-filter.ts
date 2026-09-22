@@ -27,6 +27,16 @@ export function normalizeFieldName(fieldName: string): string {
         .replace(/_+/g, "_");
 }
 
+export {
+    canonicalMetadataFieldName,
+    metadataFieldNamesMatch,
+} from "./metadata-normalize.ts";
+
+/**
+ * Slugify OCR field name/display for matching (accents/spaces → UPPER_SNAKE).
+ * Re-exported via canonicalMetadataFieldName aliases in metadata-normalize.
+ */
+
 /**
  * Strip trailing instance index from human-readable labels.
  * Examples: "Số CCCD 1" → "Số CCCD", "Họ và tên 2" → "Họ và tên"
@@ -116,7 +126,8 @@ export function rejectFieldMatchesAssignmentScope(
     if (allowedFields === null) return true;
 
     if (rejectField.endsWith(".*")) {
-        const groupCode = rejectField.slice(0, -2);
+        const rawGroupCode = rejectField.slice(0, -2);
+        const groupCode = rawGroupCode.split(":")[0];
         return allowedFields.some(
             (key) => key === `${groupCode}.*` || key.startsWith(`${groupCode}.`),
         );
@@ -125,7 +136,8 @@ export function rejectFieldMatchesAssignmentScope(
     const dotIdx = rejectField.indexOf(".");
     if (dotIdx === -1) return false;
 
-    const groupCode = rejectField.slice(0, dotIdx);
+    const rawGroupCode = rejectField.slice(0, dotIdx);
+    const groupCode = rawGroupCode.split(":")[0];
     const fieldName = rejectField.slice(dotIdx + 1);
     return isFieldAllowed(groupCode, fieldName, buildAllowedKeySet(allowedFields));
 }

@@ -76,6 +76,10 @@ async function handleMergeFinished(
     const hoSoId = resolveHoSoId(payload);
     const jsonPath = asNonEmptyString(payload.json_path);
 
+    console.info(
+        `[Kafka] merge-finished-wait received — ho_so_id="${hoSoId}", json_path="${jsonPath}"`,
+    );
+
     if (!hoSoId) {
         console.warn(
             `[Kafka] Message missing ho_so_id/document_id on ${topic}:`,
@@ -90,12 +94,12 @@ async function handleMergeFinished(
             json_path: jsonPath ?? undefined,
         });
         console.info(
-            `[Kafka] Merge-finished routed — dossierId: ${result.dossierId}, mode: ${result.mode}, topics: ${result.topics.join(",") || "(none)"}`,
+            `[Kafka] Merge-finished routed — dossier="${result.ho_so_id}", dossierId=${result.dossierId}, mode=${result.mode}, topics=[${result.topics.join(",") || "(none)"}], json_path="${result.json_path}", kafkaPublished=${result.kafkaPublished}`,
         );
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         if (message.includes("not found")) {
-            console.warn(`[Kafka] Dossier not found for ho_so_id: ${hoSoId}`);
+            console.warn(`[Kafka] Dossier not found — ho_so_id="${hoSoId}", json_path="${jsonPath}"`);
         } else {
             console.error(`[Kafka] Failed to route merge-finished-wait:`, err);
         }
@@ -114,6 +118,7 @@ export async function startKafkaConsumer(): Promise<void> {
         env.KAFKA_METADATA_TOPIC,
         env.KAFKA_TT05_METADATA_TOPIC,
         env.KAFKA_PVEP_METADATA_TOPIC,
+        env.KAFKA_TUYEN_QUANG_METADATA_TOPIC,
         env.KAFKA_MERGE_FINISHED_WAIT_TOPIC,
     ];
 
@@ -142,7 +147,8 @@ export async function startKafkaConsumer(): Promise<void> {
             if (
                 topic === env.KAFKA_METADATA_TOPIC ||
                 topic === env.KAFKA_TT05_METADATA_TOPIC ||
-                topic === env.KAFKA_PVEP_METADATA_TOPIC
+                topic === env.KAFKA_PVEP_METADATA_TOPIC ||
+                topic === env.KAFKA_TUYEN_QUANG_METADATA_TOPIC
             ) {
                 await handleCompletedCallback(topic, payload);
                 return;

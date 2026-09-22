@@ -19,6 +19,7 @@ import {
 
 export const AuthRole = {
     ADMIN: "admin",
+    QUANTRI: "quantri",
     QC: "qc",
     EDITOR: "editor",
     PROJECT_MANAGER: "project_manager",

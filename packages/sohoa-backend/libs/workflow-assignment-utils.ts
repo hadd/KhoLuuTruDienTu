@@ -130,6 +130,66 @@ export async function cancelInProgressAssignmentsForReassign(
     return rows.length;
 }
 
+/**
+ * Hủy phân công workable của một assignee cụ thể (field-split an toàn).
+ * Trả về số assignment đã chuyển sang TRANSFERRED.
+ */
+export async function cancelInProgressAssignmentsForAssignee(
+    tx: DbTx,
+    input: {
+        dossierId: string;
+        assigneeId: string;
+        actorId: string;
+        dossierStatus: string;
+        now: Date;
+        roles?: WorkerRoleType[];
+        notes?: string;
+    },
+): Promise<number> {
+    const roleFilter = input.roles && input.roles.length > 0
+        ? inArray(dossierAssignments.role, input.roles as [WorkerRoleType, ...WorkerRoleType[]])
+        : undefined;
+
+    const rows = await tx.query.dossierAssignments.findMany({
+        where: and(
+            eq(dossierAssignments.dossierId, input.dossierId),
+            eq(dossierAssignments.assigneeId, input.assigneeId),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
+            ...(roleFilter ? [roleFilter] : []),
+        ),
+        columns: { id: true },
+    });
+
+    if (rows.length === 0) {
+        return 0;
+    }
+
+    await tx
+        .update(dossierAssignments)
+        .set({
+            status: AssignmentStatus.TRANSFERRED,
+            completedAt: input.now,
+        })
+        .where(and(
+            eq(dossierAssignments.dossierId, input.dossierId),
+            eq(dossierAssignments.assigneeId, input.assigneeId),
+            inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
+            ...(roleFilter ? [roleFilter] : []),
+        ));
+
+    await tx.insert(workflowLogs).values({
+        dossierId: input.dossierId,
+        actorId: input.actorId,
+        action: "REASSIGN_CANCEL_IN_PROGRESS",
+        fromStatus: input.dossierStatus as DossierStatus,
+        toStatus: input.dossierStatus as DossierStatus,
+        notes: input.notes ??
+            `Cancelled ${rows.length} in-progress assignment(s) for assignee ${input.assigneeId}`,
+    });
+
+    return rows.length;
+}
+
 /** Đưa hồ sơ về READY_FOR_ENTRY sau khi hủy phân công biên tập (chưa hoàn thành entry). */
 export async function resetDossierEntryStatusAfterMakerReassign(
     tx: DbTx,

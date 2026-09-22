@@ -15,8 +15,11 @@ import { env } from "../../env.ts";
 import { getS3Client } from "../../libs/s3.ts";
 import {
     expandKeysWithDocJsonMirrors,
+    expandKeysWithExportDerivatives,
     normalizeStorageKey,
     toDocJsonDataLakePrefix,
+    toExportPdfPrefix,
+    toExportTiffPrefix,
 } from "./dossier-path-utils.ts";
 import { resolveAipPrefix } from "../../libs/archival-storage.ts";
 
@@ -61,6 +64,7 @@ export function collectDossierStorageKeys(
         addKey(keys, assignment.metadataKey);
     }
     expandKeysWithDocJsonMirrors(keys);
+    expandKeysWithExportDerivatives(keys);
 
     for (const key of [...keys]) {
         if (isProtectedArchivalKey(key)) {
@@ -127,6 +131,14 @@ export async function purgeDossierFromMinIO(
     if (docJsonPrefix) {
         prefixesToScan.push(docJsonPrefix);
     }
+    const exportPdfPrefix = toExportPdfPrefix(folderPath);
+    if (exportPdfPrefix) {
+        prefixesToScan.push(exportPdfPrefix);
+    }
+    const exportTiffPrefix = toExportTiffPrefix(folderPath);
+    if (exportTiffPrefix) {
+        prefixesToScan.push(exportTiffPrefix);
+    }
 
     const prefixKeys: string[] = [];
     for (const prefix of prefixesToScan) {
@@ -174,6 +186,7 @@ export async function purgeSingleFileFromMinIO(fileRow: {
     if (fileRow.filePath) keys.add(normalizeStorageKey(fileRow.filePath));
     if (fileRow.signedFilePath) keys.add(normalizeStorageKey(fileRow.signedFilePath));
     expandKeysWithDocJsonMirrors(keys);
+    expandKeysWithExportDerivatives(keys);
 
     let deletedCount = 0;
     for (const objectName of keys) {

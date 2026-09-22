@@ -13,6 +13,7 @@ import { emitOcrCompleted } from "../../libs/socket-io.ts";
 import { scheduleOcrCompletedNotification } from "../notification/notification-delivery-service.ts";
 import { recordSnapshot, hasOcrCompletedHistory } from "../metadata-history/metadata-history-service.ts";
 import { enqueueDossierIndex } from "../search/search-index-queue.ts";
+import { chargeDossierExtractPages } from "../page-quota/page-quota-service.ts";
 import { env } from "../../env.ts";
 import { getS3Client } from "../../libs/s3.ts";
 
@@ -224,6 +225,13 @@ export async function handleOcrCallback(input: {
     if (txResult.status === DossierStatus.ARCHIVED) {
         enqueueDossierIndex(txResult.dossierId);
     }
+
+    chargeDossierExtractPages({
+        dossierId: txResult.dossierId,
+        ocrMetadataKey: txResult.ocrMetadataKey,
+    }).catch((err) => {
+        console.error("[PageQuota] Failed to charge extract pages:", err);
+    });
 
     return {
         dossierId: txResult.dossierId,

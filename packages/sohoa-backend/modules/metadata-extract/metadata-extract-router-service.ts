@@ -15,9 +15,12 @@ import { publishKafkaMessage } from "../../libs/kafka-producer.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import {
     normalizeStorageKey,
+    storageDirname,
+    toDocJsonDataLakeKey,
     toProcessedMetadataKey,
 } from "../dossier/dossier-path-utils.ts";
 import { getMetadataExtractMode } from "./metadata-extract-settings-service.ts";
+import { assertExtractRoutingAllowed } from "../page-quota/page-quota-service.ts";
 
 /**
  * Feature flag: Event Router (merge-finished-wait) + POST /metadata/extract.
@@ -74,6 +77,18 @@ async function resolveDossierByHoSoId(hoSoId: string) {
     return dossier;
 }
 
+function deriveFolderPathFromDocJsonPath(
+    jsonPath: string,
+    rawPrefix = env.STORAGE_RAW_PREFIX ?? "raw",
+): string | null {
+    const normalized = normalizeStorageKey(jsonPath);
+    if (!normalized.startsWith("doc_json/")) return null;
+    const inner = normalized.slice("doc_json/".length);
+    const dir = storageDirname(inner);
+    if (!dir) return null;
+    return `${rawPrefix}/${dir}`;
+}
+
 function resolveJsonPath(
     dossier: { folderPath: string; mergeJsonPath: string | null },
     jsonPath?: string | null,
@@ -83,6 +98,11 @@ function resolveJsonPath(
     }
     if (dossier.mergeJsonPath?.trim()) {
         return normalizeStorageKey(dossier.mergeJsonPath.trim());
+    }
+    // Fallback: Ưu tiên tính đường dẫn doc_json vì đây là nơi NiFi xuất kết quả merge
+    const docJsonKey = toDocJsonDataLakeKey(dossier.folderPath);
+    if (docJsonKey) {
+        return docJsonKey;
     }
     const derived = toProcessedMetadataKey(dossier.folderPath);
     if (!derived) {
@@ -101,6 +121,7 @@ function resolvePublishTopics(
             env.KAFKA_MERGE_COMPLETED_TOPIC,
             env.KAFKA_START_METADATA_TT05_TOPIC,
             env.KAFKA_START_METADATA_PVEP_TOPIC,
+            env.KAFKA_START_METADATA_TUYEN_QUANG_TOPIC,
         ];
     }
     if (mode === MetadataExtractMode.OLD) {
@@ -111,6 +132,9 @@ function resolvePublishTopics(
     }
     if (mode === MetadataExtractMode.PVEP) {
         return [env.KAFKA_START_METADATA_PVEP_TOPIC];
+    }
+    if (mode === MetadataExtractMode.TUYEN_QUANG) {
+        return [env.KAFKA_START_METADATA_TUYEN_QUANG_TOPIC];
     }
     // off
     return [];
@@ -131,13 +155,55 @@ export async function routeMetadataExtract(
     }
 
     const hoSoId = input.ho_so_id.trim();
-    const dossier = await resolveDossierByHoSoId(hoSoId);
+    let dossier = await resolveDossierByHoSoId(hoSoId).catch(() => null);
+
+    // Fallback: Tìm dossier từ json_path nếu ho_so_id (document_id) không khớp với tên hồ sơ.
+    if (!dossier && input.json_path) {
+        const derivedFolder = deriveFolderPathFromDocJsonPath(input.json_path);
+        if (derivedFolder) {
+            dossier = await db.query.dossiers.findFirst({
+                where: activeDossierWhere(eq(dossiers.folderPath, derivedFolder)),
+            }) ?? null;
+            if (dossier) {
+                console.info(
+                    `[Router] Resolved dossier "${dossier.name}" via json_path fallback` +
+                    ` (document_id="${hoSoId}" → folderPath="${derivedFolder}")`,
+                );
+            }
+        }
+    }
+
+    if (!dossier) {
+        throw httpError.notFound(
+            `Dossier not found for ho_so_id="${hoSoId}"` +
+            (input.json_path ? ` json_path="${input.json_path}"` : ""),
+        );
+    }
+
     const jsonPath = resolveJsonPath(dossier, input.json_path);
 
     const mode: MetadataExtractTriggerModeType | MetadataExtractModeType =
         input.mode ?? (await getMetadataExtractMode());
 
-    const topics = resolvePublishTopics(mode);
+    let topics = resolvePublishTopics(mode);
+    const isOffMode = mode === MetadataExtractMode.OFF;
+    let quotaBlocked = false;
+
+    if (!isOffMode && topics.length > 0) {
+        const gate = await assertExtractRoutingAllowed();
+        if (!gate.allowed) {
+            quotaBlocked = true;
+            console.warn(
+                `[MetadataExtract] ${gate.reason} used=${gate.usedPages} limit=${gate.pageLimit} — skip Kafka for ho_so_id=${hoSoId}`,
+            );
+            topics = [];
+        }
+    }
+
+    console.info(
+        `[MetadataExtract] ho_so_id=${hoSoId} | mode=${mode} | json_path=${jsonPath} | topics=[${topics.join(",") || "(none)"}]`,
+    );
+
     const fromStatus = dossier.status;
     const shouldAdvance =
         fromStatus === DossierStatus.NEW ||
@@ -145,29 +211,42 @@ export async function routeMetadataExtract(
         fromStatus === DossierStatus.OCR_PROCESSING;
     const nextStatus = shouldAdvance ? DossierStatus.OCR_PROCESSING : fromStatus;
 
-    const isOffMode = mode === MetadataExtractMode.OFF;
     const kafkaPublished = !isOffMode && topics.length > 0;
 
     if (kafkaPublished) {
         if (!env.KAFKA_ENABLED) {
-            throw httpError.serviceUnavailable(
-                "Kafka is disabled (KAFKA_ENABLED=false); cannot publish metadata extract messages",
+            // KAFKA_ENABLED=false: không publish nhưng vẫn update DB và log cảnh báo rõ ràng.
+            // Không throw để tránh làm mất workflow log và mergeJsonPath.
+            console.warn(
+                `[MetadataExtract] KAFKA_ENABLED=false — bỏ qua publish topics=[${topics.join(",")}] cho ho_so_id=${hoSoId}. Hãy set KAFKA_ENABLED=true trong .env để AI nhận được message.`,
             );
+        } else {
+            const payload: MetadataExtractKafkaPayload = {
+                ho_so_id: hoSoId,
+                json_path: jsonPath,
+            };
+            for (const topic of topics) {
+                await publishKafkaMessage(topic, payload);
+                console.info(
+                    `[MetadataExtract] Published → topic=${topic} | ho_so_id=${hoSoId} | json_path=${jsonPath}`,
+                );
+            }
         }
-        const payload: MetadataExtractKafkaPayload = {
-            ho_so_id: hoSoId,
-            json_path: jsonPath,
-        };
-        for (const topic of topics) {
-            await publishKafkaMessage(topic, payload);
-        }
+    } else if (isOffMode) {
+        console.info(`[MetadataExtract] mode=off — không publish Kafka. Chờ manual trigger.`);
+    } else if (quotaBlocked) {
+        console.info(`[MetadataExtract] page quota blocked — không publish Kafka.`);
     }
 
     const action = isOffMode
         ? "MERGE_FINISHED_WAIT"
+        : quotaBlocked
+        ? "PAGE_QUOTA_EXCEEDED"
         : "METADATA_EXTRACT_TRIGGERED";
     const notes = isOffMode
         ? `Merge finished; extract mode off. Waiting for manual trigger. json_path=${jsonPath}`
+        : quotaBlocked
+        ? `Page quota exceeded or license invalid. Kafka extract routing skipped. json_path=${jsonPath}`
         : `Metadata extract triggered (mode=${mode}) topics=${topics.join(",")}`;
 
     await db.transaction(async (tx) => {

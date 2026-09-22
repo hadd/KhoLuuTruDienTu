@@ -3,12 +3,15 @@ import {
     collapseTaiLieuDocuments,
     expandTaiLieuDocuments,
     extractDocumentTypeRefsFromMetadata,
+    findHoSoFondFieldValue,
     findMetadataFieldValue,
+    FOND_FIELD_NAMES,
     hasHoSoFondField,
     HO_SO_FOND_FIELD,
     HO_SO_LUU_TRU_GROUP_CODE,
     migrateTt05MetadataLayout,
     parseDossierMetadata,
+    propagateHoSoFondToDocuments,
     resolveMetadataFieldBbox,
     slugifyTenLoaiTaiLieu,
     TAI_LIEU_LUU_TRU_GROUP_CODE,
@@ -173,6 +176,14 @@ Deno.test("migrateTt05MetadataLayout moves fond from legacy PHONG group", () => 
                         page: null,
                         bbox: null,
                     },
+                    {
+                        name: "MA_PHONG",
+                        display: "Phong So",
+                        type: "string",
+                        value: "028.25.04",
+                        page: null,
+                        bbox: null,
+                    },
                 ],
             },
             {
@@ -184,20 +195,58 @@ Deno.test("migrateTt05MetadataLayout moves fond from legacy PHONG group", () => 
         ],
     };
     const migrated = migrateTt05MetadataLayout(raw);
+    const hoSoFields = migrated.metadata_groups.find((group) =>
+        group.group_code === HO_SO_LUU_TRU_GROUP_CODE
+    )?.fields ?? [];
 
     assertEquals(
         migrated.metadata_groups.some((group) => group.group_code === "PHONG_LUU_TRU"),
         false,
     );
     assertEquals(
-        findMetadataFieldValue(
-            migrated.metadata_groups.find((group) =>
-                group.group_code === HO_SO_LUU_TRU_GROUP_CODE
-            )?.fields ?? [],
-            HO_SO_FOND_FIELD,
-        ),
+        findMetadataFieldValue(hoSoFields, HO_SO_FOND_FIELD),
         "Phong legacy",
     );
+    assertEquals(findMetadataFieldValue(hoSoFields, "TEN_PHONG"), "Phong legacy");
+    assertEquals(findMetadataFieldValue(hoSoFields, "MA_PHONG"), "028.25.04");
+});
+
+Deno.test("migrateTt05MetadataLayout keeps MA_PHONG beside FOND on HO_SO", () => {
+    const raw: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: HO_SO_LUU_TRU_GROUP_CODE,
+                group_name: "Ho so",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    {
+                        name: "TEN_PHONG",
+                        display: "Ten phong",
+                        type: "string",
+                        value: "Hoi CCB",
+                        page: null,
+                        bbox: null,
+                    },
+                    {
+                        name: "MA_PHONG",
+                        display: "Phong So",
+                        type: "string",
+                        value: "028.25.04",
+                        page: null,
+                        bbox: null,
+                    },
+                ],
+            },
+        ],
+    };
+    const migrated = migrateTt05MetadataLayout(raw);
+    const hoSoFields = migrated.metadata_groups.find((group) =>
+        group.group_code === HO_SO_LUU_TRU_GROUP_CODE
+    )?.fields ?? [];
+
+    assertEquals(findMetadataFieldValue(hoSoFields, HO_SO_FOND_FIELD), "Hoi CCB");
+    assertEquals(findMetadataFieldValue(hoSoFields, "MA_PHONG"), "028.25.04");
+    assertEquals(findMetadataFieldValue(hoSoFields, "TEN_PHONG"), "Hoi CCB");
 });
 
 Deno.test("hasHoSoFondField identifies presence of Fond field correctly", () => {
@@ -224,4 +273,87 @@ Deno.test("hasHoSoFondField identifies presence of Fond field correctly", () => 
 
     assertEquals(hasHoSoFondField(tt05Meta), true);
     assertEquals(hasHoSoFondField(thiHanhAnMeta), false);
+});
+
+Deno.test("findHoSoFondFieldValue extracts fond from MA_PHONG, TEN_PHONG, or PHONG_LUU_TRU", () => {
+    const maPhongMeta: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: HO_SO_LUU_TRU_GROUP_CODE,
+                group_name: "Ho so",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    { name: "MA_PHONG", display: "Mã phông lưu trữ", type: "string", value: "P00005", page: null, bbox: null },
+                ],
+            },
+        ],
+    };
+    assertEquals(findHoSoFondFieldValue(maPhongMeta), "P00005");
+
+    const tenPhongMeta: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: HO_SO_LUU_TRU_GROUP_CODE,
+                group_name: "Ho so",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    { name: "TEN_PHONG", display: "Tên phông", type: "string", value: "Sở Công Thương", page: null, bbox: null },
+                ],
+            },
+        ],
+    };
+    assertEquals(findHoSoFondFieldValue(tenPhongMeta), "Sở Công Thương");
+
+    const fallbackPhongGroupMeta: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: "PHONG_LUU_TRU",
+                group_name: "Phông lưu trữ",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    { name: "MA_PHONG", display: "Mã phông", type: "string", value: "P00009", page: null, bbox: null },
+                ],
+            },
+        ],
+    };
+    assertEquals(findHoSoFondFieldValue(fallbackPhongGroupMeta), "P00009");
+});
+
+Deno.test("propagateHoSoFondToDocuments applies dossier fond to all documents in metadata", () => {
+    const meta: DossierMetadata = {
+        metadata_groups: [
+            {
+                group_code: HO_SO_LUU_TRU_GROUP_CODE,
+                group_name: "Hồ sơ",
+                source_document: { file_name: null, file_path: null },
+                fields: [
+                    { name: "MA_PHONG", display: "Mã phông", type: "string", value: "P00005", page: null, bbox: null },
+                ],
+            },
+            {
+                group_code: TAI_LIEU_LUU_TRU_GROUP_CODE,
+                group_name: "Tài liệu",
+                source_document: { file_name: "doc1.pdf", file_path: "raw/doc1.pdf" },
+                fields: [
+                    { name: "MA_PHONG", display: "Mã phông", type: "string", value: "", page: null, bbox: null },
+                    { name: "TEN_LOAI_TAI_LIEU", display: "Loại", type: "string", value: "Quyết định", page: null, bbox: null },
+                ],
+            },
+            {
+                group_code: TAI_LIEU_LUU_TRU_GROUP_CODE,
+                group_name: "Tài liệu 2",
+                source_document: { file_name: "doc2.pdf", file_path: "raw/doc2.pdf" },
+                fields: [
+                    { name: "MA_PHONG", display: "Mã phông", type: "string", value: "OLD_VAL", page: null, bbox: null },
+                ],
+            },
+        ],
+    };
+
+    const propagated = propagateHoSoFondToDocuments(meta);
+    const doc1Fond = findMetadataFieldValue(propagated.metadata_groups[1].fields, "MA_PHONG");
+    const doc2Fond = findMetadataFieldValue(propagated.metadata_groups[2].fields, "MA_PHONG");
+
+    assertEquals(doc1Fond, "P00005");
+    assertEquals(doc2Fond, "P00005");
 });

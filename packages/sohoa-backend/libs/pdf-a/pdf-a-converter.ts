@@ -1,5 +1,6 @@
 import * as mupdf from "mupdf";
 import { PDFDocument, PDFName, PDFString } from "pdf-lib";
+import { pdfLooksDigitallySigned } from "../pdf-signature-detect.ts";
 
 export type PdfAConvertOptions = {
   title?: string;
@@ -168,18 +169,32 @@ export async function convertToPdfA(
   return pdfABytes;
 }
 
-export async function convertBatchToPdfA(
-  files: Array<{ fileName: string; data: Uint8Array }>,
+export async function convertBatchToPdfA<
+  T extends { fileName: string; data: Uint8Array; preserveSignature?: boolean },
+>(
+  files: T[],
   options: PdfAConvertOptions = {},
-): Promise<Array<{ fileName: string; data: Uint8Array }>> {
-  const results: Array<{ fileName: string; data: Uint8Array }> = [];
+): Promise<T[]> {
+  const results: T[] = [];
   for (const file of files) {
+    const looksSigned =
+      file.preserveSignature === true ||
+      (file.fileName.toLowerCase().endsWith(".pdf") &&
+        pdfLooksDigitallySigned(file.data));
+
+    if (looksSigned) {
+      if (!file.preserveSignature) {
+        file.preserveSignature = true;
+      }
+      results.push(file);
+      continue;
+    }
     if (file.fileName.toLowerCase().endsWith(".pdf")) {
       const pdfABytes = await convertToPdfA(file.data, {
         ...options,
         title: file.fileName,
       });
-      results.push({ fileName: file.fileName, data: pdfABytes });
+      results.push({ ...file, data: pdfABytes });
     } else {
       results.push(file);
     }

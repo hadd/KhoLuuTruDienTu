@@ -36,6 +36,10 @@ export const revokeByFolderFromGroupBodySchema = t.Object({
     folderIds: t.Array(t.String({ format: "uuid" }), { minItems: 1 }),
 });
 
+export const revokeByMemberFromGroupBodySchema = t.Object({
+    userId: t.String({ format: "uuid" }),
+});
+
 export const syncQcWorkflowBodySchema = t.Object({
     folderId: t.Optional(t.String({ format: "uuid" })),
 });
@@ -59,4 +63,10 @@ export const groupListQuerySchema = t.Object({
     limit: t.Optional(t.Integer({ minimum: 1, maximum: 100, default: 10 })),
     search: t.Optional(t.String({ maxLength: 255 })),
     projectCode: t.Optional(t.String({ minLength: 1, maxLength: 50 })),
+});
+
+export const memberAssignmentsQuerySchema = t.Object({
+    userId: t.String({ format: "uuid" }),
+    kind: t.Union([t.Literal("editor"), t.Literal("checker")]),
+    level: t.Optional(t.Integer({ minimum: 1, maximum: 5 })),
 });
