@@ -1,5 +1,6 @@
 import { assertEquals } from "@std/assert";
 import {
+    deriveDossierLookupFromDocJsonPath,
     deriveFolderPathFromProcessedKey,
     deriveHoSoIdFromProcessedKey,
     expandKeysWithDocJsonMirrors,
@@ -113,6 +114,41 @@ Deno.test("deriveFolderPathFromProcessedKey maps tt05_metadata json to raw folde
             "tt05_metadata/batch-1/ho-so-123/ho-so-123.json",
         ),
         "ho-so-123",
+    );
+});
+
+Deno.test("deriveDossierLookupFromDocJsonPath maps flat merge json to leaf folder", () => {
+    assertEquals(
+        deriveDossierLookupFromDocJsonPath("doc_json/028.23.01/01/0006/0048_12.json"),
+        {
+            dossierName: "0048_12",
+            folderPaths: [
+                "raw/028.23.01/01/0006/0048_12",
+                "raw/028.23.01/01/0006",
+            ],
+        },
+    );
+});
+
+Deno.test("deriveDossierLookupFromDocJsonPath maps nested json to dossier folder", () => {
+    assertEquals(
+        deriveDossierLookupFromDocJsonPath(
+            "doc_json/batch-1/ho-so-123/ho-so-123.json",
+        ),
+        {
+            dossierName: "ho-so-123",
+            folderPaths: [
+                "raw/batch-1/ho-so-123/ho-so-123",
+                "raw/batch-1/ho-so-123",
+            ],
+        },
+    );
+});
+
+Deno.test("deriveDossierLookupFromDocJsonPath ignores non-doc_json keys", () => {
+    assertEquals(
+        deriveDossierLookupFromDocJsonPath("processed/batch-1/ho-so-123/ho-so-123.json"),
+        null,
     );
 });
 
