@@ -76,8 +76,10 @@ import type {
   AdminDashboardEmployeeKpiT,
   AdminDashboardT,
 } from '@/features/admin-dashboard/types'
-import { DASHBOARD_ADMIN_SUB_PERMISSIONS } from '@/features/permissions/lib/dashboardAccess'
-import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
+import {
+  DASHBOARD_ADMIN_SUB_PERMISSIONS,
+  isDashboardSectionVisible,
+} from '@/features/permissions/lib/dashboardAccess'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { formatDate } from '@/lib/utils/date'
 import { formatNumber } from '@/lib/utils/format'
@@ -126,9 +128,12 @@ type AdminDashboardPageProps = {
   roleChart: AdminRoleChartTypeT
   dossierTrendGranularity: AdminDashboardDossierTrendGranularityT
   permissions?: Array<string>
+  hidden?: Array<string>
   groupId?: string
   onKpiDateRangeChange?: (dateFrom?: string, dateTo?: string) => void
   onTrendDateRangeChange?: (dateFrom?: string, dateTo?: string) => void
+  embedInGroup?: boolean
+  sectionGroups?: Array<'overview' | 'team'>
 }
 
 type ChartDatumT = {
@@ -192,9 +197,12 @@ export function AdminDashboardPage({
   roleChart,
   dossierTrendGranularity,
   permissions = [],
+  hidden = [],
   groupId,
   onKpiDateRangeChange,
   onTrendDateRangeChange,
+  embedInGroup = false,
+  sectionGroups = ['overview', 'team'],
 }: AdminDashboardPageProps) {
   const { t } = useTranslation('admin-dashboard')
   const language = useCurrentLanguage()
@@ -217,41 +225,58 @@ export function AdminDashboardPage({
     setHasInitializedTrendPeriod(true)
   }, [hasInitializedTrendPeriod, onTrendDateRangeChange])
 
-  const canViewSummary = isPermissionGranted(
-    permissions,
-    DASHBOARD_ADMIN_SUB_PERMISSIONS.summary,
-    'dashboard',
-  )
-  const canViewDossierStatus = isPermissionGranted(
-    permissions,
-    DASHBOARD_ADMIN_SUB_PERMISSIONS.dossierStatusChart,
-    'dashboard',
-  )
-  const canViewProjectStatus = isPermissionGranted(
-    permissions,
-    DASHBOARD_ADMIN_SUB_PERMISSIONS.projectStatusChart,
-    'dashboard',
-  )
-  const canViewDossierTrend = isPermissionGranted(
-    permissions,
-    DASHBOARD_ADMIN_SUB_PERMISSIONS.dossierTrendChart,
-    'dashboard',
-  )
-  const canViewSystemPerformance = isPermissionGranted(
-    permissions,
-    DASHBOARD_ADMIN_SUB_PERMISSIONS.systemPerformance,
-    'dashboard',
-  )
-  const canViewEmployeeKpis = isPermissionGranted(
-    permissions,
-    DASHBOARD_ADMIN_SUB_PERMISSIONS.employeeKpis,
-    'dashboard',
-  )
-  const canViewGroupPerformance = isPermissionGranted(
-    permissions,
-    DASHBOARD_ADMIN_SUB_PERMISSIONS.groupPerformanceChart,
-    'dashboard',
-  )
+  const showOverview = sectionGroups.includes('overview')
+  const showTeam = sectionGroups.includes('team')
+
+  const canViewSummary =
+    showOverview &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_ADMIN_SUB_PERMISSIONS.summary,
+    )
+  const canViewDossierStatus =
+    showOverview &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_ADMIN_SUB_PERMISSIONS.dossierStatusChart,
+    )
+  const canViewProjectStatus =
+    showOverview &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_ADMIN_SUB_PERMISSIONS.projectStatusChart,
+    )
+  const canViewDossierTrend =
+    showOverview &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_ADMIN_SUB_PERMISSIONS.dossierTrendChart,
+    )
+  const canViewSystemPerformance =
+    showOverview &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_ADMIN_SUB_PERMISSIONS.systemPerformance,
+    )
+  const canViewEmployeeKpis =
+    showTeam &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_ADMIN_SUB_PERMISSIONS.employeeKpis,
+    )
+  const canViewGroupPerformance =
+    showTeam &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_ADMIN_SUB_PERMISSIONS.groupPerformanceChart,
+    )
 
   const hasAnySubSectionPermission =
     canViewSummary ||
@@ -398,12 +423,14 @@ export function AdminDashboardPage({
 
   return (
     <div className="flex min-w-0 w-full flex-1 flex-col gap-6 overflow-x-hidden">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+      {!embedInGroup ? (
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
+        </div>
+      ) : null}
 
-      {!hasAnySubSectionPermission ? (
+      {!hasAnySubSectionPermission && !embedInGroup ? (
         <div className="flex flex-1 items-center justify-center py-16 text-center border rounded-lg bg-card p-8">
           <div className="max-w-md space-y-2">
             <h3 className="text-lg font-semibold text-foreground">

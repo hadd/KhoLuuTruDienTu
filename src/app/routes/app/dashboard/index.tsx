@@ -1,33 +1,28 @@
-// @/features/dashboard/routes/index.tsx (Hoặc tệp tin cấu hình tuyến đường dashboard chính của bạn)
-
-import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, getRouteApi } from '@tanstack/react-router'
-import { LayoutDashboard, Loader2, Warehouse } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react' // Thêm useEffect và useMemo
+import { LayoutDashboard, Warehouse } from 'lucide-react'
+import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { AdminRoleChartTypeT } from '@/features/admin-dashboard/components/AdminDashboardPage'
-import { AdminDashboardPage } from '@/features/admin-dashboard/components/AdminDashboardPage'
-import {
-  adminDashboardOverviewQueryOptions,
-  adminDossierChartQueryOptions,
-  adminEmployeeKpisQueryOptions,
-} from '@/features/admin-dashboard/queries'
 import type { AdminDashboardDossierTrendGranularityT } from '@/features/admin-dashboard/types'
+import { adminDashboardQueryOptions } from '@/features/admin-dashboard/queries'
 import { loadPermissionContext } from '@/features/auth/lib/permission-access'
 import { requirePermission } from '@/features/auth/routeGuards'
-import { EditorDashboardPage } from '@/features/editor-dashboard/components/EditorDashboardPage'
+import { ModularOverviewDashboard } from '@/features/dashboard/components/ModularOverviewDashboard'
 import { editorDashboardQueryOptions } from '@/features/editor-dashboard/queries'
 import type { EditorDashboardPeriodT } from '@/features/editor-dashboard/types'
 import {
   DASHBOARD_SCREEN_REQUIREMENTS,
-  resolveDashboardVariant,
+  hasAnyWarehouseDashboardSection,
+  hasOverviewTabAccess,
+  needsAdminDashboardData,
+  needsEditorDashboardData,
+  needsQcDashboardData,
+  needsQcGroupDashboardData,
 } from '@/features/permissions/lib/dashboardAccess'
-import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
-import { QcDashboardPage } from '@/features/qc-dashboard/components/QcDashboardPage'
 import { isQcGroupLeaderOnlyError } from '@/features/qc-dashboard/lib/loadErrors'
 import {
   qcDashboardGroupQueryOptions,
@@ -53,7 +48,7 @@ const dashboardSearchSchema = z.object({
     .enum(['7d', '30d', '90d', '12m'])
     .optional()
     .catch('30d' satisfies EditorDashboardPeriodT),
-  intakeGranularity: z // Bổ sung cấu hình search param để đồng bộ hóa granular biểu đồ kho
+  intakeGranularity: z
     .enum(['day', 'month'])
     .optional()
     .catch('month' satisfies WarehouseDashboardIntakeGranularityT),
@@ -62,22 +57,20 @@ const dashboardSearchSchema = z.object({
 
 export type DashboardSearchT = z.infer<typeof dashboardSearchSchema>
 
-// Helper kiểm tra quyền kho và xác định priority cho Overview
-function checkDashboardPermissions(permissions: Array<string>) {
-  const variant = resolveDashboardVariant(permissions)
-  const hasWarehouse = isPermissionGranted(permissions, 'dashboard.warehouse', 'dashboard')
-
-  const hasOverviewAccess =
-    variant === 'admin' || variant === 'qc' || variant === 'editor'
-
-  const overviewVariant: 'admin' | 'qc' | 'editor' =
-    hasOverviewAccess && variant ? variant : 'editor'
+function checkDashboardTabs(
+  permissions: Array<string>,
+  hidden: Array<string>,
+) {
+  const hasOverviewAccess = hasOverviewTabAccess(permissions, hidden)
+  const hasWarehouseAccess = hasAnyWarehouseDashboardSection(
+    permissions,
+    hidden,
+  )
 
   return {
-    overviewVariant,
     hasOverviewAccess,
-    hasWarehouseAccess: hasWarehouse,
-    isWarehouseOnly: hasWarehouse && !hasOverviewAccess,
+    hasWarehouseAccess,
+    isWarehouseOnly: hasWarehouseAccess && !hasOverviewAccess,
   }
 }
 
@@ -100,33 +93,42 @@ export const Route = createFileRoute('/app/dashboard/')({
   }),
   loader: async ({ context, location }) => {
     const search = dashboardSearchSchema.parse(location.search)
-    const { permissions } = await loadPermissionContext(context.queryClient)
-    const permInfo = checkDashboardPermissions(permissions)
+    const { permissions, hidden } = await loadPermissionContext(
+      context.queryClient,
+    )
+    const permInfo = checkDashboardTabs(permissions, hidden)
 
     const targetTab = permInfo.isWarehouseOnly ? 'warehouse' : search.tab ?? 'overview'
 
-    // Prefetch in background so route paint is not blocked by slow public-IP / heavy stats.
     try {
       if (targetTab === 'warehouse' && permInfo.hasWarehouseAccess) {
-        void context.queryClient.prefetchQuery(
-          warehouseDashboardQueries.warehouseStats(search.intakeGranularity ?? 'month'),
+        await context.queryClient.ensureQueryData(
+          warehouseDashboardQueries.warehouseStats(
+            search.intakeGranularity ?? 'month',
+          ),
         )
       } else if (permInfo.hasOverviewAccess) {
-        if (permInfo.overviewVariant === 'admin') {
-          void context.queryClient.prefetchQuery(
-            adminDashboardOverviewQueryOptions(),
+        if (needsAdminDashboardData(permissions, hidden)) {
+          await context.queryClient.ensureQueryData(
+            adminDashboardQueryOptions(
+              search.dossierTrendGranularity ?? 'month',
+            ),
           )
-        } else if (permInfo.overviewVariant === 'qc') {
-          void context.queryClient.prefetchQuery(qcDashboardQueryOptions())
-          void context.queryClient
-            .prefetchQuery(qcDashboardGroupQueryOptions())
-            .catch((error) => {
-              if (!isQcGroupLeaderOnlyError(error)) {
-                console.warn('Dashboard QC group prefetch failed safely:', error)
-              }
-            })
-        } else if (permInfo.overviewVariant === 'editor') {
-          void context.queryClient.prefetchQuery(
+        }
+        if (needsQcDashboardData(permissions, hidden)) {
+          await context.queryClient.ensureQueryData(qcDashboardQueryOptions())
+        }
+        if (needsQcGroupDashboardData(permissions, hidden)) {
+          try {
+            await context.queryClient.ensureQueryData(
+              qcDashboardGroupQueryOptions(),
+            )
+          } catch (error) {
+            if (!isQcGroupLeaderOnlyError(error)) throw error
+          }
+        }
+        if (needsEditorDashboardData(permissions, hidden)) {
+          await context.queryClient.ensureQueryData(
             editorDashboardQueryOptions(search.period ?? '30d'),
           )
         }
@@ -135,26 +137,26 @@ export const Route = createFileRoute('/app/dashboard/')({
       console.warn('Dashboard prefetching failed safely:', error)
     }
 
-    return { permissions }
+    return { permissions, hidden }
   },
   component: DashboardRoute,
   errorComponent: DashboardErrorComponent,
 })
 
 function DashboardRoute() {
-  const { permissions } = Route.useLoaderData()
+  const { permissions, hidden } = Route.useLoaderData()
   const navigate = routeApi.useNavigate()
-  const { tab, roleChart, dossierTrendGranularity, period, groupId } = routeApi.useSearch()
+  const { tab, roleChart, dossierTrendGranularity, period, groupId } =
+    routeApi.useSearch()
 
-  const { overviewVariant, hasOverviewAccess, hasWarehouseAccess, isWarehouseOnly } = useMemo(
-    () => checkDashboardPermissions(permissions),
-    [permissions],
+  const { hasOverviewAccess, hasWarehouseAccess, isWarehouseOnly } = useMemo(
+    () => checkDashboardTabs(permissions, hidden),
+    [permissions, hidden],
   )
 
   const activeTab = isWarehouseOnly ? 'warehouse' : (tab ?? 'overview')
   const showTabSelector = hasOverviewAccess && hasWarehouseAccess
 
-  // Đồng bộ param tab lên URL nếu người dùng chỉ có duy nhất quyền kho
   useEffect(() => {
     if (isWarehouseOnly && tab !== 'warehouse') {
       void navigate({
@@ -166,7 +168,6 @@ function DashboardRoute() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 w-full h-full min-h-0">
-      {/* Header đồng bộ có chuyển Tab */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-3 shrink-0">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground">
@@ -199,7 +200,10 @@ function DashboardRoute() {
                 <LayoutDashboard className="size-3.5" />
                 <span>Tổng Quan Hệ Thống</span>
               </TabsTrigger>
-              <TabsTrigger value="warehouse" className="h-7 text-xs gap-1.5 px-3">
+              <TabsTrigger
+                value="warehouse"
+                className="h-7 text-xs gap-1.5 px-3"
+              >
                 <Warehouse className="size-3.5" />
                 <span>Dashboard Kho</span>
               </TabsTrigger>
@@ -208,119 +212,18 @@ function DashboardRoute() {
         ) : null}
       </div>
 
-      {/* Nội dung Dashboard */}
       {activeTab === 'warehouse' ? (
-        <WarehouseDashboard />
-      ) : overviewVariant === 'admin' ? (
-        <AdminDashboardContent
+        <WarehouseDashboard permissions={permissions} hidden={hidden} />
+      ) : (
+        <ModularOverviewDashboard
+          permissions={permissions}
+          hidden={hidden}
+          period={period ?? '30d'}
           roleChart={roleChart ?? 'pie'}
           dossierTrendGranularity={dossierTrendGranularity ?? 'month'}
-          permissions={permissions}
           groupId={groupId}
         />
-      ) : overviewVariant === 'qc' ? (
-        <QcDashboardContent />
-      ) : (
-        <EditorDashboardContent period={period ?? '30d'} />
       )}
-    </div>
-  )
-}
-
-
-function EditorDashboardContent({
-  period,
-}: {
-  period: EditorDashboardPeriodT
-}) {
-  const { data, isLoading } = useQuery(editorDashboardQueryOptions(period))
-
-  if (isLoading || !data) {
-    return <DashboardLoadingState />
-  }
-
-  return <EditorDashboardPage data={data} period={period} />
-}
-
-function AdminDashboardContent({
-  roleChart,
-  dossierTrendGranularity,
-  permissions,
-  groupId,
-}: {
-  roleChart: AdminRoleChartTypeT
-  dossierTrendGranularity: AdminDashboardDossierTrendGranularityT
-  permissions: Array<string>
-  groupId?: string
-}) {
-  const [kpiDateRange, setKpiDateRange] = useState<{
-    dateFrom?: string
-    dateTo?: string
-  }>({})
-  const [trendDateRange, setTrendDateRange] = useState<{
-    dateFrom?: string
-    dateTo?: string
-  }>({})
-
-  const overviewQuery = useQuery(adminDashboardOverviewQueryOptions())
-  const kpiQuery = useQuery(
-    adminEmployeeKpisQueryOptions(kpiDateRange.dateFrom, kpiDateRange.dateTo),
-  )
-  const chartQuery = useQuery(
-    adminDossierChartQueryOptions(
-      dossierTrendGranularity,
-      trendDateRange.dateFrom,
-      trendDateRange.dateTo,
-    ),
-  )
-
-  if (overviewQuery.isLoading || !overviewQuery.data) {
-    return <DashboardLoadingState />
-  }
-
-  return (
-    <AdminDashboardPage
-      data={overviewQuery.data}
-      employeeKpis={kpiQuery.data ?? []}
-      isEmployeeKpisLoading={kpiQuery.isFetching}
-      dossierChart={chartQuery.data ?? overviewQuery.data.dossierChart}
-      isDossierChartLoading={chartQuery.isFetching}
-      roleChart={roleChart}
-      dossierTrendGranularity={dossierTrendGranularity}
-      permissions={permissions}
-      groupId={groupId}
-      onKpiDateRangeChange={(dateFrom, dateTo) =>
-        setKpiDateRange({ dateFrom, dateTo })
-      }
-      onTrendDateRangeChange={(dateFrom, dateTo) =>
-        setTrendDateRange({ dateFrom, dateTo })
-      }
-    />
-  )
-}
-
-function QcDashboardContent() {
-  const overviewQuery = useQuery(qcDashboardQueryOptions())
-  const groupQuery = useQuery(qcDashboardGroupQueryOptions())
-
-  if (overviewQuery.isLoading || !overviewQuery.data) {
-    return <DashboardLoadingState />
-  }
-
-  return (
-    <QcDashboardPage
-      overview={overviewQuery.data}
-      group={groupQuery.data}
-      groupError={groupQuery.error}
-      isGroupLoading={groupQuery.isLoading}
-    />
-  )
-}
-
-function DashboardLoadingState() {
-  return (
-    <div className="flex flex-1 items-center justify-center py-24">
-      <Loader2 className="size-8 animate-spin text-muted-foreground" />
     </div>
   )
 }
