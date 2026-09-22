@@ -59,14 +59,17 @@ import {
 import { isNoAssignedDossierError } from '@/features/data-management/lib/loadErrors'
 import {
   collectOcrRoomIdsFromTree,
+  collectBatchExportSelectableIds,
   filterTreeExcludeArchived,
   filterTreeForSearch,
   findDescendantDossierTarget,
   findNodeByDossierId,
   findNodeById,
   findRecordParentForDocument,
+  getBatchExportCheckState,
   getPathToNode,
   isBatchSignSelectableNode,
+  isBatchExportDossierLeafNode,
   isBatchExportSelectableNode,
   isDossierWorkflowNode,
   isNodeForDossier,
@@ -274,16 +277,16 @@ export function DataManagementPage({
 
   const selectedDossierIds = useMemo(() => {
     if (!tree) return [] as Array<string>
-    return selectedRecordIds
+    const ids = selectedRecordIds
       .map((id) => findNodeById(tree, id))
-      .filter(
-        (node): node is DataTreeNodeT =>
-          Boolean(node) &&
-          (batchSignMode
-            ? isBatchSignSelectableNode(node)
-            : isBatchExportSelectableNode(node)),
-      )
+      .filter((node): node is DataTreeNodeT => {
+        if (!node) return false
+        if (batchSignMode) return isBatchSignSelectableNode(node)
+        if (batchExportMode) return isBatchExportDossierLeafNode(node)
+        return false
+      })
       .map((node) => node.dossierId ?? node.id)
+    return [...new Set(ids)]
   }, [selectedRecordIds, tree, batchSignMode, batchExportMode])
 
   const handleOcrTerminalComplete = useCallback(
@@ -506,6 +509,52 @@ export function DataManagementPage({
       ? { nodeId: loadNodeId, refresh: true }
       : loadNodeId
     return loadChildrenMutation.mutateAsync(input).then((result) => result.tree)
+  }
+
+  async function ensureBatchExportSubtreeLoaded(
+    rootId: string,
+    startTree: DataTreeNodeT,
+  ): Promise<DataTreeNodeT> {
+    let currentTree = startTree
+    const queue = [rootId]
+    const visited = new Set<string>()
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!
+      if (visited.has(currentId)) continue
+      visited.add(currentId)
+
+      const node = findNodeById(currentTree, currentId)
+      if (!node || node.type === 'document') continue
+
+      const needsLoad =
+        !isNodeChildrenCached(currentId) ||
+        (node.type === 'folder' &&
+          isDossierWorkflowNode(node) &&
+          node.children.length === 0) ||
+        (node.type === 'record' && !node.dossierMetadata)
+
+      if (needsLoad) {
+        currentTree = await loadNodeTree(
+          currentId,
+          node.type === 'folder' &&
+            isDossierWorkflowNode(node) &&
+            node.children.length === 0
+            ? { refresh: true }
+            : undefined,
+        )
+      }
+
+      const updated = findNodeById(currentTree, currentId)
+      if (!updated) continue
+      for (const child of updated.children) {
+        if (child.type !== 'document') {
+          queue.push(child.id)
+        }
+      }
+    }
+
+    return currentTree
   }
 
   function handleSearchInput(raw: string) {
@@ -876,6 +925,32 @@ export function DataManagementPage({
             ? isBatchSignSelectableNode(targetNode)
             : isBatchExportSelectableNode(targetNode))
         ) {
+          if (batchExportMode) {
+            workingTree = await ensureBatchExportSubtreeLoaded(
+              id,
+              workingTree,
+            )
+            const loadedNode = findNodeById(workingTree, id)
+            if (!loadedNode || !isBatchExportSelectableNode(loadedNode)) {
+              return
+            }
+            const cascadeIds = collectBatchExportSelectableIds(loadedNode)
+            if (cascadeIds.length === 0) return
+            setSelectedRecordIds((prev) => {
+              const selectedSet = new Set(prev)
+              const allSelected = cascadeIds.every((cascadeId) =>
+                selectedSet.has(cascadeId),
+              )
+              if (allSelected) {
+                return prev.filter(
+                  (recordId) => !cascadeIds.includes(recordId),
+                )
+              }
+              return [...new Set([...prev, ...cascadeIds])]
+            })
+            return
+          }
+
           setSelectedRecordIds((prev) =>
             prev.includes(id)
               ? prev.filter((recordId) => recordId !== id)
@@ -1241,6 +1316,12 @@ export function DataManagementPage({
                     : batchExportMode
                       ? isBatchExportSelectableNode
                       : undefined
+                }
+                getMultiSelectCheckedState={
+                  batchExportMode
+                    ? (node) =>
+                        getBatchExportCheckState(node, selectedRecordIds)
+                    : undefined
                 }
                 expandPathToNodeIds={treeExpandToNodeIds}
                 onExpandPathApplied={() => setTreeExpandToNodeIds([])}
