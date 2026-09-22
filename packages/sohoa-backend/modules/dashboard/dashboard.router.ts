@@ -1,7 +1,11 @@
 import { Elysia } from "elysia";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
-import { Permission } from "../auth/permission-catalog.ts";
+import {
+    DASHBOARD_PERSONAL_EDITOR_PERMISSIONS,
+    DASHBOARD_PERSONAL_QC_PERMISSIONS,
+    Permission,
+} from "../auth/permission-catalog.ts";
 import { DashboardService as service } from "./dashboard-service.ts";
 import {
     editorDashboardResponseSchema,
@@ -22,6 +26,8 @@ export function createDashboardRouter(basePath: string = "/dashboard") {
         async ({ profile }) => {
             authHelper.checkPermissionAny(profile, [
                 Permission.DASHBOARD_EDITOR,
+                Permission.DASHBOARD_PERSONAL,
+                ...DASHBOARD_PERSONAL_EDITOR_PERMISSIONS,
                 Permission.DATA_ENTRY_MAKER,
             ]);
             return await service.getEditorStats(profile.id);
@@ -42,6 +48,8 @@ export function createDashboardRouter(basePath: string = "/dashboard") {
         async ({ profile }) => {
             authHelper.checkPermissionAny(profile, [
                 Permission.DASHBOARD_QC,
+                Permission.DASHBOARD_PERSONAL,
+                ...DASHBOARD_PERSONAL_QC_PERMISSIONS,
                 Permission.DATA_ENTRY_CHECKER,
             ]);
             return await service.getQcStats(profile.id);
@@ -62,6 +70,8 @@ export function createDashboardRouter(basePath: string = "/dashboard") {
         async ({ profile }) => {
             authHelper.checkPermissionAny(profile, [
                 Permission.DASHBOARD_QC,
+                Permission.DASHBOARD_TEAM,
+                Permission.DASHBOARD_TEAM_QC_GROUP,
                 Permission.DATA_ENTRY_CHECKER,
             ]);
             return await service.getQcGroupStats(profile.id);

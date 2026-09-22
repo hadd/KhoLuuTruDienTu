@@ -22,7 +22,7 @@ export interface CreateRoleInput {
     description?: string;
 }
 
-const EMPTY_ROLE_RULES: RoleRules = { permissions: [], restrictions: [] };
+const EMPTY_ROLE_RULES: RoleRules = { permissions: [], restrictions: [], hidden: [] };
 
 export interface UpdateRoleInput {
     name?: string;
@@ -125,14 +125,21 @@ export const RoleService = {
             catalog = catalog.filter(c => !userHiddenPermissions.includes(c.key));
             
             const visiblePermissions = rules.permissions.filter(p => {
+                // Keep wildcards / unknown patterns (e.g. "*") — only filter known catalog keys.
+                if (p === "*" || p.endsWith(".*")) return true;
                 const def = PERMISSION_CATALOG.find(c => c.key === p);
                 return def ? !userHiddenPermissions.includes(def.key) : true;
             });
             const visibleRestrictions = rules.restrictions.filter(p => {
+                if (p === "*" || p.endsWith(".*")) return true;
                 const def = PERMISSION_CATALOG.find(c => c.key === p);
                 return def ? !userHiddenPermissions.includes(def.key) : true;
             });
-            rules = { permissions: visiblePermissions, restrictions: visibleRestrictions };
+            rules = {
+                permissions: visiblePermissions,
+                restrictions: visibleRestrictions,
+                hidden: rules.hidden,
+            };
         }
 
         return {
@@ -146,9 +153,6 @@ export const RoleService = {
     },
 
     async updatePermissions(roleId: string, input: { permissions: string[]; restrictions: string[]; hiddenPermissions?: string[] }, profile: UserWithRoles) {
-        const rules = { permissions: input.permissions, restrictions: input.restrictions };
-        assertValidRules(rules);
-
         const existing = await db.query.roles.findFirst({
             where: and(eq(roles.id, roleId), isNull(roles.deletedAt)),
             columns: { id: true, rules: true, hiddenPermissions: true },
@@ -157,11 +161,27 @@ export const RoleService = {
             throw httpError.notFound(`Role "${roleId}" not found`);
         }
 
+        const existingParsed = parseRoleRules(existing.rules);
+        // Preserve rules.hidden — only editable via DB, never wiped by permission UI saves.
+        const rules: RoleRules = {
+            permissions: input.permissions,
+            restrictions: input.restrictions,
+            hidden: existingParsed.hidden,
+        };
+
+        // Never allow wiping the system admin role to zero permissions (accidental UI/DB save).
+        if (roleId === AuthRole.ADMIN && rules.permissions.length === 0) {
+            throw httpError.badRequest(
+                'Cannot clear all permissions on the admin role. Keep "*" or at least one permission.',
+            );
+        }
+
+        assertValidRules(rules);
+
         const isAdmin = authHelper.isAdmin(profile);
         const userHiddenPermissions = authHelper.getHiddenPermissions(profile);
 
         let nextRules = rules;
-        let nextHiddenPermissions = input.hiddenPermissions ?? (existing.hiddenPermissions ? JSON.parse(existing.hiddenPermissions) : []);
         
         if (!isAdmin && userHiddenPermissions.length > 0) {
             const checkHidden = (perms: string[]) => {
@@ -175,7 +195,6 @@ export const RoleService = {
             checkHidden(rules.permissions);
             checkHidden(rules.restrictions);
 
-            const existingParsed = parseRoleRules(existing.rules);
             const preservedPermissions = existingParsed.permissions.filter(p => {
                 const def = PERMISSION_CATALOG.find(c => c.key === p);
                 return def ? userHiddenPermissions.includes(def.key) : false;
@@ -188,6 +207,7 @@ export const RoleService = {
             nextRules = {
                 permissions: [...new Set([...rules.permissions, ...preservedPermissions])],
                 restrictions: [...new Set([...rules.restrictions, ...preservedRestrictions])],
+                hidden: existingParsed.hidden,
             };
         }
 
@@ -241,7 +261,13 @@ export const RoleService = {
             throw httpError.notFound(`Role "${roleId}" not found`);
         }
 
-        const nextRules = input.rules ?? parseRoleRules(existing.rules);
+        const nextRules = input.rules
+            ? {
+                permissions: input.rules.permissions,
+                restrictions: input.rules.restrictions,
+                hidden: input.rules.hidden ?? parseRoleRules(existing.rules).hidden,
+            }
+            : parseRoleRules(existing.rules);
         if (input.rules) {
             assertValidRules(nextRules);
         }
