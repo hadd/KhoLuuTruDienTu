@@ -107,6 +107,7 @@ import {
   resolveMetadataJsonKey,
   uploadJsonToStorage,
 } from "../data-entry/data-entry-s3-utils.ts";
+import { loadDossierMetadataJsonFromStorage } from "../data-entry/load-dossier-metadata-json.ts";
 import {
   deleteDossierDraftMetadata,
   saveMetadataDraft as persistMetadataDraft,
@@ -1542,8 +1543,14 @@ async function buildApprovedMetadataExportZip(
 }
 
 async function loadDossierMetadataFromStorage(dossier: DossierWithFiles) {
-  const metadataKey = resolveMetadataJsonKey(dossier.currentMetadataKey!);
-  const rawMetadata = await downloadJsonFromStorage(metadataKey);
+  const rawMetadata = await loadDossierMetadataJsonFromStorage(
+    {
+      dossierName: dossier.name,
+      currentMetadataKey: dossier.currentMetadataKey,
+      ocrMetadataKey: dossier.ocrMetadataKey,
+    },
+    downloadJsonFromStorage,
+  );
   const metadata = parseDossierMetadata(rawMetadata);
 
   if (!metadata) {
