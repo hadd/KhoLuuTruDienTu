@@ -5,8 +5,8 @@ export type PdfTiffConvertOptions = {
   jpegQuality?: number;
 };
 
-const DEFAULT_DPI = 150;
-const DEFAULT_JPEG_QUALITY = 85;
+const DEFAULT_DPI = 300;
+const DEFAULT_JPEG_QUALITY = 95;
 
 type JpegTiffPage = {
   width: number;

@@ -245,71 +245,74 @@ export function createS3Client(options: S3ClientOptions) {
         },
 
         // List files in S3 bucket.
-        // Use ListObjectsV2 with small page size: minio-js hardcodes MaxKeys=1000 on
-        // listObjects()/listObjectsV2(), and fast-xml-parser's default entity-expansion
-        // limit (1000) is exceeded once ~500+ objects (ETag &quot;…&quot; ≈ 2 entities each).
+        //
+        // Uses listObjectsV2Query with a small page size instead of listObjects
+        // (MaxKeys=1000). MinIO's fast-xml-parser defaults to a 1000 entity-
+        // expansion limit; a full 1000-key page with &quot; ETags / encoded keys
+        // exceeds that and throws "Entity expansion limit exceeded", often as
+        // an uncaught exception on Deno. Page size 100 stays well under the
+        // limit while preserving the public listFiles API.
         async listFiles(params: ListParams): Promise<ListResult> {
             const prefix = resolvePrefix(params);
             const maxKeys = params.maxKeys || 1000;
-            // Keep well under fast-xml-parser maxTotalExpansions=1000 (~2 entities/object).
-            const pageSize = Math.min(250, maxKeys);
+            const pageSize = 100;
 
+            type ListedObject = {
+                name?: string;
+                prefix?: string;
+                size?: number;
+                lastModified?: Date;
+                etag?: string;
+                metaData?: Record<string, string>;
+            };
             type ListPage = {
-                objects: Array<{
-                    name?: string;
-                    prefix?: string;
-                    size?: number;
-                    lastModified?: Date;
-                    etag?: string;
-                    metaData?: Record<string, string>;
-                }>;
-                isTruncated?: boolean;
+                objects: ListedObject[];
+                isTruncated: boolean;
                 nextContinuationToken?: string;
             };
 
-            // listObjectsV2Query exists on the MinIO Client at runtime but is not
-            // declared in minio@7.1.x .d.ts (only listObjects / listObjectsV2 are).
-            const listV2Query = (
-                minioClient as typeof minioClient & {
-                    listObjectsV2Query: (
-                        bucketName: string,
-                        prefix: string,
-                        continuationToken: string,
-                        delimiter: string,
-                        maxKeys: number,
-                        startAfter: string,
-                    ) => {
-                        on(
-                            event: "data",
-                            listener: (result: ListPage) => void,
-                        ): unknown;
-                        on(
-                            event: "error",
-                            listener: (error: unknown) => void,
-                        ): unknown;
-                        on(event: "end", listener: () => void): unknown;
-                    };
-                }
-            ).listObjectsV2Query.bind(minioClient);
-
             const fetchPage = (
                 continuationToken: string,
+                pageMaxKeys: number,
             ): Promise<ListPage> =>
-                new Promise((resolve, reject) => {
-                    // recursive listing → empty delimiter
-                    const stream = listV2Query(
+                new Promise<ListPage>((resolve, reject) => {
+                    // listObjectsV2Query is public on the MinIO Client but not
+                    // always present in the published TypeScript typings.
+                    type ListStream = {
+                        on(
+                            event: string,
+                            listener: (...args: unknown[]) => void,
+                        ): ListStream;
+                        destroy?: () => void;
+                    };
+                    const stream = (minioClient as typeof minioClient & {
+                        listObjectsV2Query: (
+                            bucketName: string,
+                            prefix: string,
+                            continuationToken: string,
+                            delimiter: string,
+                            maxKeys: number,
+                            startAfter: string,
+                        ) => ListStream;
+                    }).listObjectsV2Query(
                         params.bucket,
                         prefix,
                         continuationToken,
-                        "",
-                        pageSize,
+                        "", // recursive listing
+                        pageMaxKeys,
                         "",
                     );
 
                     let settled = false;
+
                     const fail = (error: unknown) => {
                         if (settled) return;
                         settled = true;
+                        try {
+                            stream.destroy?.();
+                        } catch {
+                            // ignore destroy errors
+                        }
                         if (error instanceof S3Error) {
                             reject(error);
                             return;
@@ -326,34 +329,52 @@ export function createS3Client(options: S3ClientOptions) {
                         );
                     };
 
-                    stream.on("data", (result: ListPage) => {
+                    const done = (result: ListPage) => {
                         if (settled) return;
                         settled = true;
+                        try {
+                            stream.destroy?.();
+                        } catch {
+                            // ignore destroy errors
+                        }
                         resolve(result);
-                    });
+                    };
+
+                    // Errors from the XML-parser transform surface via 'error'
+                    // (and sometimes uncaughtException on Deno). Attach early.
                     stream.on("error", fail);
+                    stream.on("data", (result: unknown) => {
+                        done(
+                            (result as ListPage | undefined) ?? {
+                                objects: [],
+                                isTruncated: false,
+                            },
+                        );
+                    });
                     stream.on("end", () => {
-                        if (settled) return;
-                        settled = true;
-                        resolve({ objects: [], isTruncated: false });
+                        // No 'data' means empty page.
+                        done({ objects: [], isTruncated: false });
                     });
                 });
 
             try {
                 const files: FileInfo[] = [];
                 let continuationToken = "";
-                let bucketTruncated = false;
+                let stoppedByLimit = false;
 
                 while (files.length < maxKeys) {
-                    const page = await fetchPage(continuationToken);
-                    const objects = page.objects ?? [];
+                    const pageMaxKeys = Math.min(
+                        pageSize,
+                        maxKeys - files.length,
+                    );
+                    const page = await fetchPage(continuationToken, pageMaxKeys);
 
-                    for (const obj of objects) {
-                        if (files.length >= maxKeys) {
-                            bucketTruncated = true;
-                            break;
-                        }
+                    for (const obj of page.objects) {
+                        // Skip common-prefix entries (delimiter listings only;
+                        // we list recursively so these should be rare).
                         if (!obj.name) continue;
+
+                        // Optional category filter retained for backward compatibility
                         if (
                             params.category &&
                             !obj.name.includes(`/${params.category}/`)
@@ -363,29 +384,34 @@ export function createS3Client(options: S3ClientOptions) {
 
                         files.push({
                             objectName: obj.name,
-                            size: obj.size,
-                            lastModified: obj.lastModified,
-                            etag: obj.etag,
+                            size: obj.size ?? 0,
+                            lastModified: obj.lastModified ?? new Date(0),
+                            etag: obj.etag ?? "",
                             contentType: obj.metaData?.["content-type"],
                             metadata: obj.metaData,
                             url: generateS3Url(params.bucket, obj.name),
                         });
+
+                        if (files.length >= maxKeys) {
+                            stoppedByLimit = true;
+                            break;
+                        }
                     }
 
-                    if (files.length >= maxKeys) {
-                        bucketTruncated = true;
+                    if (stoppedByLimit) {
                         break;
                     }
-                    if (!page.isTruncated || !page.nextContinuationToken) {
-                        bucketTruncated = false;
+
+                    if (page.isTruncated && page.nextContinuationToken) {
+                        continuationToken = page.nextContinuationToken;
+                    } else {
                         break;
                     }
-                    continuationToken = page.nextContinuationToken;
                 }
 
                 return {
                     files,
-                    isTruncated: bucketTruncated,
+                    isTruncated: stoppedByLimit,
                     totalCount: files.length,
                 };
             } catch (error) {

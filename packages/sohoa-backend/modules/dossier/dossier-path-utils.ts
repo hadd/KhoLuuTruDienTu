@@ -269,6 +269,54 @@ export function toDocJsonDataLakePrefix(folderOrKeyPath: string): string | null 
     return mirrored.replace(/\/?$/, "/");
 }
 
+export type DossierLookupFromDocJson = {
+    dossierName: string;
+    folderPaths: string[];
+};
+
+/**
+ * Candidates to locate a dossier from a merge-finished-wait doc_json key.
+ *
+ * Flat:   doc_json/<root>/<ho_so_id>.json → folder raw/<root>/<ho_so_id>
+ * Nested: doc_json/<root>/<ho_so_id>/<file>.json → folder raw/<root>/<ho_so_id>
+ */
+export function deriveDossierLookupFromDocJsonPath(
+    jsonPath: string,
+    rawPrefix = resolveRawStoragePrefix(),
+): DossierLookupFromDocJson | null {
+    const normalized = normalizeStorageKey(jsonPath);
+    if (!normalized.startsWith(`${DOC_JSON_PREFIX}/`)) {
+        return null;
+    }
+
+    const inner = normalized.slice(DOC_JSON_PREFIX.length + 1);
+    if (!inner) {
+        return null;
+    }
+
+    const innerWithoutJson = inner.replace(/\.json$/i, "");
+    const dossierName = storageBasename(innerWithoutJson);
+    if (!dossierName) {
+        return null;
+    }
+
+    const folderPaths: string[] = [];
+    const seen = new Set<string>();
+    const add = (suffix: string) => {
+        if (!suffix) return;
+        const folderPath = `${rawPrefix}/${suffix}`;
+        if (seen.has(folderPath)) return;
+        seen.add(folderPath);
+        folderPaths.push(folderPath);
+    };
+
+    add(innerWithoutJson);
+    const dir = storageDirname(inner);
+    if (dir) add(dir);
+
+    return { dossierName, folderPaths };
+}
+
 export function expandKeysWithDocJsonMirrors(keys: Set<string>): void {
     for (const key of [...keys]) {
         const docJsonKey = toDocJsonDataLakeKey(key);

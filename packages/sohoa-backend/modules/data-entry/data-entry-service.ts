@@ -1057,12 +1057,14 @@ async function rejectMetadata(input: {
                 ));
         }
 
+        const effectiveNotes = input.notes?.trim() || "QC từ chối";
+
         const [dossierRow] = await tx
             .update(dossiers)
             .set({
                 status: DossierStatus.READY_FOR_ENTRY,
                 rejectCount: dossier.rejectCount + 1,
-                lastRejectNotes: input.notes,
+                lastRejectNotes: effectiveNotes,
                 updatedAt: now,
             })
             .where(activeDossierWhere(eq(dossiers.id, dossier.id)))
@@ -1073,8 +1075,8 @@ async function rejectMetadata(input: {
         }
 
         const workflowNotes = selectiveReject
-            ? `${input.notes}\n[reject_fields: ${JSON.stringify(input.rejectFields)}]`
-            : input.notes;
+            ? `${effectiveNotes}\n[reject_fields: ${JSON.stringify(input.rejectFields)}]`
+            : effectiveNotes;
 
         await insertWorkflowLog(tx, {
             dossierId: dossier.id,

@@ -47,6 +47,7 @@ const metadataExportBodySchema = t.Object({
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
   useDocumentNaming: t.Optional(t.Boolean()),
   excelOnly: t.Optional(t.Boolean()),
+  tiffOnly: t.Optional(t.Boolean()),
 });
 
 const multiFolderMetadataExportBodySchema = t.Object({
@@ -58,6 +59,7 @@ const multiFolderMetadataExportBodySchema = t.Object({
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
   useDocumentNaming: t.Optional(t.Boolean()),
   excelOnly: t.Optional(t.Boolean()),
+  tiffOnly: t.Optional(t.Boolean()),
 });
 
 function resolveExportBypassStatus(profile: UserWithRoles): boolean {
@@ -311,6 +313,7 @@ export function createFolderRouter(basePath: string = "/folders") {
             dossierService.exportApprovedMetadataByFolders(body.folderIds, {
               ...body,
               excelOnly: body.excelOnly === true,
+              tiffOnly: body.tiffOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
@@ -419,6 +422,7 @@ export function createFolderRouter(basePath: string = "/folders") {
             dossierService.exportApprovedMetadataByFolder(params.id, {
               ...body,
               excelOnly: body.excelOnly === true,
+              tiffOnly: body.tiffOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
@@ -476,6 +480,7 @@ export function createFolderRouter(basePath: string = "/folders") {
               skippedFileIds,
               useDocumentNaming: query.useDocumentNaming === true,
               excelOnly: query.excelOnly === true,
+              tiffOnly: query.tiffOnly === true,
               bypassStatus,
             }),
         );
@@ -493,6 +498,7 @@ export function createFolderRouter(basePath: string = "/folders") {
         ),
         useDocumentNaming: t.Optional(t.Boolean()),
         excelOnly: t.Optional(t.Boolean()),
+        tiffOnly: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,

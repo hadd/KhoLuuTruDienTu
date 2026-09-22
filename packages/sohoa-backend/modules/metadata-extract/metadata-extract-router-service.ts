@@ -14,9 +14,8 @@ import { env } from "../../env.ts";
 import { publishKafkaMessage } from "../../libs/kafka-producer.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import {
+    deriveDossierLookupFromDocJsonPath,
     normalizeStorageKey,
-    storageBasename,
-    storageDirname,
     toDocJsonDataLakeKey,
     toProcessedMetadataKey,
 } from "../dossier/dossier-path-utils.ts";
@@ -78,34 +77,39 @@ async function resolveDossierByHoSoId(hoSoId: string) {
     return dossier;
 }
 
-function deriveFolderPathCandidatesFromDocJsonPath(
+async function resolveDossierFromDocJsonPath(
     jsonPath: string,
-    rawPrefix = env.STORAGE_RAW_PREFIX ?? "raw",
-): string[] {
-    const normalized = normalizeStorageKey(jsonPath);
-    if (!normalized.startsWith("doc_json/")) return [];
-    const inner = normalized.slice("doc_json/".length);
-    const innerNoExt = inner.replace(/\.json$/i, "");
+    hoSoId: string,
+) {
+    const hints = deriveDossierLookupFromDocJsonPath(jsonPath);
+    if (!hints) return null;
 
-    const candidates = new Set<string>();
-    // Candidate 1: Flat path e.g. doc_json/A/B/0005.json -> raw/A/B/0005
-    candidates.add(`${rawPrefix}/${innerNoExt}`);
-
-    // Candidate 2: Nested path e.g. doc_json/A/B/0005/0005.json -> raw/A/B/0005
-    const dir = storageDirname(innerNoExt);
-    if (dir && dir !== ".") {
-        candidates.add(`${rawPrefix}/${dir}`);
+    for (const folderPath of hints.folderPaths) {
+        const byPath = await db.query.dossiers.findFirst({
+            where: activeDossierWhere(eq(dossiers.folderPath, folderPath)),
+            orderBy: [desc(dossiers.updatedAt)],
+        });
+        if (byPath) {
+            console.info(
+                `[Router] Resolved dossier "${byPath.name}" via json_path folderPath="${folderPath}"` +
+                    ` (document_id="${hoSoId}")`,
+            );
+            return byPath;
+        }
     }
 
-    return Array.from(candidates);
-}
+    if (hints.dossierName !== hoSoId) {
+        const byName = await resolveDossierByHoSoId(hints.dossierName).catch(() => null);
+        if (byName) {
+            console.info(
+                `[Router] Resolved dossier "${byName.name}" via json_path basename="${hints.dossierName}"` +
+                    ` (document_id="${hoSoId}")`,
+            );
+            return byName;
+        }
+    }
 
-function deriveFolderPathFromDocJsonPath(
-    jsonPath: string,
-    rawPrefix = env.STORAGE_RAW_PREFIX ?? "raw",
-): string | null {
-    const candidates = deriveFolderPathCandidatesFromDocJsonPath(jsonPath, rawPrefix);
-    return candidates[0] ?? null;
+    return null;
 }
 
 function resolveJsonPath(
@@ -176,39 +180,9 @@ export async function routeMetadataExtract(
     const hoSoId = input.ho_so_id.trim();
     let dossier = await resolveDossierByHoSoId(hoSoId).catch(() => null);
 
-    // Fallback: Tìm dossier từ json_path nếu ho_so_id (document_id) không khớp với tên hồ sơ.
+    // Fallback: ho_so_id may be phong/document_id; locate dossier from json_path.
     if (!dossier && input.json_path) {
-        const candidateFolders = deriveFolderPathCandidatesFromDocJsonPath(input.json_path);
-        for (const folder of candidateFolders) {
-            dossier = await db.query.dossiers.findFirst({
-                where: activeDossierWhere(eq(dossiers.folderPath, folder)),
-            }) ?? null;
-            if (dossier) break;
-        }
-
-        // Additional Fallback: Search by leaf filename (without .json) as dossier name
-        if (!dossier) {
-            const leafName = storageBasename(input.json_path).replace(/\.json$/i, "");
-            if (leafName) {
-                dossier = await db.query.dossiers.findFirst({
-                    where: activeDossierWhere(
-                        or(
-                            eq(dossiers.name, leafName),
-                            eq(dossiers.folderPath, leafName),
-                            like(dossiers.folderPath, `%/${leafName}`),
-                        ),
-                    ),
-                    orderBy: [desc(dossiers.updatedAt)],
-                }) ?? null;
-            }
-        }
-
-        if (dossier) {
-            console.info(
-                `[Router] Resolved dossier "${dossier.name}" (id=${dossier.id}) via json_path fallback` +
-                ` (document_id="${hoSoId}" → json_path="${input.json_path}")`,
-            );
-        }
+        dossier = await resolveDossierFromDocJsonPath(input.json_path, hoSoId);
     }
 
     if (!dossier) {

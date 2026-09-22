@@ -27,11 +27,16 @@ export function createDashboardWarehouseRouter(basePath: string = "/dashboard") 
     }).use(plugins.authProfile).use(plugins.auditLog);
 
     const checkWarehousePermission = (profile: any) => {
-        const requiredPermission = 
-            (Permission as any).DASHBOARD_WAREHOUSE ?? 
-            Permission.PHYSICAL_WAREHOUSE_ITEM_READ ?? 
-            Permission.DASHBOARD_ADMIN;
-        authHelper.checkPermission(profile, requiredPermission);
+        authHelper.checkPermissionAny(profile, [
+            Permission.DASHBOARD_WAREHOUSE,
+            Permission.DASHBOARD_WAREHOUSE_DOSSIER_DISTRIBUTION,
+            Permission.DASHBOARD_WAREHOUSE_BORROW_STATS,
+            Permission.DASHBOARD_WAREHOUSE_CAPACITY,
+            Permission.DASHBOARD_WAREHOUSE_INTAKE_CHART,
+            Permission.DASHBOARD_WAREHOUSE_UNPLACED,
+            Permission.DASHBOARD_WAREHOUSE_FONDS,
+            Permission.DASHBOARD_WAREHOUSE_DISPOSAL,
+        ]);
     };
 
     app.get(
