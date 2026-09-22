@@ -10,8 +10,8 @@ export type PdfAConvertOptions = {
   forceRasterize?: boolean;
 };
 
-const DEFAULT_DPI = 150;
-const DEFAULT_JPEG_QUALITY = 85;
+const DEFAULT_DPI = 300;
+const DEFAULT_JPEG_QUALITY = 95;
 
 /**
  * Builds standard XMP Metadata packet for PDF/A-2b conformance (ISO 19005-2:2011).

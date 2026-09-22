@@ -46,9 +46,9 @@ export const editorAccuracySchema = t.Object({
 });
 
 export const editorDashboardResponseSchema = t.Object({
-    totalAssigned: t.Number(),
-    completed: t.Number(),
-    inProgress: t.Number(),
+    totalAssigned: workloadVolumeSchema,
+    completed: workloadVolumeSchema,
+    inProgress: workloadVolumeSchema,
     accuracy: editorAccuracySchema,
     avgProcessingTimeSeconds: t.Number(),
 });
@@ -67,11 +67,11 @@ export const qcByStepSchema = t.Object({
 });
 
 export const qcDashboardResponseSchema = t.Object({
-    totalAssigned: t.Number(),
-    approved: t.Number(),
-    rejected: t.Number(),
-    reviewed: t.Number(),
-    pending: t.Number(),
+    totalAssigned: workloadVolumeSchema,
+    approved: workloadVolumeSchema,
+    rejected: workloadVolumeSchema,
+    reviewed: workloadVolumeSchema,
+    pending: workloadVolumeSchema,
     efficiency: qcEfficiencySchema,
     byStep: t.Array(qcByStepSchema),
 });
@@ -209,6 +209,48 @@ export const adminDashboardResponseSchema = t.Object({
 
 export const adminEmployeeKpisResponseSchema = t.Object({
     employeeKpis: t.Array(employeeKpiSchema),
+});
+
+export const personalKpisQuerySchema = adminEmployeeKpisQuerySchema;
+
+export const personalDailyKpiSchema = t.Object({
+    date: t.String(),
+    assignedDossiersCount: t.Number(),
+    completedDossiersCount: t.Number(),
+    rejectedDossiersCount: t.Number(),
+    assignedPagesCount: t.Number(),
+    completedPagesCount: t.Number(),
+    assignedFilesCount: t.Number(),
+    completedFilesCount: t.Number(),
+    dossierCompletionRate: t.Number(),
+    pageCompletionRate: t.Number(),
+    fileCompletionRate: t.Number(),
+    makerAssignedDossiersCount: t.Number(),
+    makerCompletedDossiersCount: t.Number(),
+    makerAssignedPagesCount: t.Number(),
+    makerCompletedPagesCount: t.Number(),
+    makerAssignedFilesCount: t.Number(),
+    makerCompletedFilesCount: t.Number(),
+    makerDossierCompletionRate: t.Number(),
+    makerPageCompletionRate: t.Number(),
+    makerFileCompletionRate: t.Number(),
+    qcAssignedDossiersCount: t.Number(),
+    qcCompletedDossiersCount: t.Number(),
+    qcAssignedPagesCount: t.Number(),
+    qcCompletedPagesCount: t.Number(),
+    qcAssignedFilesCount: t.Number(),
+    qcCompletedFilesCount: t.Number(),
+    qcDossierCompletionRate: t.Number(),
+    qcPageCompletionRate: t.Number(),
+    qcFileCompletionRate: t.Number(),
+    accuracyRate: t.Number(),
+    avgProcessingTimeMinutes: t.Number(),
+    kpiStatus: t.String(),
+});
+
+export const personalKpisResponseSchema = t.Object({
+    days: t.Array(personalDailyKpiSchema),
+    total: personalDailyKpiSchema,
 });
 
 export const adminDossierChartResponseSchema = adminDossierChartSchema;
