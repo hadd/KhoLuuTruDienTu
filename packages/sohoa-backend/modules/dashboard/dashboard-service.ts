@@ -26,6 +26,7 @@ import { userRoles } from "../../db/schemas/user_role.ts";
 import { workflowLogs } from "../../db/schemas/workflow-log.ts";
 import {
     AssignmentStatus,
+    CHECKER_REJECTED_STATUSES,
     DossierStatus,
     QC_CHECKER_WORKFLOW,
     WorkerRole,
@@ -191,6 +192,13 @@ const ERROR_STATUSES = [
     DossierStatus.WAITING_ISSUE_RESOLUTION,
 ] as const;
 
+const COMPLETED_STATUSES = [
+    DossierStatus.APPROVED,
+    DossierStatus.PENDING_ARCHIVE,
+    DossierStatus.ARCHIVE_REJECTED,
+    DossierStatus.ARCHIVED,
+] as const;
+
 type WorkloadVolume = { dossiers: number; files: number; pages: number };
 
 async function aggregateWorkloadStats(
@@ -206,8 +214,18 @@ async function aggregateWorkloadStats(
     )`;
 
     const isUnentered = inArray(dossiers.status, [...UNENTERED_STATUSES]);
-    const isError = inArray(dossiers.status, [...ERROR_STATUSES]);
-    const isCompleted = eq(dossiers.status, DossierStatus.APPROVED);
+    const isError = or(
+        inArray(dossiers.status, [
+            ...ERROR_STATUSES,
+            ...CHECKER_REJECTED_STATUSES,
+        ]),
+        sql`exists (
+            select 1 from ${dossierAssignments}
+            where ${dossierAssignments.dossierId} = ${dossiers.id}
+              and (${dossierAssignments.status} = ${AssignmentStatus.REJECTED} or ${dossierAssignments.workQuality} = ${WorkQuality.INCORRECT})
+        )`
+    );
+    const isCompleted = inArray(dossiers.status, [...COMPLETED_STATUSES]);
 
     const [row] = await db
         .select({
@@ -1260,7 +1278,11 @@ export const DashboardService = {
         const qcRejected = qcPerformanceRow[0]?.rejected ?? 0;
         const qcReviewed = qcApproved + qcRejected;
 
-        const completedDossiers = byStatus[DossierStatus.APPROVED] ?? 0;
+        const completedDossiers =
+            (byStatus[DossierStatus.APPROVED] ?? 0) +
+            (byStatus[DossierStatus.PENDING_ARCHIVE] ?? 0) +
+            (byStatus[DossierStatus.ARCHIVE_REJECTED] ?? 0) +
+            (byStatus[DossierStatus.ARCHIVED] ?? 0);
         const makerCorrect = makerAccuracyRow[0]?.correct ?? 0;
         const makerIncorrect = makerAccuracyRow[0]?.incorrect ?? 0;
         const reviewedForAccuracy = makerCorrect + makerIncorrect;
