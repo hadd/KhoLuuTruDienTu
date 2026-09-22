@@ -358,14 +358,58 @@ export function ensureHoSoFondField(
 //   return migrateTt05MetadataLayout(metadata)
 // }
 
+export const FOND_FIELD_NAMES: ReadonlyArray<string> = [
+  HO_SO_FOND_FIELD,
+  'MA_PHONG',
+  'TEN_PHONG',
+  'PHONG_LUU_TRU',
+]
+
+export function isFondFieldName(fieldName: string): boolean {
+  if (!fieldName) return false
+  const normalized = fieldName.trim().toUpperCase()
+  return FOND_FIELD_NAMES.includes(normalized)
+}
+
+export function isFondMetadataField(
+  _groupCode: string,
+  fieldName: string,
+): boolean {
+  return isFondFieldName(fieldName)
+}
+
 export function isHoSoFondMetadataField(
   groupCode: string,
   fieldName: string,
 ): boolean {
-  return (
-    groupCode === HO_SO_LUU_TRU_GROUP_CODE &&
-    fieldName.trim().toUpperCase() === HO_SO_FOND_FIELD
-  )
+  if (groupCode !== HO_SO_LUU_TRU_GROUP_CODE) return false
+  return isFondFieldName(fieldName)
+}
+
+export function syncFondValueAcrossMetadata(
+  metadata: DataDossierMetadataT,
+  fondValue: string,
+): DataDossierMetadataT {
+  if (!metadata?.metadata_groups) return metadata
+  const nextGroups = metadata.metadata_groups.map((group) => {
+    const hasFondField = group.fields.some((f) => isFondFieldName(f.name))
+    if (!hasFondField) return group
+    return {
+      ...group,
+      fields: group.fields.map((field) =>
+        isFondFieldName(field.name) ? { ...field, value: fondValue } : field,
+      ),
+    }
+  })
+  return { ...metadata, metadata_groups: nextGroups }
+}
+
+export function propagateHoSoFondToDocuments(
+  metadata: DataDossierMetadataT,
+): DataDossierMetadataT {
+  const fondValue = findHoSoFondFieldValue(metadata)
+  if (!fondValue) return metadata
+  return syncFondValueAcrossMetadata(metadata, fondValue)
 }
 
 export function findHoSoFondFieldValue(
@@ -374,7 +418,12 @@ export function findHoSoFondFieldValue(
   const hoSoGroup = metadata?.metadata_groups.find(
     (group) => group.group_code === HO_SO_LUU_TRU_GROUP_CODE,
   )
-  return findFieldValue(hoSoGroup?.fields ?? [], HO_SO_FOND_FIELD)
+  if (!hoSoGroup?.fields) return null
+  for (const targetName of FOND_FIELD_NAMES) {
+    const val = findFieldValue(hoSoGroup.fields, targetName)
+    if (val && val.trim()) return val.trim()
+  }
+  return null
 }
 
 /** True when HO_SO_LUU_TRU contains a FOND field (show fond UI if present in JSON). */

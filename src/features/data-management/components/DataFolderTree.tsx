@@ -152,7 +152,7 @@ export function DataFolderTree({
       `[data-tree-node-id="${selectedId}"]`,
     )
     selectedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  }, [multiSelect, selectedId])
+  }, [multiSelect, selectedId, expanded])
 
   const toggle = useCallback(
     (id: string) => {

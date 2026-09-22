@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { useScrollSyncHighlight } from '@/features/data-management/hooks/useScrollSyncHighlight'
+
 import type {
   PdfBboxRevealRegion,
   PdfFieldHighlight,
@@ -60,6 +62,7 @@ import {
   findAllDocumentsForMetadataGroup,
   findAllMetadataGroupIndicesForDocument,
   findDocumentForMetadataGroup,
+  findMetadataGroupIndexForDocument,
   handleMetadataFieldNavigationKeyDown,
   isPdfDocumentRef,
   mergeMetadataFieldChanges,
@@ -77,6 +80,9 @@ import {
 import {
   findHoSoFondFieldValue,
   hasHoSoFondField,
+  isFondFieldName,
+  propagateHoSoFondToDocuments,
+  syncFondValueAcrossMetadata,
 } from '@/features/data-management/lib/metadataNormalize'
 import { resolveEditorPdfMaskEnabled } from '@/features/data-management/lib/pdfMaskPolicy'
 import {
@@ -92,6 +98,7 @@ import type {
   DataDossierStatus,
   DataMetadataEditBatchT,
   DataMetadataEditFieldChangeT,
+  DataMetadataHistoryFileRefT,
   DataTreeNodeT,
 } from '@/features/data-management/types'
 import {
@@ -340,7 +347,9 @@ export function RecordDetailPanel({
     return `${effectiveNode.id}:${metadata?.ho_so_id ?? ''}:${groupKey}`
   }, [effectiveNode.id, metadata?.ho_so_id, metadata?.metadata_groups])
   const [metadataState, setMetadataState] =
-    useState<DataDossierMetadataT | null>(metadata ?? null)
+    useState<DataDossierMetadataT | null>(() =>
+      metadata ? propagateHoSoFondToDocuments(metadata) : null,
+    )
   const activeMetadata = metadataState ?? metadata ?? null
   const documents = useMemo(
     () => effectiveNode.children.filter((child) => child.type === 'document'),
@@ -414,6 +423,17 @@ export function RecordDetailPanel({
   const [detailTab, setDetailTab] = useState<'metadata' | 'editHistory'>(
     'metadata',
   )
+
+  function handleDetailTabChange(value: 'metadata' | 'editHistory') {
+    setDetailTab(value)
+  }
+
+  // Sync detailTab when focusDocumentId changes from external navigation
+  useEffect(() => {
+    if (focusDocumentId && detailTab === 'editHistory') {
+      setDetailTab('metadata')
+    }
+  }, [focusDocumentId, detailTab])
   const qcReject = useQcInlineReject({
     dossierId,
     onSuccess: () => void onWorkflowComplete?.(dossierId),
@@ -433,6 +453,7 @@ export function RecordDetailPanel({
     Map<string, HTMLInputElement | HTMLTextAreaElement>
   >(new Map())
   const saveButtonRef = useRef<HTMLButtonElement | null>(null)
+  const metadataScrollRef = useRef<HTMLDivElement | null>(null)
   const baseMetadataRef = useRef<DataDossierMetadataT | null>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isHandlingSaveRef = useRef(false)
@@ -543,7 +564,10 @@ export function RecordDetailPanel({
     const currentNode = nodeRef.current
     const nextMetadata =
       resolveRecordPanelMetadata(currentNode, managementRole) ?? null
-    setMetadataState(nextMetadata)
+    const normalizedMetadata = nextMetadata
+      ? propagateHoSoFondToDocuments(nextMetadata)
+      : null
+    setMetadataState(normalizedMetadata)
     baseMetadataRef.current =
       currentNode.fullDossierMetadata ?? nextMetadata ?? null
     setDetailTab('metadata')
@@ -603,8 +627,12 @@ export function RecordDetailPanel({
     if (!canViewEditHistory || !activeMetadata || !editHistoryQuery.data) {
       return []
     }
-    return mapMetadataHistoryToBatches(editHistoryQuery.data, activeMetadata)
-  }, [canViewEditHistory, activeMetadata, editHistoryQuery.data])
+    return mapMetadataHistoryToBatches(
+      editHistoryQuery.data,
+      activeMetadata,
+      documents,
+    )
+  }, [canViewEditHistory, activeMetadata, editHistoryQuery.data, documents])
 
   const selectedGroupIndex = useMemo(() => {
     if (
@@ -755,6 +783,7 @@ export function RecordDetailPanel({
   }, [selectedGroupIndex, focusDocumentId])
 
   function handleGroupTitleClick(groupIndex: number) {
+    suppressScrollSync()
     const group = activeMetadata?.metadata_groups[groupIndex]
     if (!group) return
     const matches = findAllDocumentsForMetadataGroup(group, documents)
@@ -831,6 +860,7 @@ export function RecordDetailPanel({
   }
 
   function focusNextMetadataField(groupIndex: number, fieldIndex: number) {
+    suppressScrollSync()
     const key = `${groupIndex}-${fieldIndex}`
     const position = editableFieldKeys.indexOf(key)
     if (position < 0) return
@@ -869,6 +899,7 @@ export function RecordDetailPanel({
   }
 
   function focusPreviousMetadataField(groupIndex: number, fieldIndex: number) {
+    suppressScrollSync()
     const key = `${groupIndex}-${fieldIndex}`
     const position = editableFieldKeys.indexOf(key)
     if (position <= 0) return
@@ -950,8 +981,15 @@ export function RecordDetailPanel({
       dismissEditorRejectField(groupCode, field.name)
     }
 
+    const isFondField = Boolean(field && isFondFieldName(field.name))
+
     setMetadataState((prev) => {
       if (!prev) return prev
+      if (isFondField) {
+        const next = syncFondValueAcrossMetadata(prev, value)
+        metadataStateRef.current = next
+        return next
+      }
       const nextGroups = prev.metadata_groups.map((group, groupIndex) => {
         if (groupIndex !== targetGroupIndex) return group
         return {
@@ -1084,6 +1122,7 @@ export function RecordDetailPanel({
     changeId?: string | null,
     navigationFieldKey?: string,
   ) {
+    suppressScrollSync()
     const group = activeMetadata?.metadata_groups[groupIndex]
     if (!group) return
 
@@ -1122,14 +1161,137 @@ export function RecordDetailPanel({
     setHighlightedChangeId(changeId ?? null)
   }
 
+  // --- Scroll-sync: auto-highlight the most-visible field while scrolling ---
+  const handleScrollSyncFieldChange = useCallback(
+    (groupIndex: number, fieldIndex: number) => {
+      const group = activeMetadata?.metadata_groups[groupIndex]
+      if (!group) return
+      const field = group.fields[fieldIndex]
+      if (!field) return
+      const fieldKey = `${groupIndex}-${field.name}-${fieldIndex}`
+      handleMetadataFieldActivate(groupIndex, field, fieldKey)
+    },
+    // activeMetadata changes identity when fields are edited; the function
+    // body reads it via closure so we track the ref rather than the object.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeMetadata?.metadata_groups, documents, focusDocumentId, selectedGroupIndex],
+  )
+
+  const { suppressScrollSync } = useScrollSyncHighlight({
+    scrollContainerRef: metadataScrollRef,
+    onVisibleFieldChange: handleScrollSyncFieldChange,
+    enabled: detailTab === 'metadata' && visibleMetadataGroupCount > 0,
+  })
+
   function handleHistoryFieldActivate(change: DataMetadataEditFieldChangeT) {
-    const fieldKey = `${change.groupIndex}-${change.fieldName}-${change.fieldIndex}`
-    handleMetadataFieldActivate(
-      change.groupIndex,
-      change.field,
-      fieldKey,
-      change.id,
-    )
+    // Use documentRef if available to identify correct document
+    const documentRef = change.documentRef
+
+    if (documentRef) {
+      // Find the matching document in tree
+      const targetDocument = documents.find(
+        (doc) =>
+          doc.name.includes(documentRef) ||
+          doc.filePath?.includes(documentRef) ||
+          doc.fileUrl?.includes(documentRef),
+      )
+
+      if (targetDocument) {
+        // Find group index for this document
+        const groupIndex = findMetadataGroupIndexForDocument(
+          groups,
+          targetDocument,
+          documents,
+        )
+
+        // Store field activation info for after document focus
+        const fieldKey = `${groupIndex}-${change.fieldName}-${change.fieldIndex}`
+        const group = groups[groupIndex]
+        const highlight = group
+          ? fieldToHighlight(change.field, group.fields)
+          : null
+
+        pendingFieldActivationRef.current = {
+          fieldKey,
+          highlight: highlight ?? undefined,
+          changeId: change.id,
+        }
+
+        // Switch to metadata tab if currently on editHistory
+        if (detailTab === 'editHistory') {
+          setDetailTab('metadata')
+        }
+
+        // Focus document with 'metadata' tab (useEffect will sync if needed)
+        onFocusDocument?.(targetDocument.id, groupIndex, 'metadata')
+        return
+      }
+    }
+
+    // Fallback: if we have groupIndex >= 0, use old logic
+    if (change.groupIndex >= 0) {
+      const fieldKey = `${change.groupIndex}-${change.fieldName}-${change.fieldIndex}`
+      handleMetadataFieldActivate(
+        change.groupIndex,
+        change.field,
+        fieldKey,
+        change.id,
+      )
+      return
+    }
+
+    // Last resort: if groupIndex < 0 and no documentRef, still switch to metadata tab
+    // User will see metadata even if exact field cannot be focused
+    if (detailTab === 'editHistory') {
+      setDetailTab('metadata')
+      onFocusDocument?.('', 0, 'metadata')
+    }
+  }
+
+  function handleHistoryFileFocus(file: DataMetadataHistoryFileRefT) {
+    let groupIndex = file.groupIndex
+    const documentId = file.documentId?.trim() || ''
+
+    if (documentId) {
+      const targetDocument = documents.find((item) => item.id === documentId)
+      if (targetDocument && (groupIndex < 0 || !groups[groupIndex])) {
+        groupIndex = findMetadataGroupIndexForDocument(
+          groups,
+          targetDocument,
+          documents,
+        )
+      }
+
+      // useEffect will sync tab to 'metadata' when focusDocumentId changes
+      onFocusDocument?.(documentId, groupIndex >= 0 ? groupIndex : 0, 'metadata')
+      window.requestAnimationFrame(() => {
+        window.document
+          .querySelector(`[data-tree-node-id="${documentId}"]`)
+          ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      })
+      return
+    }
+
+    const group = activeMetadata?.metadata_groups[groupIndex]
+    if (!group) return
+
+    const linkedDocuments = findAllDocumentsForMetadataGroup(group, documents)
+    if (linkedDocuments.length > 0) {
+      const targetDocument = linkedDocuments[0]
+      // useEffect will sync tab to 'metadata' when focusDocumentId changes
+      onFocusDocument?.(targetDocument.id, groupIndex, 'metadata')
+      window.requestAnimationFrame(() => {
+        window.document
+          .querySelector(`[data-tree-node-id="${targetDocument.id}"]`)
+          ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      })
+      return
+    }
+
+    if (groupIndex !== selectedGroupIndex && onFocusDocument) {
+      // useEffect will sync tab to 'metadata' when focusDocumentId changes
+      onFocusDocument('', groupIndex, 'metadata')
+    }
   }
 
   function handleRequestRevertHistoryBatch(batch: DataMetadataEditBatchT) {
@@ -1702,6 +1864,7 @@ export function RecordDetailPanel({
               <TabsContent
                 value="metadata"
                 className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain data-[state=inactive]:hidden"
+                ref={metadataScrollRef}
               >
                 <div className="flex flex-col gap-3 pb-2">
                   {metadataPanelContent}
@@ -1719,6 +1882,7 @@ export function RecordDetailPanel({
                   isRestoring={restoreHistoryMutation.isPending}
                   restoringBatchId={restoringBatchId}
                   onFieldActivate={handleHistoryFieldActivate}
+                  onFileActivate={handleHistoryFileFocus}
                   onRevertBatch={handleRequestRevertHistoryBatch}
                 />
               </TabsContent>
