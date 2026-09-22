@@ -87,7 +87,8 @@ export function RecordMetadataGroupCard({
     isTextArea?: boolean,
   ) => void
   buildFieldRejectMark: (
-    groupCode: string,
+    group: DataMetadataGroupT,
+    groupIndex: number,
     field: DataDocumentFieldT,
   ) =>
     | {
@@ -97,7 +98,11 @@ export function RecordMetadataGroupCard({
         disabled: boolean
       }
     | undefined
-  isEditorRejectHighlighted: (groupCode: string, fieldName: string) => boolean
+  isEditorRejectHighlighted: (
+    group: DataMetadataGroupT,
+    groupIndex: number,
+    fieldName: string,
+  ) => boolean
   t: TFunction<'data-management'>
 }) {
   const groupPath = resolveMetadataGroupSourceDocumentPath(
@@ -277,9 +282,10 @@ export function RecordMetadataGroupCard({
                   }
                   isHighlighted={highlightedFieldKey === fieldKey}
                   index={originalIndex}
-                  rejectMark={buildFieldRejectMark(group.group_code, field)}
+                  rejectMark={buildFieldRejectMark(group, groupIndex, field)}
                   isQcRejectedHighlight={isEditorRejectHighlighted(
-                    group.group_code,
+                    group,
+                    groupIndex,
                     field.name,
                   )}
                 />
@@ -306,9 +312,10 @@ export function RecordMetadataGroupCard({
                   }
                   isHighlighted={highlightedFieldKey === fieldKey}
                   index={originalIndex}
-                  rejectMark={buildFieldRejectMark(group.group_code, field)}
+                  rejectMark={buildFieldRejectMark(group, groupIndex, field)}
                   isQcRejectedHighlight={isEditorRejectHighlighted(
-                    group.group_code,
+                    group,
+                    groupIndex,
                     field.name,
                   )}
                 />
@@ -327,7 +334,6 @@ export function RecordMetadataGroupCard({
                   field={field}
                   value={fieldValue}
                   disabled={!canEditFields || isSaving}
-                  editDisplay={false}
                   onValueChange={(value) =>
                     onFieldChange(groupIndex, originalIndex, value)
                   }
@@ -336,9 +342,10 @@ export function RecordMetadataGroupCard({
                   }
                   isHighlighted={highlightedFieldKey === fieldKey}
                   index={originalIndex}
-                  rejectMark={buildFieldRejectMark(group.group_code, field)}
+                  rejectMark={buildFieldRejectMark(group, groupIndex, field)}
                   isQcRejectedHighlight={isEditorRejectHighlighted(
-                    group.group_code,
+                    group,
+                    groupIndex,
                     field.name,
                   )}
                 />
@@ -375,9 +382,10 @@ export function RecordMetadataGroupCard({
                     fieldInputRefs.current?.delete(refKey)
                   }
                 }}
-                rejectMark={buildFieldRejectMark(group.group_code, field)}
+                rejectMark={buildFieldRejectMark(group, groupIndex, field)}
                 isQcRejectedHighlight={isEditorRejectHighlighted(
-                  group.group_code,
+                  group,
+                  groupIndex,
                   field.name,
                 )}
               />
@@ -408,9 +416,10 @@ export function RecordMetadataGroupCard({
                     fieldInputRefs.current?.delete(refKey)
                   }
                 }}
-                rejectMark={buildFieldRejectMark(group.group_code, field)}
+                rejectMark={buildFieldRejectMark(group, groupIndex, field)}
                 isQcRejectedHighlight={isEditorRejectHighlighted(
-                  group.group_code,
+                  group,
+                  groupIndex,
                   field.name,
                 )}
               />
