@@ -15,6 +15,7 @@ import { publishKafkaMessage } from "../../libs/kafka-producer.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 import {
     normalizeStorageKey,
+    storageBasename,
     storageDirname,
     toDocJsonDataLakeKey,
     toProcessedMetadataKey,
@@ -77,16 +78,34 @@ async function resolveDossierByHoSoId(hoSoId: string) {
     return dossier;
 }
 
+function deriveFolderPathCandidatesFromDocJsonPath(
+    jsonPath: string,
+    rawPrefix = env.STORAGE_RAW_PREFIX ?? "raw",
+): string[] {
+    const normalized = normalizeStorageKey(jsonPath);
+    if (!normalized.startsWith("doc_json/")) return [];
+    const inner = normalized.slice("doc_json/".length);
+    const innerNoExt = inner.replace(/\.json$/i, "");
+
+    const candidates = new Set<string>();
+    // Candidate 1: Flat path e.g. doc_json/A/B/0005.json -> raw/A/B/0005
+    candidates.add(`${rawPrefix}/${innerNoExt}`);
+
+    // Candidate 2: Nested path e.g. doc_json/A/B/0005/0005.json -> raw/A/B/0005
+    const dir = storageDirname(innerNoExt);
+    if (dir && dir !== ".") {
+        candidates.add(`${rawPrefix}/${dir}`);
+    }
+
+    return Array.from(candidates);
+}
+
 function deriveFolderPathFromDocJsonPath(
     jsonPath: string,
     rawPrefix = env.STORAGE_RAW_PREFIX ?? "raw",
 ): string | null {
-    const normalized = normalizeStorageKey(jsonPath);
-    if (!normalized.startsWith("doc_json/")) return null;
-    const inner = normalized.slice("doc_json/".length);
-    const dir = storageDirname(inner);
-    if (!dir) return null;
-    return `${rawPrefix}/${dir}`;
+    const candidates = deriveFolderPathCandidatesFromDocJsonPath(jsonPath, rawPrefix);
+    return candidates[0] ?? null;
 }
 
 function resolveJsonPath(
@@ -159,17 +178,36 @@ export async function routeMetadataExtract(
 
     // Fallback: Tìm dossier từ json_path nếu ho_so_id (document_id) không khớp với tên hồ sơ.
     if (!dossier && input.json_path) {
-        const derivedFolder = deriveFolderPathFromDocJsonPath(input.json_path);
-        if (derivedFolder) {
+        const candidateFolders = deriveFolderPathCandidatesFromDocJsonPath(input.json_path);
+        for (const folder of candidateFolders) {
             dossier = await db.query.dossiers.findFirst({
-                where: activeDossierWhere(eq(dossiers.folderPath, derivedFolder)),
+                where: activeDossierWhere(eq(dossiers.folderPath, folder)),
             }) ?? null;
-            if (dossier) {
-                console.info(
-                    `[Router] Resolved dossier "${dossier.name}" via json_path fallback` +
-                    ` (document_id="${hoSoId}" → folderPath="${derivedFolder}")`,
-                );
+            if (dossier) break;
+        }
+
+        // Additional Fallback: Search by leaf filename (without .json) as dossier name
+        if (!dossier) {
+            const leafName = storageBasename(input.json_path).replace(/\.json$/i, "");
+            if (leafName) {
+                dossier = await db.query.dossiers.findFirst({
+                    where: activeDossierWhere(
+                        or(
+                            eq(dossiers.name, leafName),
+                            eq(dossiers.folderPath, leafName),
+                            like(dossiers.folderPath, `%/${leafName}`),
+                        ),
+                    ),
+                    orderBy: [desc(dossiers.updatedAt)],
+                }) ?? null;
             }
+        }
+
+        if (dossier) {
+            console.info(
+                `[Router] Resolved dossier "${dossier.name}" (id=${dossier.id}) via json_path fallback` +
+                ` (document_id="${hoSoId}" → json_path="${input.json_path}")`,
+            );
         }
     }
 
