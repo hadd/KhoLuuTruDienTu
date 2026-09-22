@@ -11,6 +11,7 @@ import {
   adminEmployeeKpisQueryOptions,
 } from '@/features/admin-dashboard/queries'
 import type { AdminDashboardDossierTrendGranularityT } from '@/features/admin-dashboard/types'
+import { PersonalKpiTable } from '@/features/dashboard/components/PersonalKpiTable'
 import { EditorDashboardPage } from '@/features/editor-dashboard/components/EditorDashboardPage'
 import { editorDashboardQueryOptions } from '@/features/editor-dashboard/queries'
 import type { EditorDashboardPeriodT } from '@/features/editor-dashboard/types'
@@ -125,6 +126,7 @@ export function ModularOverviewDashboard({
               includeGroup={false}
             />
           ) : null}
+          <PersonalKpiTable permissions={permissions} hidden={hidden} />
         </DashboardGroup>
       ) : null}
 

@@ -41,6 +41,7 @@ import {
   formatDurationSeconds,
   formatPercentValue,
 } from '@/features/admin-dashboard/components/AdminDashboardPage'
+import { VolumeKpiCard } from '@/features/dashboard/components/VolumeKpiCard'
 import type {
   EditorDashboardPeriodT,
   EditorDashboardT,
@@ -115,18 +116,18 @@ export function EditorDashboardPage({
       }))
     }
 
-    if (data.completed > 0) {
+    if (data.completed.dossiers > 0) {
       return [
         {
           key: 'completed-total',
           name: t('chart.completedInPeriod'),
-          value: data.completed,
+          value: data.completed.dossiers,
         },
       ]
     }
 
     return []
-  }, [data.completed, data.completedTrend, t])
+  }, [data.completed.dossiers, data.completedTrend, t])
 
   const accuracyChartData = useMemo(
     () => [
@@ -193,22 +194,20 @@ export function EditorDashboardPage({
           </Select>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <KpiCard
+          <VolumeKpiCard
             icon={ClipboardList}
             label={t('sections.overview.totalAssigned')}
-            value={formatNumber(data.totalAssigned, {
-              maximumFractionDigits: 0,
-            })}
+            volume={data.totalAssigned}
           />
-          <KpiCard
+          <VolumeKpiCard
             icon={CheckCircle2}
             label={t('sections.overview.completed')}
-            value={formatNumber(data.completed, { maximumFractionDigits: 0 })}
+            volume={data.completed}
           />
-          <KpiCard
+          <VolumeKpiCard
             icon={Clock3}
             label={t('sections.overview.inProgress')}
-            value={formatNumber(data.inProgress, { maximumFractionDigits: 0 })}
+            volume={data.inProgress}
           />
         </div>
       </section>
@@ -264,7 +263,9 @@ export function EditorDashboardPage({
                 <CardTitle>{t('sections.overview.title')}</CardTitle>
                 <CardDescription>
                   {t('chart.completedInPeriod')}:{' '}
-                  {formatNumber(data.completed, { maximumFractionDigits: 0 })}
+                  {formatNumber(data.completed.dossiers, {
+                    maximumFractionDigits: 0,
+                  })}
                 </CardDescription>
               </CardHeader>
               <CardContent>

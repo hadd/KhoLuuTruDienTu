@@ -339,6 +339,7 @@ export interface MetadataExportRequestT {
   columns?: Array<MetadataExportColumnRequestT>
   useDocumentNaming?: boolean
   excelOnly?: boolean
+  tiffOnly?: boolean
 }
 
 export interface MetadataExportPreviewRowT {
@@ -417,7 +418,8 @@ export async function exportDossierMetadataExcel(
     config?.presetId ||
     config?.columns ||
     config?.useDocumentNaming ||
-    config?.excelOnly
+    config?.excelOnly ||
+    config?.tiffOnly
   ) {
     await downloadConfiguredMetadataExport(
       path,
@@ -484,7 +486,8 @@ export async function exportFolderMetadataExcel(
     config?.presetId ||
     config?.columns ||
     config?.useDocumentNaming ||
-    config?.excelOnly
+    config?.excelOnly ||
+    config?.tiffOnly
   ) {
     await downloadConfiguredMetadataExport(path, fallbackName, config)
     return

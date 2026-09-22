@@ -168,6 +168,19 @@
     "fileCountFormat": "{{completed}} / {{assigned}} files",
     "pagination": "Showing {{from}} - {{to}} of {{total}} staff members"
   },
+  "personalKpi": {
+    "title": "Personal daily KPI",
+    "description": "Your daily assigned and completed dossiers, files and pages",
+    "columns": {
+      "date": "Date",
+      "avgTime": "Avg. time",
+      "rejected": "Returned",
+      "minutes": "{{count}} min",
+      "rejectedCount": "{{count}} times"
+    },
+    "total": "Total",
+    "empty": "No personal KPI data for this period"
+  },
   "errors": {
     "loadFailed": "Unable to load dashboard data",
     "noPermissionTitle": "No permission to view Admin Dashboard data",

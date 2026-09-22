@@ -168,6 +168,19 @@
     "fileCountFormat": "{{completed}} / {{assigned}} file",
     "pagination": "Hiển thị {{from}} - {{to}} trên tổng số {{total}} nhân sự"
   },
+  "personalKpi": {
+    "title": "KPI cá nhân theo ngày",
+    "description": "Tiến độ hồ sơ, file và trang được giao / hoàn thành theo từng ngày của bạn",
+    "columns": {
+      "date": "Ngày",
+      "avgTime": "Thời gian TB",
+      "rejected": "Bị trả về",
+      "minutes": "{{count}} phút",
+      "rejectedCount": "{{count}} lượt"
+    },
+    "total": "Tổng",
+    "empty": "Không có dữ liệu KPI cá nhân trong kỳ này"
+  },
   "errors": {
     "loadFailed": "Không thể tải dữ liệu bảng điều khiển",
     "noPermissionTitle": "Chưa có quyền xem dữ liệu Dashboard Quản trị",
