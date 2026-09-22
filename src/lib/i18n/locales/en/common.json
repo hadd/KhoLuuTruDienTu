@@ -93,6 +93,11 @@
     "menuTitle": "Administration",
     "users": "User management",
     "dashboard": "Overview",
+    "dashboardGroups": {
+      "personal": "Personal",
+      "team": "Team / Project",
+      "overview": "System overview"
+    },
     "projectManager": "Project catalog management",
     "projectManagement": "Project management",
     "planManagement": "Plan management",

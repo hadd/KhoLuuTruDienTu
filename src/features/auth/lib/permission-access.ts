@@ -79,6 +79,24 @@ export function getPermissionsFromUser(
   return [...merged]
 }
 
+/** Union of rules.hidden across user roles (dashboard widget visibility). */
+export function getHiddenFromUser(
+  user: UserT | null | undefined,
+): Array<string> {
+  if (!user?.userRoles?.length) {
+    return []
+  }
+
+  const merged = new Set<string>()
+  for (const userRole of user.userRoles) {
+    for (const key of parseRoleRules(userRole.role?.rules).hidden) {
+      merged.add(key)
+    }
+  }
+
+  return [...merged]
+}
+
 export function getCurrentUserRoleId(
   user: UserT | null | undefined,
 ): string | null {
@@ -509,6 +527,7 @@ export async function loadPermissionContext(queryClient: QueryClient) {
   const user = await queryClient.ensureQueryData(profileQueryOptions)
   const roleIds = getUserRoleIdsFromProfile(user)
   const merged = new Set(getPermissionsFromUser(user))
+  const hiddenMerged = new Set(getHiddenFromUser(user))
 
   await Promise.all(
     roleIds.map(async (roleId) => {
@@ -519,13 +538,16 @@ export async function loadPermissionContext(queryClient: QueryClient) {
         for (const permission of rolePermissions.rules.permissions) {
           merged.add(permission)
         }
+        for (const key of rolePermissions.rules.hidden ?? []) {
+          hiddenMerged.add(key)
+        }
       } catch {
         // Ignore role permission fetch failures; profile rules may still apply.
       }
     }),
   )
 
-  return { user, permissions: [...merged] }
+  return { user, permissions: [...merged], hidden: [...hiddenMerged] }
 }
 
 export function resolvePermissionFallbackPath(
