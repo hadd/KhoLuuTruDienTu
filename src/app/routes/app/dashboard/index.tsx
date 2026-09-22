@@ -11,7 +11,11 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { AdminRoleChartTypeT } from '@/features/admin-dashboard/components/AdminDashboardPage'
 import { AdminDashboardPage } from '@/features/admin-dashboard/components/AdminDashboardPage'
-import { adminDashboardQueryOptions } from '@/features/admin-dashboard/queries'
+import {
+  adminDashboardOverviewQueryOptions,
+  adminDossierChartQueryOptions,
+  adminEmployeeKpisQueryOptions,
+} from '@/features/admin-dashboard/queries'
 import type { AdminDashboardDossierTrendGranularityT } from '@/features/admin-dashboard/types'
 import { loadPermissionContext } from '@/features/auth/lib/permission-access'
 import { requirePermission } from '@/features/auth/routeGuards'
@@ -110,7 +114,7 @@ export const Route = createFileRoute('/app/dashboard/')({
       } else if (permInfo.hasOverviewAccess) {
         if (permInfo.overviewVariant === 'admin') {
           void context.queryClient.prefetchQuery(
-            adminDashboardQueryOptions(search.dossierTrendGranularity ?? 'month'),
+            adminDashboardOverviewQueryOptions(),
           )
         } else if (permInfo.overviewVariant === 'qc') {
           void context.queryClient.prefetchQuery(qcDashboardQueryOptions())
@@ -249,23 +253,48 @@ function AdminDashboardContent({
   permissions: Array<string>
   groupId?: string
 }) {
-  const [dateRange, setDateRange] = useState<{ dateFrom?: string; dateTo?: string }>({})
-  const { data, isLoading } = useQuery(
-    adminDashboardQueryOptions(dossierTrendGranularity, dateRange.dateFrom, dateRange.dateTo),
+  const [kpiDateRange, setKpiDateRange] = useState<{
+    dateFrom?: string
+    dateTo?: string
+  }>({})
+  const [trendDateRange, setTrendDateRange] = useState<{
+    dateFrom?: string
+    dateTo?: string
+  }>({})
+
+  const overviewQuery = useQuery(adminDashboardOverviewQueryOptions())
+  const kpiQuery = useQuery(
+    adminEmployeeKpisQueryOptions(kpiDateRange.dateFrom, kpiDateRange.dateTo),
+  )
+  const chartQuery = useQuery(
+    adminDossierChartQueryOptions(
+      dossierTrendGranularity,
+      trendDateRange.dateFrom,
+      trendDateRange.dateTo,
+    ),
   )
 
-  if (isLoading || !data) {
+  if (overviewQuery.isLoading || !overviewQuery.data) {
     return <DashboardLoadingState />
   }
 
   return (
     <AdminDashboardPage
-      data={data}
+      data={overviewQuery.data}
+      employeeKpis={kpiQuery.data ?? []}
+      isEmployeeKpisLoading={kpiQuery.isFetching}
+      dossierChart={chartQuery.data ?? overviewQuery.data.dossierChart}
+      isDossierChartLoading={chartQuery.isFetching}
       roleChart={roleChart}
       dossierTrendGranularity={dossierTrendGranularity}
       permissions={permissions}
       groupId={groupId}
-      onDateRangeChange={(dateFrom, dateTo) => setDateRange({ dateFrom, dateTo })}
+      onKpiDateRangeChange={(dateFrom, dateTo) =>
+        setKpiDateRange({ dateFrom, dateTo })
+      }
+      onTrendDateRangeChange={(dateFrom, dateTo) =>
+        setTrendDateRange({ dateFrom, dateTo })
+      }
     />
   )
 }
