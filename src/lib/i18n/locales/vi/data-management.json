@@ -481,6 +481,8 @@
       "manual": "Đưa vào hàng chờ thủ công — chỉ OCR khi được kích hoạt tại màn hình Kiểm soát OCR."
     },
     "success": "Tải lên thư mục thành công.",
+    "cancelled": "Đã hủy tải lên. Các tệp đã tải thành công được giữ lại.",
+    "cancelUpload": "Hủy tải lên",
     "postProcessFailed": "Tải lên thành công nhưng không thể cập nhật cây thư mục.",
     "allSkipped": "Tất cả tệp đã tồn tại trong hệ thống — không có tệp nào được tải lên.",
     "errors": {

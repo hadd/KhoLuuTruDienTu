@@ -464,6 +464,8 @@
       "manual": "Queue for manual activation — OCR only runs after you trigger it on the OCR Control screen."
     },
     "success": "Folder uploaded successfully.",
+    "cancelled": "Upload cancelled. Files already uploaded were kept.",
+    "cancelUpload": "Cancel upload",
     "postProcessFailed": "Upload succeeded but failed to refresh the folder tree.",
     "allSkipped": "All files already exist in the system — nothing was uploaded.",
     "errors": {
