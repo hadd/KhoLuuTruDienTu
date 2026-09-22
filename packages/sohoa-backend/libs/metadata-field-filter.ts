@@ -126,7 +126,8 @@ export function rejectFieldMatchesAssignmentScope(
     if (allowedFields === null) return true;
 
     if (rejectField.endsWith(".*")) {
-        const groupCode = rejectField.slice(0, -2);
+        const rawGroupCode = rejectField.slice(0, -2);
+        const groupCode = rawGroupCode.split(":")[0];
         return allowedFields.some(
             (key) => key === `${groupCode}.*` || key.startsWith(`${groupCode}.`),
         );
@@ -135,7 +136,8 @@ export function rejectFieldMatchesAssignmentScope(
     const dotIdx = rejectField.indexOf(".");
     if (dotIdx === -1) return false;
 
-    const groupCode = rejectField.slice(0, dotIdx);
+    const rawGroupCode = rejectField.slice(0, dotIdx);
+    const groupCode = rawGroupCode.split(":")[0];
     const fieldName = rejectField.slice(dotIdx + 1);
     return isFieldAllowed(groupCode, fieldName, buildAllowedKeySet(allowedFields));
 }
