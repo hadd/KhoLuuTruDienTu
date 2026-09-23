@@ -43,7 +43,6 @@ export function buildMetadataExportPreview(
     const headers = columns.map((column) => column.header);
 
     const allRows: MetadataExportPreviewRow[] = [];
-    let documentRowNumber = 0;
 
     metadataList.forEach((metadata, dossierIndex) => {
         const dossierFiles = options.dossierFilesList?.[dossierIndex] ?? [];
@@ -59,12 +58,10 @@ export function buildMetadataExportPreview(
             const fileItem = fileItems[k]!;
             const kind = fileItem.kind ?? "document";
             const isExcludedFromStt = kind === "bia" || kind === "mucluc" || kind === "chung_tu_ket_thuc";
-            const rowNumber = isExcludedFromStt
-                ? undefined
-                : ++documentRowNumber;
             const docIndexInDossier = isExcludedFromStt
                 ? undefined
                 : ++dossierDocIndex;
+            const rowNumber = docIndexInDossier;
             const fileName =
                 fileItem.sourceDocument.file_name?.trim() ||
                 fileItem.sourceDocument.file_path?.trim() ||

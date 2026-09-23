@@ -533,7 +533,7 @@ Deno.test("resolveExportColumnValue joins fields without surrounding separator s
     assertEquals(value, "001122334455/Nguyễn Văn A\nTrần Thị B");
 });
 
-Deno.test("__row_number increments across dossiers", async () => {
+Deno.test("__row_number resets per dossier", async () => {
     const columns = [
         { header: "STT_HANG", fieldKeys: ["__row_number"], separator: "" },
         { header: "Mã", fieldKeys: ["__ho_so_id"], separator: "" },
@@ -578,7 +578,7 @@ Deno.test("__row_number increments across dossiers", async () => {
     const sheet = workbook.getWorksheet("Metadata");
     assertEquals(sheet!.getCell(2, 1).value, "1");
     assertEquals(sheet!.getCell(3, 1).value, "2");
-    assertEquals(sheet!.getCell(4, 1).value, "3");
+    assertEquals(sheet!.getCell(4, 1).value, "1");
 });
 
 Deno.test("__dossier_folder resolves from dossier folder path and joins with file name", async () => {
