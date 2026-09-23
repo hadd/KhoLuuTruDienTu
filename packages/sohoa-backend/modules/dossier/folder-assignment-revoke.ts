@@ -241,10 +241,7 @@ export async function executeFolderAssignmentRevoke(input: FolderAssignmentRevok
                 })
                 .where(activeDossierWhere(
                     eq(dossiers.id, item.dossierId),
-                    inArray(dossiers.status, [
-                        DossierStatus.READY_FOR_ENTRY,
-                        DossierStatus.ENTRY_PROCESSING,
-                    ]),
+                    eq(dossiers.status, DossierStatus.READY_FOR_ENTRY),
                 ))
                 .returning({ id: dossiers.id });
 
