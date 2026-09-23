@@ -14,6 +14,7 @@ import {
   groupMergeKey,
   HO_SO_FOND_FIELD,
   HO_SO_LUU_TRU_GROUP_CODE,
+  isDocumentNumberStringField,
   isHoSoFondMetadataField,
   isHiddenMetadataFieldName,
   resolveCatalogGroupAliasCodes,
@@ -94,14 +95,20 @@ function normalizeBboxes(
 }
 
 function normalizeField(field: Record<string, unknown>): DataDocumentFieldT {
+  const name = String(field.name ?? '')
+  const display = String(field.display ?? field.name ?? '')
   const rawType = String(field.type ?? 'string')
-  const fieldType: DataDocumentFieldT['type'] =
+  let fieldType: DataDocumentFieldT['type'] =
     rawType === 'date' ||
     rawType === 'number' ||
     rawType === 'boolean' ||
     rawType === 'object'
       ? rawType
       : 'string'
+
+  if (isDocumentNumberStringField(name, display)) {
+    fieldType = 'string'
+  }
 
   const rawPage = field.page
   const page =
@@ -124,8 +131,8 @@ function normalizeField(field: Record<string, unknown>): DataDocumentFieldT {
       : undefined
 
   return {
-    name: String(field.name ?? ''),
-    display: String(field.display ?? field.name ?? ''),
+    name,
+    display,
     type: fieldType,
     value: field.value == null ? null : coerceMetadataText(field.value),
     page,

@@ -37,6 +37,11 @@ import type {
   QcDashboardGroupT,
   QcDashboardT,
 } from '@/features/qc-dashboard/types'
+import {
+  DASHBOARD_PERSONAL_SECTION_KEYS,
+  DASHBOARD_TEAM_SECTION_KEYS,
+  isDashboardSectionVisible,
+} from '@/features/permissions/lib/dashboardAccess'
 import { formatNumber } from '@/lib/utils/format'
 import { translateError } from '@/lib/utils/translate-error'
 
@@ -76,6 +81,11 @@ type QcDashboardPageProps = {
   group?: QcDashboardGroupT
   groupError?: unknown
   isGroupLoading?: boolean
+  permissions?: Array<string>
+  hidden?: Array<string>
+  embedInGroup?: boolean
+  /** Limit which section groups to render. */
+  sectionGroups?: Array<'personal' | 'team'>
 }
 
 export function QcDashboardPage({
@@ -83,8 +93,44 @@ export function QcDashboardPage({
   group,
   groupError,
   isGroupLoading = false,
+  permissions = ['*'],
+  hidden = [],
+  embedInGroup = false,
+  sectionGroups = ['personal', 'team'],
 }: QcDashboardPageProps) {
   const { t } = useTranslation('qc-dashboard')
+
+  const showPersonal = sectionGroups.includes('personal')
+  const showTeam = sectionGroups.includes('team')
+
+  const canViewSummary =
+    showPersonal &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_PERSONAL_SECTION_KEYS.qcSummary,
+    )
+  const canViewByStep =
+    showPersonal &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_PERSONAL_SECTION_KEYS.qcByStep,
+    )
+  const canViewEfficiency =
+    showPersonal &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_PERSONAL_SECTION_KEYS.qcEfficiency,
+    )
+  const canViewGroup =
+    showTeam &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_TEAM_SECTION_KEYS.qcGroup,
+    )
 
   const stepByLevelChartData = useMemo(
     () =>
@@ -166,11 +212,14 @@ export function QcDashboardPage({
 
   return (
     <div className="flex min-w-0 w-full flex-1 flex-col gap-6 overflow-x-hidden">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+      {!embedInGroup ? (
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
+        </div>
+      ) : null}
 
+      {canViewSummary ? (
       <section className="space-y-4">
         <h2 className="text-lg font-medium text-foreground">
           {t('sections.overview.title')}
@@ -211,17 +260,23 @@ export function QcDashboardPage({
           />
         </div>
       </section>
+      ) : null}
 
+      {canViewByStep || canViewEfficiency ? (
       <section className="space-y-4">
+        {canViewByStep ? (
         <h2 className="text-lg font-medium text-foreground">
           {t('sections.byStep.title')}
         </h2>
+        ) : null}
         <div
           className={
-            hasStepChartData ? 'grid gap-4 xl:grid-cols-2' : 'grid gap-4'
+            canViewByStep && canViewEfficiency && hasStepChartData
+              ? 'grid gap-4 xl:grid-cols-2'
+              : 'grid gap-4'
           }
         >
-          {hasStepChartData ? (
+          {canViewByStep && hasStepChartData ? (
             <Card>
               <CardHeader>
                 <CardTitle>{t('sections.byStep.title')}</CardTitle>
@@ -272,7 +327,8 @@ export function QcDashboardPage({
             </Card>
           ) : null}
 
-          <Card className={hasStepChartData ? undefined : 'max-w-xl'}>
+          {canViewEfficiency ? (
+          <Card className={canViewByStep && hasStepChartData ? undefined : 'max-w-xl'}>
             <CardHeader>
               <CardTitle>{t('sections.efficiency.title')}</CardTitle>
               <CardDescription>
@@ -309,9 +365,12 @@ export function QcDashboardPage({
               </div>
             </CardContent>
           </Card>
+          ) : null}
         </div>
       </section>
+      ) : null}
 
+      {canViewGroup ? (
       <section className="space-y-4">
         <div>
           <h2 className="text-lg font-medium text-foreground">
@@ -562,6 +621,7 @@ export function QcDashboardPage({
           </Card>
         )}
       </section>
+      ) : null}
     </div>
   )
 }

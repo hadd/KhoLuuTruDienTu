@@ -263,6 +263,9 @@ export function setModuleGranted(
   }
 
   if (hasFullAccess(permissions)) {
+    if (catalog.length === 0) {
+      return permissions
+    }
     return expandFullAccessExceptModules(catalog, new Set([module]))
   }
 
@@ -294,6 +297,9 @@ export function setPermissionGranted(
   }
 
   if (hasFullAccess(permissions)) {
+    if (catalog.length === 0) {
+      return permissions
+    }
     return catalog
       .filter((item) => item.key !== permissionKey)
       .map((item) => item.key)
