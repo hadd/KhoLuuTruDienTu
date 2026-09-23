@@ -7,6 +7,7 @@ import {
   GROUPS_MODULE,
   GROUPS_READ_ALL_PERMISSION,
   GROUPS_READ_PERMISSION,
+  GROUPS_REVOKE_PERMISSION,
   GROUPS_START_WORKFLOW_PERMISSION,
   GROUPS_UPDATE_PERMISSION,
 } from './groupPermissions'
@@ -62,6 +63,14 @@ export function canStartGroupWorkflow(permissions: Array<string>): boolean {
   return isPermissionGranted(
     permissions,
     GROUPS_START_WORKFLOW_PERMISSION,
+    GROUPS_MODULE,
+  )
+}
+
+export function canRevokeGroupAssignments(permissions: Array<string>): boolean {
+  return isPermissionGranted(
+    permissions,
+    GROUPS_REVOKE_PERMISSION,
     GROUPS_MODULE,
   )
 }
