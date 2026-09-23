@@ -98,6 +98,11 @@ export {
     type MetadataHiddenField,
     type NewMetadataHiddenField,
 } from "./metadata-hidden-field.ts";
+export {
+    metadataFields,
+    type MetadataField,
+    type NewMetadataField,
+} from "./metadata-field.ts";
 
 
 // ========================================

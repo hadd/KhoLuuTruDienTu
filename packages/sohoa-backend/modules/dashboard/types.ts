@@ -4,6 +4,7 @@ import { workerRoleSchema } from "../../db/schemas/workflow-constants.ts";
 export const adminChartGranularitySchema = t.Union([
     t.Literal("day"),
     t.Literal("month"),
+    t.Literal("quarter"),
     t.Literal("year"),
 ]);
 
@@ -13,6 +14,31 @@ export const adminDashboardQuerySchema = t.Object({
     dateTo: t.Optional(t.String()),
 });
 
+export const adminEmployeeKpisQuerySchema = t.Object({
+    dateFrom: t.Optional(t.String()),
+    dateTo: t.Optional(t.String()),
+});
+
+export const adminDossierChartQuerySchema = t.Object({
+    chartGranularity: t.Optional(adminChartGranularitySchema),
+    dateFrom: t.Optional(t.String()),
+    dateTo: t.Optional(t.String()),
+});
+
+export const workloadVolumeSchema = t.Object({
+    dossiers: t.Number(),
+    files: t.Number(),
+    pages: t.Number(),
+});
+
+export const adminWorkloadStatsSchema = t.Object({
+    total: workloadVolumeSchema,
+    unentered: workloadVolumeSchema,
+    unassigned: workloadVolumeSchema,
+    completed: workloadVolumeSchema,
+    error: workloadVolumeSchema,
+});
+
 export const editorAccuracySchema = t.Object({
     correct: t.Number(),
     incorrect: t.Number(),
@@ -20,9 +46,9 @@ export const editorAccuracySchema = t.Object({
 });
 
 export const editorDashboardResponseSchema = t.Object({
-    totalAssigned: t.Number(),
-    completed: t.Number(),
-    inProgress: t.Number(),
+    totalAssigned: workloadVolumeSchema,
+    completed: workloadVolumeSchema,
+    inProgress: workloadVolumeSchema,
     accuracy: editorAccuracySchema,
     avgProcessingTimeSeconds: t.Number(),
 });
@@ -41,11 +67,11 @@ export const qcByStepSchema = t.Object({
 });
 
 export const qcDashboardResponseSchema = t.Object({
-    totalAssigned: t.Number(),
-    approved: t.Number(),
-    rejected: t.Number(),
-    reviewed: t.Number(),
-    pending: t.Number(),
+    totalAssigned: workloadVolumeSchema,
+    approved: workloadVolumeSchema,
+    rejected: workloadVolumeSchema,
+    reviewed: workloadVolumeSchema,
+    pending: workloadVolumeSchema,
     efficiency: qcEfficiencySchema,
     byStep: t.Array(qcByStepSchema),
 });
@@ -142,20 +168,29 @@ export const employeeKpiSchema = t.Object({
     rejectedDossiersCount: t.Number(),
     assignedPagesCount: t.Number(),
     completedPagesCount: t.Number(),
+    assignedFilesCount: t.Number(),
+    completedFilesCount: t.Number(),
     dossierCompletionRate: t.Number(),
     pageCompletionRate: t.Number(),
+    fileCompletionRate: t.Number(),
     makerAssignedDossiersCount: t.Optional(t.Number()),
     makerCompletedDossiersCount: t.Optional(t.Number()),
     makerAssignedPagesCount: t.Optional(t.Number()),
     makerCompletedPagesCount: t.Optional(t.Number()),
+    makerAssignedFilesCount: t.Optional(t.Number()),
+    makerCompletedFilesCount: t.Optional(t.Number()),
     makerDossierCompletionRate: t.Optional(t.Number()),
     makerPageCompletionRate: t.Optional(t.Number()),
+    makerFileCompletionRate: t.Optional(t.Number()),
     qcAssignedDossiersCount: t.Optional(t.Number()),
     qcCompletedDossiersCount: t.Optional(t.Number()),
     qcAssignedPagesCount: t.Optional(t.Number()),
     qcCompletedPagesCount: t.Optional(t.Number()),
+    qcAssignedFilesCount: t.Optional(t.Number()),
+    qcCompletedFilesCount: t.Optional(t.Number()),
     qcDossierCompletionRate: t.Optional(t.Number()),
     qcPageCompletionRate: t.Optional(t.Number()),
+    qcFileCompletionRate: t.Optional(t.Number()),
     accuracyRate: t.Number(),
     avgProcessingTimeMinutes: t.Number(),
     kpiStatus: t.String(),
@@ -165,11 +200,60 @@ export const adminDashboardResponseSchema = t.Object({
     overview: adminOverviewSchema,
     systemDossiers: adminSystemDossiersSchema,
     systemProjects: adminSystemProjectsSchema,
-    dossierChart: adminDossierChartSchema,
+    workloadStats: adminWorkloadStatsSchema,
+    dossierChart: t.Optional(adminDossierChartSchema),
     performance: adminPerformanceSchema,
     groups: t.Array(adminGroupSummarySchema),
     employeeKpis: t.Optional(t.Array(employeeKpiSchema)),
 });
+
+export const adminEmployeeKpisResponseSchema = t.Object({
+    employeeKpis: t.Array(employeeKpiSchema),
+});
+
+export const personalKpisQuerySchema = adminEmployeeKpisQuerySchema;
+
+export const personalDailyKpiSchema = t.Object({
+    date: t.String(),
+    assignedDossiersCount: t.Number(),
+    completedDossiersCount: t.Number(),
+    rejectedDossiersCount: t.Number(),
+    assignedPagesCount: t.Number(),
+    completedPagesCount: t.Number(),
+    assignedFilesCount: t.Number(),
+    completedFilesCount: t.Number(),
+    dossierCompletionRate: t.Number(),
+    pageCompletionRate: t.Number(),
+    fileCompletionRate: t.Number(),
+    makerAssignedDossiersCount: t.Number(),
+    makerCompletedDossiersCount: t.Number(),
+    makerAssignedPagesCount: t.Number(),
+    makerCompletedPagesCount: t.Number(),
+    makerAssignedFilesCount: t.Number(),
+    makerCompletedFilesCount: t.Number(),
+    makerDossierCompletionRate: t.Number(),
+    makerPageCompletionRate: t.Number(),
+    makerFileCompletionRate: t.Number(),
+    qcAssignedDossiersCount: t.Number(),
+    qcCompletedDossiersCount: t.Number(),
+    qcAssignedPagesCount: t.Number(),
+    qcCompletedPagesCount: t.Number(),
+    qcAssignedFilesCount: t.Number(),
+    qcCompletedFilesCount: t.Number(),
+    qcDossierCompletionRate: t.Number(),
+    qcPageCompletionRate: t.Number(),
+    qcFileCompletionRate: t.Number(),
+    accuracyRate: t.Number(),
+    avgProcessingTimeMinutes: t.Number(),
+    kpiStatus: t.String(),
+});
+
+export const personalKpisResponseSchema = t.Object({
+    days: t.Array(personalDailyKpiSchema),
+    total: personalDailyKpiSchema,
+});
+
+export const adminDossierChartResponseSchema = adminDossierChartSchema;
 
 export const warehouseLocationResponseSchema = t.Array(
     t.Object({

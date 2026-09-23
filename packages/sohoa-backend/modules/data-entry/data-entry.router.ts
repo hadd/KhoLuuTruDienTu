@@ -114,7 +114,7 @@ export function createDataEntryRouter(basePath: string = "/data-entry") {
             return await service.rejectCheckerByDossier(
                 params.dossierId,
                 profile.id,
-                body.notes,
+                body.notes?.trim() || "QC từ chối",
                 body.reject_fields,
             );
         },

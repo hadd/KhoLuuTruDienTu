@@ -11,6 +11,7 @@ import { Permission, DOSSIER_SIGN_VIEW_PERMISSIONS, DOSSIER_WORKFLOW_DATA_PERMIS
 import {
     hasPermissionInRules,
     parseRoleRules,
+    resolveEffectiveHiddenFromUserRoles,
     resolveEffectivePermissionsFromUserRoles,
     userRolesHaveAnyPermission,
     userRolesHavePermission,
@@ -299,6 +300,12 @@ export const authHelper = {
         }
 
         return hiddenPermissions || [];
+    },
+
+    /** Dashboard widget hide list from rules.hidden (union across roles). */
+    getEffectiveHidden: (profile: UserWithRoles) => {
+        if (!profile?.userRoles?.length) return [];
+        return resolveEffectiveHiddenFromUserRoles(profile.userRoles);
     },
 
     checkAdminOrProjectManager: (profile: UserWithRoles) => {

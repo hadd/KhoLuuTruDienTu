@@ -59,6 +59,27 @@ export function metadataFieldNamesMatch(a: string, b: string): boolean {
     return canonicalMetadataFieldName(a) === canonicalMetadataFieldName(b);
 }
 
+/** Document number fields that must stay string (alphanumeric), not count fields. */
+const DOCUMENT_NUMBER_STRING_FIELD_NAMES = new Set([
+    "SO_CUA_VAN_BAN",
+    "SO_VAN_BAN",
+]);
+
+const DOCUMENT_NUMBER_STRING_DISPLAYS = new Set([
+    "SỐ CỦA VĂN BẢN",
+    "SỐ VĂN BẢN",
+]);
+
+export function isDocumentNumberStringField(
+    fieldName: string,
+    fieldDisplay?: string,
+): boolean {
+    const normalizedName = fieldName.trim().toUpperCase();
+    if (DOCUMENT_NUMBER_STRING_FIELD_NAMES.has(normalizedName)) return true;
+    const normalizedDisplay = fieldDisplay?.trim()?.toUpperCase() ?? "";
+    return DOCUMENT_NUMBER_STRING_DISPLAYS.has(normalizedDisplay);
+}
+
 export const ARCHIVAL_GROUP_CODES = new Set([
     HO_SO_LUU_TRU_GROUP_CODE,
     TAI_LIEU_LUU_TRU_GROUP_CODE,
@@ -130,11 +151,15 @@ function normalizeMetadataField(raw: unknown): MetadataField {
 
     const rawBbox = field.bbox;
     const rawBboxes = field.bboxes;
+    const name = String(field.name ?? "");
+    const display = String(field.display ?? field.name ?? "");
+    const rawType = String(field.type ?? "string");
+    const type = isDocumentNumberStringField(name, display) ? "string" : rawType;
 
     return {
-        name: String(field.name ?? ""),
-        display: String(field.display ?? field.name ?? ""),
-        type: String(field.type ?? "string"),
+        name,
+        display,
+        type,
         value: field.value == null ? null : String(field.value),
         page,
         bbox: resolveMetadataFieldBbox({
@@ -351,7 +376,6 @@ export function findMetadataFieldValue(
 
 export const FOND_FIELD_NAMES = [
     HO_SO_FOND_FIELD,
-    "MA_PHONG",
     "TEN_PHONG",
     "PHONG_LUU_TRU",
 ] as const;
@@ -388,7 +412,6 @@ export function isFondFieldName(fieldName: string): boolean {
     return (
         FOND_FIELD_NAMES.some((name) => name === normalized) ||
         metadataFieldNamesMatch(fieldName, HO_SO_FOND_FIELD) ||
-        metadataFieldNamesMatch(fieldName, "MA_PHONG") ||
         metadataFieldNamesMatch(fieldName, "TEN_PHONG") ||
         metadataFieldNamesMatch(fieldName, "PHONG_LUU_TRU")
     );

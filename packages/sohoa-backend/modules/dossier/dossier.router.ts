@@ -72,6 +72,7 @@ const metadataExportBodySchema = t.Object({
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
   useDocumentNaming: t.Optional(t.Boolean()),
   excelOnly: t.Optional(t.Boolean()),
+  tiffOnly: t.Optional(t.Boolean()),
 });
 
 const multiDossierMetadataExportBodySchema = t.Object({
@@ -85,6 +86,7 @@ const multiDossierMetadataExportBodySchema = t.Object({
   checkOnly: t.Optional(t.Boolean()),
   useDocumentNaming: t.Optional(t.Boolean()),
   excelOnly: t.Optional(t.Boolean()),
+  tiffOnly: t.Optional(t.Boolean()),
 });
 
 const multiDipExportBodySchema = t.Object({
@@ -419,6 +421,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             service.exportMetadataExcelByIds(body.dossierIds, {
               ...body,
               excelOnly: body.excelOnly === true,
+              tiffOnly: body.tiffOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
@@ -890,6 +893,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
             service.exportMetadataExcel(params.id, {
               ...body,
               excelOnly: body.excelOnly === true,
+              tiffOnly: body.tiffOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
@@ -945,6 +949,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
               skippedFileIds,
               useDocumentNaming: query.useDocumentNaming === true,
               excelOnly: query.excelOnly === true,
+              tiffOnly: query.tiffOnly === true,
               bypassStatus,
             }),
         );
@@ -959,6 +964,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         applyWatermark: t.Optional(t.Boolean()),
         useDocumentNaming: t.Optional(t.Boolean()),
         excelOnly: t.Optional(t.Boolean()),
+        tiffOnly: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,

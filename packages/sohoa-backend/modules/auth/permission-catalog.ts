@@ -47,19 +47,58 @@ export const Permission = {
   AUDIT_LOGS_DELETE: "audit_logs.delete",
   AUDIT_LOGS_EXPORT: "audit_logs.export",
 
+  /** @deprecated Prefer dashboard.personal.* section keys. */
   DASHBOARD_EDITOR: "dashboard.editor",
+  /** @deprecated Prefer dashboard.personal.* / dashboard.team.qc_group. */
   DASHBOARD_QC: "dashboard.qc",
+  /** @deprecated Prefer dashboard.overview.* / dashboard.team.*. */
   DASHBOARD_ADMIN: "dashboard.admin",
+  /** @deprecated Use DASHBOARD_OVERVIEW_SUMMARY. */
   DASHBOARD_ADMIN_SUMMARY: "dashboard.admin.summary",
+  /** @deprecated Use DASHBOARD_OVERVIEW_DOSSIER_STATUS_CHART. */
   DASHBOARD_ADMIN_DOSSIER_STATUS_CHART: "dashboard.admin.dossier_status_chart",
+  /** @deprecated Use DASHBOARD_OVERVIEW_PROJECT_STATUS_CHART. */
   DASHBOARD_ADMIN_PROJECT_STATUS_CHART: "dashboard.admin.project_status_chart",
+  /** @deprecated Use DASHBOARD_OVERVIEW_DOSSIER_TREND_CHART. */
   DASHBOARD_ADMIN_DOSSIER_TREND_CHART: "dashboard.admin.dossier_trend_chart",
+  /** @deprecated Use DASHBOARD_OVERVIEW_SYSTEM_PERFORMANCE. */
   DASHBOARD_ADMIN_SYSTEM_PERFORMANCE: "dashboard.admin.system_performance",
+  /** @deprecated Use DASHBOARD_TEAM_EMPLOYEE_KPIS. */
   DASHBOARD_ADMIN_EMPLOYEE_KPIS: "dashboard.admin.employee_kpis",
+  /** @deprecated Use DASHBOARD_TEAM_GROUP_PERFORMANCE. */
   DASHBOARD_ADMIN_GROUP_PERFORMANCE_CHART: "dashboard.admin.group_performance_chart",
   DASHBOARD_ADMIN_UNASSIGNED: "dashboard.admin.unassigned",
   DASHBOARD_ADMIN_READ_ALL: "dashboard.admin.read_all",
+
+  DASHBOARD_PERSONAL: "dashboard.personal",
+  DASHBOARD_PERSONAL_EDITOR_SUMMARY: "dashboard.personal.editor_summary",
+  DASHBOARD_PERSONAL_EDITOR_ACCURACY: "dashboard.personal.editor_accuracy",
+  DASHBOARD_PERSONAL_EDITOR_PERFORMANCE: "dashboard.personal.editor_performance",
+  DASHBOARD_PERSONAL_EDITOR_CHARTS: "dashboard.personal.editor_charts",
+  DASHBOARD_PERSONAL_QC_SUMMARY: "dashboard.personal.qc_summary",
+  DASHBOARD_PERSONAL_QC_BY_STEP: "dashboard.personal.qc_by_step",
+  DASHBOARD_PERSONAL_QC_EFFICIENCY: "dashboard.personal.qc_efficiency",
+
+  DASHBOARD_TEAM: "dashboard.team",
+  DASHBOARD_TEAM_QC_GROUP: "dashboard.team.qc_group",
+  DASHBOARD_TEAM_EMPLOYEE_KPIS: "dashboard.team.employee_kpis",
+  DASHBOARD_TEAM_GROUP_PERFORMANCE: "dashboard.team.group_performance",
+
+  DASHBOARD_OVERVIEW: "dashboard.overview",
+  DASHBOARD_OVERVIEW_SUMMARY: "dashboard.overview.summary",
+  DASHBOARD_OVERVIEW_DOSSIER_STATUS_CHART: "dashboard.overview.dossier_status_chart",
+  DASHBOARD_OVERVIEW_PROJECT_STATUS_CHART: "dashboard.overview.project_status_chart",
+  DASHBOARD_OVERVIEW_DOSSIER_TREND_CHART: "dashboard.overview.dossier_trend_chart",
+  DASHBOARD_OVERVIEW_SYSTEM_PERFORMANCE: "dashboard.overview.system_performance",
+
   DASHBOARD_WAREHOUSE: "dashboard.warehouse",
+  DASHBOARD_WAREHOUSE_DOSSIER_DISTRIBUTION: "dashboard.warehouse.dossier_distribution",
+  DASHBOARD_WAREHOUSE_BORROW_STATS: "dashboard.warehouse.borrow_stats",
+  DASHBOARD_WAREHOUSE_CAPACITY: "dashboard.warehouse.capacity",
+  DASHBOARD_WAREHOUSE_INTAKE_CHART: "dashboard.warehouse.intake_chart",
+  DASHBOARD_WAREHOUSE_UNPLACED: "dashboard.warehouse.unplaced",
+  DASHBOARD_WAREHOUSE_FONDS: "dashboard.warehouse.fonds",
+  DASHBOARD_WAREHOUSE_DISPOSAL: "dashboard.warehouse.disposal",
 
   DATA_ENTRY_MAKER: "data-entry.maker",
   DATA_ENTRY_CHECKER: "data-entry.checker",
@@ -73,6 +112,8 @@ export const Permission = {
   METADATA_EXTRACT_TRIGGER: "metadata.extract.trigger",
   METADATA_HIDDEN_FIELDS_READ: "metadata.hidden_fields.read",
   METADATA_HIDDEN_FIELDS_UPDATE: "metadata.hidden_fields.update",
+  METADATA_FIELDS_READ: "metadata.fields.read",
+  METADATA_FIELDS_UPDATE: "metadata.fields.update",
 
   WATERMARK_CONFIG_READ: "watermark.config.read",
   WATERMARK_CONFIG_CREATE: "watermark.config.create",
@@ -279,74 +320,112 @@ export interface PermissionDefinition {
 export const PERMISSION_CATALOG: PermissionDefinition[] = [
   // --- MODULE 1: TỔNG QUAN ---
   {
-    key: Permission.DASHBOARD_EDITOR,
+    key: Permission.DASHBOARD_PERSONAL,
     module: "dashboard",
-    label: "Dashboard biên tập",
-    description:
-      "Xem thống kê tiến độ nhập liệu và hiệu suất cá nhân của biên tập viên",
+    label: "Dashboard cá nhân",
+    description: "Xem các widget thống kê cá nhân (biên tập / QC) trên Dashboard",
   },
   {
-    key: Permission.DASHBOARD_QC,
+    key: Permission.DASHBOARD_PERSONAL_EDITOR_SUMMARY,
     module: "dashboard",
-    label: "Dashboard QC",
-    description:
-      "Xem thống kê duyệt hồ sơ, hiệu suất QC cá nhân và dashboard nhóm (trưởng nhóm)",
+    label: "KPI biên tập",
+    description: "Xem thẻ số hồ sơ được gán / hoàn thành / đang xử lý của biên tập viên",
   },
   {
-    key: Permission.DASHBOARD_ADMIN,
+    key: Permission.DASHBOARD_PERSONAL_EDITOR_ACCURACY,
     module: "dashboard",
-    label: "Dashboard quản trị",
-    description:
-      "Xem tổng quan hệ thống, biểu đồ tiến độ hồ sơ và hiệu suất theo nhóm/dự án",
+    label: "Độ chính xác biên tập",
+    description: "Xem tỷ lệ đúng / sai của biên tập viên",
   },
   {
-    key: Permission.DASHBOARD_ADMIN_SUMMARY,
+    key: Permission.DASHBOARD_PERSONAL_EDITOR_PERFORMANCE,
     module: "dashboard",
-    label: "Thẻ thống kê tổng quan",
-    description:
-      "Xem các thẻ thống kê tổng quan (Hồ sơ hệ thống, Dự án hệ thống, Hiệu suất duyệt)",
+    label: "Hiệu suất biên tập",
+    description: "Xem thời gian xử lý trung bình của biên tập viên",
   },
   {
-    key: Permission.DASHBOARD_ADMIN_DOSSIER_STATUS_CHART,
+    key: Permission.DASHBOARD_PERSONAL_EDITOR_CHARTS,
     module: "dashboard",
-    label: "Biểu đồ trạng thái hồ sơ",
-    description:
-      "Xem biểu đồ phân bổ trạng thái hồ sơ số hóa",
+    label: "Biểu đồ biên tập",
+    description: "Xem biểu đồ xu hướng hoàn thành và độ chính xác cá nhân",
   },
   {
-    key: Permission.DASHBOARD_ADMIN_PROJECT_STATUS_CHART,
+    key: Permission.DASHBOARD_PERSONAL_QC_SUMMARY,
     module: "dashboard",
-    label: "Biểu đồ trạng thái dự án",
-    description:
-      "Xem biểu đồ phân bổ trạng thái dự án số hóa",
+    label: "KPI QC cá nhân",
+    description: "Xem thẻ số hồ sơ duyệt / từ chối / chờ duyệt của QC",
   },
   {
-    key: Permission.DASHBOARD_ADMIN_DOSSIER_TREND_CHART,
+    key: Permission.DASHBOARD_PERSONAL_QC_BY_STEP,
     module: "dashboard",
-    label: "Biểu đồ xu hướng tiến độ hồ sơ",
-    description:
-      "Xem biểu đồ cột xu hướng hoàn thành hồ sơ theo tháng/quý",
+    label: "QC theo bước",
+    description: "Xem biểu đồ duyệt theo từng bước workflow",
   },
   {
-    key: Permission.DASHBOARD_ADMIN_SYSTEM_PERFORMANCE,
+    key: Permission.DASHBOARD_PERSONAL_QC_EFFICIENCY,
     module: "dashboard",
-    label: "Chỉ số hiệu suất hệ thống",
-    description:
-      "Xem các chỉ số thời gian xử lý trung bình và tỷ lệ duyệt toàn hệ thống",
+    label: "Hiệu suất QC",
+    description: "Xem tỷ lệ duyệt / từ chối của QC",
   },
   {
-    key: Permission.DASHBOARD_ADMIN_EMPLOYEE_KPIS,
+    key: Permission.DASHBOARD_TEAM,
+    module: "dashboard",
+    label: "Dashboard đội nhóm / dự án",
+    description: "Xem các widget thống kê đội nhóm và dự án trên Dashboard",
+  },
+  {
+    key: Permission.DASHBOARD_TEAM_QC_GROUP,
+    module: "dashboard",
+    label: "Dashboard nhóm QC",
+    description: "Xem tiến độ nhóm và hiệu suất thành viên (trưởng nhóm QC)",
+  },
+  {
+    key: Permission.DASHBOARD_TEAM_EMPLOYEE_KPIS,
     module: "dashboard",
     label: "Bảng KPI nhân viên",
-    description:
-      "Xem bảng thống kê chi tiết sản lượng và tỷ lệ đúng của từng nhân viên",
+    description: "Xem bảng thống kê chi tiết sản lượng và tỷ lệ đúng của từng nhân viên",
   },
   {
-    key: Permission.DASHBOARD_ADMIN_GROUP_PERFORMANCE_CHART,
+    key: Permission.DASHBOARD_TEAM_GROUP_PERFORMANCE,
     module: "dashboard",
     label: "Biểu đồ hiệu suất tổ nhóm",
-    description:
-      "Xem biểu đồ sản lượng và tỷ lệ đúng trung bình của các tổ nhóm",
+    description: "Xem biểu đồ sản lượng và tỷ lệ đúng trung bình của các tổ nhóm",
+  },
+  {
+    key: Permission.DASHBOARD_OVERVIEW,
+    module: "dashboard",
+    label: "Dashboard tổng quan hệ thống",
+    description: "Xem các widget tổng quan hệ thống trên Dashboard",
+  },
+  {
+    key: Permission.DASHBOARD_OVERVIEW_SUMMARY,
+    module: "dashboard",
+    label: "Thẻ thống kê tổng quan",
+    description: "Xem các thẻ thống kê tổng quan (Hồ sơ hệ thống, Dự án hệ thống, Hiệu suất duyệt)",
+  },
+  {
+    key: Permission.DASHBOARD_OVERVIEW_DOSSIER_STATUS_CHART,
+    module: "dashboard",
+    label: "Biểu đồ trạng thái hồ sơ",
+    description: "Xem biểu đồ phân bổ trạng thái hồ sơ số hóa",
+  },
+  {
+    key: Permission.DASHBOARD_OVERVIEW_PROJECT_STATUS_CHART,
+    module: "dashboard",
+    label: "Biểu đồ trạng thái dự án",
+    description: "Xem biểu đồ phân bổ trạng thái dự án số hóa",
+  },
+  {
+    key: Permission.DASHBOARD_OVERVIEW_DOSSIER_TREND_CHART,
+    module: "dashboard",
+    label: "Biểu đồ xu hướng tiến độ hồ sơ",
+    description: "Xem biểu đồ cột xu hướng hoàn thành hồ sơ theo tháng/quý",
+  },
+  {
+    key: Permission.DASHBOARD_OVERVIEW_SYSTEM_PERFORMANCE,
+    module: "dashboard",
+    label: "Chỉ số hiệu suất hệ thống",
+    description: "Xem các chỉ số thời gian xử lý trung bình và tỷ lệ duyệt toàn hệ thống",
   },
   {
     key: Permission.DASHBOARD_ADMIN_UNASSIGNED,
@@ -366,8 +445,49 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     key: Permission.DASHBOARD_WAREHOUSE,
     module: "dashboard",
     label: "Dashboard kho",
-    description:
-      "Xem thống kê phân bổ chi tiết hồ sơ thực tế theo mức độ lưu trữ và chỉnh lý",
+    description: "Xem các widget thống kê kho lưu trữ trên Dashboard",
+  },
+  {
+    key: Permission.DASHBOARD_WAREHOUSE_DOSSIER_DISTRIBUTION,
+    module: "dashboard",
+    label: "Phân bố hồ sơ kho",
+    description: "Xem biểu đồ phân bố hồ sơ theo mức độ lưu trữ và chỉnh lý",
+  },
+  {
+    key: Permission.DASHBOARD_WAREHOUSE_BORROW_STATS,
+    module: "dashboard",
+    label: "Thống kê mượn hồ sơ",
+    description: "Xem thống kê yêu cầu mượn / tra cứu hồ sơ",
+  },
+  {
+    key: Permission.DASHBOARD_WAREHOUSE_CAPACITY,
+    module: "dashboard",
+    label: "Dung lượng kho",
+    description: "Xem sức chứa và mức sử dụng theo vị trí kho vật lý",
+  },
+  {
+    key: Permission.DASHBOARD_WAREHOUSE_INTAKE_CHART,
+    module: "dashboard",
+    label: "Biểu đồ nạp kho",
+    description: "Xem biểu đồ hồ sơ nạp vào kho theo ngày/tháng",
+  },
+  {
+    key: Permission.DASHBOARD_WAREHOUSE_UNPLACED,
+    module: "dashboard",
+    label: "Hồ sơ chưa xếp vị trí",
+    description: "Xem danh sách hồ sơ chưa được phân vị trí kho",
+  },
+  {
+    key: Permission.DASHBOARD_WAREHOUSE_FONDS,
+    module: "dashboard",
+    label: "Phân bố theo phông",
+    description: "Xem biểu đồ hồ sơ theo phông lưu trữ",
+  },
+  {
+    key: Permission.DASHBOARD_WAREHOUSE_DISPOSAL,
+    module: "dashboard",
+    label: "Hồ sơ đến hạn tiêu hủy",
+    description: "Xem danh sách hồ sơ sắp/đã hết hạn tiêu hủy",
   },
 
   // --- MODULE 2: SỐ HÓA ---
@@ -1049,6 +1169,18 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
       "Thêm, sửa, xóa cấu hình ẩn hoặc hiển thị các trường metadata ở màn hình quản lý dữ liệu",
   },
   {
+    key: Permission.METADATA_FIELDS_READ,
+    module: "metadata",
+    label: "Xem danh sách trường Metadata",
+    description: "Xem danh mục các trường siêu dữ liệu metadata theo model bóc tách",
+  },
+  {
+    key: Permission.METADATA_FIELDS_UPDATE,
+    module: "metadata",
+    label: "Quản lý trường Metadata",
+    description: "Thêm, cập nhật, xóa trường siêu dữ liệu metadata theo model bóc tách",
+  },
+  {
     key: Permission.WATERMARK_CONFIG_READ,
     module: "watermark",
     label: "Xem cấu hình watermark",
@@ -1095,8 +1227,67 @@ const LEGACY_PERMISSION_KEYS = [
   /** Pre-library merge borrow keys (still accepted in role JSON). */
   "archive.borrow.request",
   "archive.borrow.review",
+  /** Pre-modular dashboard role/page keys. */
+  Permission.DASHBOARD_EDITOR,
+  Permission.DASHBOARD_QC,
+  Permission.DASHBOARD_ADMIN,
+  Permission.DASHBOARD_ADMIN_SUMMARY,
+  Permission.DASHBOARD_ADMIN_DOSSIER_STATUS_CHART,
+  Permission.DASHBOARD_ADMIN_PROJECT_STATUS_CHART,
+  Permission.DASHBOARD_ADMIN_DOSSIER_TREND_CHART,
+  Permission.DASHBOARD_ADMIN_SYSTEM_PERFORMANCE,
+  Permission.DASHBOARD_ADMIN_EMPLOYEE_KPIS,
+  Permission.DASHBOARD_ADMIN_GROUP_PERFORMANCE_CHART,
 ] as const;
 
+export const DASHBOARD_PERSONAL_SECTION_PERMISSIONS = [
+  Permission.DASHBOARD_PERSONAL_EDITOR_SUMMARY,
+  Permission.DASHBOARD_PERSONAL_EDITOR_ACCURACY,
+  Permission.DASHBOARD_PERSONAL_EDITOR_PERFORMANCE,
+  Permission.DASHBOARD_PERSONAL_EDITOR_CHARTS,
+  Permission.DASHBOARD_PERSONAL_QC_SUMMARY,
+  Permission.DASHBOARD_PERSONAL_QC_BY_STEP,
+  Permission.DASHBOARD_PERSONAL_QC_EFFICIENCY,
+] as const;
+
+export const DASHBOARD_PERSONAL_EDITOR_PERMISSIONS = [
+  Permission.DASHBOARD_PERSONAL_EDITOR_SUMMARY,
+  Permission.DASHBOARD_PERSONAL_EDITOR_ACCURACY,
+  Permission.DASHBOARD_PERSONAL_EDITOR_PERFORMANCE,
+  Permission.DASHBOARD_PERSONAL_EDITOR_CHARTS,
+] as const;
+
+export const DASHBOARD_PERSONAL_QC_PERMISSIONS = [
+  Permission.DASHBOARD_PERSONAL_QC_SUMMARY,
+  Permission.DASHBOARD_PERSONAL_QC_BY_STEP,
+  Permission.DASHBOARD_PERSONAL_QC_EFFICIENCY,
+] as const;
+
+export const DASHBOARD_TEAM_SECTION_PERMISSIONS = [
+  Permission.DASHBOARD_TEAM_QC_GROUP,
+  Permission.DASHBOARD_TEAM_EMPLOYEE_KPIS,
+  Permission.DASHBOARD_TEAM_GROUP_PERFORMANCE,
+] as const;
+
+export const DASHBOARD_OVERVIEW_SECTION_PERMISSIONS = [
+  Permission.DASHBOARD_OVERVIEW_SUMMARY,
+  Permission.DASHBOARD_OVERVIEW_DOSSIER_STATUS_CHART,
+  Permission.DASHBOARD_OVERVIEW_PROJECT_STATUS_CHART,
+  Permission.DASHBOARD_OVERVIEW_DOSSIER_TREND_CHART,
+  Permission.DASHBOARD_OVERVIEW_SYSTEM_PERFORMANCE,
+] as const;
+
+export const DASHBOARD_WAREHOUSE_SECTION_PERMISSIONS = [
+  Permission.DASHBOARD_WAREHOUSE_DOSSIER_DISTRIBUTION,
+  Permission.DASHBOARD_WAREHOUSE_BORROW_STATS,
+  Permission.DASHBOARD_WAREHOUSE_CAPACITY,
+  Permission.DASHBOARD_WAREHOUSE_INTAKE_CHART,
+  Permission.DASHBOARD_WAREHOUSE_UNPLACED,
+  Permission.DASHBOARD_WAREHOUSE_FONDS,
+  Permission.DASHBOARD_WAREHOUSE_DISPOSAL,
+] as const;
+
+/** @deprecated Prefer DASHBOARD_OVERVIEW_SECTION_PERMISSIONS + DASHBOARD_TEAM_SECTION_PERMISSIONS. */
 export const DASHBOARD_ADMIN_SUB_PERMISSIONS = [
   Permission.DASHBOARD_ADMIN_SUMMARY,
   Permission.DASHBOARD_ADMIN_DOSSIER_STATUS_CHART,
@@ -1107,6 +1298,11 @@ export const DASHBOARD_ADMIN_SUB_PERMISSIONS = [
   Permission.DASHBOARD_ADMIN_GROUP_PERFORMANCE_CHART,
   Permission.DASHBOARD_ADMIN_UNASSIGNED,
   Permission.DASHBOARD_ADMIN_READ_ALL,
+  Permission.DASHBOARD_OVERVIEW,
+  ...DASHBOARD_OVERVIEW_SECTION_PERMISSIONS,
+  Permission.DASHBOARD_TEAM,
+  Permission.DASHBOARD_TEAM_EMPLOYEE_KPIS,
+  Permission.DASHBOARD_TEAM_GROUP_PERFORMANCE,
 ] as const;
 
 export const ALL_PERMISSION_KEYS = PERMISSION_CATALOG.map(

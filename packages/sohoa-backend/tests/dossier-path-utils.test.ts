@@ -1,8 +1,10 @@
 import { assertEquals } from "@std/assert";
 import {
+    deriveDossierLookupFromDocJsonPath,
     deriveFolderPathFromProcessedKey,
     deriveHoSoIdFromProcessedKey,
     expandKeysWithDocJsonMirrors,
+    expandKeysWithExportDerivatives,
     folderNameFromPath,
     normalizeStorageKey,
     splitFolderSegments,
@@ -10,6 +12,10 @@ import {
     storageDirname,
     toDocJsonDataLakeKey,
     toDocJsonDataLakePrefix,
+    toExportPdfKey,
+    toExportPdfPrefix,
+    toExportTiffKey,
+    toExportTiffPrefix,
     toProcessedMetadataKey,
     toTt05MetadataKey,
     toTuyenQuangMetadataKey,
@@ -42,7 +48,7 @@ Deno.test("toDocJsonDataLakeKey mirrors raw only and maps .pdf to .json", () => 
     assertEquals(toDocJsonDataLakePrefix("raw/batch-1/ho-so-123"), "doc_json/batch-1/ho-so-123/");
 });
 
-Deno.test("toSearchablePdfKey mirrors raw only with same inner path", () => {
+Deno.test("toSearchablePdfKey mirrors raw/signed/processed with same inner path", () => {
     assertEquals(
         toSearchablePdfKey("raw/batch-1/ho-so-123/scan.pdf"),
         "searchable_pdf/batch-1/ho-so-123/scan.pdf",
@@ -51,7 +57,10 @@ Deno.test("toSearchablePdfKey mirrors raw only with same inner path", () => {
         toSearchablePdfKey("raw/batch-1/ho-so-123/metadata/ocr-result.json"),
         "searchable_pdf/batch-1/ho-so-123/metadata/ocr-result.json",
     );
-    assertEquals(toSearchablePdfKey("processed/batch-1/ho-so-123/ho-so-123.json"), null);
+    assertEquals(
+        toSearchablePdfKey("processed/batch-1/ho-so-123/ho-so-123.json"),
+        "searchable_pdf/batch-1/ho-so-123/ho-so-123.json",
+    );
     assertEquals(
         toSearchablePdfKey("searchable_pdf/batch-1/ho-so-123/scan.pdf"),
         "searchable_pdf/batch-1/ho-so-123/scan.pdf",
@@ -108,6 +117,41 @@ Deno.test("deriveFolderPathFromProcessedKey maps tt05_metadata json to raw folde
     );
 });
 
+Deno.test("deriveDossierLookupFromDocJsonPath maps flat merge json to leaf folder", () => {
+    assertEquals(
+        deriveDossierLookupFromDocJsonPath("doc_json/028.23.01/01/0006/0048_12.json"),
+        {
+            dossierName: "0048_12",
+            folderPaths: [
+                "raw/028.23.01/01/0006/0048_12",
+                "raw/028.23.01/01/0006",
+            ],
+        },
+    );
+});
+
+Deno.test("deriveDossierLookupFromDocJsonPath maps nested json to dossier folder", () => {
+    assertEquals(
+        deriveDossierLookupFromDocJsonPath(
+            "doc_json/batch-1/ho-so-123/ho-so-123.json",
+        ),
+        {
+            dossierName: "ho-so-123",
+            folderPaths: [
+                "raw/batch-1/ho-so-123/ho-so-123",
+                "raw/batch-1/ho-so-123",
+            ],
+        },
+    );
+});
+
+Deno.test("deriveDossierLookupFromDocJsonPath ignores non-doc_json keys", () => {
+    assertEquals(
+        deriveDossierLookupFromDocJsonPath("processed/batch-1/ho-so-123/ho-so-123.json"),
+        null,
+    );
+});
+
 Deno.test("expandKeysWithDocJsonMirrors adds doc_json siblings for raw keys only", () => {
     const keys = new Set([
         "raw/a/ho-so/scan.pdf",
@@ -156,4 +200,55 @@ Deno.test("storageDirname and basename parse nested key", () => {
     assertEquals(storageDirname(key), "imports/2024/ho-so-123");
     assertEquals(storageBasename(key), "scan.pdf");
     assertEquals(folderNameFromPath(storageDirname(key)), "ho-so-123");
+});
+
+Deno.test("toExportPdfKey / toExportTiffKey mirror raw and signed PDF paths", () => {
+    assertEquals(
+        toExportPdfKey("raw/batch-1/ho-so-123/scan.pdf"),
+        "Export/PDF/batch-1/ho-so-123/scan.pdf",
+    );
+    assertEquals(
+        toExportTiffKey("raw/batch-1/ho-so-123/scan.pdf"),
+        "Export/TIFF/batch-1/ho-so-123/scan.TIFF",
+    );
+    assertEquals(
+        toExportPdfKey("signed/batch-1/ho-so-123/scan.pdf"),
+        "Export/PDF/batch-1/ho-so-123/scan.pdf",
+    );
+    assertEquals(
+        toExportTiffKey("signed/batch-1/ho-so-123/scan.pdf"),
+        "Export/TIFF/batch-1/ho-so-123/scan.TIFF",
+    );
+    assertEquals(
+        toExportPdfKey("Export/PDF/batch-1/ho-so-123/scan.pdf"),
+        "Export/PDF/batch-1/ho-so-123/scan.pdf",
+    );
+    assertEquals(toExportPdfKey("raw/batch-1/ho-so-123/meta.json"), null);
+    assertEquals(toExportPdfKey("processed/batch-1/ho-so-123/ho-so.json"), null);
+});
+
+Deno.test("toExportPdfPrefix / toExportTiffPrefix mirror raw folder paths", () => {
+    assertEquals(
+        toExportPdfPrefix("raw/batch-1/ho-so-123"),
+        "Export/PDF/batch-1/ho-so-123/",
+    );
+    assertEquals(
+        toExportTiffPrefix("raw/batch-1/ho-so-123"),
+        "Export/TIFF/batch-1/ho-so-123/",
+    );
+    assertEquals(toExportPdfPrefix("processed/batch-1/ho-so-123"), null);
+});
+
+Deno.test("expandKeysWithExportDerivatives adds Export/PDF and Export/TIFF", () => {
+    const keys = new Set([
+        "raw/a/ho-so/scan.pdf",
+        "raw/a/ho-so/metadata/ocr-result.json",
+        "signed/a/ho-so/signed-scan.pdf",
+    ]);
+    expandKeysWithExportDerivatives(keys);
+    assertEquals(keys.has("Export/PDF/a/ho-so/scan.pdf"), true);
+    assertEquals(keys.has("Export/TIFF/a/ho-so/scan.TIFF"), true);
+    assertEquals(keys.has("Export/PDF/a/ho-so/signed-scan.pdf"), true);
+    assertEquals(keys.has("Export/TIFF/a/ho-so/signed-scan.TIFF"), true);
+    assertEquals(keys.has("Export/PDF/a/ho-so/metadata/ocr-result.json"), false);
 });

@@ -155,6 +155,12 @@ async function tryDownloadBinary(
   }
 }
 
+export async function tryDownloadBinaryFromStorage(
+  objectKey: string,
+): Promise<Uint8Array | null> {
+  return await tryDownloadBinary(objectKey);
+}
+
 /**
  * Download PDF for export.
  * Prefer signed/ (DB key or mirrored path), then raw when it embeds a signature;

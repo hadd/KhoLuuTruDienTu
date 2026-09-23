@@ -49,6 +49,8 @@ import {
   storageBasename,
   storageDirname,
   toSearchablePdfKey,
+  toExportPdfKey,
+  toExportTiffKey,
   deriveFolderPathFromProcessedKey,
   getMetadataOutputPrefix,
   isCanonicalOcrOutputKey,
@@ -100,10 +102,12 @@ import {
   buildLinkGet,
   buildSummaryMetadataUpdateKey,
   downloadExportPdfSource,
+  tryDownloadBinaryFromStorage,
   downloadJsonFromStorage,
   resolveMetadataJsonKey,
   uploadJsonToStorage,
 } from "../data-entry/data-entry-s3-utils.ts";
+import { loadDossierMetadataJsonFromStorage } from "../data-entry/load-dossier-metadata-json.ts";
 import {
   deleteDossierDraftMetadata,
   saveMetadataDraft as persistMetadataDraft,
@@ -118,6 +122,7 @@ import {
   getAipStatus as queryAipStatus,
   resolveIdsIntoDossierIds,
 } from "../../libs/archival-package/aip-service.ts";
+import { generateAndPersistExportDerivatives } from "../../libs/export-derivatives/generate-export-derivatives.ts";
 import {
   applyWatermarkConfigToPdfFiles,
   resolveWatermarkApplyConfig,
@@ -1261,9 +1266,11 @@ type MetadataExportInput = {
   bypassStatus?: boolean;
   /** When true, ZIP contains only the Excel file (no PDF/TIFF). */
   excelOnly?: boolean | string;
+  /** When true, ZIP contains only the TIFF/ tree (no Excel/PDF). */
+  tiffOnly?: boolean | string;
 };
 
-function isExcelOnlyFlag(value: unknown): boolean {
+function isTruthyExportFlag(value: unknown): boolean {
   return value === true || value === "true";
 }
 
@@ -1280,7 +1287,11 @@ async function buildApprovedMetadataExportZip(
     baseFolderName?: string;
   },
 ) {
-  const excelOnly = isExcelOnlyFlag(input?.excelOnly);
+  const excelOnly = isTruthyExportFlag(input?.excelOnly);
+  const tiffOnly = isTruthyExportFlag(input?.tiffOnly);
+  if (excelOnly && tiffOnly) {
+    throw httpError.badRequest("Cannot set both excelOnly and tiffOnly");
+  }
 
   // Early file-count check using metadata JSON only (no PDF download yet).
   const metadataForCount = await mapInBatches(
@@ -1309,8 +1320,8 @@ async function buildApprovedMetadataExportZip(
     assertExportFileLimit(totalPdfFiles);
   }
 
-  // excelOnly / export_any_status: plain ZIP, no watermark, no password
-  const skipProtect = excelOnly || input?.bypassStatus === true;
+  // excelOnly / tiffOnly / export_any_status: plain ZIP, no watermark, no password
+  const skipProtect = excelOnly || tiffOnly || input?.bypassStatus === true;
 
   const dossierIds = allDossiers.map((d) => d.id);
   // Hồ sơ ở trạng thái Đã duyệt: Không áp dụng watermark trừ khi người dùng chủ động bật (applyWatermark === true)
@@ -1330,18 +1341,6 @@ async function buildApprovedMetadataExportZip(
     : { password: undefined, source: "none" as const };
   const zipPassword = zipResolved.password;
 
-  const metadataList = metadataForCount.map((item) => item.metadata);
-  const exportConfig =
-    input?.presetId || input?.columns
-      ? await MetadataExportPresetService.resolveExportConfig(input)
-      : undefined;
-
-  const excelBuffer = await buildDynamicMetadataExcel(metadataList, {
-    exportConfig,
-    dossierFilesList: metadataForCount.map((item) => item.dossier.files ?? []),
-    dossierFolderPaths: metadataForCount.map((item) => item.dossier.folderPath),
-  });
-
   const first = metadataForCount[0];
   const isSingleDossier =
     options.layout === "dossier-single" && metadataForCount.length === 1;
@@ -1354,14 +1353,32 @@ async function buildApprovedMetadataExportZip(
     ? singleFolderName
     : sanitizeExportBaseName(options.zipBaseName);
 
-  const excelFileName = isSingleDossier
-    ? `${zipBaseName}-metadata.xlsx`
-    : `${zipBaseName}-metadata-export.xlsx`;
+  let excelFileName: string | undefined;
+  let excelBuffer: Uint8Array | undefined;
+  if (!tiffOnly) {
+    const metadataList = metadataForCount.map((item) => item.metadata);
+    const exportConfig =
+      input?.presetId || input?.columns
+        ? await MetadataExportPresetService.resolveExportConfig(input)
+        : undefined;
 
-  // Stream ZIP while processing PDFs (or Excel-only with empty build).
+    excelBuffer = await buildDynamicMetadataExcel(metadataList, {
+      exportConfig,
+      dossierFilesList: metadataForCount.map((item) => item.dossier.files ?? []),
+      dossierFolderPaths: metadataForCount.map((item) =>
+        item.dossier.folderPath
+      ),
+    });
+    excelFileName = isSingleDossier
+      ? `${zipBaseName}-metadata.xlsx`
+      : `${zipBaseName}-metadata-export.xlsx`;
+  }
+
+  // Stream ZIP while processing PDFs (or Excel-only / TIFF-only with tailored build).
   const stream = buildFolderMetadataExportZipStreamIncremental({
     excelFileName,
     excelBuffer,
+    omitExcel: tiffOnly,
     password: zipPassword,
     build: async (add, usedFolderNames) => {
       if (excelOnly) return;
@@ -1430,13 +1447,6 @@ async function buildApprovedMetadataExportZip(
           const usedNames = new Set<string>();
           const usedPdfNames = new Set<string>();
 
-          // Prefetch next PDF while converting current (peak RAM ≈ 2 files + TIFF per dossier).
-          let nextDownload: Promise<
-            Awaited<ReturnType<typeof downloadExportPdfSource>>
-          > | null = pdfSources.length > 0
-            ? downloadExportPdfSource(pdfSources[0]!)
-            : null;
-
           for (
             let sourceIndex = 0;
             sourceIndex < pdfSources.length;
@@ -1456,42 +1466,65 @@ async function buildApprovedMetadataExportZip(
               })
               : source.fileName;
 
-            const downloaded = await (nextDownload ??
-              downloadExportPdfSource(source));
-            const nextSource = pdfSources[sourceIndex + 1];
-            nextDownload = nextSource
-              ? downloadExportPdfSource(nextSource)
-              : null;
-
-            let pdfFiles = [
-              {
-                fileName,
-                data: downloaded.data,
-                ...(downloaded.preserveSignature
-                  ? { preserveSignature: true as const }
-                  : {}),
-              },
-            ];
-            pdfFiles = await applyWatermarkConfigToPdfFiles(
-              pdfFiles,
-              watermarkConfig,
+            const usedNamesEntry = uniqueZipEntryName(
+              fileName,
+              usedPdfNames,
             );
-            pdfFiles = await convertBatchToPdfA(pdfFiles, {
-              title: metadata.ho_so_id || dossier.name,
-            });
+            const tiffEntryName = usedNamesEntry.replace(/\.pdf$/i, ".TIFF");
+            const canUsePregen = !watermarkConfig;
 
-            const pdf = pdfFiles[0]!;
-            const entryName = uniqueZipEntryName(pdf.fileName, usedPdfNames);
+            let pdfData: Uint8Array | null = null;
+            let tiffData: Uint8Array | null = null;
+
+            if (canUsePregen) {
+              const exportTiffKey = toExportTiffKey(source.storageKey);
+              if (exportTiffKey) {
+                tiffData = await tryDownloadBinaryFromStorage(exportTiffKey);
+              }
+              if (!tiffOnly || !tiffData) {
+                const exportPdfKey = toExportPdfKey(source.storageKey);
+                if (exportPdfKey) {
+                  pdfData = await tryDownloadBinaryFromStorage(exportPdfKey);
+                }
+              }
+            }
+
+            if (!tiffData || (!tiffOnly && !pdfData)) {
+              if (!pdfData) {
+                const downloaded = await downloadExportPdfSource(source);
+                let pdfFiles = [
+                  {
+                    fileName,
+                    data: downloaded.data,
+                    ...(downloaded.preserveSignature
+                      ? { preserveSignature: true as const }
+                      : {}),
+                  },
+                ];
+                pdfFiles = await applyWatermarkConfigToPdfFiles(
+                  pdfFiles,
+                  watermarkConfig,
+                );
+                pdfFiles = await convertBatchToPdfA(pdfFiles, {
+                  title: metadata.ho_so_id || dossier.name,
+                });
+                pdfData = pdfFiles[0]!.data;
+              }
+              if (!tiffData) {
+                tiffData = await convertPdfToTiff(pdfData!);
+              }
+            }
+
+            if (!tiffOnly) {
+              await zipMutex.runExclusive(() =>
+                add(`PDF/${folderPrefix}/${usedNamesEntry}`, pdfData!)
+              );
+            }
+            pdfData = null;
             await zipMutex.runExclusive(() =>
-              add(`PDF/${folderPrefix}/${entryName}`, pdf.data)
+              add(`TIFF/${folderPrefix}/${tiffEntryName}`, tiffData!)
             );
-
-            const tiffBytes = await convertPdfToTiff(pdf.data);
-            pdf.data = new Uint8Array(0);
-            const tiffEntryName = entryName.replace(/\.pdf$/i, ".TIFF");
-            await zipMutex.runExclusive(() =>
-              add(`TIFF/${folderPrefix}/${tiffEntryName}`, tiffBytes)
-            );
+            tiffData = null;
           }
         },
       );
@@ -1500,7 +1533,9 @@ async function buildApprovedMetadataExportZip(
 
   return {
     stream,
-    filename: `${zipBaseName}-metadata-export.zip`,
+    filename: tiffOnly
+      ? `${zipBaseName}-tiff-export.zip`
+      : `${zipBaseName}-metadata-export.zip`,
     contentType: "application/zip" as const,
     exportedCount: metadataForCount.length,
     zipPasswordSource: zipResolved.source,
@@ -1508,8 +1543,14 @@ async function buildApprovedMetadataExportZip(
 }
 
 async function loadDossierMetadataFromStorage(dossier: DossierWithFiles) {
-  const metadataKey = resolveMetadataJsonKey(dossier.currentMetadataKey!);
-  const rawMetadata = await downloadJsonFromStorage(metadataKey);
+  const rawMetadata = await loadDossierMetadataJsonFromStorage(
+    {
+      dossierName: dossier.name,
+      currentMetadataKey: dossier.currentMetadataKey,
+      ocrMetadataKey: dossier.ocrMetadataKey,
+    },
+    downloadJsonFromStorage,
+  );
   const metadata = parseDossierMetadata(rawMetadata);
 
   if (!metadata) {
@@ -3623,6 +3664,9 @@ export const DossierService = {
     if (!result.partial && result.dossierStatus === DossierStatus.APPROVED) {
       generateAndPersistAip({ dossierId }).catch((err) => {
         console.error("[AIP] Failed to generate archival package:", err);
+      });
+      generateAndPersistExportDerivatives({ dossierId }).catch((err) => {
+        console.error("[ExportDerivatives] Failed to pre-generate PDF/A+TIFF:", err);
       });
       scheduleDossierApprovedNotification({
         dossierId,

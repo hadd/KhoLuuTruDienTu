@@ -1,5 +1,10 @@
 import {
     ALL_PERMISSION_KEYS,
+    DASHBOARD_OVERVIEW_SECTION_PERMISSIONS,
+    DASHBOARD_PERSONAL_EDITOR_PERMISSIONS,
+    DASHBOARD_PERSONAL_QC_PERMISSIONS,
+    DASHBOARD_TEAM_SECTION_PERMISSIONS,
+    DASHBOARD_WAREHOUSE_SECTION_PERMISSIONS,
     isKnownPermissionKey,
     isValidPermissionPattern,
     Permission,
@@ -9,14 +14,34 @@ import {
 export interface RoleRules {
     permissions: string[];
     restrictions: string[];
+    hidden: string[];
 }
 
-const EMPTY_RULES: RoleRules = { permissions: [], restrictions: [] };
+const EMPTY_RULES: RoleRules = { permissions: [], restrictions: [], hidden: [] };
 
-export function parseRoleRules(rulesJson: string | null | undefined): RoleRules {
-    if (!rulesJson?.trim()) {
-        return { ...EMPTY_RULES };
+export function parseRoleRules(rulesJson: string | null | undefined | RoleRules | Record<string, unknown>): RoleRules {
+    if (rulesJson == null) {
+        return { permissions: [], restrictions: [], hidden: [] };
     }
+
+    // Already-parsed rules object (e.g. after parseRulesForResponse) — do not JSON.parse again.
+    if (typeof rulesJson === "object") {
+        const permissions = Array.isArray(rulesJson.permissions)
+            ? rulesJson.permissions.filter((p): p is string => typeof p === "string")
+            : [];
+        const restrictions = Array.isArray(rulesJson.restrictions)
+            ? rulesJson.restrictions.filter((r): r is string => typeof r === "string")
+            : [];
+        const hidden = Array.isArray(rulesJson.hidden)
+            ? rulesJson.hidden.filter((h): h is string => typeof h === "string")
+            : [];
+        return { permissions, restrictions, hidden };
+    }
+
+    if (typeof rulesJson !== "string" || !rulesJson.trim()) {
+        return { permissions: [], restrictions: [], hidden: [] };
+    }
+
     try {
         const parsed = JSON.parse(rulesJson) as Partial<RoleRules>;
         const permissions = Array.isArray(parsed.permissions)
@@ -25,9 +50,12 @@ export function parseRoleRules(rulesJson: string | null | undefined): RoleRules 
         const restrictions = Array.isArray(parsed.restrictions)
             ? parsed.restrictions.filter((r): r is string => typeof r === "string")
             : [];
-        return { permissions, restrictions };
+        const hidden = Array.isArray(parsed.hidden)
+            ? parsed.hidden.filter((h): h is string => typeof h === "string")
+            : [];
+        return { permissions, restrictions, hidden };
     } catch {
-        return { ...EMPTY_RULES };
+        return { permissions: [], restrictions: [], hidden: [] };
     }
 }
 
@@ -37,6 +65,38 @@ const LEGACY_PERMISSION_ALIASES: Record<string, string> = {
     "archive.borrow.review": Permission.ARCHIVE_BORROW_REVIEW,
     "roles.two_factor_require": Permission.AUTH_TWO_FACTOR_REQUIRE,
     "auth.two_factor_require": Permission.AUTH_TWO_FACTOR_REQUIRE,
+    "dashboard.admin.summary": Permission.DASHBOARD_OVERVIEW_SUMMARY,
+    "dashboard.admin.dossier_status_chart": Permission.DASHBOARD_OVERVIEW_DOSSIER_STATUS_CHART,
+    "dashboard.admin.project_status_chart": Permission.DASHBOARD_OVERVIEW_PROJECT_STATUS_CHART,
+    "dashboard.admin.dossier_trend_chart": Permission.DASHBOARD_OVERVIEW_DOSSIER_TREND_CHART,
+    "dashboard.admin.system_performance": Permission.DASHBOARD_OVERVIEW_SYSTEM_PERFORMANCE,
+    "dashboard.admin.employee_kpis": Permission.DASHBOARD_TEAM_EMPLOYEE_KPIS,
+    "dashboard.admin.group_performance_chart": Permission.DASHBOARD_TEAM_GROUP_PERFORMANCE,
+};
+
+/** Legacy page/parent grants expand to modular section keys. */
+const LEGACY_GRANT_EXPANSIONS: Record<string, readonly string[]> = {
+    "dashboard.editor": DASHBOARD_PERSONAL_EDITOR_PERMISSIONS,
+    "dashboard.qc": [
+        ...DASHBOARD_PERSONAL_QC_PERMISSIONS,
+        Permission.DASHBOARD_TEAM_QC_GROUP,
+    ],
+    "dashboard.admin": [
+        Permission.DASHBOARD_OVERVIEW,
+        ...DASHBOARD_OVERVIEW_SECTION_PERMISSIONS,
+        Permission.DASHBOARD_TEAM,
+        Permission.DASHBOARD_TEAM_EMPLOYEE_KPIS,
+        Permission.DASHBOARD_TEAM_GROUP_PERFORMANCE,
+        Permission.DASHBOARD_ADMIN_UNASSIGNED,
+        Permission.DASHBOARD_ADMIN_READ_ALL,
+    ],
+    "dashboard.personal": [
+        ...DASHBOARD_PERSONAL_EDITOR_PERMISSIONS,
+        ...DASHBOARD_PERSONAL_QC_PERMISSIONS,
+    ],
+    "dashboard.team": DASHBOARD_TEAM_SECTION_PERMISSIONS,
+    "dashboard.overview": DASHBOARD_OVERVIEW_SECTION_PERMISSIONS,
+    "dashboard.warehouse": DASHBOARD_WAREHOUSE_SECTION_PERMISSIONS,
 };
 
 function normalizePermissionKey(key: string): string {
@@ -64,6 +124,16 @@ function patternMatches(permission: string, pattern: string): boolean {
             permission.startsWith(`${prefix}.`)
         );
     }
+
+    const expansion = LEGACY_GRANT_EXPANSIONS[normalizedPattern]
+        ?? LEGACY_GRANT_EXPANSIONS[pattern];
+    if (expansion) {
+        return expansion.some(
+            (expanded) =>
+                expanded === normalizedPermission || expanded === permission,
+        );
+    }
+
     return false;
 }
 
@@ -73,6 +143,10 @@ function isRestricted(permission: string, restrictions: string[]): boolean {
 
 function isGranted(permission: string, permissions: string[]): boolean {
     return permissions.some((p) => patternMatches(permission, p));
+}
+
+export function isHiddenByPatterns(permission: string, hidden: string[]): boolean {
+    return hidden.some((h) => patternMatches(permission, h));
 }
 
 export function hasPermissionInRules(rules: RoleRules, permission: string): boolean {
@@ -156,6 +230,26 @@ export function userRolesHaveAnyPermission(
     );
 }
 
+export function resolveEffectiveHiddenFromUserRoles(
+    userRoles: ReadonlyArray<UserRoleWithRules>,
+): string[] {
+    const merged = new Set<string>();
+    for (const userRole of userRoles) {
+        const rules = parseRoleRules(userRole.role.rules);
+        for (const key of rules.hidden) {
+            merged.add(key);
+        }
+    }
+    return [...merged];
+}
+
+export function userRolesHidePermission(
+    userRoles: ReadonlyArray<UserRoleWithRules>,
+    permission: string,
+): boolean {
+    return isHiddenByPatterns(permission, resolveEffectiveHiddenFromUserRoles(userRoles));
+}
+
 export function resolveEffectivePermissionsFromUserRoles(
     userRoles: ReadonlyArray<UserRoleWithRules>,
 ): PermissionKey[] {
@@ -189,11 +283,20 @@ export function validateRoleRulesInput(rules: RoleRules): string[] {
             errors.push(`Invalid restriction: ${r}`);
         }
     }
+    for (const h of rules.hidden ?? []) {
+        if (!isValidPermissionPattern(h) && !isKnownPermissionKey(h)) {
+            errors.push(`Invalid hidden pattern: ${h}`);
+        }
+    }
     return errors;
 }
 
 export function serializeRoleRules(rules: RoleRules): string {
-    return JSON.stringify(rules);
+    return JSON.stringify({
+        permissions: rules.permissions,
+        restrictions: rules.restrictions,
+        hidden: rules.hidden ?? [],
+    });
 }
 
 export function parseRulesForResponse(rulesJson: string | null | undefined): RoleRules {
@@ -201,5 +304,6 @@ export function parseRulesForResponse(rulesJson: string | null | undefined): Rol
     return {
         permissions: parsed.permissions.filter(isValidPermissionPattern),
         restrictions: parsed.restrictions.filter((r) => isValidPermissionPattern(r) || isKnownPermissionKey(r)),
+        hidden: parsed.hidden.filter((h) => isValidPermissionPattern(h) || isKnownPermissionKey(h)),
     };
 }

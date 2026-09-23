@@ -857,6 +857,31 @@ Deno.test(
 });
 
 Deno.test(
+    "buildFolderMetadataExportZipStreamIncremental tiff-only build yields only TIFF entries",
+    { sanitizeOps: false, sanitizeResources: false },
+    async () => {
+    const tiffData = new Uint8Array([0x49, 0x49, 0x2a, 0x00]);
+    const stream = buildFolderMetadataExportZipStreamIncremental({
+        omitExcel: true,
+        // Mirrors buildApprovedMetadataExportZip when tiffOnly === true
+        build: async (add) => {
+            await add("TIFF/HS1/doc.TIFF", tiffData);
+        },
+    });
+    const bytes = await readableStreamToUint8Array(stream);
+    const zr = new ZipReader(new BlobReader(new Blob([new Uint8Array(bytes)])));
+    try {
+        const entries = await zr.getEntries();
+        const names = entries.filter((e) => !e.directory).map((e) => e.filename);
+        assertEquals(names, ["TIFF/HS1/doc.TIFF"]);
+        assertEquals(names.some((n) => n.endsWith(".xlsx")), false);
+        assertEquals(names.some((n) => n.startsWith("PDF/")), false);
+    } finally {
+        await zr.close();
+    }
+});
+
+Deno.test(
     "buildFolderMetadataExportZipStream includes PDF and TIFF trees",
     { sanitizeOps: false, sanitizeResources: false },
     async () => {
