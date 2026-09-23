@@ -156,6 +156,7 @@ export const authHelper = {
             Permission.GROUPS_UPDATE,
             Permission.GROUPS_DELETE,
             Permission.GROUPS_START_WORKFLOW,
+            Permission.GROUPS_REVOKE,
         ]);
     },
 

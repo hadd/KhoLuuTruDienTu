@@ -16,6 +16,7 @@ export const Permission = {
   GROUPS_DELETE: "groups.delete",
   GROUPS_MANAGE_MEMBERS: "groups.manage_members",
   GROUPS_START_WORKFLOW: "groups.start_workflow",
+  GROUPS_REVOKE: "groups.revoke",
 
   DOSSIERS_READ: "dossiers.read",
   DOSSIERS_WRITE: "dossiers.write",
@@ -585,6 +586,13 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     label: "Phân công theo nhóm",
     description:
       "Phân công hồ sơ cho thành viên theo thư mục và đồng bộ luồng duyệt của nhóm",
+  },
+  {
+    key: Permission.GROUPS_REVOKE,
+    module: "groups",
+    label: "Thu hồi phân công nhóm",
+    description:
+      "Thu hồi hồ sơ đã phân công khỏi nhóm hoặc thành viên (chỉ hồ sơ READY_FOR_ENTRY)",
   },
   {
     key: Permission.SCAN_INTAKE_USE,

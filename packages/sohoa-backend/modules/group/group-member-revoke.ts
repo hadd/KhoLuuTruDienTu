@@ -4,11 +4,13 @@ import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import {
     DossierStatus,
+    QC_CHECKER_BY_STEP,
     WORKABLE_ASSIGNMENT_STATUSES,
     WorkerRole,
+    type WorkerRole as WorkerRoleType,
 } from "../../db/schemas/workflow-constants.ts";
 import {
-    cancelInProgressAssignmentsForAssignee,
+    cancelInProgressAssignmentsForReassign,
     resetDossierEntryStatusAfterMakerReassign,
 } from "../../libs/workflow-assignment-utils.ts";
 import { activeDossierWhere } from "../dossier/active-query-filters.ts";
@@ -20,9 +22,18 @@ const REVOCABLE_MEMBER_DOSSIER_STATUSES = new Set<string>([
 export type GroupMemberRevokeInput = {
     groupId: string;
     groupName: string;
+    roundNumber: number;
     userId: string;
     actorId: string;
 };
+
+function resolveRolesToCancel(roundNumber: number): WorkerRoleType[] {
+    const checkerRoles = Array.from({ length: roundNumber }, (_, index) =>
+        QC_CHECKER_BY_STEP.get(index + 1)?.role
+    ).filter((role): role is WorkerRoleType => role !== undefined);
+
+    return [WorkerRole.MAKER, ...checkerRoles];
+}
 
 export async function executeGroupMemberRevoke(input: GroupMemberRevokeInput) {
     const emptyResult = {
@@ -113,19 +124,19 @@ export async function executeGroupMemberRevoke(input: GroupMemberRevokeInput) {
     const totalTargeted = targets.length + skipped.length;
     let assignmentsCancelled = 0;
     const revokedDossierIds: string[] = [];
+    const rolesToCancel = resolveRolesToCancel(input.roundNumber);
 
     await db.transaction(async (tx) => {
         const now = new Date();
 
         for (const item of targets) {
-            const cancelled = await cancelInProgressAssignmentsForAssignee(tx, {
+            const cancelled = await cancelInProgressAssignmentsForReassign(tx, {
                 dossierId: item.dossierId,
-                assigneeId: input.userId,
                 actorId: input.actorId,
                 dossierStatus: item.status,
                 now,
-                roles: [WorkerRole.MAKER],
-                notes: "Cancelled maker assignment due to group member revoke",
+                roles: rolesToCancel,
+                notes: "Cancelled group assignments due to group member revoke",
             });
 
             if (cancelled === 0) {
@@ -140,15 +151,21 @@ export async function executeGroupMemberRevoke(input: GroupMemberRevokeInput) {
             assignmentsCancelled += cancelled;
             await resetDossierEntryStatusAfterMakerReassign(tx, item.dossierId);
 
-            // Keep assignedGroupId so the dossier stays in the group queue for reassignment.
-            const stillActive = await tx.query.dossiers.findFirst({
-                where: activeDossierWhere(
+            const updated = await tx
+                .update(dossiers)
+                .set({
+                    assignedGroupId: null,
+                    status: DossierStatus.READY_FOR_ENTRY,
+                    updatedAt: now,
+                })
+                .where(activeDossierWhere(
                     eq(dossiers.id, item.dossierId),
                     eq(dossiers.assignedGroupId, input.groupId),
-                ),
-                columns: { id: true },
-            });
-            if (stillActive) {
+                    eq(dossiers.status, DossierStatus.READY_FOR_ENTRY),
+                ))
+                .returning({ id: dossiers.id });
+
+            if (updated.length > 0) {
                 revokedDossierIds.push(item.dossierId);
             }
         }
