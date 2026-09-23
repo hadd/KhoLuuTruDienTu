@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { DataConfigSectionTabs } from '@/features/data-config/components/DataConfigSectionTabs'
 import { activeArchiveFondsQueryOptions } from '@/features/archive-fond/queries'
 import { NamingSegmentTable } from '@/features/document-naming-config/components/NamingSegmentTable'
@@ -44,9 +45,15 @@ export function DocumentNamingConfigPage() {
   const dossierId = search.dossierId ?? ''
 
   const [dossierSearch, setDossierSearch] = useState('')
-  const [dossierSegments, setDossierSegments] = useState<Array<DocumentNamingSegmentT>>([])
-  const [fileSegments, setFileSegments] = useState<Array<DocumentNamingSegmentT>>([])
-  const [dossierPreviewItems, setDossierPreviewItems] = useState<Array<string>>([])
+  const [dossierSegments, setDossierSegments] = useState<
+    Array<DocumentNamingSegmentT>
+  >([])
+  const [fileSegments, setFileSegments] = useState<
+    Array<DocumentNamingSegmentT>
+  >([])
+  const [dossierPreviewItems, setDossierPreviewItems] = useState<Array<string>>(
+    [],
+  )
   const [filePreviewItems, setFilePreviewItems] = useState<Array<string>>([])
   const [dossierSegmentErrors, setDossierSegmentErrors] = useState<
     Array<NamingSegmentFieldErrorT>
@@ -54,25 +61,20 @@ export function DocumentNamingConfigPage() {
   const [fileSegmentErrors, setFileSegmentErrors] = useState<
     Array<NamingSegmentFieldErrorT>
   >([])
+  const [fileApplyOnApprove, setFileApplyOnApprove] = useState<boolean>(false)
 
   const fondsQuery = useQuery(activeArchiveFondsQueryOptions())
   const fieldCatalogQuery = useQuery(
-    documentNamingFieldCatalogQueryOptions(
-      dossierId ? { dossierId } : null,
-    ),
+    documentNamingFieldCatalogQueryOptions(dossierId ? { dossierId } : null),
   )
   const dossierConfigQuery = useQuery(
     documentNamingConfigQueryOptions(
-      fondId
-        ? { fondId, targetType: 'dossier' }
-        : null,
+      fondId ? { fondId, targetType: 'dossier' } : null,
     ),
   )
   const fileConfigQuery = useQuery(
     documentNamingConfigQueryOptions(
-      fondId && dossierId
-        ? { fondId, targetType: 'file', dossierId }
-        : null,
+      fondId && dossierId ? { fondId, targetType: 'file', dossierId } : null,
     ),
   )
   const dossierOptionsQuery = useQuery(
@@ -106,9 +108,15 @@ export function DocumentNamingConfigPage() {
 
   useEffect(() => {
     setFileSegments(fileConfigQuery.data?.segments ?? [])
+    setFileApplyOnApprove(fileConfigQuery.data?.applyOnApprove ?? false)
     setFilePreviewItems([])
     setFileSegmentErrors([])
-  }, [fileConfigQuery.data?.segments, fondId, dossierId])
+  }, [
+    fileConfigQuery.data?.segments,
+    fileConfigQuery.data?.applyOnApprove,
+    fondId,
+    dossierId,
+  ])
 
   const selectedDossier = useMemo(
     () => dossierOptions.find((item) => item.id === dossierId) ?? null,
@@ -134,15 +142,21 @@ export function DocumentNamingConfigPage() {
     })
   }
 
-  const handleDossierSegmentsChange = (segments: Array<DocumentNamingSegmentT>) => {
+  const handleDossierSegmentsChange = (
+    segments: Array<DocumentNamingSegmentT>,
+  ) => {
     setDossierSegments(segments)
     setDossierPreviewItems([])
     if (dossierSegmentErrors.length > 0) {
-      setDossierSegmentErrors(validateDocumentNamingSegments(segments, 'dossier'))
+      setDossierSegmentErrors(
+        validateDocumentNamingSegments(segments, 'dossier'),
+      )
     }
   }
 
-  const handleFileSegmentsChange = (segments: Array<DocumentNamingSegmentT>) => {
+  const handleFileSegmentsChange = (
+    segments: Array<DocumentNamingSegmentT>,
+  ) => {
     setFileSegments(segments)
     setFilePreviewItems([])
     if (fileSegmentErrors.length > 0) {
@@ -214,6 +228,7 @@ export function DocumentNamingConfigPage() {
         targetType: 'file',
         dossierId,
         segments: fileSegments,
+        applyOnApprove: fileApplyOnApprove,
       })
       toast.success(t('form.success.file'))
     } catch (error) {
@@ -331,21 +346,39 @@ export function DocumentNamingConfigPage() {
                       </li>
                     ))}
                   </ul>
-                  {!isFallbackMetadata && (() => {
-                    const emptyFields = dossierSegments
-                      .filter((s) => s.source === 'metadata_field' && s.fieldKey)
-                      .map((s) => metadataFields.find((f) => f.key === s.fieldKey || f.fieldName === s.fieldKey))
-                      .filter((f) => Boolean(f && f.hasValue === false))
-                    if (emptyFields.length === 0) return null
-                    return (
-                      <div className="flex items-start gap-2 rounded-md border border-amber-300/80 bg-amber-50/90 dark:border-amber-800 dark:bg-amber-950/40 p-2.5 text-xs text-amber-800 dark:text-amber-200">
-                        <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-                        <div>
-                          <span className="font-semibold">Lưu ý về dữ liệu metadata:</span> Có {emptyFields.length} trường ({emptyFields.map((f) => f?.display || f?.fieldName).join(', ')}) hiện <strong>chưa có dữ liệu</strong> trong hồ sơ này nên phần tương ứng trong tên hồ sơ sẽ bị để trống.
+                  {!isFallbackMetadata &&
+                    (() => {
+                      const emptyFields = dossierSegments
+                        .filter(
+                          (s) => s.source === 'metadata_field' && s.fieldKey,
+                        )
+                        .map((s) =>
+                          metadataFields.find(
+                            (f) =>
+                              f.key === s.fieldKey ||
+                              f.fieldName === s.fieldKey,
+                          ),
+                        )
+                        .filter((f) => Boolean(f && f.hasValue === false))
+                      if (emptyFields.length === 0) return null
+                      return (
+                        <div className="flex items-start gap-2 rounded-md border border-amber-300/80 bg-amber-50/90 dark:border-amber-800 dark:bg-amber-950/40 p-2.5 text-xs text-amber-800 dark:text-amber-200">
+                          <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                          <div>
+                            <span className="font-semibold">
+                              Lưu ý về dữ liệu metadata:
+                            </span>{' '}
+                            Có {emptyFields.length} trường (
+                            {emptyFields
+                              .map((f) => f?.display || f?.fieldName)
+                              .join(', ')}
+                            ) hiện <strong>chưa có dữ liệu</strong> trong hồ sơ
+                            này nên phần tương ứng trong tên hồ sơ sẽ bị để
+                            trống.
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })()}
+                      )
+                    })()}
                 </div>
               ) : null}
             </section>
@@ -366,7 +399,9 @@ export function DocumentNamingConfigPage() {
                   <Label>{t('fileNaming.dossierLabel')}</Label>
                   <Select value={dossierId} onValueChange={handleDossierChange}>
                     <SelectTrigger>
-                      <SelectValue placeholder={t('fileNaming.dossierPlaceholder')} />
+                      <SelectValue
+                        placeholder={t('fileNaming.dossierPlaceholder')}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {dossierOptions.map((dossier) => (
@@ -409,6 +444,26 @@ export function DocumentNamingConfigPage() {
                     />
                   )}
 
+                  <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4 shadow-xs">
+                    <div className="space-y-0.5 pr-4">
+                      <Label
+                        htmlFor="apply-on-approve-switch"
+                        className="text-sm font-medium cursor-pointer"
+                      >
+                        {t('fileNaming.applyOnApprove')}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {t('fileNaming.applyOnApproveHint')}
+                      </p>
+                    </div>
+                    <Switch
+                      id="apply-on-approve-switch"
+                      checked={fileApplyOnApprove}
+                      onCheckedChange={setFileApplyOnApprove}
+                      disabled={upsertMutation.isPending}
+                    />
+                  </div>
+
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     <Button
                       type="button"
@@ -431,7 +486,9 @@ export function DocumentNamingConfigPage() {
 
                   {filePreviewItems.length > 0 ? (
                     <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
-                      <p className="text-sm font-medium">{t('preview.label')}</p>
+                      <p className="text-sm font-medium">
+                        {t('preview.label')}
+                      </p>
                       <ul className="space-y-1">
                         {filePreviewItems.map((previewItem, index) => (
                           <li
@@ -444,21 +501,40 @@ export function DocumentNamingConfigPage() {
                           </li>
                         ))}
                       </ul>
-                      {!isFallbackMetadata && (() => {
-                        const emptyFields = fileSegments
-                          .filter((s) => s.source === 'metadata_field' && s.fieldKey)
-                          .map((s) => metadataFields.find((f) => f.key === s.fieldKey || f.fieldName === s.fieldKey))
-                          .filter((f) => Boolean(f && f.hasValue === false))
-                        if (emptyFields.length === 0) return null
-                        return (
-                          <div className="flex items-start gap-2 rounded-md border border-amber-300/80 bg-amber-50/90 dark:border-amber-800 dark:bg-amber-950/40 p-2.5 text-xs text-amber-800 dark:text-amber-200">
-                            <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-                            <div>
-                              <span className="font-semibold">Lưu ý về dữ liệu metadata:</span> Có {emptyFields.length} trường ({emptyFields.map((f) => f?.display || f?.fieldName).join(', ')}) hiện <strong>chưa có dữ liệu</strong> trong hồ sơ này nên phần tương ứng trong tên file sẽ bị để trống khi xuất.
+                      {!isFallbackMetadata &&
+                        (() => {
+                          const emptyFields = fileSegments
+                            .filter(
+                              (s) =>
+                                s.source === 'metadata_field' && s.fieldKey,
+                            )
+                            .map((s) =>
+                              metadataFields.find(
+                                (f) =>
+                                  f.key === s.fieldKey ||
+                                  f.fieldName === s.fieldKey,
+                              ),
+                            )
+                            .filter((f) => Boolean(f && f.hasValue === false))
+                          if (emptyFields.length === 0) return null
+                          return (
+                            <div className="flex items-start gap-2 rounded-md border border-amber-300/80 bg-amber-50/90 dark:border-amber-800 dark:bg-amber-950/40 p-2.5 text-xs text-amber-800 dark:text-amber-200">
+                              <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                              <div>
+                                <span className="font-semibold">
+                                  Lưu ý về dữ liệu metadata:
+                                </span>{' '}
+                                Có {emptyFields.length} trường (
+                                {emptyFields
+                                  .map((f) => f?.display || f?.fieldName)
+                                  .join(', ')}
+                                ) hiện <strong>chưa có dữ liệu</strong> trong hồ
+                                sơ này nên phần tương ứng trong tên file sẽ bị
+                                để trống khi xuất.
+                              </div>
                             </div>
-                          </div>
-                        )
-                      })()}
+                          )
+                        })()}
                     </div>
                   ) : null}
                 </>

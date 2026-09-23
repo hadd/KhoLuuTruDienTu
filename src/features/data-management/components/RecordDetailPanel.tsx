@@ -16,6 +16,7 @@ import { PdfViewerToolbar } from '@/components/common/PdfViewerToolbar'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EditorErrorReportAlertBanner } from '@/features/data-management/components/EditorErrorReportAlertBanner'
+import { ConfirmApproveNamingDialog } from '@/features/data-management/components/ConfirmApproveNamingDialog'
 import { EditorErrorReportDialog } from '@/features/data-management/components/EditorErrorReportDialog'
 import { EditorErrorReportReviewDialog } from '@/features/data-management/components/EditorErrorReportReviewDialog'
 import { ExportChoiceDialog } from '@/features/data-management/components/ExportChoiceDialog'
@@ -25,7 +26,12 @@ import { RecordMetadataEditHistorySection } from '@/features/data-management/com
 import { RevertMetadataHistoryDialog } from '@/features/data-management/components/RevertMetadataHistoryDialog'
 import type { DataManagementRole } from '@/features/data-management/config/roleConfig'
 import { profileQueryOptions } from '@/features/auth/queries'
-import { isNodeChildrenCached } from '@/features/data-management/api/dataManagementClient'
+import { documentNamingConfigQueryOptions } from '@/features/document-naming-config/queries'
+
+import {
+  assignDossierFond,
+  isNodeChildrenCached,
+} from '@/features/data-management/api/dataManagementClient'
 import { getPermissionsByRole } from '@/features/data-management/config/roleConfig'
 import { useEditorErrorReports } from '@/features/data-management/hooks/useEditorErrorReports'
 import { useQcInlineReject } from '@/features/data-management/hooks/useQcInlineReject'
@@ -81,7 +87,6 @@ import {
 } from '@/features/data-management/lib/metadataLayout'
 import {
   findHoSoFondFieldValue,
-  hasHoSoFondField,
   isFondFieldName,
   propagateHoSoFondToDocuments,
   syncFondValueAcrossMetadata,
@@ -108,7 +113,6 @@ import {
   editorDraftDossiersQueryKey,
   useSubmitEditorDraftFinalSaveItemsMutation,
 } from '@/features/editor-dossiers/queries'
-import { cn } from '@/lib/utils/cn'
 import { DigitalSignDialog } from '@/features/digital-sign/components/DigitalSignDialog'
 import {
   ensureSignAgentReady,
@@ -186,6 +190,8 @@ export function RecordDetailPanel({
     [node.id, node.rejectFields],
   )
   const [isHandlingSave, setIsHandlingSave] = useState(false)
+  const [isConfirmApproveDialogOpen, setIsConfirmApproveDialogOpen] =
+    useState(false)
   const [dismissedRejectFieldKeys, setDismissedRejectFieldKeys] = useState<
     Set<string>
   >(() => new Set())
@@ -360,16 +366,42 @@ export function RecordDetailPanel({
   )
   const groups = activeMetadata?.metadata_groups ?? []
   const rejectedFieldSummary = useMemo(() => {
-    if (!isEditorRole || !node.rejectFields?.length || !activeMetadata) return []
+    if (!isEditorRole || !node.rejectFields?.length || !activeMetadata)
+      return []
     return buildRejectedFieldsSummaryByDocument(
       node.rejectFields,
       activeMetadata,
     )
   }, [isEditorRole, node.rejectFields, activeMetadata])
+
+  const effectiveFondId =
+    node.fondId ??
+    (activeMetadata ? findHoSoFondFieldValue(activeMetadata) : undefined)
+
+  const namingConfigQuery = useQuery({
+    ...documentNamingConfigQueryOptions(
+      effectiveFondId
+        ? {
+            fondId: effectiveFondId,
+            targetType: 'file',
+            dossierId,
+          }
+        : null,
+    ),
+    enabled: Boolean(effectiveFondId && dossierId && isActingAsQc),
+  })
+
+  const hasNamingRuleApplied = Boolean(
+    namingConfigQuery.data?.applyOnApprove &&
+      namingConfigQuery.data?.segments &&
+      namingConfigQuery.data.segments.length > 0,
+  )
+
   const metadataDisplayLayout = useMemo(
     () => partitionMetadataGroupsForDisplay(groups),
     [groups],
   )
+
   const visibleMetadataGroupCount = useMemo(
     () => countVisibleMetadataGroups(metadataDisplayLayout),
     [metadataDisplayLayout],
@@ -433,10 +465,6 @@ export function RecordDetailPanel({
   const [detailTab, setDetailTab] = useState<'metadata' | 'editHistory'>(
     'metadata',
   )
-
-  function handleDetailTabChange(value: 'metadata' | 'editHistory') {
-    setDetailTab(value)
-  }
 
   // Sync detailTab when focusDocumentId changes from external navigation
   useEffect(() => {
@@ -1043,6 +1071,34 @@ export function RecordDetailPanel({
       return next
     })
     rescheduleAutoDraftSaveIfPending()
+
+    if (isFondField && dossierId) {
+      const nextFondId = value?.trim() || null
+      assignDossierFond(dossierId, nextFondId)
+        .then(() => {
+          node.fondId = nextFondId || undefined
+          void queryClient.invalidateQueries({
+            queryKey: ['document-naming-config', 'dossier-options'],
+          })
+          void queryClient.invalidateQueries({
+            queryKey: ['dossier-record-content', dossierId],
+          })
+        })
+        .catch((err) => {
+          console.error(
+            '[RecordDetailPanel] Failed to assign fond immediately:',
+            err,
+          )
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : t(
+                  'metadata.saveFondFailed',
+                  'Không thể gán phông cho hồ sơ. Vui lòng thử lại.',
+                ),
+          )
+        })
+    }
   }
 
   const pdfDocs = useMemo(() => {
@@ -1211,7 +1267,12 @@ export function RecordDetailPanel({
     // activeMetadata changes identity when fields are edited; the function
     // body reads it via closure so we track the ref rather than the object.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeMetadata?.metadata_groups, documents, focusDocumentId, selectedGroupIndex],
+    [
+      activeMetadata?.metadata_groups,
+      documents,
+      focusDocumentId,
+      selectedGroupIndex,
+    ],
   )
 
   const { suppressScrollSync } = useScrollSyncHighlight({
@@ -1250,7 +1311,7 @@ export function RecordDetailPanel({
 
         pendingFieldActivationRef.current = {
           fieldKey,
-          highlight: highlight ?? undefined,
+          highlight: highlight ?? null,
           changeId: change.id,
         }
 
@@ -1300,7 +1361,11 @@ export function RecordDetailPanel({
       }
 
       // useEffect will sync tab to 'metadata' when focusDocumentId changes
-      onFocusDocument?.(documentId, groupIndex >= 0 ? groupIndex : 0, 'metadata')
+      onFocusDocument?.(
+        documentId,
+        groupIndex >= 0 ? groupIndex : 0,
+        'metadata',
+      )
       window.requestAnimationFrame(() => {
         window.document
           .querySelector(`[data-tree-node-id="${documentId}"]`)
@@ -1526,6 +1591,14 @@ export function RecordDetailPanel({
     void handleSaveMetadata('draft')
   }
 
+  const handleApproveOrSaveClick = () => {
+    if (isActingAsQc && hasNamingRuleApplied) {
+      setIsConfirmApproveDialogOpen(true)
+      return
+    }
+    void handleSaveMetadata()
+  }
+
   if (!activeMetadata) {
     const isMetadataLoading =
       isRecordContentPending ||
@@ -1565,7 +1638,8 @@ export function RecordDetailPanel({
     groupIndex: number,
     field: DataDocumentFieldT,
   ) {
-    if (!isActingAsQc || !canShowSubmitButton || canDirectApprove) return undefined
+    if (!isActingAsQc || !canShowSubmitButton || canDirectApprove)
+      return undefined
 
     const scope = resolveMetadataGroupRejectScope(group, groupIndex)
     const rejectKey = buildRejectFieldKey(
@@ -1875,7 +1949,7 @@ export function RecordDetailPanel({
                 type="button"
                 size="sm"
                 className="gap-1.5"
-                onClick={() => void handleSaveMetadata()}
+                onClick={handleApproveOrSaveClick}
                 disabled={isSaving || isApproveBlockedByErrorReports}
                 ref={saveButtonRef}
                 title={
@@ -2173,6 +2247,15 @@ export function RecordDetailPanel({
           }
           void onWorkflowComplete?.(dossierId)
         }}
+      />
+      <ConfirmApproveNamingDialog
+        open={isConfirmApproveDialogOpen}
+        onOpenChange={setIsConfirmApproveDialogOpen}
+        onConfirm={() => {
+          setIsConfirmApproveDialogOpen(false)
+          void handleSaveMetadata()
+        }}
+        isApproving={isSaving}
       />
     </div>
   )
