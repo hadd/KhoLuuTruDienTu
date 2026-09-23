@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { DataConfigSectionTabs } from '@/features/data-config/components/DataConfigSectionTabs'
 import { activeArchiveFondsQueryOptions } from '@/features/archive-fond/queries'
 import { NamingSegmentTable } from '@/features/document-naming-config/components/NamingSegmentTable'
@@ -54,6 +55,7 @@ export function DocumentNamingConfigPage() {
   const [fileSegmentErrors, setFileSegmentErrors] = useState<
     Array<NamingSegmentFieldErrorT>
   >([])
+  const [fileApplyOnApprove, setFileApplyOnApprove] = useState<boolean>(false)
 
   const fondsQuery = useQuery(activeArchiveFondsQueryOptions())
   const fieldCatalogQuery = useQuery(
@@ -106,9 +108,10 @@ export function DocumentNamingConfigPage() {
 
   useEffect(() => {
     setFileSegments(fileConfigQuery.data?.segments ?? [])
+    setFileApplyOnApprove(fileConfigQuery.data?.applyOnApprove ?? false)
     setFilePreviewItems([])
     setFileSegmentErrors([])
-  }, [fileConfigQuery.data?.segments, fondId, dossierId])
+  }, [fileConfigQuery.data?.segments, fileConfigQuery.data?.applyOnApprove, fondId, dossierId])
 
   const selectedDossier = useMemo(
     () => dossierOptions.find((item) => item.id === dossierId) ?? null,
@@ -214,6 +217,7 @@ export function DocumentNamingConfigPage() {
         targetType: 'file',
         dossierId,
         segments: fileSegments,
+        applyOnApprove: fileApplyOnApprove,
       })
       toast.success(t('form.success.file'))
     } catch (error) {
@@ -408,6 +412,23 @@ export function DocumentNamingConfigPage() {
                       onChange={handleFileSegmentsChange}
                     />
                   )}
+
+                  <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4 shadow-xs">
+                    <div className="space-y-0.5 pr-4">
+                      <Label htmlFor="apply-on-approve-switch" className="text-sm font-medium cursor-pointer">
+                        {t('fileNaming.applyOnApprove')}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {t('fileNaming.applyOnApproveHint')}
+                      </p>
+                    </div>
+                    <Switch
+                      id="apply-on-approve-switch"
+                      checked={fileApplyOnApprove}
+                      onCheckedChange={setFileApplyOnApprove}
+                      disabled={upsertMutation.isPending}
+                    />
+                  </div>
 
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     <Button

@@ -23,7 +23,9 @@
     "dossierPlaceholder": "Chọn hồ sơ...",
     "selectedDossier": "Hồ sơ đã chọn: {{name}} ({{path}})",
     "selectDossierHint": "Chọn một hồ sơ để cấu hình quy tắc sinh tên file.",
-    "loading": "Đang tải cấu hình tên file..."
+    "loading": "Đang tải cấu hình tên file...",
+    "applyOnApprove": "Tự động áp dụng đổi tên file PDF khi duyệt hồ sơ",
+    "applyOnApproveHint": "Khi bật, các file PDF trong hồ sơ này sẽ tự động được cập nhật lại tên theo quy tắc trên ngay khi hồ sơ chuyển sang trạng thái Đã duyệt."
   },
   "segments": {
     "dossierTitle": "Thiết lập quy tắc tên hồ sơ",
