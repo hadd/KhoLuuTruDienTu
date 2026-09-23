@@ -146,6 +146,36 @@ function IssueReportReviewCard({
             {report.description}
           </p>
         </div>
+        {report.fileName ? (
+          <div className="grid gap-1">
+            <p className="text-xs text-muted-foreground">
+              {t('editorErrorReport.review.affectedFile', 'Tệp tin liên quan')}
+            </p>
+            <p className="text-sm font-medium text-foreground">
+              {report.fileName}
+            </p>
+          </div>
+        ) : null}
+        {report.fields && report.fields.length > 0 ? (
+          <div className="grid gap-1">
+            <p className="text-xs text-muted-foreground">
+              {t(
+                'editorErrorReport.review.affectedFields',
+                'Trường dữ liệu báo lỗi',
+              )}
+            </p>
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {report.fields.map((fieldKey) => (
+                <span
+                  key={fieldKey}
+                  className="inline-flex items-center rounded-md border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+                >
+                  {fieldKey}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div className="grid gap-1">
           <p className="text-xs text-muted-foreground">
             {t('editorErrorReport.review.reporter')}

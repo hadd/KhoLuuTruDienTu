@@ -22,6 +22,9 @@ export type DataManagementSearch = z.infer<typeof dataManagementSearchSchema>
 export const editorErrorReportSubmitSchema = z.object({
   errorType: z.enum(['cannot_open_file', 'wrong_highlight', 'other']),
   description: z.string().trim().min(1),
+  fileId: z.string().optional().nullable(),
+  fileName: z.string().optional().nullable(),
+  fields: z.array(z.string()).default([]),
 })
 
 export type EditorErrorReportSubmitForm = z.infer<

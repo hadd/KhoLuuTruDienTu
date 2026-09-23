@@ -332,6 +332,9 @@ export interface IssueReportT {
   status: IssueReportApiStatusT
   type: string
   notes: string
+  fileId?: string | null
+  fileName?: string | null
+  fields?: Array<string> | null
   resolveNotes?: string | null
   escalatedToId: string | null
   createdAt: string
@@ -500,6 +503,9 @@ export type EditorErrorReportTypeT =
 export interface DossierIssueReportT {
   type: string
   notes: string
+  fileId?: string | null
+  fileName?: string | null
+  fields?: Array<string> | null
 }
 
 export type EditorErrorReportStatusT =
@@ -518,6 +524,9 @@ export interface EditorErrorReportT {
   /** Nhãn loại lỗi từ API (ưu tiên hiển thị khi có). */
   apiTypeLabel?: string
   description: string
+  fileId?: string | null
+  fileName?: string | null
+  fields?: Array<string>
   reporterId: string
   reporterName: string
   reporterAssignmentId?: string

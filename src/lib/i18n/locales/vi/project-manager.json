@@ -138,6 +138,8 @@
       "reporterName": "Người báo",
       "dossierName": "Hồ sơ",
       "projectCode": "Mã dự án",
+      "fileName": "Tệp tin",
+      "fields": "Trường lỗi",
       "notes": "Ghi chú",
       "unknownReporter": "Không rõ"
     },
