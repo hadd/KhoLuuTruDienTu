@@ -199,10 +199,10 @@ export function isDashboardPermissionGranted(
 }
 
 export function isDashboardSectionHidden(
-  hidden: Array<string>,
+  hidden: Array<string> | null | undefined,
   permissionKey: string,
 ): boolean {
-  if (hidden.length === 0) {
+  if (!hidden || hidden.length === 0) {
     return false
   }
 

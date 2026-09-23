@@ -527,7 +527,11 @@ export async function loadPermissionContext(queryClient: QueryClient) {
   const user = await queryClient.ensureQueryData(profileQueryOptions)
 
   if (user.permissions && Array.isArray(user.permissions)) {
-    return { user, permissions: user.permissions }
+    return {
+      user,
+      permissions: user.permissions,
+      hidden: getHiddenFromUser(user),
+    }
   }
 
   const roleIds = getUserRoleIdsFromProfile(user)

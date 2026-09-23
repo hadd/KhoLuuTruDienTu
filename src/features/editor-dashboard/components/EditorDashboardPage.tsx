@@ -41,6 +41,7 @@ import {
   formatDurationSeconds,
   formatPercentValue,
 } from '@/features/admin-dashboard/components/AdminDashboardPage'
+import { volumeCount } from '@/features/dashboard/lib/volumeCount'
 import type {
   EditorDashboardPeriodT,
   EditorDashboardT,
@@ -106,27 +107,29 @@ export function EditorDashboardPage({
     DASHBOARD_PERSONAL_SECTION_KEYS.editorCharts,
   )
 
+  const completedCount = volumeCount(data.completed)
   const completedChartData = useMemo(() => {
-    if (data.completedTrend.length > 0) {
-      return data.completedTrend.map((point, index) => ({
+    const trend = data.completedTrend ?? []
+    if (trend.length > 0) {
+      return trend.map((point, index) => ({
         key: `${point.label}-${index}`,
         name: point.label,
         value: point.count,
       }))
     }
 
-    if (data.completed > 0) {
+    if (completedCount > 0) {
       return [
         {
           key: 'completed-total',
           name: t('chart.completedInPeriod'),
-          value: data.completed,
+          value: completedCount,
         },
       ]
     }
 
     return []
-  }, [data.completed, data.completedTrend, t])
+  }, [completedCount, data.completedTrend, t])
 
   const accuracyChartData = useMemo(
     () => [
@@ -196,19 +199,21 @@ export function EditorDashboardPage({
           <KpiCard
             icon={ClipboardList}
             label={t('sections.overview.totalAssigned')}
-            value={formatNumber(data.totalAssigned, {
+            value={formatNumber(volumeCount(data.totalAssigned), {
               maximumFractionDigits: 0,
             })}
           />
           <KpiCard
             icon={CheckCircle2}
             label={t('sections.overview.completed')}
-            value={formatNumber(data.completed, { maximumFractionDigits: 0 })}
+            value={formatNumber(completedCount, { maximumFractionDigits: 0 })}
           />
           <KpiCard
             icon={Clock3}
             label={t('sections.overview.inProgress')}
-            value={formatNumber(data.inProgress, { maximumFractionDigits: 0 })}
+            value={formatNumber(volumeCount(data.inProgress), {
+              maximumFractionDigits: 0,
+            })}
           />
         </div>
       </section>
@@ -264,7 +269,7 @@ export function EditorDashboardPage({
                 <CardTitle>{t('sections.overview.title')}</CardTitle>
                 <CardDescription>
                   {t('chart.completedInPeriod')}:{' '}
-                  {formatNumber(data.completed, { maximumFractionDigits: 0 })}
+                  {formatNumber(completedCount, { maximumFractionDigits: 0 })}
                 </CardDescription>
               </CardHeader>
               <CardContent>

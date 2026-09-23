@@ -1,3 +1,4 @@
+import { volumeCount } from '@/features/dashboard/lib/volumeCount'
 import type {
   QcDashboardActivityPointT,
   QcDashboardGroupT,
@@ -40,11 +41,11 @@ function unwrapResponse<T>(data: T | SingleResourceResponse<T>): T {
 
 function normalizeOverview(raw: QcDashboardRawT): QcDashboardT {
   return {
-    totalAssigned: raw.totalAssigned ?? 0,
-    approved: raw.approved ?? 0,
-    rejected: raw.rejected ?? 0,
-    reviewed: raw.reviewed ?? 0,
-    pending: raw.pending ?? 0,
+    totalAssigned: volumeCount(raw.totalAssigned),
+    approved: volumeCount(raw.approved),
+    rejected: volumeCount(raw.rejected),
+    reviewed: volumeCount(raw.reviewed),
+    pending: volumeCount(raw.pending),
     efficiency: {
       approvalRate: raw.efficiency?.approvalRate ?? 0,
       rejectionRate: raw.efficiency?.rejectionRate ?? 0,

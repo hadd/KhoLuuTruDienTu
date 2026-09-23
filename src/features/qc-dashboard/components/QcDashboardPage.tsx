@@ -32,6 +32,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { formatPercentValue } from '@/features/admin-dashboard/components/AdminDashboardPage'
+import { volumeCount } from '@/features/dashboard/lib/volumeCount'
 import { isQcGroupLeaderOnlyError } from '@/features/qc-dashboard/lib/loadErrors'
 import type {
   QcDashboardGroupT,
@@ -134,7 +135,7 @@ export function QcDashboardPage({
 
   const stepByLevelChartData = useMemo(
     () =>
-      overview.byStep.map((item) => ({
+      (overview.byStep ?? []).map((item) => ({
         name: t('chart.stepLevel', { step: item.step }),
         approved: item.approved,
         rejected: item.rejected,
@@ -228,35 +229,37 @@ export function QcDashboardPage({
           <KpiCard
             icon={ClipboardList}
             label={t('sections.overview.totalAssigned')}
-            value={formatNumber(overview.totalAssigned, {
+            value={formatNumber(volumeCount(overview.totalAssigned), {
               maximumFractionDigits: 0,
             })}
           />
           <KpiCard
             icon={CheckCircle2}
             label={t('sections.overview.approved')}
-            value={formatNumber(overview.approved, {
+            value={formatNumber(volumeCount(overview.approved), {
               maximumFractionDigits: 0,
             })}
           />
           <KpiCard
             icon={XCircle}
             label={t('sections.overview.rejected')}
-            value={formatNumber(overview.rejected, {
+            value={formatNumber(volumeCount(overview.rejected), {
               maximumFractionDigits: 0,
             })}
           />
           <KpiCard
             icon={Clock3}
             label={t('sections.overview.reviewed')}
-            value={formatNumber(overview.reviewed, {
+            value={formatNumber(volumeCount(overview.reviewed), {
               maximumFractionDigits: 0,
             })}
           />
           <KpiCard
             icon={FolderKanban}
             label={t('sections.overview.pending')}
-            value={formatNumber(overview.pending, { maximumFractionDigits: 0 })}
+            value={formatNumber(volumeCount(overview.pending), {
+              maximumFractionDigits: 0,
+            })}
           />
         </div>
       </section>

@@ -1,3 +1,4 @@
+import { volumeCount } from '@/features/dashboard/lib/volumeCount'
 import type {
   EditorDashboardCompletedPointT,
   EditorDashboardPeriodT,
@@ -41,9 +42,9 @@ function normalizeDashboard(raw: EditorDashboardRawT): EditorDashboardT {
   )
 
   return {
-    totalAssigned: raw.totalAssigned ?? 0,
-    completed: raw.completed ?? 0,
-    inProgress: raw.inProgress ?? 0,
+    totalAssigned: volumeCount(raw.totalAssigned),
+    completed: volumeCount(raw.completed),
+    inProgress: volumeCount(raw.inProgress),
     accuracy: {
       correct: raw.accuracy?.correct ?? 0,
       incorrect: raw.accuracy?.incorrect ?? 0,
