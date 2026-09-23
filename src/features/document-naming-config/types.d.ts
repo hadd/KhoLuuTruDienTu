@@ -36,6 +36,7 @@ export type DocumentNamingConfigT = {
   dossierId?: string | null
   segments: Array<DocumentNamingSegmentT>
   autoIncrementCounter?: number
+  applyOnApprove?: boolean
   createdAt?: string
   updatedAt?: string
 }
@@ -63,6 +64,7 @@ export type UpsertDocumentNamingConfigPayloadT = {
   targetType: DocumentNamingTargetTypeT
   dossierId?: string | null
   segments: Array<DocumentNamingSegmentT>
+  applyOnApprove?: boolean
 }
 
 export type DocumentNamingPreviewPayloadT = UpsertDocumentNamingConfigPayloadT
