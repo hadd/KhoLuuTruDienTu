@@ -1,8 +1,9 @@
-import { timestamp, uuid, index, text, varchar } from "drizzle-orm/pg-core";
+import { timestamp, uuid, index, text, varchar, jsonb } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { schema } from "./schema-helper.ts";
 import { dossiers } from "./dossier.ts";
 import { dossierAssignments } from "./dossier-assignment.ts";
+import { dossierFiles } from "./dossier-file.ts";
 import { userProfiles } from "./user_profile.ts";
 import { issueReportStatusEnum } from "./issue-report-enums.ts";
 import { workerRoleEnum } from "./workflow-enums.ts";
@@ -26,6 +27,15 @@ export const dossierIssueReports = schema.table("dossier_issue_reports", {
     status: issueReportStatusEnum("status").notNull().default(IssueReportStatus.PENDING),
     type: varchar("type", { length: 100 }).notNull(),
     notes: text("notes").notNull(),
+    /** ID của file tài liệu bị lỗi (tùy chọn) */
+    fileId: uuid("file_id").references(() => dossierFiles.id, {
+        onDelete: "set null",
+        onUpdate: "restrict",
+    }),
+    /** Tên file tài liệu bị lỗi (lưu snapshot hiển thị nhanh) */
+    fileName: varchar("file_name", { length: 255 }),
+    /** Danh sách mã các trường dữ liệu bị báo lỗi (vd: ["THONG_TIN_CHUNG:file1.so_ky_hieu"]) */
+    fields: jsonb("fields").$type<string[]>().default([]),
     /** Ghi chú lý do từ chối (khi checker từ chối issue report). */
     resolveNotes: text("resolve_notes"),
     escalatedToId: uuid("escalated_to_id").references(() => userProfiles.id, {

@@ -4,6 +4,9 @@ import { issueReportStatusSchema } from "../../db/schemas/issue-report-constants
 export const issueReportInputSchema = t.Object({
     type: t.String({ minLength: 1 }),
     notes: t.String({ minLength: 1 }),
+    fileId: t.Optional(t.Union([t.String(), t.Null()])),
+    fileName: t.Optional(t.Union([t.String(), t.Null()])),
+    fields: t.Optional(t.Union([t.Array(t.String()), t.Null()])),
 });
 
 export type IssueReportInput = Static<typeof issueReportInputSchema>;
@@ -18,6 +21,9 @@ export const issueReportResponseSchema = t.Object({
     status: issueReportStatusSchema,
     type: t.String(),
     notes: t.String(),
+    fileId: t.Optional(t.Union([t.String(), t.Null()])),
+    fileName: t.Optional(t.Union([t.String(), t.Null()])),
+    fields: t.Optional(t.Union([t.Array(t.String()), t.Null()])),
     /** Lý do checker từ chối issue report (chỉ có khi status = REJECTED). */
     resolveNotes: t.Optional(t.Union([t.String(), t.Null()])),
     escalatedToId: t.Union([t.String(), t.Null()]),
