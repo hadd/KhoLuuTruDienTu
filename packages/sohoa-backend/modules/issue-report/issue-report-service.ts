@@ -47,6 +47,9 @@ function toResponse(
     status: row.status,
     type: row.type,
     notes: row.notes,
+    fileId: row.fileId ?? null,
+    fileName: row.fileName ?? null,
+    fields: (row.fields as string[]) ?? [],
     resolveNotes: row.resolveNotes ?? null,
     escalatedToId: row.escalatedToId,
     createdAt: row.createdAt.toISOString(),
@@ -314,6 +317,9 @@ export const IssueReportService = {
           : IssueReportStatus.PENDING,
         type: input.issueReport.type,
         notes: input.issueReport.notes,
+        fileId: input.issueReport.fileId ?? null,
+        fileName: input.issueReport.fileName ?? null,
+        fields: input.issueReport.fields ?? [],
         escalatedToId: managerId,
       })
       .returning();
