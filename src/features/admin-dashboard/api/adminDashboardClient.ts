@@ -200,25 +200,69 @@ function normalizeEmployeeKpi(
   const isEditor = role === 'editor'
   const isQc = role === 'qc' || role.startsWith('qc')
 
-  const makerAssignedDossiersCount = item.makerAssignedDossiersCount ?? (isEditor ? assignedDossiersCount : 0)
-  const makerCompletedDossiersCount = item.makerCompletedDossiersCount ?? (isEditor ? completedDossiersCount : 0)
-  const makerAssignedPagesCount = item.makerAssignedPagesCount ?? (isEditor ? assignedPagesCount : 0)
-  const makerCompletedPagesCount = item.makerCompletedPagesCount ?? (isEditor ? completedPagesCount : 0)
-  const makerAssignedFilesCount = item.makerAssignedFilesCount ?? (isEditor ? assignedFilesCount : 0)
-  const makerCompletedFilesCount = item.makerCompletedFilesCount ?? (isEditor ? completedFilesCount : 0)
-  const makerDossierCompletionRate = item.makerDossierCompletionRate ?? (makerAssignedDossiersCount > 0 ? Math.round((makerCompletedDossiersCount / makerAssignedDossiersCount) * 1000) / 10 : 0)
-  const makerPageCompletionRate = item.makerPageCompletionRate ?? (makerAssignedPagesCount > 0 ? Math.round((makerCompletedPagesCount / makerAssignedPagesCount) * 1000) / 10 : 0)
-  const makerFileCompletionRate = item.makerFileCompletionRate ?? (makerAssignedFilesCount > 0 ? Math.round((makerCompletedFilesCount / makerAssignedFilesCount) * 1000) / 10 : 0)
+  const makerAssignedDossiersCount =
+    item.makerAssignedDossiersCount ?? (isEditor ? assignedDossiersCount : 0)
+  const makerCompletedDossiersCount =
+    item.makerCompletedDossiersCount ?? (isEditor ? completedDossiersCount : 0)
+  const makerAssignedPagesCount =
+    item.makerAssignedPagesCount ?? (isEditor ? assignedPagesCount : 0)
+  const makerCompletedPagesCount =
+    item.makerCompletedPagesCount ?? (isEditor ? completedPagesCount : 0)
+  const makerAssignedFilesCount =
+    item.makerAssignedFilesCount ?? (isEditor ? assignedFilesCount : 0)
+  const makerCompletedFilesCount =
+    item.makerCompletedFilesCount ?? (isEditor ? completedFilesCount : 0)
+  const makerDossierCompletionRate =
+    item.makerDossierCompletionRate ??
+    (makerAssignedDossiersCount > 0
+      ? Math.round(
+          (makerCompletedDossiersCount / makerAssignedDossiersCount) * 1000,
+        ) / 10
+      : 0)
+  const makerPageCompletionRate =
+    item.makerPageCompletionRate ??
+    (makerAssignedPagesCount > 0
+      ? Math.round(
+          (makerCompletedPagesCount / makerAssignedPagesCount) * 1000,
+        ) / 10
+      : 0)
+  const makerFileCompletionRate =
+    item.makerFileCompletionRate ??
+    (makerAssignedFilesCount > 0
+      ? Math.round(
+          (makerCompletedFilesCount / makerAssignedFilesCount) * 1000,
+        ) / 10
+      : 0)
 
-  const qcAssignedDossiersCount = item.qcAssignedDossiersCount ?? (isQc ? assignedDossiersCount : 0)
-  const qcCompletedDossiersCount = item.qcCompletedDossiersCount ?? (isQc ? completedDossiersCount : 0)
-  const qcAssignedPagesCount = item.qcAssignedPagesCount ?? (isQc ? assignedPagesCount : 0)
-  const qcCompletedPagesCount = item.qcCompletedPagesCount ?? (isQc ? completedPagesCount : 0)
-  const qcAssignedFilesCount = item.qcAssignedFilesCount ?? (isQc ? assignedFilesCount : 0)
-  const qcCompletedFilesCount = item.qcCompletedFilesCount ?? (isQc ? completedFilesCount : 0)
-  const qcDossierCompletionRate = item.qcDossierCompletionRate ?? (qcAssignedDossiersCount > 0 ? Math.round((qcCompletedDossiersCount / qcAssignedDossiersCount) * 1000) / 10 : 0)
-  const qcPageCompletionRate = item.qcPageCompletionRate ?? (qcAssignedPagesCount > 0 ? Math.round((qcCompletedPagesCount / qcAssignedPagesCount) * 1000) / 10 : 0)
-  const qcFileCompletionRate = item.qcFileCompletionRate ?? (qcAssignedFilesCount > 0 ? Math.round((qcCompletedFilesCount / qcAssignedFilesCount) * 1000) / 10 : 0)
+  const qcAssignedDossiersCount =
+    item.qcAssignedDossiersCount ?? (isQc ? assignedDossiersCount : 0)
+  const qcCompletedDossiersCount =
+    item.qcCompletedDossiersCount ?? (isQc ? completedDossiersCount : 0)
+  const qcAssignedPagesCount =
+    item.qcAssignedPagesCount ?? (isQc ? assignedPagesCount : 0)
+  const qcCompletedPagesCount =
+    item.qcCompletedPagesCount ?? (isQc ? completedPagesCount : 0)
+  const qcAssignedFilesCount =
+    item.qcAssignedFilesCount ?? (isQc ? assignedFilesCount : 0)
+  const qcCompletedFilesCount =
+    item.qcCompletedFilesCount ?? (isQc ? completedFilesCount : 0)
+  const qcDossierCompletionRate =
+    item.qcDossierCompletionRate ??
+    (qcAssignedDossiersCount > 0
+      ? Math.round(
+          (qcCompletedDossiersCount / qcAssignedDossiersCount) * 1000,
+        ) / 10
+      : 0)
+  const qcPageCompletionRate =
+    item.qcPageCompletionRate ??
+    (qcAssignedPagesCount > 0
+      ? Math.round((qcCompletedPagesCount / qcAssignedPagesCount) * 1000) / 10
+      : 0)
+  const qcFileCompletionRate =
+    item.qcFileCompletionRate ??
+    (qcAssignedFilesCount > 0
+      ? Math.round((qcCompletedFilesCount / qcAssignedFilesCount) * 1000) / 10
+      : 0)
 
   return {
     userId: item.userId ?? item.id ?? `user-${index + 1}`,
