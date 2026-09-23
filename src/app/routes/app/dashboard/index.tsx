@@ -12,10 +12,12 @@ import { adminDashboardQueryOptions } from '@/features/admin-dashboard/queries'
 import { loadPermissionContext } from '@/features/auth/lib/permission-access'
 import { requirePermission } from '@/features/auth/routeGuards'
 import { ModularOverviewDashboard } from '@/features/dashboard/components/ModularOverviewDashboard'
+import { personalDailyKpisQueryOptions } from '@/features/dashboard/queries'
 import { editorDashboardQueryOptions } from '@/features/editor-dashboard/queries'
 import type { EditorDashboardPeriodT } from '@/features/editor-dashboard/types'
 import {
   DASHBOARD_SCREEN_REQUIREMENTS,
+  hasAnyPersonalDashboardSection,
   hasAnyWarehouseDashboardSection,
   hasOverviewTabAccess,
   needsAdminDashboardData,
@@ -130,6 +132,17 @@ export const Route = createFileRoute('/app/dashboard/')({
         if (needsEditorDashboardData(permissions, hidden)) {
           await context.queryClient.ensureQueryData(
             editorDashboardQueryOptions(search.period ?? '30d'),
+          )
+        }
+        if (hasAnyPersonalDashboardSection(permissions, hidden)) {
+          const today = new Date()
+          const past = new Date(today)
+          past.setDate(past.getDate() - 30)
+          await context.queryClient.ensureQueryData(
+            personalDailyKpisQueryOptions(
+              past.toISOString().split('T')[0],
+              today.toISOString().split('T')[0],
+            ),
           )
         }
       }

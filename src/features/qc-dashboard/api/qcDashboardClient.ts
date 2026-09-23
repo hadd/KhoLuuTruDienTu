@@ -1,4 +1,4 @@
-import { volumeCount } from '@/features/dashboard/lib/volumeCount'
+import { normalizeVolume } from '@/features/dashboard/lib/normalizeVolume'
 import type {
   QcDashboardActivityPointT,
   QcDashboardGroupT,
@@ -7,7 +7,16 @@ import type {
 import { apiClient } from '@/lib/api/apiClient'
 import type { SingleResourceResponse } from '@/types/api'
 
-type QcDashboardRawT = Partial<QcDashboardT>
+type QcDashboardRawT = Omit<
+  Partial<QcDashboardT>,
+  'totalAssigned' | 'approved' | 'rejected' | 'reviewed' | 'pending'
+> & {
+  totalAssigned?: unknown
+  approved?: unknown
+  rejected?: unknown
+  reviewed?: unknown
+  pending?: unknown
+}
 type QcDashboardGroupRawT = Partial<QcDashboardGroupT> & {
   processingTrend?: Array<Partial<QcDashboardActivityPointT>>
   processingByDay?: Array<Partial<QcDashboardActivityPointT>>
@@ -41,11 +50,11 @@ function unwrapResponse<T>(data: T | SingleResourceResponse<T>): T {
 
 function normalizeOverview(raw: QcDashboardRawT): QcDashboardT {
   return {
-    totalAssigned: volumeCount(raw.totalAssigned),
-    approved: volumeCount(raw.approved),
-    rejected: volumeCount(raw.rejected),
-    reviewed: volumeCount(raw.reviewed),
-    pending: volumeCount(raw.pending),
+    totalAssigned: normalizeVolume(raw.totalAssigned),
+    approved: normalizeVolume(raw.approved),
+    rejected: normalizeVolume(raw.rejected),
+    reviewed: normalizeVolume(raw.reviewed),
+    pending: normalizeVolume(raw.pending),
     efficiency: {
       approvalRate: raw.efficiency?.approvalRate ?? 0,
       rejectionRate: raw.efficiency?.rejectionRate ?? 0,

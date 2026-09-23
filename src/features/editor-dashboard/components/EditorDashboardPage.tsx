@@ -41,7 +41,7 @@ import {
   formatDurationSeconds,
   formatPercentValue,
 } from '@/features/admin-dashboard/components/AdminDashboardPage'
-import { volumeCount } from '@/features/dashboard/lib/volumeCount'
+import { VolumeKpiCard } from '@/features/dashboard/components/VolumeKpiCard'
 import type {
   EditorDashboardPeriodT,
   EditorDashboardT,
@@ -118,18 +118,18 @@ export function EditorDashboardPage({
       }))
     }
 
-    if (completedCount > 0) {
+    if (data.completed.dossiers > 0) {
       return [
         {
           key: 'completed-total',
           name: t('chart.completedInPeriod'),
-          value: completedCount,
+          value: data.completed.dossiers,
         },
       ]
     }
 
     return []
-  }, [completedCount, data.completedTrend, t])
+  }, [data.completed.dossiers, data.completedTrend, t])
 
   const accuracyChartData = useMemo(
     () => [
@@ -196,24 +196,20 @@ export function EditorDashboardPage({
           </Select>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <KpiCard
+          <VolumeKpiCard
             icon={ClipboardList}
             label={t('sections.overview.totalAssigned')}
-            value={formatNumber(volumeCount(data.totalAssigned), {
-              maximumFractionDigits: 0,
-            })}
+            volume={data.totalAssigned}
           />
-          <KpiCard
+          <VolumeKpiCard
             icon={CheckCircle2}
             label={t('sections.overview.completed')}
-            value={formatNumber(completedCount, { maximumFractionDigits: 0 })}
+            volume={data.completed}
           />
-          <KpiCard
+          <VolumeKpiCard
             icon={Clock3}
             label={t('sections.overview.inProgress')}
-            value={formatNumber(volumeCount(data.inProgress), {
-              maximumFractionDigits: 0,
-            })}
+            volume={data.inProgress}
           />
         </div>
       </section>
@@ -269,7 +265,9 @@ export function EditorDashboardPage({
                 <CardTitle>{t('sections.overview.title')}</CardTitle>
                 <CardDescription>
                   {t('chart.completedInPeriod')}:{' '}
-                  {formatNumber(completedCount, { maximumFractionDigits: 0 })}
+                  {formatNumber(data.completed.dossiers, {
+                    maximumFractionDigits: 0,
+                  })}
                 </CardDescription>
               </CardHeader>
               <CardContent>

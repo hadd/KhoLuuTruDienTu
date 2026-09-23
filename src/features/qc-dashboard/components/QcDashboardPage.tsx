@@ -32,7 +32,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { formatPercentValue } from '@/features/admin-dashboard/components/AdminDashboardPage'
-import { volumeCount } from '@/features/dashboard/lib/volumeCount'
+import { VolumeKpiCard } from '@/features/dashboard/components/VolumeKpiCard'
 import { isQcGroupLeaderOnlyError } from '@/features/qc-dashboard/lib/loadErrors'
 import type {
   QcDashboardGroupT,
@@ -226,40 +226,30 @@ export function QcDashboardPage({
           {t('sections.overview.title')}
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <KpiCard
+          <VolumeKpiCard
             icon={ClipboardList}
             label={t('sections.overview.totalAssigned')}
-            value={formatNumber(volumeCount(overview.totalAssigned), {
-              maximumFractionDigits: 0,
-            })}
+            volume={overview.totalAssigned}
           />
-          <KpiCard
+          <VolumeKpiCard
             icon={CheckCircle2}
             label={t('sections.overview.approved')}
-            value={formatNumber(volumeCount(overview.approved), {
-              maximumFractionDigits: 0,
-            })}
+            volume={overview.approved}
           />
-          <KpiCard
+          <VolumeKpiCard
             icon={XCircle}
             label={t('sections.overview.rejected')}
-            value={formatNumber(volumeCount(overview.rejected), {
-              maximumFractionDigits: 0,
-            })}
+            volume={overview.rejected}
           />
-          <KpiCard
+          <VolumeKpiCard
             icon={Clock3}
             label={t('sections.overview.reviewed')}
-            value={formatNumber(volumeCount(overview.reviewed), {
-              maximumFractionDigits: 0,
-            })}
+            volume={overview.reviewed}
           />
-          <KpiCard
+          <VolumeKpiCard
             icon={FolderKanban}
             label={t('sections.overview.pending')}
-            value={formatNumber(volumeCount(overview.pending), {
-              maximumFractionDigits: 0,
-            })}
+            volume={overview.pending}
           />
         </div>
       </section>

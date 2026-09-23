@@ -5,6 +5,12 @@ export type QcCheckerRoleT =
   | 'CHECKER_4'
   | 'CHECKER_5'
 
+export type QcDashboardVolumeT = {
+  dossiers: number
+  files: number
+  pages: number
+}
+
 export type QcDashboardStepStatsT = {
   step: number
   role: QcCheckerRoleT
@@ -19,11 +25,11 @@ export type QcDashboardEfficiencyT = {
 }
 
 export type QcDashboardT = {
-  totalAssigned: number
-  approved: number
-  rejected: number
-  reviewed: number
-  pending: number
+  totalAssigned: QcDashboardVolumeT
+  approved: QcDashboardVolumeT
+  rejected: QcDashboardVolumeT
+  reviewed: QcDashboardVolumeT
+  pending: QcDashboardVolumeT
   efficiency: QcDashboardEfficiencyT
   byStep: Array<QcDashboardStepStatsT>
 }

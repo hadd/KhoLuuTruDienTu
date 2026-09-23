@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
+import { dataManagementTreeQueryKey } from '@/features/data-management/queries'
 import { buildUpdateGroupPayload } from '@/features/group/lib/groupPayload'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
@@ -17,6 +18,7 @@ import {
   getDossiersByAssignGroupId,
   getGroupAssignmentCounts,
   getGroupMemberAssignments,
+  revokeGroupAllAssignments,
   revokeGroupMemberAssignments,
 } from './api/groupClient'
 import {
@@ -251,6 +253,9 @@ export function useRevokeGroupMemberAssignmentsMutation() {
       void queryClient.invalidateQueries({
         queryKey: ['group', 'member-assignments', variables.groupId],
       })
+      void queryClient.invalidateQueries({
+        queryKey: dataManagementTreeQueryKey('admin'),
+      })
       toast.success(
         i18n.t('memberDossiers.revokeAll.success', {
           ns: 'group',
@@ -262,6 +267,50 @@ export function useRevokeGroupMemberAssignmentsMutation() {
       toast.error(
         translateError(error) ||
           i18n.t('memberDossiers.revokeAll.error', { ns: 'group' }),
+      )
+    },
+  })
+}
+
+export function useRevokeGroupAllAssignmentsMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (groupId: string) => revokeGroupAllAssignments(groupId),
+    onSuccess: (data, groupId) => {
+      void queryClient.invalidateQueries({
+        queryKey: assignedGroupDossiersQueryKey(groupId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: groupAssignmentCountsQueryKey(groupId),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['group', 'member-assignments', groupId],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: dataManagementTreeQueryKey('admin'),
+      })
+      if (data.totalSkipped > 0) {
+        toast.success(
+          i18n.t('assignedDossiers.revokeAll.successWithSkipped', {
+            ns: 'group',
+            revoked: data.totalRevoked,
+            skipped: data.totalSkipped,
+          }),
+        )
+      } else {
+        toast.success(
+          i18n.t('assignedDossiers.revokeAll.success', {
+            ns: 'group',
+            count: data.totalRevoked,
+          }),
+        )
+      }
+    },
+    onError: (error: unknown) => {
+      toast.error(
+        translateError(error) ||
+          i18n.t('assignedDossiers.revokeAll.error', { ns: 'group' }),
       )
     },
   })

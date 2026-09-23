@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileArchive, FileSpreadsheet, Files, Info, Loader2 } from 'lucide-react'
+import { FileArchive, FileSpreadsheet, Files, Image, Info, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -70,7 +70,9 @@ export function ExportChoiceDialog({
 
   const needsPreset = selectedMode === 'excel' || selectedMode === 'metadata'
   const needsFileNaming =
-    selectedMode === 'metadata' || selectedMode === 'dip'
+    selectedMode === 'metadata' ||
+    selectedMode === 'tiff' ||
+    selectedMode === 'dip'
   const showPackageNotice = selectedMode === 'metadata'
   const selectedModeDisabled =
     selectedMode === 'dip' && !canExportDip
@@ -110,6 +112,12 @@ export function ExportChoiceDialog({
       icon: Files,
       titleKey: 'recordDetail.exportDialog.metadataOption',
       descriptionKey: 'recordDetail.exportDialog.metadataOptionDescription',
+    },
+    {
+      mode: 'tiff',
+      icon: Image,
+      titleKey: 'recordDetail.exportDialog.tiffOnlyOption',
+      descriptionKey: 'recordDetail.exportDialog.tiffOnlyOptionDescription',
     },
     {
       mode: 'dip',

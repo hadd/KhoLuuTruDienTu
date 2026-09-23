@@ -392,7 +392,6 @@ export function ensureHoSoFondField(
 
 export const FOND_FIELD_NAMES: ReadonlyArray<string> = [
   HO_SO_FOND_FIELD,
-  'MA_PHONG',
   'TEN_PHONG',
   'PHONG_LUU_TRU',
 ]

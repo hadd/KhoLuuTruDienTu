@@ -5,8 +5,13 @@ import { useTranslation } from 'react-i18next'
 
 import type { AdminRoleChartTypeT } from '@/features/admin-dashboard/components/AdminDashboardPage'
 import { AdminDashboardPage } from '@/features/admin-dashboard/components/AdminDashboardPage'
-import { adminDashboardQueryOptions } from '@/features/admin-dashboard/queries'
+import {
+  adminDashboardOverviewQueryOptions,
+  adminDossierChartQueryOptions,
+  adminEmployeeKpisQueryOptions,
+} from '@/features/admin-dashboard/queries'
 import type { AdminDashboardDossierTrendGranularityT } from '@/features/admin-dashboard/types'
+import { PersonalKpiTable } from '@/features/dashboard/components/PersonalKpiTable'
 import { EditorDashboardPage } from '@/features/editor-dashboard/components/EditorDashboardPage'
 import { editorDashboardQueryOptions } from '@/features/editor-dashboard/queries'
 import type { EditorDashboardPeriodT } from '@/features/editor-dashboard/types'
@@ -121,6 +126,7 @@ export function ModularOverviewDashboard({
               includeGroup={false}
             />
           ) : null}
+          <PersonalKpiTable permissions={permissions} hidden={hidden} />
         </DashboardGroup>
       ) : null}
 
@@ -259,23 +265,36 @@ function AdminSection({
   groupId?: string
   sectionGroups: Array<'overview' | 'team'>
 }) {
-  const [dateRange, setDateRange] = useState<{
+  const [kpiDateRange, setKpiDateRange] = useState<{
     dateFrom?: string
     dateTo?: string
   }>({})
-  const { data, isLoading } = useQuery(
-    adminDashboardQueryOptions(
+  const [trendDateRange, setTrendDateRange] = useState<{
+    dateFrom?: string
+    dateTo?: string
+  }>({})
+
+  const overviewQuery = useQuery(adminDashboardOverviewQueryOptions())
+  const kpiQuery = useQuery(
+    adminEmployeeKpisQueryOptions(kpiDateRange.dateFrom, kpiDateRange.dateTo),
+  )
+  const chartQuery = useQuery(
+    adminDossierChartQueryOptions(
       dossierTrendGranularity,
-      dateRange.dateFrom,
-      dateRange.dateTo,
+      trendDateRange.dateFrom,
+      trendDateRange.dateTo,
     ),
   )
 
-  if (isLoading || !data) return <SectionLoading />
+  if (overviewQuery.isLoading || !overviewQuery.data) return <SectionLoading />
 
   return (
     <AdminDashboardPage
-      data={data}
+      data={overviewQuery.data}
+      employeeKpis={kpiQuery.data ?? []}
+      isEmployeeKpisLoading={kpiQuery.isFetching}
+      dossierChart={chartQuery.data ?? overviewQuery.data.dossierChart}
+      isDossierChartLoading={chartQuery.isFetching}
       roleChart={roleChart}
       dossierTrendGranularity={dossierTrendGranularity}
       permissions={permissions}
@@ -283,8 +302,11 @@ function AdminSection({
       groupId={groupId}
       embedInGroup
       sectionGroups={sectionGroups}
-      onDateRangeChange={(dateFrom, dateTo) =>
-        setDateRange({ dateFrom, dateTo })
+      onKpiDateRangeChange={(dateFrom, dateTo) =>
+        setKpiDateRange({ dateFrom, dateTo })
+      }
+      onTrendDateRangeChange={(dateFrom, dateTo) =>
+        setTrendDateRange({ dateFrom, dateTo })
       }
     />
   )

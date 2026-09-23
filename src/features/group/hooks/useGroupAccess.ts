@@ -12,6 +12,7 @@ import {
   canDeleteGroup,
   canManageGroupMembers,
   canReadAllGroups,
+  canRevokeGroupAssignments,
   canStartGroupWorkflow,
   canUpdateGroup,
   canViewGroups,
@@ -40,6 +41,7 @@ export function useGroupAccess() {
       canDeleteGroup: canDeleteGroup(permissions),
       canManageGroupMembers: canManageGroupMembers(permissions),
       canStartGroupWorkflow: canStartGroupWorkflow(permissions),
+      canRevokeGroupAssignments: canRevokeGroupAssignments(permissions),
     }
   }, [user, rolePermissions])
 }

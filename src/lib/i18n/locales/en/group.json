@@ -373,7 +373,16 @@
     "assignedTo": "Assigned to: {{name}}",
     "assignedToLabel": "Assigned to:",
     "unassigned": "Unassigned",
-    "noSearchResults": "No dossiers match your search"
+    "noSearchResults": "No dossiers match your search",
+    "revokeAll": {
+      "button": "Revoke all group dossiers",
+      "confirmTitle": "Revoke all dossiers from this group?",
+      "confirmDescription": "Revoke ready-for-entry dossiers from group {{name}} ({{count}} dossiers currently in the group). Dossiers currently in entry or already in QC are kept. Successfully revoked dossiers return to the unassigned pool for reassignment.",
+      "confirmSubmit": "Revoke",
+      "success": "Revoked {{count}} dossiers and returned them to the reassignment pool.",
+      "successWithSkipped": "Revoked {{revoked}} dossiers. Skipped {{skipped}} dossiers that are in entry or already in QC.",
+      "error": "Failed to revoke group dossiers."
+    }
   },
   "memberDossiers": {
     "editorTitle": "Assigned dossiers — {{name}}",
@@ -389,9 +398,9 @@
     "revokeAll": {
       "button": "Revoke all",
       "confirmTitle": "Revoke all assignments?",
-      "confirmDescription": "Revoke {{name}}'s assignments for {{count}} dossiers (ready for entry and currently in entry). Dossiers remain in the group for reassignment.",
+      "confirmDescription": "Revoke {{name}}'s assignments for {{count}} ready-for-entry dossiers. Dossiers currently in entry are kept. Successfully revoked dossiers return to the unassigned pool for reassignment.",
       "confirmSubmit": "Revoke",
-      "success": "Revoked {{count}} dossiers.",
+      "success": "Revoked {{count}} dossiers and returned them to the reassignment pool.",
       "error": "Failed to revoke assignments."
     }
   }

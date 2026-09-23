@@ -177,6 +177,8 @@
     "exportExcel": "Export dossier",
     "exportExcelExporting": "Exporting dossier…",
     "exportExcelSuccess": "Excel file downloaded.",
+    "exportTiffSuccess": "TIFF package downloaded.",
+    "exportDipSuccess": "DIP package downloaded.",
     "exportExcelError": "Failed to export Excel file.",
     "exportExcelNotApproved": "Export is only available after final approval.",
     "exportExcelBatchMode": "Batch export mode",
@@ -195,6 +197,8 @@
       "metadataOptionDescription": "ZIP with Excel plus PDF/ and TIFF/ folder trees",
       "excelOnlyOption": "Excel only",
       "excelOnlyOptionDescription": "Faster — metadata table only, no PDF/TIFF files",
+      "tiffOnlyOption": "TIFF only",
+      "tiffOnlyOptionDescription": "ZIP with TIFF/ folder tree only — no Excel or PDF",
       "dipOption": "DIP package",
       "dipOptionDescription": "Export DIP package as ZIP",
       "dipUnavailable": "No dossier found for DIP export",
@@ -439,7 +443,7 @@
     },
     "revokeAssignments": {
       "title": "Revoke assignments",
-      "description": "Are you sure you want to revoke assignments for this folder? Applies to dossiers ready for entry or currently in entry; dossiers already in QC or approved will be skipped.",
+      "description": "Are you sure you want to revoke assignments for this folder? Applies to dossiers ready for entry; dossiers currently in entry, in QC, or approved will be skipped.",
       "submit": "Revoke",
       "success": "Assignments revoked successfully."
     }
@@ -465,6 +469,8 @@
       "manual": "Queue for manual activation — OCR only runs after you trigger it on the OCR Control screen."
     },
     "success": "Folder uploaded successfully.",
+    "cancelled": "Upload cancelled. Files already uploaded were kept.",
+    "cancelUpload": "Cancel upload",
     "postProcessFailed": "Upload succeeded but failed to refresh the folder tree.",
     "allSkipped": "All files already exist in the system — nothing was uploaded.",
     "errors": {

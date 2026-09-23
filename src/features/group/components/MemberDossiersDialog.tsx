@@ -48,7 +48,7 @@ export function MemberDossiersDialog({
 }: MemberDossiersDialogProps) {
   const { t } = useTranslation('group')
   const { t: tCommon } = useTranslation('common')
-  const { canStartGroupWorkflow } = useGroupAccess()
+  const { canRevokeGroupAssignments } = useGroupAccess()
   const [searchQuery, setSearchQuery] = useState('')
   const [confirmRevokeOpen, setConfirmRevokeOpen] = useState(false)
   const treeScrollRef = useRef<HTMLDivElement>(null)
@@ -93,7 +93,7 @@ export function MemberDossiersDialog({
 
   const showRevokeAll =
     target?.kind === 'editor' &&
-    canStartGroupWorkflow &&
+    canRevokeGroupAssignments &&
     dossiers.length > 0 &&
     !isLoading &&
     !isError

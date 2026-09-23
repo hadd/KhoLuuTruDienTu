@@ -1,4 +1,4 @@
-import { volumeCount } from '@/features/dashboard/lib/volumeCount'
+import { normalizeVolume } from '@/features/dashboard/lib/normalizeVolume'
 import type {
   EditorDashboardCompletedPointT,
   EditorDashboardPeriodT,
@@ -7,7 +7,13 @@ import type {
 import { apiClient } from '@/lib/api/apiClient'
 import type { SingleResourceResponse } from '@/types/api'
 
-type EditorDashboardRawT = Partial<EditorDashboardT> & {
+type EditorDashboardRawT = Omit<
+  Partial<EditorDashboardT>,
+  'totalAssigned' | 'completed' | 'inProgress'
+> & {
+  totalAssigned?: unknown
+  completed?: unknown
+  inProgress?: unknown
   completedTrend?: Array<Partial<EditorDashboardCompletedPointT>>
   completedByPeriod?: Array<Partial<EditorDashboardCompletedPointT>>
   workloadTrend?: Array<Partial<EditorDashboardCompletedPointT>>
@@ -42,9 +48,9 @@ function normalizeDashboard(raw: EditorDashboardRawT): EditorDashboardT {
   )
 
   return {
-    totalAssigned: volumeCount(raw.totalAssigned),
-    completed: volumeCount(raw.completed),
-    inProgress: volumeCount(raw.inProgress),
+    totalAssigned: normalizeVolume(raw.totalAssigned),
+    completed: normalizeVolume(raw.completed),
+    inProgress: normalizeVolume(raw.inProgress),
     accuracy: {
       correct: raw.accuracy?.correct ?? 0,
       incorrect: raw.accuracy?.incorrect ?? 0,

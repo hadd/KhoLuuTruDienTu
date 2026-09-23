@@ -44,6 +44,7 @@ export type {
   EditorDashboardCompletedPointT,
   EditorDashboardPeriodT,
   EditorDashboardT,
+  EditorDashboardVolumeT,
 } from '@/features/editor-dashboard/types'
 
 // Project manager types
@@ -86,4 +87,11 @@ export type {
   QcDashboardGroupT,
   QcDashboardStepStatsT,
   QcDashboardT,
+  QcDashboardVolumeT,
 } from '@/features/qc-dashboard/types'
+
+// Personal dashboard types
+export type {
+  PersonalDailyKpiT,
+  PersonalKpisT,
+} from '@/features/dashboard/types'
