@@ -649,12 +649,24 @@
       "description": {
         "label": "Mô tả lỗi",
         "placeholder": "Mô tả chi tiết lỗi gặp phải…"
+      },
+      "file": {
+        "label": "Tệp tin liên quan",
+        "placeholder": "Chọn tệp tin (hoặc toàn bộ hồ sơ)",
+        "allDossier": "Toàn bộ hồ sơ"
+      },
+      "fields": {
+        "label": "Trường dữ liệu báo lỗi",
+        "noFields": "Chưa chọn trường nào (có thể chọn trực tiếp bằng checkbox trên form dữ liệu)",
+        "removeField": "Bỏ chọn trường {{name}}"
       }
     },
     "review": {
       "title": "Thông báo lỗi từ biên tập",
       "multipleTitle": "Thông báo lỗi từ biên tập",
       "reportIndex": "Báo cáo {{index}}/{{total}}",
+      "affectedFile": "Tệp tin liên quan",
+      "affectedFields": "Trường dữ liệu báo lỗi",
       "reporter": "Người thông báo",
       "unknownReporter": "Không rõ",
       "reportedAt": "Thời gian thông báo",

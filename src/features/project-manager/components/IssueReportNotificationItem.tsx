@@ -127,6 +127,35 @@ export function IssueReportNotificationItem({
               </dd>
             </div>
           ) : null}
+          {report.fileName ? (
+            <div className="flex gap-2">
+              <dt className="shrink-0 text-muted-foreground">
+                {t('issueReports.fields.fileName')}:
+              </dt>
+              <dd className="min-w-0 text-foreground">
+                <TextBlock lines={1}>{report.fileName}</TextBlock>
+              </dd>
+            </div>
+          ) : null}
+          {report.fields && report.fields.length > 0 ? (
+            <div className="flex gap-2">
+              <dt className="shrink-0 text-muted-foreground">
+                {t('issueReports.fields.fields')}:
+              </dt>
+              <dd className="min-w-0 text-foreground">
+                <div className="flex flex-wrap gap-1">
+                  {report.fields.map((fieldKey) => (
+                    <span
+                      key={fieldKey}
+                      className="rounded bg-destructive/10 px-1.5 py-0.5 text-[11px] font-medium text-destructive"
+                    >
+                      {fieldKey}
+                    </span>
+                  ))}
+                </div>
+              </dd>
+            </div>
+          ) : null}
           <div className="flex gap-2">
             <dt className="shrink-0 text-muted-foreground">
               {t('issueReports.fields.notes')}:

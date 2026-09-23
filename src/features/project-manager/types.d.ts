@@ -81,6 +81,9 @@ export interface AdminIssueReportT {
   status: AdminIssueReportStatusT
   type: string
   notes: string
+  fileId?: string | null
+  fileName?: string | null
+  fields?: Array<string> | null
   resolveNotes: string | null
   escalatedToId: string | null
   createdAt: string

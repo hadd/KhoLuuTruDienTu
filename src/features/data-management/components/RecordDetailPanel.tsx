@@ -302,6 +302,26 @@ export function RecordDetailPanel({
   const isApproveBlockedByErrorReports =
     isActingAsQc && pendingErrorReportCount > 0
 
+  const [selectedErrorFieldKeys, setSelectedErrorFieldKeys] = useState<
+    Set<string>
+  >(new Set())
+
+  useEffect(() => {
+    setSelectedErrorFieldKeys(new Set())
+  }, [dossierId])
+
+  const reportedIssueFieldKeys = useMemo(() => {
+    const keys = new Set<string>()
+    for (const r of pendingErrorReports) {
+      if (r.fields) {
+        for (const f of r.fields) {
+          keys.add(f)
+        }
+      }
+    }
+    return keys
+  }, [pendingErrorReports])
+
   useEffect(() => {
     if (pendingErrorReportCount === 0 && errorReportReviewOpen) {
       setErrorReportReviewOpen(false)
@@ -366,15 +386,13 @@ export function RecordDetailPanel({
     [effectiveNode.children],
   )
   const groups = activeMetadata?.metadata_groups ?? []
-<<<<<<< HEAD
-
   const effectiveFondId =
     node.fondId ??
     (activeMetadata ? findHoSoFondFieldValue(activeMetadata) : undefined)
 
-  const namingConfigQuery = useQuery({
-    ...documentNamingConfigQueryOptions(
-      effectiveFondId
+  const namingConfigQuery = useQuery(
+    documentNamingConfigQueryOptions(
+      effectiveFondId && isActingAsQc
         ? {
             fondId: effectiveFondId,
             targetType: 'file',
@@ -382,8 +400,7 @@ export function RecordDetailPanel({
           }
         : null,
     ),
-    enabled: Boolean(effectiveFondId && dossierId && isActingAsQc),
-  })
+  )
 
   const hasNamingRuleApplied = Boolean(
     namingConfigQuery.data?.applyOnApprove &&
@@ -391,7 +408,6 @@ export function RecordDetailPanel({
       namingConfigQuery.data.segments.length > 0,
   )
 
-=======
   const rejectedFieldSummary = useMemo(() => {
     if (!isEditorRole || !node.rejectFields?.length || !activeMetadata) return []
     return buildRejectedFieldsSummaryByDocument(
@@ -399,7 +415,6 @@ export function RecordDetailPanel({
       activeMetadata,
     )
   }, [isEditorRole, node.rejectFields, activeMetadata])
->>>>>>> 44c71a0e7ddde83b15f84a0d93027cc4558ded05
   const metadataDisplayLayout = useMemo(
     () => partitionMetadataGroupsForDisplay(groups),
     [groups],
@@ -469,9 +484,6 @@ export function RecordDetailPanel({
     'metadata',
   )
 
-  function handleDetailTabChange(value: 'metadata' | 'editHistory') {
-    setDetailTab(value)
-  }
 
   // Sync detailTab when focusDocumentId changes from external navigation
   useEffect(() => {
@@ -1027,7 +1039,6 @@ export function RecordDetailPanel({
     groupIndex: number,
     fieldName: string,
   ): boolean {
-    if (!isEditorRole) return false
     const scope = resolveMetadataGroupRejectScope(group, groupIndex)
     const scopedKey = buildRejectFieldKey(
       scope.groupCode,
@@ -1037,8 +1048,15 @@ export function RecordDetailPanel({
     const baseKey = buildRejectFieldKey(scope.groupCode, fieldName)
     const legacyKey = buildRejectFieldKey(group.group_code, fieldName)
 
-    return [scopedKey, baseKey, legacyKey].some(
-      (key) => qcRejectFieldKeys.has(key) && !dismissedRejectFieldKeys.has(key),
+    if (isEditorRole) {
+      const isQcRejected = [scopedKey, baseKey, legacyKey].some(
+        (key) => qcRejectFieldKeys.has(key) && !dismissedRejectFieldKeys.has(key),
+      )
+      if (isQcRejected) return true
+    }
+
+    return [scopedKey, baseKey, legacyKey].some((key) =>
+      reportedIssueFieldKeys.has(key),
     )
   }
 
@@ -1313,7 +1331,7 @@ export function RecordDetailPanel({
 
         pendingFieldActivationRef.current = {
           fieldKey,
-          highlight: highlight ?? undefined,
+          highlight: highlight ?? null,
           changeId: change.id,
         }
 
@@ -1643,21 +1661,48 @@ export function RecordDetailPanel({
     groupIndex: number,
     field: DataDocumentFieldT,
   ) {
-    if (!isActingAsQc || !canShowSubmitButton || canDirectApprove) return undefined
-
-    const scope = resolveMetadataGroupRejectScope(group, groupIndex)
-    const rejectKey = buildRejectFieldKey(
-      scope.groupCode,
-      field.name,
-      scope.fileRef,
-    )
-    return {
-      id: `qc-reject-${groupIndex}-${rejectKey}`,
-      checked: qcReject.rejectFieldKeys.has(rejectKey),
-      onCheckedChange: (checked: boolean) =>
-        qcReject.toggleRejectField(rejectKey, checked),
-      disabled: isSaving,
+    if (isActingAsQc && canShowSubmitButton && !canDirectApprove) {
+      const scope = resolveMetadataGroupRejectScope(group, groupIndex)
+      const rejectKey = buildRejectFieldKey(
+        scope.groupCode,
+        field.name,
+        scope.fileRef,
+      )
+      return {
+        id: `qc-reject-${groupIndex}-${rejectKey}`,
+        checked: qcReject.rejectFieldKeys.has(rejectKey),
+        onCheckedChange: (checked: boolean) =>
+          qcReject.toggleRejectField(rejectKey, checked),
+        disabled: isSaving,
+      }
     }
+
+    if (isEditorRole && canSubmitErrorReport) {
+      const scope = resolveMetadataGroupRejectScope(group, groupIndex)
+      const errorFieldKey = buildRejectFieldKey(
+        scope.groupCode,
+        field.name,
+        scope.fileRef,
+      )
+      return {
+        id: `editor-error-${groupIndex}-${errorFieldKey}`,
+        checked: selectedErrorFieldKeys.has(errorFieldKey),
+        onCheckedChange: (checked: boolean) => {
+          setSelectedErrorFieldKeys((prev) => {
+            const next = new Set(prev)
+            if (checked) {
+              next.add(errorFieldKey)
+            } else {
+              next.delete(errorFieldKey)
+            }
+            return next
+          })
+        },
+        disabled: isSaving,
+      }
+    }
+
+    return undefined
   }
 
   function renderMetadataGroupCard(
@@ -1855,7 +1900,9 @@ export function RecordDetailPanel({
               disabled={!canSubmitErrorReport || !activeMetadata}
             >
               <AlertTriangle className="size-3.5" aria-hidden />
-              {t('editorErrorReport.actions.report')}
+              {selectedErrorFieldKeys.size > 0
+                ? `${t('editorErrorReport.actions.report')} (${selectedErrorFieldKeys.size})`
+                : t('editorErrorReport.actions.report')}
             </Button>
           ) : null}
           {canDigitalSign ? (
@@ -2202,12 +2249,16 @@ export function RecordDetailPanel({
           onOpenChange={setErrorReportDialogOpen}
           dossierId={dossierId}
           dossierName={node.name}
+          documents={documents}
+          activeDocumentId={focusDocumentId ?? selectedDocument?.id ?? null}
+          initialSelectedFields={Array.from(selectedErrorFieldKeys)}
           metadata={mergeMetadataFieldChanges(
             baseMetadataRef.current ?? activeMetadata,
             activeMetadata,
           )}
           onSubmitReport={async (input) => {
             await editorErrorReports.submitReport(input)
+            setSelectedErrorFieldKeys(new Set())
             if (isEditorRole) {
               await onWorkflowComplete?.(dossierId, 'error_report')
             }

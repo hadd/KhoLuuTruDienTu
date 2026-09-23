@@ -138,6 +138,8 @@
       "reporterName": "Reporter",
       "dossierName": "Dossier",
       "projectCode": "Project code",
+      "fileName": "File",
+      "fields": "Error fields",
       "notes": "Notes",
       "unknownReporter": "Unknown"
     },

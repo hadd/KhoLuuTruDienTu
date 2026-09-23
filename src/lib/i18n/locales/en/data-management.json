@@ -631,12 +631,24 @@
       "description": {
         "label": "Error description",
         "placeholder": "Describe the issue in detail…"
+      },
+      "file": {
+        "label": "Related file",
+        "placeholder": "Select file (or whole dossier)",
+        "allDossier": "Entire dossier"
+      },
+      "fields": {
+        "label": "Error fields",
+        "noFields": "No fields selected (can be selected directly via checkboxes on the metadata form)",
+        "removeField": "Remove field {{name}}"
       }
     },
     "review": {
       "title": "Error report from editing staff",
       "multipleTitle": "Error reports from editing staff",
       "reportIndex": "Report {{index}} of {{total}}",
+      "affectedFile": "Related file",
+      "affectedFields": "Error fields",
       "reporter": "Reported by",
       "unknownReporter": "Unknown",
       "reportedAt": "Reported at",
