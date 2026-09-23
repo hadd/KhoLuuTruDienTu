@@ -181,6 +181,7 @@ function mapConfig(row: {
     dossierId: string | null;
     segments: DocumentNamingSegment[];
     autoIncrementCounter: number;
+    applyOnApprove?: boolean | null;
     createdAt: Date;
     updatedAt: Date;
 }) {
@@ -191,6 +192,7 @@ function mapConfig(row: {
         dossierId: row.dossierId,
         segments: row.segments,
         autoIncrementCounter: row.autoIncrementCounter,
+        applyOnApprove: row.applyOnApprove ?? false,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
     };
@@ -302,6 +304,7 @@ export const DocumentNamingConfigService = {
                 dossierId: input.targetType === "file" ? input.dossierId ?? null : null,
                 segments: [] as DocumentNamingSegment[],
                 autoIncrementCounter: 1,
+                applyOnApprove: false,
             };
         }
 
@@ -313,6 +316,7 @@ export const DocumentNamingConfigService = {
         targetType: DocumentNamingTargetType;
         dossierId?: string | null;
         segments: DocumentNamingSegment[];
+        applyOnApprove?: boolean;
     }) {
         await this.assertFondExists(input.fondId);
         if (input.targetType === "file") {
@@ -348,6 +352,7 @@ export const DocumentNamingConfigService = {
                 .set({
                     segments: input.segments,
                     autoIncrementCounter,
+                    ...(input.applyOnApprove !== undefined ? { applyOnApprove: input.applyOnApprove } : {}),
                     updatedAt: new Date(),
                 })
                 .where(eq(documentNamingConfigs.id, existing.id))
@@ -361,6 +366,7 @@ export const DocumentNamingConfigService = {
             dossierId: input.targetType === "file" ? input.dossierId ?? null : null,
             segments: input.segments,
             autoIncrementCounter,
+            applyOnApprove: input.applyOnApprove ?? false,
         }).returning();
 
         return mapConfig(row);
