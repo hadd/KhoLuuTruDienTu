@@ -25,7 +25,7 @@ export async function exportEmployeeKpiToExcel(
   sheet.views = [{ showGridLines: true }]
 
   // 1. Tiêu đề chính
-  sheet.mergeCells('A1:T1')
+  sheet.mergeCells('A1:Z1')
   const titleCell = sheet.getCell('A1')
   titleCell.value = 'BÁO CÁO ĐÁNH GIÁ HIỆU SUẤT KPI NHÂN SỰ'
   titleCell.font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF1E3A8A' } }
@@ -33,7 +33,7 @@ export async function exportEmployeeKpiToExcel(
   sheet.getRow(1).height = 32
 
   // 2. Thông tin phụ & Bộ lọc
-  sheet.mergeCells('A2:T2')
+  sheet.mergeCells('A2:Z2')
   const metaCell = sheet.getCell('A2')
   const nowStr = new Date().toLocaleString('vi-VN')
   const filterSummary: Array<string> = []
@@ -65,21 +65,24 @@ export async function exportEmployeeKpiToExcel(
     { key: 'fullName', header: 'Họ và tên', width: 26 },
     { key: 'role', header: 'Vai trò', width: 16 },
     { key: 'groupName', header: 'Tổ / Nhóm', width: 22 },
-    // Maker (Biên tập)
     { key: 'makerCompletedDossiers', header: 'Số HS hoàn thành', width: 18 },
     { key: 'makerAssignedDossiers', header: 'Số HS phân công', width: 18 },
     { key: 'makerDossierRate', header: 'Tỷ lệ HS (%)', width: 14 },
     { key: 'makerCompletedPages', header: 'Số trang hoàn thành', width: 20 },
     { key: 'makerAssignedPages', header: 'Số trang phân công', width: 20 },
     { key: 'makerPageRate', header: 'Tỷ lệ trang (%)', width: 14 },
-    // QC (Duyệt)
+    { key: 'makerCompletedFiles', header: 'Số file hoàn thành', width: 18 },
+    { key: 'makerAssignedFiles', header: 'Số file phân công', width: 18 },
+    { key: 'makerFileRate', header: 'Tỷ lệ file (%)', width: 14 },
     { key: 'qcCompletedDossiers', header: 'Số HS hoàn thành', width: 18 },
     { key: 'qcAssignedDossiers', header: 'Số HS phân công', width: 18 },
     { key: 'qcDossierRate', header: 'Tỷ lệ HS (%)', width: 14 },
     { key: 'qcCompletedPages', header: 'Số trang hoàn thành', width: 20 },
     { key: 'qcAssignedPages', header: 'Số trang phân công', width: 20 },
     { key: 'qcPageRate', header: 'Tỷ lệ trang (%)', width: 14 },
-    // Summary
+    { key: 'qcCompletedFiles', header: 'Số file hoàn thành', width: 18 },
+    { key: 'qcAssignedFiles', header: 'Số file phân công', width: 18 },
+    { key: 'qcFileRate', header: 'Tỷ lệ file (%)', width: 14 },
     { key: 'avgProcessingTimeMinutes', header: 'Thời gian TB (phút)', width: 20 },
     { key: 'rejectedDossiersCount', header: 'Số lượt bị trả về', width: 18 },
     { key: 'accuracyRate', header: 'Tỷ lệ chính xác KPI (%)', width: 22 },
@@ -101,7 +104,7 @@ export async function exportEmployeeKpiToExcel(
   sheet.mergeCells('D4:D5')
   sheet.getCell('D4').value = 'Tổ / Nhóm'
 
-  sheet.mergeCells('E4:J4')
+  sheet.mergeCells('E4:M4')
   sheet.getCell('E4').value = 'HỒ SƠ BIÊN TẬP'
 
   sheet.getCell('E5').value = 'HS hoàn thành'
@@ -110,28 +113,34 @@ export async function exportEmployeeKpiToExcel(
   sheet.getCell('H5').value = 'Trang hoàn thành'
   sheet.getCell('I5').value = 'Trang phân công'
   sheet.getCell('J5').value = 'Tỷ lệ trang'
+  sheet.getCell('K5').value = 'File hoàn thành'
+  sheet.getCell('L5').value = 'File phân công'
+  sheet.getCell('M5').value = 'Tỷ lệ file'
 
-  sheet.mergeCells('K4:P4')
-  sheet.getCell('K4').value = 'HỒ SƠ DUYỆT'
+  sheet.mergeCells('N4:V4')
+  sheet.getCell('N4').value = 'HỒ SƠ DUYỆT'
 
-  sheet.getCell('K5').value = 'HS hoàn thành'
-  sheet.getCell('L5').value = 'HS phân công'
-  sheet.getCell('M5').value = 'Tỷ lệ HS'
-  sheet.getCell('N5').value = 'Trang hoàn thành'
-  sheet.getCell('O5').value = 'Trang phân công'
-  sheet.getCell('P5').value = 'Tỷ lệ trang'
+  sheet.getCell('N5').value = 'HS hoàn thành'
+  sheet.getCell('O5').value = 'HS phân công'
+  sheet.getCell('P5').value = 'Tỷ lệ HS'
+  sheet.getCell('Q5').value = 'Trang hoàn thành'
+  sheet.getCell('R5').value = 'Trang phân công'
+  sheet.getCell('S5').value = 'Tỷ lệ trang'
+  sheet.getCell('T5').value = 'File hoàn thành'
+  sheet.getCell('U5').value = 'File phân công'
+  sheet.getCell('V5').value = 'Tỷ lệ file'
 
-  sheet.mergeCells('Q4:Q5')
-  sheet.getCell('Q4').value = 'Thời gian TB (phút)'
+  sheet.mergeCells('W4:W5')
+  sheet.getCell('W4').value = 'Thời gian TB (phút)'
 
-  sheet.mergeCells('R4:R5')
-  sheet.getCell('R4').value = 'Số lượt bị trả về'
+  sheet.mergeCells('X4:X5')
+  sheet.getCell('X4').value = 'Số lượt bị trả về'
 
-  sheet.mergeCells('S4:S5')
-  sheet.getCell('S4').value = 'Độ chính xác KPI'
+  sheet.mergeCells('Y4:Y5')
+  sheet.getCell('Y4').value = 'Độ chính xác KPI'
 
-  sheet.mergeCells('T4:T5')
-  sheet.getCell('T4').value = 'Đánh giá KPI'
+  sheet.mergeCells('Z4:Z5')
+  sheet.getCell('Z4').value = 'Đánh giá KPI'
 
   // Style Header Rows (4 & 5)
   const headerFillGeneral: ExcelJS.Fill = {
@@ -160,15 +169,15 @@ export async function exportEmployeeKpiToExcel(
   for (let r = 4; r <= 5; r++) {
     const row = sheet.getRow(r)
     row.height = 24
-    for (let c = 1; c <= 20; c++) {
+    for (let c = 1; c <= 26; c++) {
       const cell = row.getCell(c)
       cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } }
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
       cell.border = thinBorder
 
-      if (c >= 5 && c <= 10) {
+      if (c >= 5 && c <= 13) {
         cell.fill = headerFillMaker
-      } else if (c >= 11 && c <= 16) {
+      } else if (c >= 14 && c <= 22) {
         cell.fill = headerFillQc
       } else {
         cell.fill = headerFillGeneral
@@ -184,6 +193,9 @@ export async function exportEmployeeKpiToExcel(
     const makerCompletedPages = item.makerCompletedPagesCount ?? (item.role === 'editor' ? item.completedPagesCount : 0)
     const makerAssignedPages = item.makerAssignedPagesCount ?? (item.role === 'editor' ? item.assignedPagesCount : 0)
     const makerPageRate = item.makerPageCompletionRate ?? (item.role === 'editor' ? item.pageCompletionRate : 0)
+    const makerCompletedFiles = item.makerCompletedFilesCount ?? (item.role === 'editor' ? item.completedFilesCount : 0)
+    const makerAssignedFiles = item.makerAssignedFilesCount ?? (item.role === 'editor' ? item.assignedFilesCount : 0)
+    const makerFileRate = item.makerFileCompletionRate ?? (item.role === 'editor' ? item.fileCompletionRate : 0)
 
     const qcCompletedDossiers = item.qcCompletedDossiersCount ?? (item.role === 'qc' ? item.completedDossiersCount : 0)
     const qcAssignedDossiers = item.qcAssignedDossiersCount ?? (item.role === 'qc' ? item.assignedDossiersCount : 0)
@@ -191,18 +203,21 @@ export async function exportEmployeeKpiToExcel(
     const qcCompletedPages = item.qcCompletedPagesCount ?? (item.role === 'qc' ? item.completedPagesCount : 0)
     const qcAssignedPages = item.qcAssignedPagesCount ?? (item.role === 'qc' ? item.assignedPagesCount : 0)
     const qcPageRate = item.qcPageCompletionRate ?? (item.role === 'qc' ? item.pageCompletionRate : 0)
+    const qcCompletedFiles = item.qcCompletedFilesCount ?? (item.role === 'qc' ? item.completedFilesCount : 0)
+    const qcAssignedFiles = item.qcAssignedFilesCount ?? (item.role === 'qc' ? item.assignedFilesCount : 0)
+    const qcFileRate = item.qcFileCompletionRate ?? (item.role === 'qc' ? item.fileCompletionRate : 0)
 
     let kpiLabel = 'Đạt'
-    let statusFgColor = 'FFD97706' // amber
+    let statusFgColor = 'FFD97706'
     let statusBgColor = 'FFFEF3C7'
 
     if (item.accuracyRate >= 95) {
       kpiLabel = 'Xuất sắc'
-      statusFgColor = 'FF047857' // emerald
+      statusFgColor = 'FF047857'
       statusBgColor = 'FFD1FAE5'
     } else if (item.accuracyRate < 80) {
       kpiLabel = 'Cần cải thiện'
-      statusFgColor = 'FFB91C1C' // rose
+      statusFgColor = 'FFB91C1C'
       statusBgColor = 'FFFEE2E2'
     }
 
@@ -217,12 +232,18 @@ export async function exportEmployeeKpiToExcel(
       makerCompletedPages,
       makerAssignedPages,
       makerPageRate / 100,
+      makerCompletedFiles,
+      makerAssignedFiles,
+      makerFileRate / 100,
       qcCompletedDossiers,
       qcAssignedDossiers,
       qcDossierRate / 100,
       qcCompletedPages,
       qcAssignedPages,
       qcPageRate / 100,
+      qcCompletedFiles,
+      qcAssignedFiles,
+      qcFileRate / 100,
       item.avgProcessingTimeMinutes ?? 0,
       item.rejectedDossiersCount ?? 0,
       item.accuracyRate / 100,
@@ -239,16 +260,13 @@ export async function exportEmployeeKpiToExcel(
         cell.alignment = { horizontal: 'center', vertical: 'middle' }
       } else if (colNumber === 2 || colNumber === 4) {
         cell.alignment = { horizontal: 'left', vertical: 'middle' }
-      } else if ([7, 10, 13, 16, 19].includes(colNumber)) {
-        // Định dạng phần trăm
+      } else if ([7, 10, 13, 16, 19, 22, 25].includes(colNumber)) {
         cell.alignment = { horizontal: 'right', vertical: 'middle' }
         cell.numFmt = '0.0%'
-      } else if ([5, 6, 8, 9, 11, 12, 14, 15, 17, 18].includes(colNumber)) {
-        // Định dạng số nguyên
+      } else if ([5, 6, 8, 9, 11, 12, 14, 15, 17, 18, 20, 21, 23, 24].includes(colNumber)) {
         cell.alignment = { horizontal: 'right', vertical: 'middle' }
         cell.numFmt = '#,##0'
-      } else if (colNumber === 20) {
-        // Đánh giá KPI badge style
+      } else if (colNumber === 26) {
         cell.alignment = { horizontal: 'center', vertical: 'middle' }
         cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: statusFgColor } }
         cell.fill = {

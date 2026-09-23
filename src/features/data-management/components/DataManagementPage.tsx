@@ -992,7 +992,13 @@ export function DataManagementPage({
             : undefined,
           useDocumentNaming: options?.useDocumentNaming === true,
         })
-        toast.success(t('recordDetail.exportExcelSuccess'))
+        toast.success(
+          mode === 'dip'
+            ? t('recordDetail.exportDipSuccess')
+            : mode === 'tiff'
+              ? t('recordDetail.exportTiffSuccess')
+              : t('recordDetail.exportExcelSuccess'),
+        )
         setExportDialogOpen(false)
       } catch (error) {
         toast.error(
@@ -1055,9 +1061,14 @@ export function DataManagementPage({
           useDocumentNaming: options?.useDocumentNaming === true,
         })
         toast.success(
-          mode === 'metadata'
-            ? t('recordDetail.exportExcelSuccess', 'Đã tải xuống tệp Excel.')
-            : t('recordDetail.exportDipSuccess', 'Đã tải xuống gói DIP.'),
+          mode === 'dip'
+            ? t('recordDetail.exportDipSuccess', 'Đã tải xuống gói DIP.')
+            : mode === 'tiff'
+              ? t(
+                  'recordDetail.exportTiffSuccess',
+                  'Đã tải xuống gói TIFF.',
+                )
+              : t('recordDetail.exportExcelSuccess', 'Đã tải xuống tệp Excel.'),
         )
         setBatchExportDialogOpen(false)
       } catch (error) {

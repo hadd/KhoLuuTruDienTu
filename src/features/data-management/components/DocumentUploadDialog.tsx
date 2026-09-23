@@ -88,6 +88,7 @@ export function DocumentUploadDialog({
   const { t: tCommon } = useTranslation('common')
   const { canControlOcr } = useOcrControlAccess()
   const inputRef = useRef<HTMLInputElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
   const [state, setState] = useState<DialogState>({ phase: 'idle' })
   const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null)
   const [conflictPaths, setConflictPaths] = useState<
@@ -121,7 +122,19 @@ export function DocumentUploadDialog({
     setOverwriteOpen(false)
   }
 
+  function beginUploadAbortScope(): AbortSignal {
+    abortControllerRef.current?.abort()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    return controller.signal
+  }
+
+  function cancelInFlightUpload() {
+    abortControllerRef.current?.abort()
+  }
+
   function resetAndClose() {
+    cancelInFlightUpload()
     setState({ phase: 'idle' })
     resetPendingOverwrite()
     mutation.reset()
@@ -130,7 +143,18 @@ export function DocumentUploadDialog({
   }
 
   function handleOpenChange(next: boolean) {
-    if (!next && (state.phase === 'uploading' || state.phase === 'checking')) {
+    if (!next && state.phase === 'checking') {
+      return
+    }
+    if (!next && state.phase === 'uploading') {
+      cancelInFlightUpload()
+      setState({ phase: 'idle' })
+      resetPendingOverwrite()
+      mutation.reset()
+      setRunMode(canControlOcr ? 'manual' : 'auto')
+      clearInput()
+      toast.info(t('upload.cancelled'))
+      onOpenChange(false)
       return
     }
     if (!next) {
@@ -174,6 +198,7 @@ export function DocumentUploadDialog({
       allowOverwrite?: boolean
     },
   ) {
+    const signal = beginUploadAbortScope()
     try {
       const result = await mutation.mutateAsync({
         files,
@@ -181,8 +206,15 @@ export function DocumentUploadDialog({
         skipPathCheck: true,
         projectCode,
         runMode,
-        ...options,
+        signal,
+        uploadPoint: options?.uploadPoint,
+        allowOverwrite: options?.allowOverwrite,
       })
+
+      if (signal.aborted) {
+        return
+      }
+
       const failed = result.results.filter((r) => r.status === 'error')
       const uploaded = result.results.filter((r) => r.status === 'uploaded')
       const skipped = result.results.filter((r) => r.status === 'skipped')
@@ -208,6 +240,7 @@ export function DocumentUploadDialog({
       await onUploadSuccess?.(result)
       resetAndClose()
     } catch (err) {
+      if (signal.aborted) return
       handleUploadError(err)
     } finally {
       clearInput()
@@ -503,6 +536,15 @@ export function DocumentUploadDialog({
                 onClick={() => handleOpenChange(false)}
               >
                 {tCommon('common.cancel')}
+              </Button>
+            )}
+            {state.phase === 'uploading' && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleOpenChange(false)}
+              >
+                {t('upload.cancelUpload')}
               </Button>
             )}
             {(state.phase === 'partial_error' ||

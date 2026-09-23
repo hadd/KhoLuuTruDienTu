@@ -140,6 +140,7 @@ export function useUpdateRolePermissions() {
           rules: {
             permissions: payload.permissions,
             restrictions: payload.restrictions,
+            hidden: old.rules?.hidden ?? [],
           },
         }
       })

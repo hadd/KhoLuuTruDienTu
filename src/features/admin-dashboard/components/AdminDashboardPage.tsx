@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Database,
   FolderKanban,
+  Loader2,
   Search,
   ShieldCheck,
   Timer,
@@ -15,7 +16,7 @@ import {
   Users,
   UsersRound,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Bar,
@@ -70,17 +71,21 @@ import {
   formatDossierChartPeriodLabel,
 } from '@/features/admin-dashboard/lib/dossierChartHelpers'
 import type {
+  AdminDashboardDossierChartT,
   AdminDashboardDossierTrendGranularityT,
   AdminDashboardEmployeeKpiT,
   AdminDashboardT,
 } from '@/features/admin-dashboard/types'
-import { DASHBOARD_ADMIN_SUB_PERMISSIONS } from '@/features/permissions/lib/dashboardAccess'
-import { isPermissionGranted } from '@/features/permissions/lib/permissionRules'
+import {
+  DASHBOARD_ADMIN_SUB_PERMISSIONS,
+  isDashboardSectionVisible,
+} from '@/features/permissions/lib/dashboardAccess'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { formatDate } from '@/lib/utils/date'
 import { formatNumber } from '@/lib/utils/format'
 
 import { EmployeeKpiTable } from './EmployeeKpiTable'
+import { WorkloadStatsCards } from './WorkloadStatsCards'
 
 const ROLE_CHART_COLORS = {
   admin: '#3b82f6',
@@ -116,11 +121,19 @@ const dashboardRouteApi = getRouteApi('/app/dashboard/')
 
 type AdminDashboardPageProps = {
   data: AdminDashboardT
+  employeeKpis?: Array<AdminDashboardEmployeeKpiT>
+  isEmployeeKpisLoading?: boolean
+  dossierChart?: AdminDashboardDossierChartT
+  isDossierChartLoading?: boolean
   roleChart: AdminRoleChartTypeT
   dossierTrendGranularity: AdminDashboardDossierTrendGranularityT
   permissions?: Array<string>
+  hidden?: Array<string>
   groupId?: string
-  onDateRangeChange?: (dateFrom?: string, dateTo?: string) => void
+  onKpiDateRangeChange?: (dateFrom?: string, dateTo?: string) => void
+  onTrendDateRangeChange?: (dateFrom?: string, dateTo?: string) => void
+  embedInGroup?: boolean
+  sectionGroups?: Array<'overview' | 'team'>
 }
 
 type ChartDatumT = {
@@ -132,53 +145,138 @@ type ChartDatumT = {
 
 const RADIAN = Math.PI / 180
 
+const TREND_PERIODS = ['today', '7d', '30d', 'month', 'quarter', 'custom'] as const
+type TrendPeriodT = (typeof TREND_PERIODS)[number]
+
+function formatDateStr(d: Date) {
+  return d.toISOString().split('T')[0]
+}
+
+function resolveTrendPeriodRange(
+  period: TrendPeriodT,
+  customFrom?: string,
+  customTo?: string,
+): { dateFrom?: string; dateTo?: string } {
+  const today = new Date()
+
+  if (period === 'today') {
+    const value = formatDateStr(today)
+    return { dateFrom: value, dateTo: value }
+  }
+  if (period === '7d') {
+    const past = new Date(today)
+    past.setDate(past.getDate() - 7)
+    return { dateFrom: formatDateStr(past), dateTo: formatDateStr(today) }
+  }
+  if (period === '30d') {
+    const past = new Date(today)
+    past.setDate(past.getDate() - 30)
+    return { dateFrom: formatDateStr(past), dateTo: formatDateStr(today) }
+  }
+  if (period === 'month') {
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    return { dateFrom: formatDateStr(startOfMonth), dateTo: formatDateStr(today) }
+  }
+  if (period === 'quarter') {
+    const quarterStartMonth = Math.floor(today.getMonth() / 3) * 3
+    const startOfQuarter = new Date(today.getFullYear(), quarterStartMonth, 1)
+    return { dateFrom: formatDateStr(startOfQuarter), dateTo: formatDateStr(today) }
+  }
+  return {
+    dateFrom: customFrom || undefined,
+    dateTo: customTo || undefined,
+  }
+}
+
 export function AdminDashboardPage({
   data,
+  employeeKpis = [],
+  isEmployeeKpisLoading = false,
+  dossierChart,
+  isDossierChartLoading = false,
   roleChart,
   dossierTrendGranularity,
   permissions = [],
+  hidden = [],
   groupId,
-  onDateRangeChange,
+  onKpiDateRangeChange,
+  onTrendDateRangeChange,
+  embedInGroup = false,
+  sectionGroups = ['overview', 'team'],
 }: AdminDashboardPageProps) {
   const { t } = useTranslation('admin-dashboard')
   const language = useCurrentLanguage()
   const navigate = dashboardRouteApi.useNavigate()
+  const [trendPeriod, setTrendPeriod] = useState<TrendPeriodT>('30d')
+  const [trendDateFrom, setTrendDateFrom] = useState('')
+  const [trendDateTo, setTrendDateTo] = useState('')
+  const [hasInitializedTrendPeriod, setHasInitializedTrendPeriod] = useState(false)
 
-  const canViewSummary = isPermissionGranted(
-    permissions,
-    DASHBOARD_ADMIN_SUB_PERMISSIONS.summary,
-    'dashboard',
-  )
-  const canViewDossierStatus = isPermissionGranted(
-    permissions,
-    DASHBOARD_ADMIN_SUB_PERMISSIONS.dossierStatusChart,
-    'dashboard',
-  )
-  const canViewProjectStatus = isPermissionGranted(
-    permissions,
-    DASHBOARD_ADMIN_SUB_PERMISSIONS.projectStatusChart,
-    'dashboard',
-  )
-  const canViewDossierTrend = isPermissionGranted(
-    permissions,
-    DASHBOARD_ADMIN_SUB_PERMISSIONS.dossierTrendChart,
-    'dashboard',
-  )
-  const canViewSystemPerformance = isPermissionGranted(
-    permissions,
-    DASHBOARD_ADMIN_SUB_PERMISSIONS.systemPerformance,
-    'dashboard',
-  )
-  const canViewEmployeeKpis = isPermissionGranted(
-    permissions,
-    DASHBOARD_ADMIN_SUB_PERMISSIONS.employeeKpis,
-    'dashboard',
-  )
-  const canViewGroupPerformance = isPermissionGranted(
-    permissions,
-    DASHBOARD_ADMIN_SUB_PERMISSIONS.groupPerformanceChart,
-    'dashboard',
-  )
+  const activeDossierChart = dossierChart ?? data.dossierChart
+
+  useEffect(() => {
+    if (hasInitializedTrendPeriod || !onTrendDateRangeChange) {
+      return
+    }
+    const range = resolveTrendPeriodRange('30d')
+    setTrendDateFrom(range.dateFrom ?? '')
+    setTrendDateTo(range.dateTo ?? '')
+    onTrendDateRangeChange(range.dateFrom, range.dateTo)
+    setHasInitializedTrendPeriod(true)
+  }, [hasInitializedTrendPeriod, onTrendDateRangeChange])
+
+  const showOverview = sectionGroups.includes('overview')
+  const showTeam = sectionGroups.includes('team')
+
+  const canViewSummary =
+    showOverview &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_ADMIN_SUB_PERMISSIONS.summary,
+    )
+  const canViewDossierStatus =
+    showOverview &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_ADMIN_SUB_PERMISSIONS.dossierStatusChart,
+    )
+  const canViewProjectStatus =
+    showOverview &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_ADMIN_SUB_PERMISSIONS.projectStatusChart,
+    )
+  const canViewDossierTrend =
+    showOverview &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_ADMIN_SUB_PERMISSIONS.dossierTrendChart,
+    )
+  const canViewSystemPerformance =
+    showOverview &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_ADMIN_SUB_PERMISSIONS.systemPerformance,
+    )
+  const canViewEmployeeKpis =
+    showTeam &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_ADMIN_SUB_PERMISSIONS.employeeKpis,
+    )
+  const canViewGroupPerformance =
+    showTeam &&
+    isDashboardSectionVisible(
+      permissions,
+      hidden,
+      DASHBOARD_ADMIN_SUB_PERMISSIONS.groupPerformanceChart,
+    )
 
   const hasAnySubSectionPermission =
     canViewSummary ||
@@ -263,7 +361,7 @@ export function AdminDashboardPage({
 
   const dossierTrendChartData = useMemo(() => {
     const points = buildDossierTrendChartPoints(
-      data.dossierChart.points,
+      activeDossierChart.points,
       dossierTrendGranularity,
     )
 
@@ -277,10 +375,10 @@ export function AdminDashboardPage({
       editedCompleted: point.editedCompleted,
       fullyCompleted: point.fullyCompleted,
     }))
-  }, [data.dossierChart.points, dossierTrendGranularity, t])
+  }, [activeDossierChart.points, dossierTrendGranularity, t])
 
   const dossierTrendRangeLabel = useMemo(() => {
-    const { rangeStart, rangeEnd } = data.dossierChart
+    const { rangeStart, rangeEnd } = activeDossierChart
     if (!rangeStart || !rangeEnd) {
       return null
     }
@@ -289,7 +387,28 @@ export function AdminDashboardPage({
       from: formatDate(rangeStart, 'dd/MM/yyyy', language),
       to: formatDate(rangeEnd, 'dd/MM/yyyy', language),
     })
-  }, [data.dossierChart, language, t])
+  }, [activeDossierChart, language, t])
+
+  const handleTrendPeriodChange = (
+    period: TrendPeriodT,
+    customFrom?: string,
+    customTo?: string,
+  ) => {
+    setTrendPeriod(period)
+    const range = resolveTrendPeriodRange(period, customFrom, customTo)
+    if (period !== 'custom') {
+      setTrendDateFrom(range.dateFrom ?? '')
+      setTrendDateTo(range.dateTo ?? '')
+      onTrendDateRangeChange?.(range.dateFrom, range.dateTo)
+      return
+    }
+
+    if (customFrom !== undefined) setTrendDateFrom(customFrom)
+    if (customTo !== undefined) setTrendDateTo(customTo)
+    if (range.dateFrom || range.dateTo) {
+      onTrendDateRangeChange?.(range.dateFrom, range.dateTo)
+    }
+  }
 
   const groupPerformanceChartData = useMemo(
     () =>
@@ -304,12 +423,14 @@ export function AdminDashboardPage({
 
   return (
     <div className="flex min-w-0 w-full flex-1 flex-col gap-6 overflow-x-hidden">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
-      </div>
+      {!embedInGroup ? (
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
+        </div>
+      ) : null}
 
-      {!hasAnySubSectionPermission ? (
+      {!hasAnySubSectionPermission && !embedInGroup ? (
         <div className="flex flex-1 items-center justify-center py-16 text-center border rounded-lg bg-card p-8">
           <div className="max-w-md space-y-2">
             <h3 className="text-lg font-semibold text-foreground">
@@ -324,7 +445,9 @@ export function AdminDashboardPage({
 
       {/* Thẻ thống kê tổng quan */}
       {canViewSummary ? (
-        <section className="grid gap-4 lg:grid-cols-3">
+        <>
+          <WorkloadStatsCards stats={data.workloadStats} />
+          <section className="grid gap-4 lg:grid-cols-3">
           <SummaryStatCard
             icon={Database}
             title={t('summary.systemDossiers.title')}
@@ -373,6 +496,7 @@ export function AdminDashboardPage({
             })}
           />
         </section>
+        </>
       ) : null}
 
       {/* Row 1: Donut/Pie Charts */}
@@ -451,6 +575,56 @@ export function AdminDashboardPage({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Select
+                    value={trendPeriod}
+                    onValueChange={(value) =>
+                      handleTrendPeriodChange(value as TrendPeriodT)
+                    }
+                  >
+                    <SelectTrigger
+                      className="h-8 w-[140px] text-xs"
+                      aria-label={t('charts.dossierTrend.periodLabel')}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TREND_PERIODS.map((item) => (
+                        <SelectItem key={item} value={item}>
+                          {t(`charts.dossierTrend.period.${item}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {trendPeriod === 'custom' ? (
+                    <>
+                      <Input
+                        type="date"
+                        value={trendDateFrom}
+                        onChange={(e) =>
+                          handleTrendPeriodChange(
+                            'custom',
+                            e.target.value,
+                            trendDateTo,
+                          )
+                        }
+                        className="h-8 w-[130px] text-xs"
+                        aria-label={t('charts.dossierStatus.dateFrom')}
+                      />
+                      <Input
+                        type="date"
+                        value={trendDateTo}
+                        onChange={(e) =>
+                          handleTrendPeriodChange(
+                            'custom',
+                            trendDateFrom,
+                            e.target.value,
+                          )
+                        }
+                        className="h-8 w-[130px] text-xs"
+                        aria-label={t('charts.dossierStatus.dateTo')}
+                      />
+                    </>
+                  ) : null}
+                  <Select
                     value={dossierTrendGranularity}
                     onValueChange={(value) => {
                       void navigate({
@@ -476,6 +650,9 @@ export function AdminDashboardPage({
                       ))}
                     </SelectContent>
                   </Select>
+                  {isDossierChartLoading ? (
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                  ) : null}
                 </div>
               </CardHeader>
               <CardContent className="flex-1">
@@ -554,10 +731,11 @@ export function AdminDashboardPage({
       {/* Row 3: Biểu đồ KPI của từng nhân viên (dạng bảng) */}
       {canViewEmployeeKpis ? (
         <EmployeeKpiTable
-          data={data.employeeKpis}
+          data={employeeKpis}
+          isLoading={isEmployeeKpisLoading}
           selectedGroupId={groupId}
           dashboardGroups={data.groups}
-          onDateRangeChange={onDateRangeChange}
+          onDateRangeChange={onKpiDateRangeChange}
         />
       ) : null}
 

@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { useScrollSyncHighlight } from '@/features/data-management/hooks/useScrollSyncHighlight'
+
 import type {
   PdfBboxRevealRegion,
   PdfFieldHighlight,
@@ -57,13 +59,16 @@ import { mapMetadataHistoryToBatches } from '@/features/data-management/lib/meta
 import {
   buildDossierRecordContent,
   buildRejectFieldKey,
+  buildRejectedFieldsSummaryByDocument,
   findAllDocumentsForMetadataGroup,
   findAllMetadataGroupIndicesForDocument,
   findDocumentForMetadataGroup,
+  findMetadataGroupIndexForDocument,
   handleMetadataFieldNavigationKeyDown,
   isPdfDocumentRef,
   mergeMetadataFieldChanges,
   resolveDocumentOcrPdfUrl,
+  resolveMetadataGroupRejectScope,
   resolveRecordPanelMetadata,
   serializeDossierMetadataForStorage,
 } from '@/features/data-management/lib/metadataHelpers'
@@ -95,6 +100,8 @@ import type {
   DataDossierStatus,
   DataMetadataEditBatchT,
   DataMetadataEditFieldChangeT,
+  DataMetadataGroupT,
+  DataMetadataHistoryFileRefT,
   DataTreeNodeT,
 } from '@/features/data-management/types'
 import {
@@ -352,6 +359,13 @@ export function RecordDetailPanel({
     [effectiveNode.children],
   )
   const groups = activeMetadata?.metadata_groups ?? []
+  const rejectedFieldSummary = useMemo(() => {
+    if (!isEditorRole || !node.rejectFields?.length || !activeMetadata) return []
+    return buildRejectedFieldsSummaryByDocument(
+      node.rejectFields,
+      activeMetadata,
+    )
+  }, [isEditorRole, node.rejectFields, activeMetadata])
   const metadataDisplayLayout = useMemo(
     () => partitionMetadataGroupsForDisplay(groups),
     [groups],
@@ -419,6 +433,17 @@ export function RecordDetailPanel({
   const [detailTab, setDetailTab] = useState<'metadata' | 'editHistory'>(
     'metadata',
   )
+
+  function handleDetailTabChange(value: 'metadata' | 'editHistory') {
+    setDetailTab(value)
+  }
+
+  // Sync detailTab when focusDocumentId changes from external navigation
+  useEffect(() => {
+    if (focusDocumentId && detailTab === 'editHistory') {
+      setDetailTab('metadata')
+    }
+  }, [focusDocumentId, detailTab])
   const qcReject = useQcInlineReject({
     dossierId,
     onSuccess: () => void onWorkflowComplete?.(dossierId),
@@ -438,6 +463,7 @@ export function RecordDetailPanel({
     Map<string, HTMLInputElement | HTMLTextAreaElement>
   >(new Map())
   const saveButtonRef = useRef<HTMLButtonElement | null>(null)
+  const metadataScrollRef = useRef<HTMLDivElement | null>(null)
   const baseMetadataRef = useRef<DataDossierMetadataT | null>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isHandlingSaveRef = useRef(false)
@@ -611,8 +637,12 @@ export function RecordDetailPanel({
     if (!canViewEditHistory || !activeMetadata || !editHistoryQuery.data) {
       return []
     }
-    return mapMetadataHistoryToBatches(editHistoryQuery.data, activeMetadata)
-  }, [canViewEditHistory, activeMetadata, editHistoryQuery.data])
+    return mapMetadataHistoryToBatches(
+      editHistoryQuery.data,
+      activeMetadata,
+      documents,
+    )
+  }, [canViewEditHistory, activeMetadata, editHistoryQuery.data, documents])
 
   const selectedGroupIndex = useMemo(() => {
     if (
@@ -763,6 +793,7 @@ export function RecordDetailPanel({
   }, [selectedGroupIndex, focusDocumentId])
 
   function handleGroupTitleClick(groupIndex: number) {
+    suppressScrollSync()
     const group = activeMetadata?.metadata_groups[groupIndex]
     if (!group) return
     const matches = findAllDocumentsForMetadataGroup(group, documents)
@@ -839,6 +870,7 @@ export function RecordDetailPanel({
   }
 
   function focusNextMetadataField(groupIndex: number, fieldIndex: number) {
+    suppressScrollSync()
     const key = `${groupIndex}-${fieldIndex}`
     const position = editableFieldKeys.indexOf(key)
     if (position < 0) return
@@ -877,6 +909,7 @@ export function RecordDetailPanel({
   }
 
   function focusPreviousMetadataField(groupIndex: number, fieldIndex: number) {
+    suppressScrollSync()
     const key = `${groupIndex}-${fieldIndex}`
     const position = editableFieldKeys.indexOf(key)
     if (position <= 0) return
@@ -921,27 +954,56 @@ export function RecordDetailPanel({
     )
   }
 
-  function dismissEditorRejectField(groupCode: string, fieldName: string) {
+  function dismissEditorRejectField(
+    group: DataMetadataGroupT,
+    groupIndex: number,
+    fieldName: string,
+  ) {
     if (!isEditorRole) return
-    const rejectKey = buildRejectFieldKey(groupCode, fieldName)
-    if (!qcRejectFieldKeys.has(rejectKey)) return
+    const scope = resolveMetadataGroupRejectScope(group, groupIndex)
+    const scopedKey = buildRejectFieldKey(
+      scope.groupCode,
+      fieldName,
+      scope.fileRef,
+    )
+    const baseKey = buildRejectFieldKey(scope.groupCode, fieldName)
+    const legacyKey = buildRejectFieldKey(group.group_code, fieldName)
+
+    const keysToDismiss = [scopedKey, baseKey, legacyKey].filter((key) =>
+      qcRejectFieldKeys.has(key),
+    )
+    if (keysToDismiss.length === 0) return
+
     setDismissedRejectFieldKeys((prev) => {
-      if (prev.has(rejectKey)) return prev
+      let changed = false
       const next = new Set(prev)
-      next.add(rejectKey)
-      return next
+      for (const k of keysToDismiss) {
+        if (!next.has(k)) {
+          next.add(k)
+          changed = true
+        }
+      }
+      return changed ? next : prev
     })
   }
 
   function isEditorRejectHighlighted(
-    groupCode: string,
+    group: DataMetadataGroupT,
+    groupIndex: number,
     fieldName: string,
   ): boolean {
     if (!isEditorRole) return false
-    const rejectKey = buildRejectFieldKey(groupCode, fieldName)
-    return (
-      qcRejectFieldKeys.has(rejectKey) &&
-      !dismissedRejectFieldKeys.has(rejectKey)
+    const scope = resolveMetadataGroupRejectScope(group, groupIndex)
+    const scopedKey = buildRejectFieldKey(
+      scope.groupCode,
+      fieldName,
+      scope.fileRef,
+    )
+    const baseKey = buildRejectFieldKey(scope.groupCode, fieldName)
+    const legacyKey = buildRejectFieldKey(group.group_code, fieldName)
+
+    return [scopedKey, baseKey, legacyKey].some(
+      (key) => qcRejectFieldKeys.has(key) && !dismissedRejectFieldKeys.has(key),
     )
   }
 
@@ -950,12 +1012,10 @@ export function RecordDetailPanel({
     fieldIndex: number,
     value: string,
   ) {
-    const field =
-      activeMetadata?.metadata_groups[targetGroupIndex]?.fields[fieldIndex]
-    const groupCode =
-      activeMetadata?.metadata_groups[targetGroupIndex]?.group_code
-    if (groupCode && field) {
-      dismissEditorRejectField(groupCode, field.name)
+    const targetGroup = activeMetadata?.metadata_groups[targetGroupIndex]
+    const field = targetGroup?.fields[fieldIndex]
+    if (targetGroup && field) {
+      dismissEditorRejectField(targetGroup, targetGroupIndex, field.name)
     }
 
     const isFondField = Boolean(field && isFondFieldName(field.name))
@@ -1099,6 +1159,7 @@ export function RecordDetailPanel({
     changeId?: string | null,
     navigationFieldKey?: string,
   ) {
+    suppressScrollSync()
     const group = activeMetadata?.metadata_groups[groupIndex]
     if (!group) return
 
@@ -1137,14 +1198,137 @@ export function RecordDetailPanel({
     setHighlightedChangeId(changeId ?? null)
   }
 
+  // --- Scroll-sync: auto-highlight the most-visible field while scrolling ---
+  const handleScrollSyncFieldChange = useCallback(
+    (groupIndex: number, fieldIndex: number) => {
+      const group = activeMetadata?.metadata_groups[groupIndex]
+      if (!group) return
+      const field = group.fields[fieldIndex]
+      if (!field) return
+      const fieldKey = `${groupIndex}-${field.name}-${fieldIndex}`
+      handleMetadataFieldActivate(groupIndex, field, fieldKey)
+    },
+    // activeMetadata changes identity when fields are edited; the function
+    // body reads it via closure so we track the ref rather than the object.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeMetadata?.metadata_groups, documents, focusDocumentId, selectedGroupIndex],
+  )
+
+  const { suppressScrollSync } = useScrollSyncHighlight({
+    scrollContainerRef: metadataScrollRef,
+    onVisibleFieldChange: handleScrollSyncFieldChange,
+    enabled: detailTab === 'metadata' && visibleMetadataGroupCount > 0,
+  })
+
   function handleHistoryFieldActivate(change: DataMetadataEditFieldChangeT) {
-    const fieldKey = `${change.groupIndex}-${change.fieldName}-${change.fieldIndex}`
-    handleMetadataFieldActivate(
-      change.groupIndex,
-      change.field,
-      fieldKey,
-      change.id,
-    )
+    // Use documentRef if available to identify correct document
+    const documentRef = change.documentRef
+
+    if (documentRef) {
+      // Find the matching document in tree
+      const targetDocument = documents.find(
+        (doc) =>
+          doc.name.includes(documentRef) ||
+          doc.filePath?.includes(documentRef) ||
+          doc.fileUrl?.includes(documentRef),
+      )
+
+      if (targetDocument) {
+        // Find group index for this document
+        const groupIndex = findMetadataGroupIndexForDocument(
+          groups,
+          targetDocument,
+          documents,
+        )
+
+        // Store field activation info for after document focus
+        const fieldKey = `${groupIndex}-${change.fieldName}-${change.fieldIndex}`
+        const group = groups[groupIndex]
+        const highlight = group
+          ? fieldToHighlight(change.field, group.fields)
+          : null
+
+        pendingFieldActivationRef.current = {
+          fieldKey,
+          highlight: highlight ?? undefined,
+          changeId: change.id,
+        }
+
+        // Switch to metadata tab if currently on editHistory
+        if (detailTab === 'editHistory') {
+          setDetailTab('metadata')
+        }
+
+        // Focus document with 'metadata' tab (useEffect will sync if needed)
+        onFocusDocument?.(targetDocument.id, groupIndex, 'metadata')
+        return
+      }
+    }
+
+    // Fallback: if we have groupIndex >= 0, use old logic
+    if (change.groupIndex >= 0) {
+      const fieldKey = `${change.groupIndex}-${change.fieldName}-${change.fieldIndex}`
+      handleMetadataFieldActivate(
+        change.groupIndex,
+        change.field,
+        fieldKey,
+        change.id,
+      )
+      return
+    }
+
+    // Last resort: if groupIndex < 0 and no documentRef, still switch to metadata tab
+    // User will see metadata even if exact field cannot be focused
+    if (detailTab === 'editHistory') {
+      setDetailTab('metadata')
+      onFocusDocument?.('', 0, 'metadata')
+    }
+  }
+
+  function handleHistoryFileFocus(file: DataMetadataHistoryFileRefT) {
+    let groupIndex = file.groupIndex
+    const documentId = file.documentId?.trim() || ''
+
+    if (documentId) {
+      const targetDocument = documents.find((item) => item.id === documentId)
+      if (targetDocument && (groupIndex < 0 || !groups[groupIndex])) {
+        groupIndex = findMetadataGroupIndexForDocument(
+          groups,
+          targetDocument,
+          documents,
+        )
+      }
+
+      // useEffect will sync tab to 'metadata' when focusDocumentId changes
+      onFocusDocument?.(documentId, groupIndex >= 0 ? groupIndex : 0, 'metadata')
+      window.requestAnimationFrame(() => {
+        window.document
+          .querySelector(`[data-tree-node-id="${documentId}"]`)
+          ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      })
+      return
+    }
+
+    const group = activeMetadata?.metadata_groups[groupIndex]
+    if (!group) return
+
+    const linkedDocuments = findAllDocumentsForMetadataGroup(group, documents)
+    if (linkedDocuments.length > 0) {
+      const targetDocument = linkedDocuments[0]
+      // useEffect will sync tab to 'metadata' when focusDocumentId changes
+      onFocusDocument?.(targetDocument.id, groupIndex, 'metadata')
+      window.requestAnimationFrame(() => {
+        window.document
+          .querySelector(`[data-tree-node-id="${targetDocument.id}"]`)
+          ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      })
+      return
+    }
+
+    if (groupIndex !== selectedGroupIndex && onFocusDocument) {
+      // useEffect will sync tab to 'metadata' when focusDocumentId changes
+      onFocusDocument('', groupIndex, 'metadata')
+    }
   }
 
   function handleRequestRevertHistoryBatch(batch: DataMetadataEditBatchT) {
@@ -1218,7 +1402,13 @@ export function RecordDetailPanel({
             : undefined,
           useDocumentNaming: options?.useDocumentNaming === true,
         })
-        toast.success(t('recordDetail.exportExcelSuccess'))
+        toast.success(
+          mode === 'dip'
+            ? t('recordDetail.exportDipSuccess')
+            : mode === 'tiff'
+              ? t('recordDetail.exportTiffSuccess')
+              : t('recordDetail.exportExcelSuccess'),
+        )
         setExportDialogOpen(false)
       } catch (error) {
         toast.error(
@@ -1376,13 +1566,21 @@ export function RecordDetailPanel({
   const isDraftSaving = saveMutation.isPending && !finalSaveMutation.isPending
   const isFinalSaving = finalSaveMutation.isPending
 
-  function buildFieldRejectMark(groupCode: string, field: DataDocumentFieldT) {
-    if (!isActingAsQc || !canShowSubmitButton || canDirectApprove)
-      return undefined
+  function buildFieldRejectMark(
+    group: DataMetadataGroupT,
+    groupIndex: number,
+    field: DataDocumentFieldT,
+  ) {
+    if (!isActingAsQc || !canShowSubmitButton || canDirectApprove) return undefined
 
-    const rejectKey = buildRejectFieldKey(groupCode, field.name)
+    const scope = resolveMetadataGroupRejectScope(group, groupIndex)
+    const rejectKey = buildRejectFieldKey(
+      scope.groupCode,
+      field.name,
+      scope.fileRef,
+    )
     return {
-      id: `qc-reject-${rejectKey}`,
+      id: `qc-reject-${groupIndex}-${rejectKey}`,
       checked: qcReject.rejectFieldKeys.has(rejectKey),
       onCheckedChange: (checked: boolean) =>
         qcReject.toggleRejectField(rejectKey, checked),
@@ -1478,14 +1676,36 @@ export function RecordDetailPanel({
         />
       ) : null}
 
-      {isEditorRole && node.lastRejectNotes?.trim() ? (
+      {isEditorRole &&
+      (node.lastRejectNotes?.trim() || rejectedFieldSummary.length > 0) ? (
         <div className="shrink-0 rounded-md border border-destructive/40 bg-destructive/5 p-3">
           <p className="text-sm font-medium text-destructive">
             {t('metadata.editorReject.title')}
           </p>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
-            {node.lastRejectNotes.trim()}
-          </p>
+          {node.lastRejectNotes?.trim() ? (
+            <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
+              {node.lastRejectNotes.trim()}
+            </p>
+          ) : null}
+          {rejectedFieldSummary.length > 0 ? (
+            <div className="mt-3 space-y-2 border-t border-destructive/20 pt-2">
+              <p className="text-xs font-semibold text-destructive">
+                {t('metadata.editorReject.detailsTitle')}
+              </p>
+              <ul className="space-y-1.5 text-xs text-foreground">
+                {rejectedFieldSummary.map((item) => (
+                  <li key={item.fileKey} className="flex flex-col gap-0.5">
+                    <span className="font-medium text-destructive">
+                      • {item.fileLabel}:
+                    </span>
+                    <span className="pl-3 text-muted-foreground">
+                      {item.fieldLabels.join(', ')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -1717,6 +1937,7 @@ export function RecordDetailPanel({
               <TabsContent
                 value="metadata"
                 className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain data-[state=inactive]:hidden"
+                ref={metadataScrollRef}
               >
                 <div className="flex flex-col gap-3 pb-2">
                   {metadataPanelContent}
@@ -1734,6 +1955,7 @@ export function RecordDetailPanel({
                   isRestoring={restoreHistoryMutation.isPending}
                   restoringBatchId={restoringBatchId}
                   onFieldActivate={handleHistoryFieldActivate}
+                  onFileActivate={handleHistoryFileFocus}
                   onRevertBatch={handleRequestRevertHistoryBatch}
                 />
               </TabsContent>

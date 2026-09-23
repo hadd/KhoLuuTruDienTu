@@ -177,6 +177,8 @@
     "exportExcel": "Export dossier",
     "exportExcelExporting": "Exporting dossier…",
     "exportExcelSuccess": "Excel file downloaded.",
+    "exportTiffSuccess": "TIFF package downloaded.",
+    "exportDipSuccess": "DIP package downloaded.",
     "exportExcelError": "Failed to export Excel file.",
     "exportExcelNotApproved": "Export is only available after final approval.",
     "exportExcelBatchMode": "Batch export mode",
@@ -195,6 +197,8 @@
       "metadataOptionDescription": "ZIP with Excel plus PDF/ and TIFF/ folder trees",
       "excelOnlyOption": "Excel only",
       "excelOnlyOptionDescription": "Faster — metadata table only, no PDF/TIFF files",
+      "tiffOnlyOption": "TIFF only",
+      "tiffOnlyOptionDescription": "ZIP with TIFF/ folder tree only — no Excel or PDF",
       "dipOption": "DIP package",
       "dipOptionDescription": "Export DIP package as ZIP",
       "dipUnavailable": "No dossier found for DIP export",
@@ -292,8 +296,8 @@
       "empty": "No metadata edits recorded for this record yet.",
       "loading": "Loading edit history...",
       "loadError": "Could not load edit history. Please try again.",
-      "oldValue": "Previous value",
-      "newValue": "New value",
+      "oldValue": "Value before",
+      "newValue": "Value after",
       "revert": "Revert",
       "revertConfirmTitle": "Revert metadata changes?",
       "revertConfirmDescription": "This will restore metadata to the values before the edit by {{editor}} ({{version}}). Current metadata will be overwritten.",
@@ -306,9 +310,32 @@
       "systemActor": "System",
       "actionLabel": "Action",
       "versionLabel": "Version",
+      "fileNameLabel": "File name",
+      "metadataChangesLabel": "Changed metadata",
+      "fileChangesLabel": "Changed documents",
+      "fileChangesHint": "Click a document name to jump to its position",
+      "changedFieldsLabel": "Changed fields",
+      "fieldCount": "{{count}} fields",
+      "fileDisplayNameFallback": "Document {{index}}",
+      "actionSummaryWithFiles": "{{actionLabel}} · {{fileCount}} docs · {{fieldCount}} fields",
+      "expandFileDetail": "Show field changes inside this document",
+      "collapseFileDetail": "Hide field details",
+      "editedByInline": "by {{editor}}",
+      "versionInline": "version {{version}}",
+      "fileRowMeta": "{{versionText}} · {{timeText}} · {{editorText}}",
+      "noFieldDetailsInFile": "No field details available for this document",
       "actions": {
         "OCR_COMPLETED": "OCR completed",
-        "SUBMIT_ENTRY": "Submit entry"
+        "SUBMIT_ENTRY": "Submit entry",
+        "EDIT": "Edit metadata",
+        "QC_APPROVE": "QC approved",
+        "QC_REJECT": "QC rejected",
+        "MAKER_EDIT": "Maker edit",
+        "RESTORE_VERSION": "Restore version",
+        "APPROVE": "Approve",
+        "DIRECT_APPROVE": "Direct approve",
+        "REJECT": "Reject",
+        "FINAL_SUBMIT": "Final submit"
       }
     }
   },
@@ -441,6 +468,8 @@
       "manual": "Queue for manual activation — OCR only runs after you trigger it on the OCR Control screen."
     },
     "success": "Folder uploaded successfully.",
+    "cancelled": "Upload cancelled. Files already uploaded were kept.",
+    "cancelUpload": "Cancel upload",
     "postProcessFailed": "Upload succeeded but failed to refresh the folder tree.",
     "allSkipped": "All files already exist in the system — nothing was uploaded.",
     "errors": {
@@ -530,11 +559,13 @@
       "notesPlaceholder": "Reason for rejection (optional)",
       "selectedCount": "{{count}} field(s) selected",
       "clear": "Clear selection",
-      "confirm": "Reject dossier"
+      "confirm": "Reject dossier",
+      "defaultNote": "QC rejected"
     },
     "editorReject": {
       "title": "QC rejection notes",
-      "fieldHint": "Fields highlighted in red were marked incorrect by QC and need correction."
+      "fieldHint": "Fields highlighted in red were marked incorrect by QC and need correction.",
+      "detailsTitle": "Rejected fields breakdown by document:"
     }
   },
   "dossierStatus": {

@@ -22,7 +22,7 @@ import type {
 } from '@/features/data-management/types'
 
 export type ExportKind = 'folder' | 'dossier' | 'multi_dossiers'
-export type ExportMode = 'metadata' | 'dip' | 'excel'
+export type ExportMode = 'metadata' | 'dip' | 'excel' | 'tiff'
 
 export interface ExportOptions {
   presetId?: string
@@ -164,24 +164,26 @@ export async function runExport({
   ]
   const batchDossierIds = [...new Set((dossierIds ?? []).filter(Boolean))]
 
-  if (mode === 'metadata' || mode === 'excel') {
-    const configWithExcelFlag: MetadataExportRequestT | undefined =
+  if (mode === 'metadata' || mode === 'excel' || mode === 'tiff') {
+    const configWithFlags: MetadataExportRequestT | undefined =
       mode === 'excel'
         ? { ...metadataConfig, excelOnly: true }
-        : metadataConfig
+        : mode === 'tiff'
+          ? { ...metadataConfig, tiffOnly: true }
+          : metadataConfig
     if (kind === 'multi_dossiers') {
       if (batchFolderIds.length > 0) {
         await exportMultiFoldersMetadataExcel(
           batchFolderIds,
           downloadName,
-          configWithExcelFlag,
+          configWithFlags,
         )
       }
       if (batchDossierIds.length > 0) {
         await exportMultiDossiersMetadataExcel(
           batchDossierIds,
           downloadName,
-          configWithExcelFlag,
+          configWithFlags,
         )
       }
       if (batchFolderIds.length === 0 && batchDossierIds.length === 0) {
@@ -193,7 +195,7 @@ export async function runExport({
       await exportFolderMetadataExcel(
         folderId,
         downloadName,
-        configWithExcelFlag,
+        configWithFlags,
       )
       return
     }
@@ -201,7 +203,7 @@ export async function runExport({
       await exportDossierMetadataExcel(
         dossierId,
         downloadName,
-        configWithExcelFlag,
+        configWithFlags,
       )
       return
     }

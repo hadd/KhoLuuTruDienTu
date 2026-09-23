@@ -107,6 +107,7 @@ export function FolderUploadDialog({
   const { canControlOcr } = useOcrControlAccess()
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
   const [state, setState] = useState<DialogState>({ phase: 'idle' })
   const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null)
   const [conflictPaths, setConflictPaths] = useState<
@@ -168,7 +169,19 @@ export function FolderUploadDialog({
     setConflictOpen(false)
   }
 
+  function beginUploadAbortScope(): AbortSignal {
+    abortControllerRef.current?.abort()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    return controller.signal
+  }
+
+  function cancelInFlightUpload() {
+    abortControllerRef.current?.abort()
+  }
+
   function resetAndClose() {
+    cancelInFlightUpload()
     setState({ phase: 'idle' })
     resetPendingConflict()
     mutation.reset()
@@ -177,7 +190,18 @@ export function FolderUploadDialog({
   }
 
   function handleOpenChange(next: boolean) {
-    if (!next && (state.phase === 'uploading' || state.phase === 'deleting')) {
+    if (!next && state.phase === 'deleting') {
+      return
+    }
+    if (!next && state.phase === 'uploading') {
+      cancelInFlightUpload()
+      setState({ phase: 'idle' })
+      resetPendingConflict()
+      mutation.reset()
+      setRunMode(canControlOcr ? 'manual' : 'auto')
+      clearInput()
+      toast.info(t('upload.cancelled'))
+      onOpenChange(false)
       return
     }
     if (!next) {
@@ -220,16 +244,25 @@ export function FolderUploadDialog({
       uploadPoint?: UploadPointResponse
       allowOverwrite?: boolean
       overwriteFallback?: boolean
+      signal?: AbortSignal
     },
   ) {
+    const signal = options?.signal ?? beginUploadAbortScope()
     try {
       const result = await mutation.mutateAsync({
         files,
         storagePathPrefix,
         projectCode: resolveUploadProjectCode(localProjectCodeRef.current),
         runMode,
-        ...options,
+        signal,
+        uploadPoint: options?.uploadPoint,
+        allowOverwrite: options?.allowOverwrite,
       })
+
+      if (signal.aborted) {
+        return
+      }
+
       const failed = result.results.filter((r) => r.status === 'error')
       const uploaded = result.results.filter((r) => r.status === 'uploaded')
       const skipped = result.results.filter((r) => r.status === 'skipped')
@@ -281,6 +314,7 @@ export function FolderUploadDialog({
         await runUpload(files, {
           uploadPoint: options.uploadPoint,
           allowOverwrite: true,
+          signal,
         })
         return
       }
@@ -295,6 +329,7 @@ export function FolderUploadDialog({
       await onUploadSuccess?.(result)
       resetAndClose()
     } catch (err) {
+      if (signal.aborted) return
       handleUploadError(err)
     } finally {
       clearInput()
@@ -644,6 +679,15 @@ export function FolderUploadDialog({
                 onClick={() => handleOpenChange(false)}
               >
                 {tCommon('common.cancel')}
+              </Button>
+            )}
+            {state.phase === 'uploading' && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleOpenChange(false)}
+              >
+                {t('upload.cancelUpload')}
               </Button>
             )}
             {(state.phase === 'partial_error' ||
