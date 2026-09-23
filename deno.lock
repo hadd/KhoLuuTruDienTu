@@ -29,9 +29,9 @@
     "npm:@duckdb/duckdb-wasm@^1.32.0": "1.32.0",
     "npm:@elastic/elasticsearch@*": "8.19.2",
     "npm:@elastic/elasticsearch@^8.15.0": "8.19.2",
-    "npm:@elysiajs/cors@*": "1.4.2_elysia@1.4.28__@sinclair+typebox@0.34.49__exact-mirror@0.2.7___@sinclair+typebox@0.34.49__file-type@22.0.1__openapi-types@12.1.3",
-    "npm:@elysiajs/cors@^1.4.0": "1.4.2_elysia@1.4.28__@sinclair+typebox@0.34.49__exact-mirror@0.2.7___@sinclair+typebox@0.34.49__file-type@22.0.1__openapi-types@12.1.3",
-    "npm:@elysiajs/swagger@^1.3.1": "1.3.1_elysia@1.4.28__@sinclair+typebox@0.34.49__exact-mirror@0.2.7___@sinclair+typebox@0.34.49__file-type@22.0.1__openapi-types@12.1.3_openapi-types@12.1.3",
+    "npm:@elysiajs/cors@*": "1.4.2_elysia@1.4.28",
+    "npm:@elysiajs/cors@^1.4.0": "1.4.2_elysia@1.4.28",
+    "npm:@elysiajs/swagger@^1.3.1": "1.3.1_elysia@1.4.28_openapi-types@12.1.3",
     "npm:@pdf-lib/fontkit@*": "1.1.1",
     "npm:@pdf-lib/fontkit@^1.1.1": "1.1.1",
     "npm:@zip.js/zip.js@2.7.57": "2.7.57",
@@ -46,13 +46,14 @@
     "npm:drizzle-orm@*": "0.44.7_@opentelemetry+api@1.9.1_postgres@3.4.9",
     "npm:drizzle-orm@~0.44.5": "0.44.7_@opentelemetry+api@1.9.1_postgres@3.4.9",
     "npm:duckdb@^1.1.3": "1.4.4",
-    "npm:elysia@^1.4.9": "1.4.28_@sinclair+typebox@0.34.49_exact-mirror@0.2.7__@sinclair+typebox@0.34.49_file-type@22.0.1_openapi-types@12.1.3",
+    "npm:elysia@^1.4.9": "1.4.28_@sinclair+typebox@0.34.49_exact-mirror@0.2.7_file-type@22.0.1_openapi-types@12.1.3",
     "npm:exceljs@*": "4.4.0",
     "npm:exceljs@4.4.0": "4.4.0",
     "npm:ioredis@^5.4.1": "5.10.1",
     "npm:jose@^5.9.6": "5.10.0",
     "npm:jszip@3.10.1": "3.10.1",
     "npm:kafkajs@^2.2.4": "2.2.4",
+    "npm:memoirist@*": "0.4.0",
     "npm:minio@*": "7.1.4",
     "npm:minio@^7.1.3": "7.1.4",
     "npm:mupdf@1.26.4": "1.26.4",
@@ -420,13 +421,13 @@
         "undici"
       ]
     },
-    "@elysiajs/cors@1.4.2_elysia@1.4.28__@sinclair+typebox@0.34.49__exact-mirror@0.2.7___@sinclair+typebox@0.34.49__file-type@22.0.1__openapi-types@12.1.3": {
+    "@elysiajs/cors@1.4.2_elysia@1.4.28": {
       "integrity": "sha512-FTCcbH35brTLigF1W7BYySRZomgI/dBEMK9BgK9RP9Nez7zmpGh4koL/Yr1BFv8nYz7CfhRvcM8d/c+XnwMaVQ==",
       "dependencies": [
         "elysia"
       ]
     },
-    "@elysiajs/swagger@1.3.1_elysia@1.4.28__@sinclair+typebox@0.34.49__exact-mirror@0.2.7___@sinclair+typebox@0.34.49__file-type@22.0.1__openapi-types@12.1.3_openapi-types@12.1.3": {
+    "@elysiajs/swagger@1.3.1_elysia@1.4.28_openapi-types@12.1.3": {
       "integrity": "sha512-LcbLHa0zE6FJKWPWKsIC/f+62wbDv3aXydqcNPVPyqNcaUgwvCajIi+5kHEU6GO3oXUCpzKaMsb3gsjt8sLzFQ==",
       "dependencies": [
         "@scalar/themes",
@@ -1678,7 +1679,7 @@
         "readable-stream@2.3.8"
       ]
     },
-    "elysia@1.4.28_@sinclair+typebox@0.34.49_exact-mirror@0.2.7__@sinclair+typebox@0.34.49_file-type@22.0.1_openapi-types@12.1.3": {
+    "elysia@1.4.28_@sinclair+typebox@0.34.49_exact-mirror@0.2.7_file-type@22.0.1_openapi-types@12.1.3": {
       "integrity": "sha512-Vrx8sBnvq8squS/3yNBzR1jBXI+SgmnmvwawPjNuEHndUe5l1jV2Gp6JJ4ulDkEB8On6bWmmuyPpA+bq4t+WYg==",
       "dependencies": [
         "@sinclair/typebox",
