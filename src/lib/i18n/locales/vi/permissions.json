@@ -35,6 +35,7 @@
     "notifications": "Cấu hình thông báo",
     "watermark": "Cấu hình Watermark",
     "roles": "Quản lý phân quyền hệ thống",
+    "auth": "Xác thực & Bảo mật",
     "scan-intake": "Quét tài liệu (Scan Intake)",
     "ocr-control": "Kiểm soát OCR",
     "users": "Quản lý người dùng",

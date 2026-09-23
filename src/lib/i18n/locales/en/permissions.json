@@ -33,6 +33,7 @@
     "notifications": "Notification configuration",
     "watermark": "Watermark configuration",
     "roles": "Role management",
+    "auth": "Authentication & Security",
     "scan-intake": "Document Scanning",
     "ocr-control": "OCR Control",
     "users": "User management",

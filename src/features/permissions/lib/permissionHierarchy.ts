@@ -126,7 +126,7 @@ export const PERMISSION_HIERARCHY: MajorModuleGroup[] = [
       {
         id: 'roles',
         label: 'Phân quyền hệ thống',
-        modules: ['roles'],
+        modules: ['roles', 'auth'],
       },
       {
         id: 'audit-logs',

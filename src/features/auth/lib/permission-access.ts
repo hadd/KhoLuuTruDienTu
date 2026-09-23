@@ -194,7 +194,11 @@ export function isSystemAdminHubVisible(
   }
 
   if (
-    canAccessAppScreenForSidebar(permissions, { module: 'roles' }, catalog)
+    canAccessAppScreenForSidebar(
+      permissions,
+      { module: 'roles', permissionKey: 'roles.manage' },
+      catalog,
+    )
   ) {
     return true
   }

@@ -73,7 +73,7 @@ export const Route = createFileRoute('/app/users/')({
     )
     const primaryAppRole = getPrimaryAppRoleFromProfile(user)
     const canViewUsers = canAccessScreen(permissions, APP_SCREEN_ACCESS.users)
-    const canViewPermissions = canAccessScreen(permissions, { module: 'roles' })
+    const canViewPermissions = canAccessScreen(permissions, APP_SCREEN_ACCESS.permissions)
 
     if (
       !USER_MANAGEMENT_SCREEN_REQUIREMENTS.some((item) =>

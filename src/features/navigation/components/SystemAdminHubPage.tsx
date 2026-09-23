@@ -93,7 +93,13 @@ export function SystemAdminHubPage() {
       })
     }
 
-    if (canAccessAppScreenForSidebar(permissions, { module: 'roles' }, catalog)) {
+    if (
+      canAccessAppScreenForSidebar(
+        permissions,
+        { module: 'roles', permissionKey: 'roles.manage' },
+        catalog,
+      )
+    ) {
       items.push({
         id: 'permissions',
         to: '/app/permissions/function-matrix',

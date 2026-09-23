@@ -52,6 +52,7 @@ const MAJOR_MODULE_ORDER = [
   // 5. Quản trị hệ thống
   'users',
   'roles',
+  'auth',
   'metadata',
   'document-types',
   'dossier-types',
