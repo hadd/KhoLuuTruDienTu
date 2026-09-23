@@ -82,6 +82,7 @@ type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 const WORKFLOW_ACTION = {
     CLAIM_ENTRY: "CLAIM_ENTRY",
     SUBMIT_ENTRY: "SUBMIT_ENTRY",
+    DIRECT_APPROVE: "DIRECT_APPROVE",
 } as const;
 
 const QC_CHECKER_BY_ROLE = new Map<WorkerRoleType, QcCheckerWorkflowStep>(
@@ -560,6 +561,7 @@ async function directApproveDossier(
     }
 
     let storedKey = dossier.currentMetadataKey ?? dossier.ocrMetadataKey;
+    let effectiveMetadata: unknown = metadata;
 
     if (metadata) {
         const metadataKey = buildCuratedMetadataUpdateKey(
@@ -585,6 +587,7 @@ async function directApproveDossier(
         }
 
         storedKey = await uploadJsonToStorage(metadataKey, finalMetadata);
+        effectiveMetadata = finalMetadata;
 
         const { syncDossierFondIdFromMetadata } = await import(
             "../dossier/dossier-fond-sync.ts"
@@ -598,12 +601,11 @@ async function directApproveDossier(
             console.error("[DataEntry] Failed to sync document types on direct approve:", err);
         }
     } else {
-        let currentMeta: unknown = null;
         if (storedKey) {
             try {
-                currentMeta = await downloadJsonFromStorage(resolveMetadataJsonKey(storedKey));
+                effectiveMetadata = await downloadJsonFromStorage(resolveMetadataJsonKey(storedKey));
             } catch {
-                currentMeta = null;
+                effectiveMetadata = null;
             }
         }
     }
@@ -626,6 +628,15 @@ async function directApproveDossier(
             throw httpError.notFound("Dossier not found");
         }
 
+        const { DocumentNamingApplyService } = await import(
+            "../document-naming-config/document-naming-apply-service.ts"
+        );
+        await DocumentNamingApplyService.applyNamingOnDossierApproved(
+            tx,
+            dossierId,
+            effectiveMetadata,
+        );
+
         const { IssueReportService } = await import("../issue-report/issue-report-service.ts");
         await IssueReportService.closeConfirmedOnCheckerApprove(tx, dossierId);
         await cancelStaleDraftAssignmentsOnDossier(tx, dossierId, now);
@@ -633,7 +644,7 @@ async function directApproveDossier(
         await insertWorkflowLog(tx, {
             dossierId: dossier.id,
             actorId: actorId,
-            action: WORKFLOW_ACTION.DIRECT_APPROVE ?? "DIRECT_APPROVE",
+            action: WORKFLOW_ACTION.DIRECT_APPROVE,
             fromStatus: dossier.status,
             toStatus: DossierStatus.APPROVED,
         });
@@ -807,6 +818,17 @@ async function approveMetadata(input: {
 
         if (!dossierRow) {
             throw httpError.notFound("Dossier not found");
+        }
+
+        if (nextStatus === DossierStatus.APPROVED) {
+            const { DocumentNamingApplyService } = await import(
+                "../document-naming-config/document-naming-apply-service.ts"
+            );
+            await DocumentNamingApplyService.applyNamingOnDossierApproved(
+                tx,
+                input.dossierId,
+                finalMetadata,
+            );
         }
 
         const { IssueReportService } = await import("../issue-report/issue-report-service.ts");
@@ -1317,3 +1339,5 @@ export const DataEntryService = {
 
     directApproveDossier,
 };
+
+
