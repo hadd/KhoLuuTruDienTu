@@ -129,9 +129,7 @@ import {
   resolveWatermarkApplyConfig,
 } from "../../libs/watermark/maybe-watermark-pdf-files.ts";
 import { convertBatchToPdfA } from "../../libs/pdf-a/pdf-a-converter.ts";
-import {
-  convertPdfToTiff,
-} from "../../libs/pdf-tiff/pdf-to-tiff-converter.ts";
+import { runConvertPdfToTiff } from "../../libs/cpu-worker/cpu-worker-pool.ts";
 import { resolveExportZipPassword } from "../profile/resolve-export-zip-password.ts";
 import { assertExportFileLimit } from "../../libs/export-file-limit.ts";
 import {
@@ -1512,7 +1510,7 @@ async function buildApprovedMetadataExportZip(
                 pdfData = pdfFiles[0]!.data;
               }
               if (!tiffData) {
-                tiffData = await convertPdfToTiff(pdfData!);
+                tiffData = await runConvertPdfToTiff(pdfData!);
               }
             }
 

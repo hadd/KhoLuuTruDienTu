@@ -251,6 +251,13 @@ function createEnvObject() {
          * When true, Kafka extract routing stops without a valid license or when usedPages >= pageLimit.
          * Default: false in local/development, true otherwise.
          */
+        /** Số process phục vụ web. Không khai báo thì 1. */
+        WEB_PROCESS_COUNT: getPositiveIntEnv("WEB_PROCESS_COUNT", 1),
+        /**
+         * Số worker mỗi process mở khi vẽ TIFF, flatten watermark hoặc PDF/A raster.
+         * Không khai báo thì 1. Đóng khi hết việc.
+         */
+        EXPORT_WORKER_COUNT: getPositiveIntEnv("EXPORT_WORKER_COUNT", 1),
         PAGE_QUOTA_ENFORCE: (() => {
             const raw = Deno.env.get("PAGE_QUOTA_ENFORCE");
             if (raw !== undefined && raw !== null && raw.trim() !== "") {

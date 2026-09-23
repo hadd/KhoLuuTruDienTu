@@ -10,12 +10,19 @@ import { loadAuditLogConfigCache } from "./modules/audit-log-config/index.ts";
 import { startAuditLogPurgeWorker } from "./modules/audit-log/audit-log-purge-worker.ts";
 import { startArchiveBorrowExpiryWorker } from "./modules/archive-borrow/index.ts";
 
+function isPrimaryClusterProcess(): boolean {
+    const raw = Deno.env.get("CLUSTER_INDEX");
+    if (raw === undefined || raw.trim() === "") return true;
+    const index = Number(raw);
+    return !Number.isFinite(index) || index === 0;
+}
+
 configureSearchEngine({
     enabled: env.ELASTICSEARCH_ENABLED,
     url: env.ELASTICSEARCH_URL,
 });
 
-if (env.ELASTICSEARCH_ENABLED) {
+if (env.ELASTICSEARCH_ENABLED && isPrimaryClusterProcess()) {
     const maxAttempts = 8;
     const delayMs = 3000;
     (async () => {
@@ -37,7 +44,7 @@ if (env.ELASTICSEARCH_ENABLED) {
             }
         }
     })();
-} else {
+} else if (!env.ELASTICSEARCH_ENABLED) {
     console.info("[Search] Elasticsearch disabled (ELASTICSEARCH_ENABLED=false)");
 }
 
@@ -51,7 +58,7 @@ process.on("unhandledRejection", (reason: unknown) => {
     console.error("[Process] Unhandled rejection (server kept alive):", reason);
 });
 
-if (env.NODE_ENV !== "test") {
+if (env.NODE_ENV !== "test" && isPrimaryClusterProcess()) {
     if (env.KAFKA_ENABLED) {
         startKafkaConsumer().catch((err) => {
             console.error("[Kafka] Consumer failed to start:", err);
@@ -70,10 +77,6 @@ if (env.NODE_ENV !== "test") {
         startSearchIndexWorker(env.SEARCH_INDEX_WORKER_INTERVAL_MS);
     }
 
-    loadAuditLogConfigCache().catch((err) => {
-        console.error("[AuditLog] Failed to load config cache:", err);
-    });
-
     if (env.AUDIT_LOG_PURGE_ENABLED) {
         startAuditLogPurgeWorker(env.AUDIT_LOG_PURGE_INTERVAL_MS);
     } else {
@@ -85,4 +88,10 @@ if (env.NODE_ENV !== "test") {
     } else {
         console.info("[ArchiveBorrow] Expiry worker disabled (ARCHIVE_BORROW_EXPIRY_ENABLED=false)");
     }
+}
+
+if (env.NODE_ENV !== "test") {
+    loadAuditLogConfigCache().catch((err) => {
+        console.error("[AuditLog] Failed to load config cache:", err);
+    });
 }
