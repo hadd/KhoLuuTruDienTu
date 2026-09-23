@@ -47,7 +47,10 @@ export function parseRoleRules(rulesJson: any): RoleRules {
     const restrictions = Array.isArray(parsed.restrictions)
         ? parsed.restrictions.filter((r): r is string => typeof r === "string")
         : [];
-    return { permissions, restrictions };
+    const hidden = Array.isArray(parsed.hidden)
+        ? parsed.hidden.filter((h): h is string => typeof h === "string")
+        : [];
+    return { permissions, restrictions, hidden };
 }
 
 /** Old borrow keys & 2FA key → current keys (role JSON may still use legacy). */
