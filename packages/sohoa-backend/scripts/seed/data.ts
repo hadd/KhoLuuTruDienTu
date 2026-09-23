@@ -93,6 +93,7 @@ export const ROLE_DEFINITIONS = [
         "projects.read",
         "data-entry.*",
         "groups.start_workflow",
+        "groups.revoke",
         "metadata.permissions.manage",
         "dossiers.read",
         "folders.*",

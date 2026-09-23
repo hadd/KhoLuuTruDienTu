@@ -214,6 +214,7 @@ export const AUDIT_LOG_MODULE_PERMISSIONS: Record<string, readonly string[] | nu
         Permission.GROUPS_DELETE,
         Permission.GROUPS_MANAGE_MEMBERS,
         Permission.GROUPS_START_WORKFLOW,
+        Permission.GROUPS_REVOKE,
     ],
     projects: [Permission.PROJECTS_READ, Permission.PROJECTS_CREATE, Permission.PROJECTS_UPDATE, Permission.PROJECTS_DELETE],
     "project-plans": [Permission.PROJECT_PLANS_READ, Permission.PROJECT_PLANS_CREATE, Permission.PROJECT_PLANS_UPDATE, Permission.PROJECT_PLANS_DELETE],

@@ -197,7 +197,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
     app.post(
         "/:id/revoke-by-folder",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.GROUPS_START_WORKFLOW);
+            authHelper.checkPermission(profile, Permission.GROUPS_REVOKE);
             await projectAccessHelper.assertCanAccessGroup(profile, params.id);
             return await service.revokeByFolder(params.id, body, profile.id);
         },
@@ -216,7 +216,7 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
     app.post(
         "/:id/revoke-by-member",
         async ({ params, body, profile }) => {
-            authHelper.checkPermission(profile, Permission.GROUPS_START_WORKFLOW);
+            authHelper.checkPermission(profile, Permission.GROUPS_REVOKE);
             await projectAccessHelper.assertCanAccessGroup(profile, params.id);
             return await service.revokeByMember(params.id, body, profile.id);
         },
@@ -227,7 +227,25 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
                 tags,
                 summary: "Revoke all ready-for-entry assignments for one group editor",
                 description:
-                    "Cancels IN_PROGRESS/DRAFT MAKER assignments for the given editor on dossiers assigned to this group that are still READY_FOR_ENTRY. Keeps assignedGroupId so dossiers stay in the group queue. Does not affect other makers on field-split dossiers. Skips dossiers in ENTRY_PROCESSING, QC, or APPROVED.",
+                    "Cancels IN_PROGRESS/DRAFT MAKER and CHECKER assignments for the given editor's READY_FOR_ENTRY dossiers in this group, clears assignedGroupId, and returns them to the unassigned pool for reassignment. Skips dossiers in ENTRY_PROCESSING, QC, or APPROVED.",
+            },
+        },
+    );
+
+    app.post(
+        "/:id/revoke-all",
+        async ({ params, profile }) => {
+            authHelper.checkPermission(profile, Permission.GROUPS_REVOKE);
+            await projectAccessHelper.assertCanAccessGroup(profile, params.id);
+            return await service.revokeAll(params.id, profile.id);
+        },
+        {
+            params: t.Object({ id: t.String({ minLength: 1 }) }),
+            detail: {
+                tags,
+                summary: "Revoke all ready-for-entry dossiers assigned to a group",
+                description:
+                    "Cancels IN_PROGRESS/DRAFT MAKER and CHECKER assignments and clears assignedGroupId for every dossier still assigned to this group that is READY_FOR_ENTRY. Skips dossiers in ENTRY_PROCESSING, QC, or APPROVED. Successfully revoked dossiers return to the unassigned pool for reassignment.",
             },
         },
     );
