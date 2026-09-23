@@ -244,80 +244,187 @@ export function createS3Client(options: S3ClientOptions) {
             }
         },
 
-        // List files in S3 bucket
+        // List files in S3 bucket.
+        //
+        // Uses listObjectsV2Query with a small page size instead of listObjects
+        // (MaxKeys=1000). MinIO's fast-xml-parser defaults to a 1000 entity-
+        // expansion limit; a full 1000-key page with &quot; ETags / encoded keys
+        // exceeds that and throws "Entity expansion limit exceeded", often as
+        // an uncaught exception on Deno. Page size 100 stays well under the
+        // limit while preserving the public listFiles API.
         async listFiles(params: ListParams): Promise<ListResult> {
             const prefix = resolvePrefix(params);
             const maxKeys = params.maxKeys || 1000;
+            const pageSize = 100;
 
-            // listObjects returns a Node.js EventEmitter stream. Errors thrown
-            // inside the XML-parser transform (e.g. fast-xml-parser's "Entity
-            // expansion limit exceeded") surface only via the 'error' event and
-            // are NOT caught by a for-await loop, causing an uncaught exception
-            // that kills the process. Wrapping in a Promise + .on('error')
-            // captures them safely and converts them into normal rejections.
-            return await new Promise<ListResult>((resolve, reject) => {
-                const stream = minioClient.listObjects(
-                    params.bucket,
-                    prefix,
-                    true
-                );
+            type ListedObject = {
+                name?: string;
+                prefix?: string;
+                size?: number;
+                lastModified?: Date;
+                etag?: string;
+                metaData?: Record<string, string>;
+            };
+            type ListPage = {
+                objects: ListedObject[];
+                isTruncated: boolean;
+                nextContinuationToken?: string;
+            };
 
-                const files: FileInfo[] = [];
-                let count = 0;
-                let settled = false;
+            const fetchPage = (
+                continuationToken: string,
+                pageMaxKeys: number,
+            ): Promise<ListPage> =>
+                new Promise<ListPage>((resolve, reject) => {
+                    // listObjectsV2Query is public on the MinIO Client but not
+                    // always present in the published TypeScript typings.
+                    type ListStream = {
+                        on(
+                            event: string,
+                            listener: (...args: unknown[]) => void,
+                        ): ListStream;
+                        destroy?: () => void;
+                    };
+                    const stream = (minioClient as typeof minioClient & {
+                        listObjectsV2Query: (
+                            bucketName: string,
+                            prefix: string,
+                            continuationToken: string,
+                            delimiter: string,
+                            maxKeys: number,
+                            startAfter: string,
+                        ) => ListStream;
+                    }).listObjectsV2Query(
+                        params.bucket,
+                        prefix,
+                        continuationToken,
+                        "", // recursive listing
+                        pageMaxKeys,
+                        "",
+                    );
 
-                const done = (result: ListResult) => {
-                    if (settled) return;
-                    settled = true;
-                    resolve(result);
-                };
+                    let settled = false;
 
-                const fail = (error: unknown) => {
-                    if (settled) return;
-                    settled = true;
-                    if (error instanceof S3Error) {
-                        reject(error);
-                        return;
-                    }
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    reject(new S3Error(
-                        `Failed to list files: ${errorMessage}`,
-                        'LIST_ERROR',
-                        500,
-                        error
-                    ));
-                };
+                    const fail = (error: unknown) => {
+                        if (settled) return;
+                        settled = true;
+                        try {
+                            stream.destroy?.();
+                        } catch {
+                            // ignore destroy errors
+                        }
+                        if (error instanceof S3Error) {
+                            reject(error);
+                            return;
+                        }
+                        const errorMessage =
+                            error instanceof Error ? error.message : String(error);
+                        reject(
+                            new S3Error(
+                                `Failed to list files: ${errorMessage}`,
+                                "LIST_ERROR",
+                                500,
+                                error,
+                            ),
+                        );
+                    };
 
-                stream.on('data', (obj: any) => {
-                    if (settled || count >= maxKeys) return;
+                    const done = (result: ListPage) => {
+                        if (settled) return;
+                        settled = true;
+                        try {
+                            stream.destroy?.();
+                        } catch {
+                            // ignore destroy errors
+                        }
+                        resolve(result);
+                    };
 
-                    // Optional category filter retained for backward compatibility
-                    if (params.category && !obj.name?.includes(`/${params.category}/`)) return;
-
-                    files.push({
-                        objectName: obj.name,
-                        size: obj.size,
-                        lastModified: obj.lastModified,
-                        etag: obj.etag,
-                        contentType: obj.metaData?.['content-type'],
-                        metadata: obj.metaData,
-                        url: generateS3Url(params.bucket, obj.name)
+                    // Errors from the XML-parser transform surface via 'error'
+                    // (and sometimes uncaughtException on Deno). Attach early.
+                    stream.on("error", fail);
+                    stream.on("data", (result: unknown) => {
+                        done(
+                            (result as ListPage | undefined) ?? {
+                                objects: [],
+                                isTruncated: false,
+                            },
+                        );
                     });
+                    stream.on("end", () => {
+                        // No 'data' means empty page.
+                        done({ objects: [], isTruncated: false });
+                    });
+                });
 
-                    count++;
+            try {
+                const files: FileInfo[] = [];
+                let continuationToken = "";
+                let stoppedByLimit = false;
 
-                    if (count >= maxKeys) {
-                        stream.destroy();
-                        done({ files, isTruncated: true, totalCount: files.length });
+                while (files.length < maxKeys) {
+                    const pageMaxKeys = Math.min(
+                        pageSize,
+                        maxKeys - files.length,
+                    );
+                    const page = await fetchPage(continuationToken, pageMaxKeys);
+
+                    for (const obj of page.objects) {
+                        // Skip common-prefix entries (delimiter listings only;
+                        // we list recursively so these should be rare).
+                        if (!obj.name) continue;
+
+                        // Optional category filter retained for backward compatibility
+                        if (
+                            params.category &&
+                            !obj.name.includes(`/${params.category}/`)
+                        ) {
+                            continue;
+                        }
+
+                        files.push({
+                            objectName: obj.name,
+                            size: obj.size ?? 0,
+                            lastModified: obj.lastModified ?? new Date(0),
+                            etag: obj.etag ?? "",
+                            contentType: obj.metaData?.["content-type"],
+                            metadata: obj.metaData,
+                            url: generateS3Url(params.bucket, obj.name),
+                        });
+
+                        if (files.length >= maxKeys) {
+                            stoppedByLimit = true;
+                            break;
+                        }
                     }
-                });
 
-                stream.on('end', () => {
-                    done({ files, isTruncated: false, totalCount: files.length });
-                });
+                    if (stoppedByLimit) {
+                        break;
+                    }
 
-                stream.on('error', fail);
-            });
+                    if (page.isTruncated && page.nextContinuationToken) {
+                        continuationToken = page.nextContinuationToken;
+                    } else {
+                        break;
+                    }
+                }
+
+                return {
+                    files,
+                    isTruncated: stoppedByLimit,
+                    totalCount: files.length,
+                };
+            } catch (error) {
+                if (error instanceof S3Error) throw error;
+                const errorMessage =
+                    error instanceof Error ? error.message : String(error);
+                throw new S3Error(
+                    `Failed to list files: ${errorMessage}`,
+                    "LIST_ERROR",
+                    500,
+                    error,
+                );
+            }
         },
 
         // Get current configuration

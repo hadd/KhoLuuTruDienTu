@@ -232,11 +232,12 @@ export async function buildFolderMetadataExportZipStream(input: {
 
 /**
  * Build metadata export ZIP while processing dossiers via `appendDossier`.
- * Excel is written first; caller adds PDF/TIFF entries one file at a time.
+ * Excel is written first (unless omitExcel); caller adds PDF/TIFF entries one file at a time.
  */
 export function buildFolderMetadataExportZipStreamIncremental(input: {
-    excelFileName: string;
-    excelBuffer: Uint8Array;
+    excelFileName?: string;
+    excelBuffer?: Uint8Array;
+    omitExcel?: boolean;
     password?: string;
     build: (
         add: (name: string, data: Uint8Array) => Promise<void>,
@@ -246,7 +247,13 @@ export function buildFolderMetadataExportZipStreamIncremental(input: {
     const usedFolderNames = new Set<string>();
     return streamZipWhileBuilding(
         async (zip) => {
-            await zip.add(input.excelFileName, input.excelBuffer);
+            if (
+                !input.omitExcel &&
+                input.excelFileName &&
+                input.excelBuffer
+            ) {
+                await zip.add(input.excelFileName, input.excelBuffer);
+            }
             await input.build(zip.add.bind(zip), usedFolderNames);
         },
         { password: input.password },

@@ -206,9 +206,9 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
             body: revokeByFolderFromGroupBodySchema,
             detail: {
                 tags,
-                summary: "Revoke group folder assignment for unstarted or in-progress entry dossiers",
+                summary: "Revoke group folder assignment for ready-for-entry dossiers",
                 description:
-                    "Cancels IN_PROGRESS/DRAFT MAKER and CHECKER assignments and clears assignedGroupId for dossiers in the given folders that belong to this group and are still READY_FOR_ENTRY or ENTRY_PROCESSING. ENTRY_PROCESSING dossiers are reset to READY_FOR_ENTRY. Skips dossiers already in QC or APPROVED. Accepts multiple folderIds in one request.",
+                    "Cancels IN_PROGRESS/DRAFT MAKER and CHECKER assignments and clears assignedGroupId for dossiers in the given folders that belong to this group and are still READY_FOR_ENTRY. Skips dossiers in ENTRY_PROCESSING, QC, or APPROVED. Accepts multiple folderIds in one request.",
             },
         },
     );
@@ -225,9 +225,9 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
             body: revokeByMemberFromGroupBodySchema,
             detail: {
                 tags,
-                summary: "Revoke all entry assignments for one group editor",
+                summary: "Revoke all ready-for-entry assignments for one group editor",
                 description:
-                    "Cancels IN_PROGRESS/DRAFT MAKER assignments for the given editor on dossiers assigned to this group that are still READY_FOR_ENTRY or ENTRY_PROCESSING. ENTRY_PROCESSING dossiers are reset to READY_FOR_ENTRY when no other makers remain. Keeps assignedGroupId so dossiers stay in the group queue. Does not affect other makers on field-split dossiers. Skips dossiers already in QC or APPROVED.",
+                    "Cancels IN_PROGRESS/DRAFT MAKER assignments for the given editor on dossiers assigned to this group that are still READY_FOR_ENTRY. Keeps assignedGroupId so dossiers stay in the group queue. Does not affect other makers on field-split dossiers. Skips dossiers in ENTRY_PROCESSING, QC, or APPROVED.",
             },
         },
     );

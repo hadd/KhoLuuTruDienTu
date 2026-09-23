@@ -3,10 +3,8 @@ import type {
   WatermarkPosition,
   WatermarkStamp,
 } from "../../db/schemas/watermark.ts";
-import {
-  flattenPdfPagesToImages,
-  isWatermarkFlattenEnabled,
-} from "./pdf-page-flattener.ts";
+import { runFlattenPdf } from "../cpu-worker/cpu-worker-pool.ts";
+import { isWatermarkFlattenEnabled } from "./pdf-page-flattener.ts";
 import { embedWatermarkFont } from "./watermark-font.ts";
 
 export type WatermarkApplyConfig = {
@@ -316,5 +314,5 @@ export async function applyWatermarkToPdfBytes(
   if (!isWatermarkFlattenEnabled()) {
     return stamped;
   }
-  return await flattenPdfPagesToImages(stamped);
+  return await runFlattenPdf(stamped);
 }

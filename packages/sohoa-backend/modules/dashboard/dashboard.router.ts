@@ -1,10 +1,16 @@
 import { Elysia } from "elysia";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
-import { Permission } from "../auth/permission-catalog.ts";
+import {
+    DASHBOARD_PERSONAL_EDITOR_PERMISSIONS,
+    DASHBOARD_PERSONAL_QC_PERMISSIONS,
+    Permission,
+} from "../auth/permission-catalog.ts";
 import { DashboardService as service } from "./dashboard-service.ts";
 import {
     editorDashboardResponseSchema,
+    personalKpisQuerySchema,
+    personalKpisResponseSchema,
     qcDashboardResponseSchema,
     qcGroupDashboardResponseSchema,
 } from "./types.ts";
@@ -22,6 +28,8 @@ export function createDashboardRouter(basePath: string = "/dashboard") {
         async ({ profile }) => {
             authHelper.checkPermissionAny(profile, [
                 Permission.DASHBOARD_EDITOR,
+                Permission.DASHBOARD_PERSONAL,
+                ...DASHBOARD_PERSONAL_EDITOR_PERMISSIONS,
                 Permission.DATA_ENTRY_MAKER,
             ]);
             return await service.getEditorStats(profile.id);
@@ -42,6 +50,8 @@ export function createDashboardRouter(basePath: string = "/dashboard") {
         async ({ profile }) => {
             authHelper.checkPermissionAny(profile, [
                 Permission.DASHBOARD_QC,
+                Permission.DASHBOARD_PERSONAL,
+                ...DASHBOARD_PERSONAL_QC_PERMISSIONS,
                 Permission.DATA_ENTRY_CHECKER,
             ]);
             return await service.getQcStats(profile.id);
@@ -62,6 +72,8 @@ export function createDashboardRouter(basePath: string = "/dashboard") {
         async ({ profile }) => {
             authHelper.checkPermissionAny(profile, [
                 Permission.DASHBOARD_QC,
+                Permission.DASHBOARD_TEAM,
+                Permission.DASHBOARD_TEAM_QC_GROUP,
                 Permission.DATA_ENTRY_CHECKER,
             ]);
             return await service.getQcGroupStats(profile.id);
@@ -73,6 +85,36 @@ export function createDashboardRouter(basePath: string = "/dashboard") {
                 summary: "QC group dashboard statistics (leader only)",
                 description:
                     "Returns group-level progress, editor performance, and QC member approval rates. Only accessible to the active leader of a group.",
+            },
+        },
+    );
+
+    app.get(
+        "/personal-kpis",
+        async ({ profile, query }) => {
+            authHelper.checkPermissionAny(profile, [
+                Permission.DASHBOARD_EDITOR,
+                Permission.DASHBOARD_QC,
+                Permission.DASHBOARD_PERSONAL,
+                ...DASHBOARD_PERSONAL_EDITOR_PERMISSIONS,
+                ...DASHBOARD_PERSONAL_QC_PERMISSIONS,
+                Permission.DATA_ENTRY_MAKER,
+                Permission.DATA_ENTRY_CHECKER,
+            ]);
+            return await service.getPersonalDailyKpis(
+                profile.id,
+                query.dateFrom,
+                query.dateTo,
+            );
+        },
+        {
+            query: personalKpisQuerySchema,
+            response: personalKpisResponseSchema,
+            detail: {
+                tags,
+                summary: "Personal daily KPI statistics",
+                description:
+                    "Returns per-day KPI rows for the current user (dossiers/files/pages for editor and QC work) plus a total row.",
             },
         },
     );

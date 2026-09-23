@@ -47,6 +47,7 @@ const metadataExportBodySchema = t.Object({
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
   useDocumentNaming: t.Optional(t.Boolean()),
   excelOnly: t.Optional(t.Boolean()),
+  tiffOnly: t.Optional(t.Boolean()),
 });
 
 const multiFolderMetadataExportBodySchema = t.Object({
@@ -58,6 +59,7 @@ const multiFolderMetadataExportBodySchema = t.Object({
   dossierAccessPassword: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
   useDocumentNaming: t.Optional(t.Boolean()),
   excelOnly: t.Optional(t.Boolean()),
+  tiffOnly: t.Optional(t.Boolean()),
 });
 
 function resolveExportBypassStatus(profile: UserWithRoles): boolean {
@@ -311,6 +313,7 @@ export function createFolderRouter(basePath: string = "/folders") {
             dossierService.exportApprovedMetadataByFolders(body.folderIds, {
               ...body,
               excelOnly: body.excelOnly === true,
+              tiffOnly: body.tiffOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
@@ -419,6 +422,7 @@ export function createFolderRouter(basePath: string = "/folders") {
             dossierService.exportApprovedMetadataByFolder(params.id, {
               ...body,
               excelOnly: body.excelOnly === true,
+              tiffOnly: body.tiffOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
@@ -476,6 +480,7 @@ export function createFolderRouter(basePath: string = "/folders") {
               skippedFileIds,
               useDocumentNaming: query.useDocumentNaming === true,
               excelOnly: query.excelOnly === true,
+              tiffOnly: query.tiffOnly === true,
               bypassStatus,
             }),
         );
@@ -493,6 +498,7 @@ export function createFolderRouter(basePath: string = "/folders") {
         ),
         useDocumentNaming: t.Optional(t.Boolean()),
         excelOnly: t.Optional(t.Boolean()),
+        tiffOnly: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,
@@ -607,8 +613,8 @@ export function createFolderRouter(basePath: string = "/folders") {
         summary: "Thu hồi phân công theo thư mục",
         description:
           "Thu hồi phân công cho các hồ sơ trong thư mục đã chọn (gồm thư mục con). " +
-          "Áp dụng hồ sơ READY_FOR_ENTRY hoặc ENTRY_PROCESSING chưa hoàn thành entry; hủy assignment đang active và xóa assignedGroupId nếu có. " +
-          "Hồ sơ ENTRY_PROCESSING được đưa về READY_FOR_ENTRY. Hồ sơ đang QC hoặc đã duyệt sẽ được bỏ qua.",
+          "Áp dụng hồ sơ READY_FOR_ENTRY chưa hoàn thành entry; hủy assignment đang active và xóa assignedGroupId nếu có. " +
+          "Hồ sơ đang nhập liệu (ENTRY_PROCESSING), đang QC hoặc đã duyệt sẽ được bỏ qua.",
       },
     },
   );

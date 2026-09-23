@@ -10,8 +10,8 @@ export type PdfAConvertOptions = {
   forceRasterize?: boolean;
 };
 
-const DEFAULT_DPI = 150;
-const DEFAULT_JPEG_QUALITY = 85;
+const DEFAULT_DPI = 300;
+const DEFAULT_JPEG_QUALITY = 95;
 
 /**
  * Builds standard XMP Metadata packet for PDF/A-2b conformance (ISO 19005-2:2011).
@@ -59,7 +59,8 @@ function buildPdfAXmpMetadata(title?: string, creator?: string): string {
  * 3. Inject MarkInfo & ViewerPreferences dictionaries into Catalog.
  * 4. Inject XMP metadata packet with pdfaid:part=2 and pdfaid:conformance=B.
  */
-export async function convertToPdfA(
+/** In-process PDF/A conversion. Workers call this so raster work is not queued again. */
+export async function convertToPdfAInline(
   pdfBytes: Uint8Array,
   options: PdfAConvertOptions = {},
 ): Promise<Uint8Array> {
@@ -167,6 +168,21 @@ export async function convertToPdfA(
   }
 
   return pdfABytes;
+}
+
+export async function convertToPdfA(
+  pdfBytes: Uint8Array,
+  options: PdfAConvertOptions = {},
+): Promise<Uint8Array> {
+  if (options.forceRasterize && shouldOffloadHeavyWork()) {
+    const { runPdfARaster } = await import("../cpu-worker/cpu-worker-pool.ts");
+    return runPdfARaster(pdfBytes, options);
+  }
+  return convertToPdfAInline(pdfBytes, options);
+}
+
+function shouldOffloadHeavyWork(): boolean {
+  return Deno.env.get("NODE_ENV") !== "test";
 }
 
 export async function convertBatchToPdfA<
