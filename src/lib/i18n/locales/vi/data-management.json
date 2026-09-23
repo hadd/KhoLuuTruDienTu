@@ -556,7 +556,13 @@
     "finalSaveSuccess": "Đã gửi hồ sơ chờ duyệt thành công.",
     "finalSavePartialSuccess": "Đã gửi phần việc của bạn. Chờ editor khác hoàn tất hồ sơ.",
     "approveSuccess": "Đã duyệt thành công.",
+    "confirmApproveNamingTitle": "Xác nhận duyệt hồ sơ",
+    "confirmApproveNamingDesc": "Hồ sơ này đang áp dụng quy tắc đặt tên file tự động khi duyệt. Tất cả các file PDF trong hồ sơ sẽ được tự động đổi tên theo quy tắc đã thiết lập.",
+    "confirmApproveNamingNotice": "Lưu ý: Tên hiển thị của các file PDF sẽ thay đổi sau khi duyệt hoàn tất.",
+    "confirmApproveNamingAction": "Xác nhận duyệt",
+    "saveFondFailed": "Không thể gán phông cho hồ sơ. Vui lòng thử lại.",
     "summarySave": "Lưu metadata",
+
     "summarySaving": "Đang lưu metadata…",
     "summarySaveSuccess": "Đã lưu metadata tóm tắt thành công.",
     "completeSuccess": "Đã gửi metadata thành công.",
