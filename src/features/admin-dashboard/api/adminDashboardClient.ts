@@ -1,5 +1,6 @@
 import type {
   AdminDashboardDossierTrendGranularityT,
+  AdminDashboardEmployeeKpiT,
   AdminDashboardT,
 } from '@/features/admin-dashboard/types'
 import { apiClient } from '@/lib/api/apiClient'
@@ -158,7 +159,9 @@ function normalizeEmployeeKpi(
 
   const accuracyRate = item.accuracyRate ?? 95
   const rejectedDossiersCount = item.rejectedDossiersCount ?? 0
-  const avgProcessingTimeMinutes = item.avgProcessingTimeMinutes ?? Math.round((item.avgProcessingTimeSeconds ?? 900) / 60)
+  const avgProcessingTimeMinutes =
+    item.avgProcessingTimeMinutes ??
+    Math.round((item.avgProcessingTimeSeconds ?? 900) / 60)
 
   let kpiStatus: 'EXCELLENT' | 'GOOD' | 'WARNING' | 'CRITICAL' = 'GOOD'
   if (accuracyRate >= 95 && dossierCompletionRate >= 90) {
@@ -175,23 +178,54 @@ function normalizeEmployeeKpi(
   const isEditor = role === 'editor'
   const isQc = role === 'qc' || role.startsWith('qc')
 
-  const makerAssignedDossiersCount = item.makerAssignedDossiersCount ?? (isEditor ? assignedDossiersCount : 0)
-  const makerCompletedDossiersCount = item.makerCompletedDossiersCount ?? (isEditor ? completedDossiersCount : 0)
-  const makerAssignedPagesCount = item.makerAssignedPagesCount ?? (isEditor ? assignedPagesCount : 0)
-  const makerCompletedPagesCount = item.makerCompletedPagesCount ?? (isEditor ? completedPagesCount : 0)
-  const makerDossierCompletionRate = item.makerDossierCompletionRate ?? (makerAssignedDossiersCount > 0 ? Math.round((makerCompletedDossiersCount / makerAssignedDossiersCount) * 1000) / 10 : 0)
-  const makerPageCompletionRate = item.makerPageCompletionRate ?? (makerAssignedPagesCount > 0 ? Math.round((makerCompletedPagesCount / makerAssignedPagesCount) * 1000) / 10 : 0)
+  const makerAssignedDossiersCount =
+    item.makerAssignedDossiersCount ?? (isEditor ? assignedDossiersCount : 0)
+  const makerCompletedDossiersCount =
+    item.makerCompletedDossiersCount ?? (isEditor ? completedDossiersCount : 0)
+  const makerAssignedPagesCount =
+    item.makerAssignedPagesCount ?? (isEditor ? assignedPagesCount : 0)
+  const makerCompletedPagesCount =
+    item.makerCompletedPagesCount ?? (isEditor ? completedPagesCount : 0)
+  const makerDossierCompletionRate =
+    item.makerDossierCompletionRate ??
+    (makerAssignedDossiersCount > 0
+      ? Math.round(
+          (makerCompletedDossiersCount / makerAssignedDossiersCount) * 1000,
+        ) / 10
+      : 0)
+  const makerPageCompletionRate =
+    item.makerPageCompletionRate ??
+    (makerAssignedPagesCount > 0
+      ? Math.round(
+          (makerCompletedPagesCount / makerAssignedPagesCount) * 1000,
+        ) / 10
+      : 0)
 
-  const qcAssignedDossiersCount = item.qcAssignedDossiersCount ?? (isQc ? assignedDossiersCount : 0)
-  const qcCompletedDossiersCount = item.qcCompletedDossiersCount ?? (isQc ? completedDossiersCount : 0)
-  const qcAssignedPagesCount = item.qcAssignedPagesCount ?? (isQc ? assignedPagesCount : 0)
-  const qcCompletedPagesCount = item.qcCompletedPagesCount ?? (isQc ? completedPagesCount : 0)
-  const qcDossierCompletionRate = item.qcDossierCompletionRate ?? (qcAssignedDossiersCount > 0 ? Math.round((qcCompletedDossiersCount / qcAssignedDossiersCount) * 1000) / 10 : 0)
-  const qcPageCompletionRate = item.qcPageCompletionRate ?? (qcAssignedPagesCount > 0 ? Math.round((qcCompletedPagesCount / qcAssignedPagesCount) * 1000) / 10 : 0)
+  const qcAssignedDossiersCount =
+    item.qcAssignedDossiersCount ?? (isQc ? assignedDossiersCount : 0)
+  const qcCompletedDossiersCount =
+    item.qcCompletedDossiersCount ?? (isQc ? completedDossiersCount : 0)
+  const qcAssignedPagesCount =
+    item.qcAssignedPagesCount ?? (isQc ? assignedPagesCount : 0)
+  const qcCompletedPagesCount =
+    item.qcCompletedPagesCount ?? (isQc ? completedPagesCount : 0)
+  const qcDossierCompletionRate =
+    item.qcDossierCompletionRate ??
+    (qcAssignedDossiersCount > 0
+      ? Math.round(
+          (qcCompletedDossiersCount / qcAssignedDossiersCount) * 1000,
+        ) / 10
+      : 0)
+  const qcPageCompletionRate =
+    item.qcPageCompletionRate ??
+    (qcAssignedPagesCount > 0
+      ? Math.round((qcCompletedPagesCount / qcAssignedPagesCount) * 1000) / 10
+      : 0)
 
   return {
     userId: item.userId ?? item.id ?? `user-${index + 1}`,
-    fullName: item.fullName ?? item.userFullName ?? item.name ?? `Nhân sự ${index + 1}`,
+    fullName:
+      item.fullName ?? item.userFullName ?? item.name ?? `Nhân sự ${index + 1}`,
     role,
     groupName: item.groupName ?? null,
     groupId: item.groupId ?? null,

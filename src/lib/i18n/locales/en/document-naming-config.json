@@ -23,7 +23,9 @@
     "dossierPlaceholder": "Select a dossier...",
     "selectedDossier": "Selected dossier: {{name}} ({{path}})",
     "selectDossierHint": "Select a dossier to configure file naming rules.",
-    "loading": "Loading file naming configuration..."
+    "loading": "Loading file naming configuration...",
+    "applyOnApprove": "Automatically rename PDF files upon dossier approval",
+    "applyOnApproveHint": "When enabled, PDF files in this dossier will automatically be renamed according to this rule as soon as the dossier is approved."
   },
   "segments": {
     "dossierTitle": "Dossier naming rules",

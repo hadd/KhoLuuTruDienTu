@@ -1649,6 +1649,29 @@ export async function updateDossier({
   return cloneTree(dynamicTree)
 }
 
+/** Assign fond to dossier immediately — PATCH /api/v1/dossiers/:id/fond */
+export async function assignDossierFond(
+  dossierId: string,
+  fondId: string | null,
+): Promise<{ id: string; fondId: string | null } | undefined> {
+  const response = await apiClient.patch<{
+    record?: { id: string; fondId: string | null }
+  }>(`/api/v1/dossiers/${encodeURIComponent(dossierId)}/fond`, {
+    fondId: fondId?.trim() || null,
+  })
+  const record = response.data?.record
+
+  if (dynamicTree) {
+    dynamicTree = mapTree(dynamicTree, (node) =>
+      applyDossierFieldsToTreeNode(node, dossierId, {
+        fondId: fondId?.trim() || undefined,
+      }),
+    )
+  }
+
+  return record
+}
+
 /** POST /api/v1/folders/:folderId/revoke-assignments */
 export async function revokeFolderAssignments(folderId: string): Promise<void> {
   await apiClient.post(
@@ -1786,8 +1809,14 @@ export async function getSearchTree(
   rootNode.children = children.map((c) =>
     mapSearchTreeChild(c as Record<string, unknown>),
   )
-  rootNode.sizeBytes = rootNode.children.reduce((acc, c) => acc + c.sizeBytes, 0)
-  rootNode.fileCount = rootNode.children.reduce((acc, c) => acc + c.fileCount, 0)
+  rootNode.sizeBytes = rootNode.children.reduce(
+    (acc, c) => acc + c.sizeBytes,
+    0,
+  )
+  rootNode.fileCount = rootNode.children.reduce(
+    (acc, c) => acc + c.fileCount,
+    0,
+  )
   rootNode.pageCount = rootNode.children.reduce(
     (acc, c) => acc + (c.pageCount || 0),
     0,
@@ -1864,7 +1893,10 @@ function mapSearchTreeChild(child: Record<string, unknown>): DataTreeNodeT {
       (acc, c) => acc + (c.type === 'document' ? 1 : c.fileCount),
       0,
     )
-    node.pageCount = node.children.reduce((acc, c) => acc + (c.pageCount || 0), 0)
+    node.pageCount = node.children.reduce(
+      (acc, c) => acc + (c.pageCount || 0),
+      0,
+    )
   }
   return node
 }
