@@ -538,7 +538,7 @@ Deno.test({
             assertEquals(updated?.assignedGroupId, null);
         });
 
-        await t.step("revoke-by-folder revokes dossiers already in ENTRY_PROCESSING", async () => {
+        await t.step("revoke-by-folder skips dossiers already in ENTRY_PROCESSING", async () => {
             const busyPath = `${TEST_PREFIX}/revoke-busy`;
             const busyFolder = await FolderService.create({
                 folderPath: busyPath,
@@ -580,10 +580,13 @@ Deno.test({
                 actorId,
             );
 
-            assertEquals(revokeResult.skipped, []);
-            assertEquals(revokeResult.totalRevoked, 1);
-            assertEquals(revokeResult.revokedDossierIds, [busyDossier.id]);
-            assertEquals(revokeResult.assignmentsCancelled > 0, true);
+            assertEquals(revokeResult.totalRevoked, 0);
+            assertEquals(revokeResult.revokedDossierIds, []);
+            assertEquals(revokeResult.totalSkipped, 1);
+            assertEquals(
+                revokeResult.skipped[0]?.reason,
+                "Dossier is currently in entry processing",
+            );
 
             const activeAssignments = await db.query.dossierAssignments.findMany({
                 where: and(
@@ -594,16 +597,16 @@ Deno.test({
                     ]),
                 ),
             });
-            assertEquals(activeAssignments.length, 0);
+            assertEquals(activeAssignments.length > 0, true);
 
             const updated = await db.query.dossiers.findFirst({
                 where: eq(dossiers.id, busyDossier.id),
             });
-            assertEquals(updated?.assignedGroupId, null);
-            assertEquals(updated?.status, DossierStatus.READY_FOR_ENTRY);
+            assertEquals(updated?.assignedGroupId, groupId);
+            assertEquals(updated?.status, DossierStatus.ENTRY_PROCESSING);
         });
 
-        await t.step("revoke-by-member revokes READY_FOR_ENTRY and ENTRY_PROCESSING for one editor", async () => {
+        await t.step("revoke-by-member revokes READY_FOR_ENTRY only for one editor", async () => {
             const memberPath = `${TEST_PREFIX}/revoke-member`;
             const memberFolder = await FolderService.create({
                 folderPath: memberPath,
@@ -675,21 +678,21 @@ Deno.test({
                 actorId,
             );
 
-            assertEquals(revokeResult.totalRevoked, 2);
+            assertEquals(revokeResult.totalRevoked, 1);
+            assertEquals(revokeResult.revokedDossierIds, [readyId]);
+            assertEquals(revokeResult.totalSkipped, 2);
             assertEquals(
-                [...revokeResult.revokedDossierIds].sort(),
-                [readyId, busyId].sort(),
+                [...revokeResult.skipped.map((s) => s.reason)].sort(),
+                [
+                    "Dossier has already started or completed processing",
+                    "Dossier is currently in entry processing",
+                ].sort(),
             );
-            assertEquals(revokeResult.totalSkipped, 1);
-            assertEquals(
-                revokeResult.skipped[0]?.reason,
-                "Dossier has already started or completed processing",
-            );
-            assertEquals(revokeResult.assignmentsCancelled >= 2, true);
+            assertEquals(revokeResult.assignmentsCancelled >= 1, true);
 
-            const editor1Active = await db.query.dossierAssignments.findMany({
+            const readyActive = await db.query.dossierAssignments.findMany({
                 where: and(
-                    inArray(dossierAssignments.dossierId, [readyId, busyId]),
+                    eq(dossierAssignments.dossierId, readyId),
                     eq(dossierAssignments.assigneeId, editor1.id),
                     eq(dossierAssignments.role, WorkerRole.MAKER),
                     inArray(dossierAssignments.status, [
@@ -698,7 +701,20 @@ Deno.test({
                     ]),
                 ),
             });
-            assertEquals(editor1Active.length, 0);
+            assertEquals(readyActive.length, 0);
+
+            const busyActive = await db.query.dossierAssignments.findMany({
+                where: and(
+                    eq(dossierAssignments.dossierId, busyId),
+                    eq(dossierAssignments.assigneeId, editor1.id),
+                    eq(dossierAssignments.role, WorkerRole.MAKER),
+                    inArray(dossierAssignments.status, [
+                        AssignmentStatus.IN_PROGRESS,
+                        AssignmentStatus.DRAFT,
+                    ]),
+                ),
+            });
+            assertEquals(busyActive.length > 0, true);
 
             const readyAfter = await db.query.dossiers.findFirst({
                 where: eq(dossiers.id, readyId),
@@ -712,7 +728,7 @@ Deno.test({
 
             assertEquals(readyAfter?.assignedGroupId, groupId);
             assertEquals(busyAfter?.assignedGroupId, groupId);
-            assertEquals(busyAfter?.status, DossierStatus.READY_FOR_ENTRY);
+            assertEquals(busyAfter?.status, DossierStatus.ENTRY_PROCESSING);
             assertEquals(qcAfter?.status, DossierStatus.WAITING_CHECKER_1);
             assertEquals(qcAfter?.assignedGroupId, groupId);
         });

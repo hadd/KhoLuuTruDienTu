@@ -50,6 +50,13 @@
       "when": 1789390000000,
       "tag": "0006_page_quota",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789400000000,
+      "tag": "0007_issue_report_file_and_fields",
+      "breakpoints": true
     }
   ]
 }

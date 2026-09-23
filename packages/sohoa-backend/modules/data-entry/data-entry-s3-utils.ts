@@ -227,6 +227,40 @@ export async function downloadJsonFromStorage(
   }
 }
 
+/** List `.json` objects under a storage prefix (for metadata export sibling fallback). */
+export async function listJsonObjectsUnderPrefix(
+  prefixDir: string,
+): Promise<Array<{ key: string; lastModified?: Date | null }>> {
+  const s3 = await getS3Client();
+  if (!s3) {
+    return [];
+  }
+
+  const bucket = resolveS3Bucket();
+  const normalized = normalizeStorageKey(prefixDir);
+  const prefix = normalized.endsWith("/") ? normalized : `${normalized}/`;
+
+  try {
+    const listed = await s3.listFiles({
+      bucket,
+      prefix,
+      maxKeys: 200,
+    });
+    return listed.files
+      .filter((f) => Boolean(f.objectName?.toLowerCase().endsWith(".json")))
+      .map((f) => ({
+        key: f.objectName,
+        lastModified: f.lastModified ?? null,
+      }));
+  } catch (error) {
+    console.warn(
+      `[MetadataExport] listJsonObjectsUnderPrefix failed for "${prefix}":`,
+      error,
+    );
+    return [];
+  }
+}
+
 export async function uploadJsonToStorage(
   key: string,
   metadata: unknown,

@@ -15,7 +15,6 @@ import { activeDossierWhere } from "../dossier/active-query-filters.ts";
 
 const REVOCABLE_MEMBER_DOSSIER_STATUSES = new Set<string>([
     DossierStatus.READY_FOR_ENTRY,
-    DossierStatus.ENTRY_PROCESSING,
 ]);
 
 export type GroupMemberRevokeInput = {
@@ -78,6 +77,14 @@ export async function executeGroupMemberRevoke(input: GroupMemberRevokeInput) {
         }
         seenDossierIds.add(dossier.id);
 
+        if (dossier.status === DossierStatus.ENTRY_PROCESSING) {
+            skipped.push({
+                dossierId: dossier.id,
+                folderId: dossier.folderId,
+                reason: "Dossier is currently in entry processing",
+            });
+            continue;
+        }
         if (!REVOCABLE_MEMBER_DOSSIER_STATUSES.has(dossier.status)) {
             skipped.push({
                 dossierId: dossier.id,

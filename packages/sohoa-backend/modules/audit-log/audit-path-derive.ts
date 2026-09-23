@@ -572,6 +572,7 @@ const PATH_LABEL_RULES: PathLabelRule[] = [
     { method: "POST", pattern: "/dossiers/dip/export", module: "dossiers", eventType: "export", summary: "Xuất gói DIP nhiều hồ sơ" }, // [MỚI]
     { method: "GET", pattern: "/dossiers/:id", module: "dossiers", eventType: "view", summary: "Xem chi tiết hồ sơ" }, // [MỚI]
     { method: "PUT", pattern: "/dossiers/:id", module: "dossiers", eventType: "edit", summary: "Cập nhật hồ sơ" }, // [MỚI]
+    { method: "PATCH", pattern: "/dossiers/:id/fond", module: "dossiers", eventType: "edit", summary: "Gán phông hồ sơ tức thì" }, // [MỚI]
     { method: "DELETE", pattern: "/dossiers/:id", module: "dossiers", eventType: "delete", summary: "Xóa hồ sơ" }, // [MỚI]
     { method: "POST", pattern: "/dossiers/:id/verify-access", module: "dossiers", eventType: "verify", summary: "Xác thực mật khẩu truy cập hồ sơ" }, // [MỚI]
     { method: "GET", pattern: "/dossiers/:id/dip/export", module: "dossiers", eventType: "export", summary: "Xuất gói DIP hồ sơ" }, // [MỚI]

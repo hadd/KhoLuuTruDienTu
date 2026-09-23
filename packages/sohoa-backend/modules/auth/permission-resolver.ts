@@ -63,6 +63,7 @@ export function parseRoleRules(rulesJson: string | null | undefined | RoleRules 
 const LEGACY_PERMISSION_ALIASES: Record<string, string> = {
     "archive.borrow.request": Permission.ARCHIVE_BORROW_REQUEST,
     "archive.borrow.review": Permission.ARCHIVE_BORROW_REVIEW,
+    "roles.two_factor_require": Permission.AUTH_TWO_FACTOR_REQUIRE,
     "auth.two_factor_require": Permission.AUTH_TWO_FACTOR_REQUIRE,
     "dashboard.admin.summary": Permission.DASHBOARD_OVERVIEW_SUMMARY,
     "dashboard.admin.dossier_status_chart": Permission.DASHBOARD_OVERVIEW_DOSSIER_STATUS_CHART,
