@@ -93,6 +93,11 @@
     "menuTitle": "Quản trị",
     "users": "Quản lý người dùng",
     "dashboard": "Tổng quan",
+    "dashboardGroups": {
+      "personal": "Cá nhân",
+      "team": "Đội nhóm / Dự án",
+      "overview": "Tổng quan"
+    },
     "projectManager": "Quản lý danh mục dự án",
     "projectManagement": "Quản lý dự án",
     "planManagement": "Quản lý kế hoạch",

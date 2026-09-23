@@ -4,7 +4,7 @@
   "sections": {
     "overview": {
       "title": "Review overview",
-      "totalAssigned": "Assigned dossiers",
+      "totalAssigned": "Assigned work",
       "approved": "Approved",
       "rejected": "Rejected",
       "reviewed": "Reviewed",

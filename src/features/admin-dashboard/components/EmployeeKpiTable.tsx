@@ -10,6 +10,7 @@ import {
   Search,
   Sparkles,
   Users,
+  Loader2,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -52,6 +53,7 @@ const dashboardRouteApi = getRouteApi('/app/dashboard/')
 
 export type EmployeeKpiTableProps = {
   data: Array<AdminDashboardEmployeeKpiT>
+  isLoading?: boolean
   selectedGroupId?: string
   dashboardGroups?: Array<AdminDashboardGroupStatsT>
   onDateRangeChange?: (dateFrom?: string, dateTo?: string) => void
@@ -59,6 +61,7 @@ export type EmployeeKpiTableProps = {
 
 export function EmployeeKpiTable({
   data,
+  isLoading = false,
   selectedGroupId,
   dashboardGroups = [],
   onDateRangeChange,
@@ -175,6 +178,11 @@ export function EmployeeKpiTable({
       const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
       dFrom = formatDateStr(startOfMonth)
       dTo = formatDateStr(today)
+    } else if (newPeriod === 'quarter') {
+      const quarterStartMonth = Math.floor(today.getMonth() / 3) * 3
+      const startOfQuarter = new Date(today.getFullYear(), quarterStartMonth, 1)
+      dFrom = formatDateStr(startOfQuarter)
+      dTo = formatDateStr(today)
     } else if (newPeriod === 'custom') {
       dFrom = customFrom !== undefined ? customFrom : dateFrom
       dTo = customTo !== undefined ? customTo : dateTo
@@ -195,7 +203,7 @@ export function EmployeeKpiTable({
 
   // Sorting & Pagination States
   const [sortBy, setSortBy] = useState<
-    'fullName' | 'groupName' | 'dossier' | 'page' | 'time' | 'rejected' | 'accuracy'
+    'fullName' | 'groupName' | 'dossier' | 'file' | 'page' | 'time' | 'rejected' | 'accuracy'
   >('accuracy')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [currentPage, setCurrentPage] = useState(1)
@@ -278,6 +286,9 @@ export function EmployeeKpiTable({
       } else if (sortBy === 'dossier') {
         valA = a.completedDossiersCount
         valB = b.completedDossiersCount
+      } else if (sortBy === 'file') {
+        valA = a.completedFilesCount
+        valB = b.completedFilesCount
       } else if (sortBy === 'page') {
         valA = a.completedPagesCount
         valB = b.completedPagesCount
@@ -315,7 +326,7 @@ export function EmployeeKpiTable({
   }, [sortedData, safePage, pageSize])
 
   const handleSort = (
-    field: 'fullName' | 'groupName' | 'dossier' | 'page' | 'time' | 'rejected' | 'accuracy',
+    field: 'fullName' | 'groupName' | 'dossier' | 'file' | 'page' | 'time' | 'rejected' | 'accuracy',
   ) => {
     if (sortBy === field) {
       setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
@@ -365,15 +376,15 @@ export function EmployeeKpiTable({
     const avgAccuracy =
       activeAccuracyUsers.length > 0
         ? Math.round(
-            (activeAccuracyUsers.reduce((sum, item) => sum + item.accuracyRate, 0) /
-              activeAccuracyUsers.length) *
-              10,
-          ) / 10
+          (activeAccuracyUsers.reduce((sum, item) => sum + item.accuracyRate, 0) /
+            activeAccuracyUsers.length) *
+          10,
+        ) / 10
         : totalUsers > 0
-        ? Math.round(
+          ? Math.round(
             (data.reduce((sum, item) => sum + item.accuracyRate, 0) / totalUsers) * 10,
           ) / 10
-        : 0
+          : 0
 
     const totalRejected = data.reduce(
       (sum, item) => sum + (item.rejectedDossiersCount ?? 0),
@@ -387,11 +398,11 @@ export function EmployeeKpiTable({
     const avgTime =
       activeTimeUsers.length > 0
         ? Math.round(
-            activeTimeUsers.reduce(
-              (sum, item) => sum + (item.avgProcessingTimeMinutes ?? 0),
-              0,
-            ) / activeTimeUsers.length,
-          )
+          activeTimeUsers.reduce(
+            (sum, item) => sum + (item.avgProcessingTimeMinutes ?? 0),
+            0,
+          ) / activeTimeUsers.length,
+        )
         : 0
 
     return { totalUsers, avgAccuracy, totalRejected, avgTime }
@@ -434,6 +445,9 @@ export function EmployeeKpiTable({
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <Sparkles className="size-4 text-primary" />
               {t('employeeKpi.title', { defaultValue: 'Bảng Đánh Giá KPI Nhân Sự' })}
+              {isLoading ? (
+                <Loader2 className="size-4 animate-spin text-muted-foreground" />
+              ) : null}
             </CardTitle>
             <CardDescription className="mt-1 text-xs">
               {t('employeeKpi.description', {
@@ -592,6 +606,7 @@ export function EmployeeKpiTable({
                 <SelectItem value="7d">{t('employeeKpi.period.7d', { defaultValue: '7 ngày qua' })}</SelectItem>
                 <SelectItem value="30d">{t('employeeKpi.period.30d', { defaultValue: '30 ngày qua' })}</SelectItem>
                 <SelectItem value="month">{t('employeeKpi.period.month', { defaultValue: 'Tháng này' })}</SelectItem>
+                <SelectItem value="quarter">{t('employeeKpi.period.quarter', { defaultValue: 'Quý này' })}</SelectItem>
                 <SelectItem value="custom">{t('employeeKpi.period.custom', { defaultValue: 'Tùy chỉnh' })}</SelectItem>
               </SelectContent>
             </Select>
@@ -647,13 +662,13 @@ export function EmployeeKpiTable({
               </TableHead>
 
               {/* Group Column 1: Hồ Sơ Biên Tập */}
-              <TableHead colSpan={2} className="text-center font-bold border-l border-r bg-blue-50/60 text-blue-900 dark:bg-blue-950/40 dark:text-blue-200 py-1.5">
-                Hồ Sơ Biên Tập
+              <TableHead colSpan={3} className="text-center font-bold border-l border-r bg-blue-50/60 text-blue-900 dark:bg-blue-950/40 dark:text-blue-200 py-1.5">
+                {t('employeeKpi.groups.maker', { defaultValue: 'Hồ Sơ Biên Tập' })}
               </TableHead>
 
               {/* Group Column 2: Hồ Sơ Duyệt */}
-              <TableHead colSpan={2} className="text-center font-bold border-r bg-indigo-50/60 text-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200 py-1.5">
-                Hồ Sơ Duyệt
+              <TableHead colSpan={3} className="text-center font-bold border-r bg-indigo-50/60 text-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200 py-1.5">
+                {t('employeeKpi.groups.qc', { defaultValue: 'Hồ Sơ Duyệt' })}
               </TableHead>
 
               <TableHead rowSpan={2} className="text-center align-middle">
@@ -698,23 +713,44 @@ export function EmployeeKpiTable({
               {/* Editor Sub Columns */}
               <TableHead className="text-center border-l border-r text-xs font-medium py-1.5 w-[145px]">
                 <Button variant="ghost" size="sm" onClick={() => handleSort('dossier')} className="h-7 text-xs p-1 font-semibold">
-                  <span>Số hồ sơ</span>
-                  <ArrowUpDown className="ml-1 size-2.5" />
-                </Button>
-              </TableHead>
-              <TableHead className="text-center border-r text-xs font-medium py-1.5 w-[145px]">
-                <Button variant="ghost" size="sm" onClick={() => handleSort('page')} className="h-7 text-xs p-1 font-semibold">
-                  <span>Số trang</span>
+                  <span>{t('employeeKpi.columns.dossierCount', { defaultValue: 'Số hồ sơ' })}</span>
                   <ArrowUpDown className="ml-1 size-2.5" />
                 </Button>
               </TableHead>
 
+              <TableHead className="text-center border-r text-xs font-semibold py-1.5 w-[145px]">
+                <Button variant="ghost" size="sm" onClick={() => handleSort('file')} className="h-7 text-xs p-1 font-semibold">
+                  <span>{t('employeeKpi.columns.fileCount', { defaultValue: 'Số file' })}</span>
+                  <ArrowUpDown className="ml-1 size-2.5" />
+                </Button>
+              </TableHead>
+
+              <TableHead className="text-center border-r text-xs font-medium py-1.5 w-[145px]">
+                <Button variant="ghost" size="sm" onClick={() => handleSort('page')} className="h-7 text-xs p-1 font-semibold">
+                  <span>{t('employeeKpi.columns.pageCount', { defaultValue: 'Số trang' })}</span>
+                  <ArrowUpDown className="ml-1 size-2.5" />
+                </Button>
+              </TableHead>
+
+
               {/* QC Sub Columns */}
               <TableHead className="text-center border-r text-xs font-semibold py-1.5 w-[145px]">
-                Số hồ sơ
+                <Button variant="ghost" size="sm" onClick={() => handleSort('dossier')} className="h-7 text-xs p-1 font-semibold">
+                  <span>{t('employeeKpi.columns.dossierCount', { defaultValue: 'Số hồ sơ' })}</span>
+                  <ArrowUpDown className="ml-1 size-2.5" />
+                </Button>
               </TableHead>
               <TableHead className="text-center border-r text-xs font-semibold py-1.5 w-[145px]">
-                Số trang
+                <Button variant="ghost" size="sm" onClick={() => handleSort('file')} className="h-7 text-xs p-1 font-semibold">
+                  <span>{t('employeeKpi.columns.fileCount', { defaultValue: 'Số file' })}</span>
+                  <ArrowUpDown className="ml-1 size-2.5" />
+                </Button>
+              </TableHead>
+              <TableHead className="text-center border-r text-xs font-semibold py-1.5 w-[145px]">
+                <Button variant="ghost" size="sm" onClick={() => handleSort('page')} className="h-7 text-xs p-1 font-semibold">
+                  <span>{t('employeeKpi.columns.pageCount', { defaultValue: 'Số trang' })}</span>
+                  <ArrowUpDown className="ml-1 size-2.5" />
+                </Button>
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -733,6 +769,10 @@ export function EmployeeKpiTable({
                 const makerAssignedPages = row.makerAssignedPagesCount ?? (row.role === 'editor' ? row.assignedPagesCount : 0)
                 const makerPageRate = row.makerPageCompletionRate ?? (row.role === 'editor' ? row.pageCompletionRate : 0)
 
+                const makerCompletedFiles = row.makerCompletedFilesCount ?? (row.role === 'editor' ? row.completedFilesCount : 0)
+                const makerAssignedFiles = row.makerAssignedFilesCount ?? (row.role === 'editor' ? row.assignedFilesCount : 0)
+                const makerFileRate = row.makerFileCompletionRate ?? (row.role === 'editor' ? row.fileCompletionRate : 0)
+
                 // QC Values
                 const qcCompletedDossiers = row.qcCompletedDossiersCount ?? (row.role === 'qc' ? row.completedDossiersCount : 0)
                 const qcAssignedDossiers = row.qcAssignedDossiersCount ?? (row.role === 'qc' ? row.assignedDossiersCount : 0)
@@ -741,6 +781,10 @@ export function EmployeeKpiTable({
                 const qcCompletedPages = row.qcCompletedPagesCount ?? (row.role === 'qc' ? row.completedPagesCount : 0)
                 const qcAssignedPages = row.qcAssignedPagesCount ?? (row.role === 'qc' ? row.assignedPagesCount : 0)
                 const qcPageRate = row.qcPageCompletionRate ?? (row.role === 'qc' ? row.pageCompletionRate : 0)
+
+                const qcCompletedFiles = row.qcCompletedFilesCount ?? (row.role === 'qc' ? row.completedFilesCount : 0)
+                const qcAssignedFiles = row.qcAssignedFilesCount ?? (row.role === 'qc' ? row.assignedFilesCount : 0)
+                const qcFileRate = row.qcFileCompletionRate ?? (row.role === 'qc' ? row.fileCompletionRate : 0)
 
                 return (
                   <TableRow key={row.userId} className="hover:bg-muted/50">
@@ -786,6 +830,21 @@ export function EmployeeKpiTable({
                       </div>
                     </TableCell>
 
+                    {/* 4b. Hồ Sơ Biên Tập - Số file */}
+                    <TableCell className="border-r">
+                      <div className="flex flex-col gap-1 w-[135px] mx-auto">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-foreground">
+                            {formatNumber(makerCompletedFiles, { maximumFractionDigits: 0 })} / {formatNumber(makerAssignedFiles, { maximumFractionDigits: 0 })} file
+                          </span>
+                          <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                            {formatPercentValue(makerFileRate, 1)}
+                          </span>
+                        </div>
+                        <Progress value={Math.min(100, makerFileRate)} className="h-1.5 bg-muted" />
+                      </div>
+                    </TableCell>
+
                     {/* 4. Hồ Sơ Biên Tập - Số trang */}
                     <TableCell className="border-r">
                       <div className="flex flex-col gap-1 w-[135px] mx-auto">
@@ -813,6 +872,21 @@ export function EmployeeKpiTable({
                           </span>
                         </div>
                         <Progress value={Math.min(100, qcDossierRate)} className="h-1.5" />
+                      </div>
+                    </TableCell>
+
+                    {/* 6b. Hồ Sơ Duyệt - Số file */}
+                    <TableCell className="border-r bg-muted/10">
+                      <div className="flex flex-col gap-1 w-[135px] mx-auto">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-foreground">
+                            {formatNumber(qcCompletedFiles, { maximumFractionDigits: 0 })} / {formatNumber(qcAssignedFiles, { maximumFractionDigits: 0 })} file
+                          </span>
+                          <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+                            {formatPercentValue(qcFileRate, 1)}
+                          </span>
+                        </div>
+                        <Progress value={Math.min(100, qcFileRate)} className="h-1.5 bg-muted" />
                       </div>
                     </TableCell>
 
@@ -866,7 +940,7 @@ export function EmployeeKpiTable({
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={9} className="h-24 text-center text-xs text-muted-foreground">
+                <TableCell colSpan={11} className="h-24 text-center text-xs text-muted-foreground">
                   <div className="flex flex-col items-center justify-center gap-1">
                     <AlertTriangle className="size-5 text-muted-foreground/60" />
                     <span>Không tìm thấy dữ liệu KPI nhân sự phù hợp</span>

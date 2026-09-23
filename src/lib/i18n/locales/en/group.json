@@ -389,7 +389,7 @@
     "revokeAll": {
       "button": "Revoke all",
       "confirmTitle": "Revoke all assignments?",
-      "confirmDescription": "Revoke {{name}}'s assignments for {{count}} dossiers (ready for entry and currently in entry). Dossiers remain in the group for reassignment.",
+      "confirmDescription": "Revoke {{name}}'s assignments for {{count}} ready-for-entry dossiers. Dossiers currently in entry are kept. Dossiers remain in the group for reassignment.",
       "confirmSubmit": "Revoke",
       "success": "Revoked {{count}} dossiers.",
       "error": "Failed to revoke assignments."

@@ -89,7 +89,13 @@ function FolderDetailCard({
             : undefined,
           useDocumentNaming: options?.useDocumentNaming === true,
         })
-        toast.success(t('recordDetail.exportExcelSuccess'))
+        toast.success(
+          mode === 'dip'
+            ? t('recordDetail.exportDipSuccess')
+            : mode === 'tiff'
+              ? t('recordDetail.exportTiffSuccess')
+              : t('recordDetail.exportExcelSuccess'),
+        )
         setDialogOpen(false)
       } catch (error) {
         toast.error(

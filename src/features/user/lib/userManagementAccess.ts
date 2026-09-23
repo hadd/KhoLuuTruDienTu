@@ -2,7 +2,7 @@ import type { ScreenPermissionRequirement } from '@/features/permissions/config/
 
 export const USER_MANAGEMENT_SCREEN_REQUIREMENTS = [
   { module: 'users', permissionKey: 'users.read' },
-  { module: 'roles' },
+  { module: 'roles', permissionKey: 'roles.manage' },
 ] as const satisfies Array<ScreenPermissionRequirement>
 
 /** Các màn thuộc khu vực quản lý người dùng (highlight sidebar). */

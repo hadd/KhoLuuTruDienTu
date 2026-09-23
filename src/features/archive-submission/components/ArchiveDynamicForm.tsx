@@ -109,10 +109,9 @@ export function ArchiveDynamicForm({
             ) : null}
 
             {field.fieldType === 'DATE' ? (
-              <Input
-                type="date"
+              <DatePickerMask
                 value={typeof fieldValue === 'string' ? fieldValue : ''}
-                onChange={(event) => updateField(field.fieldKey, event.target.value)}
+                onChange={(next) => updateField(field.fieldKey, next)}
                 disabled={disabled}
               />
             ) : null}

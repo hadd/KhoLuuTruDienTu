@@ -8,6 +8,8 @@ import {
   HO_SO_FOND_FIELD,
   HO_SO_LUU_TRU_GROUP_CODE,
   migrateTt05MetadataLayout,
+  resolveEffectiveFieldType,
+  TAI_LIEU_LUU_TRU_GROUP_CODE,
 } from '@/features/data-management/lib/metadataNormalize'
 import type { DataDossierMetadataT } from '@/features/data-management/types'
 
@@ -290,5 +292,58 @@ describe('metadataNormalize', () => {
       mergedDoc2?.fields.find((field) => field.name === 'TRICH_YEU_NOI_DUNG')
         ?.value,
     ).toBe('Doc 2 edited')
+  })
+
+  it('resolveEffectiveFieldType coerces document number fields to string', () => {
+    expect(
+      resolveEffectiveFieldType(
+        TAI_LIEU_LUU_TRU_GROUP_CODE,
+        'SO_CUA_VAN_BAN',
+        'number',
+      ),
+    ).toBe('string')
+    expect(
+      resolveEffectiveFieldType(
+        TAI_LIEU_LUU_TRU_GROUP_CODE,
+        'SO_VAN_BAN',
+        'number',
+      ),
+    ).toBe('string')
+    expect(
+      resolveEffectiveFieldType(
+        TAI_LIEU_LUU_TRU_GROUP_CODE,
+        'OTHER',
+        'number',
+        'Số của văn bản',
+      ),
+    ).toBe('string')
+    expect(
+      resolveEffectiveFieldType(
+        TAI_LIEU_LUU_TRU_GROUP_CODE,
+        'OTHER',
+        'number',
+        'Số văn bản',
+      ),
+    ).toBe('string')
+  })
+
+  it('resolveEffectiveFieldType keeps count/page number fields as number', () => {
+    expect(
+      resolveEffectiveFieldType(
+        HO_SO_LUU_TRU_GROUP_CODE,
+        'TONG_SO_VAN_BAN',
+        'number',
+      ),
+    ).toBe('number')
+    expect(
+      resolveEffectiveFieldType(
+        HO_SO_LUU_TRU_GROUP_CODE,
+        'TONG_SO_VAN_BAN_TRONG_HO_SO',
+        'number',
+      ),
+    ).toBe('number')
+    expect(
+      resolveEffectiveFieldType(HO_SO_LUU_TRU_GROUP_CODE, 'SO_TRANG', 'number'),
+    ).toBe('number')
   })
 })

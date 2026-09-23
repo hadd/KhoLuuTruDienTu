@@ -48,6 +48,10 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { aggregateDossierStatusCategories } from '@/features/warehouse-dashboard/lib/dashboardStatusHelpers'
 import type { PhysicalWarehouseItemT } from '@/features/physical-warehouse/types'
+import {
+  DASHBOARD_WAREHOUSE_SECTION_KEYS,
+  isDashboardSectionVisible,
+} from '@/features/permissions/lib/dashboardAccess'
 import { formatNumber } from '@/lib/utils/format'
 import { warehouseDashboardQueries } from '../queries'
 
@@ -208,9 +212,51 @@ function WarehouseCard({ loc }: { loc: PhysicalWarehouseItemT }) {
   )
 }
 
-export function WarehouseDashboard() {
+export function WarehouseDashboard({
+  permissions = ['*'],
+  hidden = [],
+}: {
+  permissions?: Array<string>
+  hidden?: Array<string>
+}) {
   const { t } = useTranslation('warehouse-dashboard')
   const navigate = useNavigate()
+
+  const canViewDistribution = isDashboardSectionVisible(
+    permissions,
+    hidden,
+    DASHBOARD_WAREHOUSE_SECTION_KEYS.dossierDistribution,
+  )
+  const canViewBorrow = isDashboardSectionVisible(
+    permissions,
+    hidden,
+    DASHBOARD_WAREHOUSE_SECTION_KEYS.borrowStats,
+  )
+  const canViewCapacity = isDashboardSectionVisible(
+    permissions,
+    hidden,
+    DASHBOARD_WAREHOUSE_SECTION_KEYS.capacity,
+  )
+  const canViewIntake = isDashboardSectionVisible(
+    permissions,
+    hidden,
+    DASHBOARD_WAREHOUSE_SECTION_KEYS.intakeChart,
+  )
+  const canViewUnplaced = isDashboardSectionVisible(
+    permissions,
+    hidden,
+    DASHBOARD_WAREHOUSE_SECTION_KEYS.unplaced,
+  )
+  const canViewFonds = isDashboardSectionVisible(
+    permissions,
+    hidden,
+    DASHBOARD_WAREHOUSE_SECTION_KEYS.fonds,
+  )
+  const canViewDisposal = isDashboardSectionVisible(
+    permissions,
+    hidden,
+    DASHBOARD_WAREHOUSE_SECTION_KEYS.disposal,
+  )
 
   const search = useSearch({ strict: false }) as { intakeGranularity?: 'day' | 'month' }
   const intakeGranularity = search.intakeGranularity ?? 'month'
@@ -316,8 +362,10 @@ export function WarehouseDashboard() {
 
       <div className="flex flex-col gap-5 pb-8">
         {/* KHỐI 1: CHỈ SỐ KPI TỔNG QUAN HỆ THỐNG & CHO MƯỢN */}
+        {canViewDistribution || canViewBorrow ? (
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* THẺ 1: SỐ HỒ SƠ */}
+          {canViewDistribution ? (
           <Card className="border-border bg-card shadow-xs">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div className="space-y-0.5">
@@ -399,8 +447,10 @@ export function WarehouseDashboard() {
               </div>
             </CardContent>
           </Card>
+          ) : null}
 
           {/* THẺ 2: SỐ HỒ SƠ CHO MƯỢN */}
+          {canViewBorrow ? (
           <Card className="border-border bg-card shadow-xs">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div className="space-y-0.5">
@@ -478,9 +528,12 @@ export function WarehouseDashboard() {
               </div>
             </CardContent>
           </Card>
+          ) : null}
         </section>
+        ) : null}
 
         {/* KHỐI 2: SỨC CHỨA TÁCH RIÊNG CHO TỪNG KHO */}
+        {canViewCapacity ? (
         <section>
           <Card className="border-border bg-card shadow-xs">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -516,9 +569,12 @@ export function WarehouseDashboard() {
             </CardContent>
           </Card>
         </section>
+        ) : null}
 
         {/* KHỐI 3: BIỂU ĐỒ TĂNG TRƯỜNG NẠP KHO SỐ & HỒ SƠ CHƯA PHÂN VỊ TRÍ */}
+        {canViewIntake || canViewUnplaced ? (
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {canViewIntake ? (
           <Card className="border-border bg-card shadow-xs lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div className="space-y-0.5">
@@ -603,7 +659,9 @@ export function WarehouseDashboard() {
               )}
             </CardContent>
           </Card>
+          ) : null}
 
+          {canViewUnplaced ? (
           <Card className="border-border bg-card shadow-xs flex flex-col justify-between">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
@@ -676,10 +734,14 @@ export function WarehouseDashboard() {
               </div>
             </CardContent>
           </Card>
+          ) : null}
         </section>
+        ) : null}
 
         {/* KHỐI 4: PHÂN BỐ THEO PHÔNG & HỒ SƠ ĐẾN HẠN TIÊU HỦY */}
+        {canViewFonds || canViewDisposal ? (
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {canViewFonds ? (
           <Card className="border-border bg-card shadow-xs">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-semibold">
@@ -749,7 +811,9 @@ export function WarehouseDashboard() {
               )}
             </CardContent>
           </Card>
+          ) : null}
 
+          {canViewDisposal ? (
           <Card className="border-border bg-card shadow-xs flex flex-col justify-between">
             <CardHeader className="pb-2">
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -830,7 +894,9 @@ export function WarehouseDashboard() {
               </div>
             </CardContent>
           </Card>
+          ) : null}
         </section>
+        ) : null}
       </div>
     </div>
   )

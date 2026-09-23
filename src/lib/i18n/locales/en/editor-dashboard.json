@@ -4,7 +4,7 @@
   "sections": {
     "overview": {
       "title": "Work overview",
-      "totalAssigned": "Assigned dossiers",
+      "totalAssigned": "Assigned work",
       "completed": "Completed",
       "inProgress": "In progress"
     },

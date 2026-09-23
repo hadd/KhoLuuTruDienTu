@@ -52,6 +52,7 @@ const MAJOR_MODULE_ORDER = [
   // 5. Quản trị hệ thống
   'users',
   'roles',
+  'auth',
   'metadata',
   'document-types',
   'dossier-types',
@@ -263,6 +264,9 @@ export function setModuleGranted(
   }
 
   if (hasFullAccess(permissions)) {
+    if (catalog.length === 0) {
+      return permissions
+    }
     return expandFullAccessExceptModules(catalog, new Set([module]))
   }
 
@@ -294,6 +298,9 @@ export function setPermissionGranted(
   }
 
   if (hasFullAccess(permissions)) {
+    if (catalog.length === 0) {
+      return permissions
+    }
     return catalog
       .filter((item) => item.key !== permissionKey)
       .map((item) => item.key)

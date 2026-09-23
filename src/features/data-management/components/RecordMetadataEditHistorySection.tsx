@@ -1,4 +1,4 @@
-import { ArrowDownAZ, ArrowUpAZ, Loader2, RotateCcw } from 'lucide-react'
+import { ArrowDownAZ, ArrowUpAZ, FileText, Loader2, RotateCcw, Files } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type {
   DataMetadataEditBatchT,
   DataMetadataEditFieldChangeT,
+  DataMetadataHistoryFileRefT,
 } from '@/features/data-management/types'
 import { useCurrentLanguage } from '@/lib/hooks/useCurrentLanguage'
 import { cn } from '@/lib/utils/cn'
@@ -46,17 +47,10 @@ function MetadataEditFieldChangeRow({
       <button
         type="button"
         className={cn(
-          'w-full text-left text-sm font-medium',
-          change.groupIndex >= 0
-            ? 'cursor-pointer text-foreground hover:underline underline-offset-2'
-            : 'cursor-default text-foreground',
-          isHighlighted && change.groupIndex >= 0 && 'text-primary',
+          'w-full text-left text-sm font-medium cursor-pointer text-foreground hover:underline underline-offset-2',
+          isHighlighted && 'text-primary',
         )}
-        onClick={() => {
-          if (change.groupIndex < 0) return
-          onActivate(change)
-        }}
-        disabled={change.groupIndex < 0}
+        onClick={() => onActivate(change)}
         aria-label={t('recordDetail.viewFieldInPdf')}
       >
         {change.fieldDisplay}
@@ -92,6 +86,7 @@ export function RecordMetadataEditHistorySection({
   isRestoring = false,
   restoringBatchId = null,
   onFieldActivate,
+  onFileActivate,
   onRevertBatch,
 }: {
   batches: Array<DataMetadataEditBatchT>
@@ -101,6 +96,7 @@ export function RecordMetadataEditHistorySection({
   isRestoring?: boolean
   restoringBatchId?: string | null
   onFieldActivate: (change: DataMetadataEditFieldChangeT) => void
+  onFileActivate?: (file: DataMetadataHistoryFileRefT) => void
   onRevertBatch: (batch: DataMetadataEditBatchT) => void
 }) {
   const { t } = useTranslation('data-management')
@@ -108,7 +104,13 @@ export function RecordMetadataEditHistorySection({
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
 
   const sortedBatches = useMemo(() => {
-    const next = [...batches]
+    const next = [...batches].map((batch) => {
+      const filteredFiles = batch.files.filter((file) => {
+        const name = (file.fileName || '').trim().toLowerCase()
+        return name && !name.endsWith('.json')
+      })
+      return { ...batch, files: filteredFiles }
+    })
     next.sort((left, right) => {
       const leftTime = new Date(left.editedAt).getTime()
       const rightTime = new Date(right.editedAt).getTime()
@@ -195,6 +197,23 @@ export function RecordMetadataEditHistorySection({
                 <CardHeader className="px-4 py-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 space-y-1">
+                      {batch.files.length > 0 ? (
+                        <div className="flex items-center gap-1.5 text-sm font-medium text-primary">
+                          <Files
+                            className="size-3.5 shrink-0"
+                            aria-hidden
+                          />
+                          <span>
+                            {t('recordDetail.editHistory.fileChangesLabel')}:{' '}
+                            {batch.files.length}{' '}
+                            {batch.files.length === 1 ? 'tài liệu' : 'tài liệu'}
+                          </span>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          {t('recordDetail.editHistory.fileNameLabel')}: —
+                        </p>
+                      )}
                       <CardTitle className="text-sm font-medium">
                         {editorName}
                       </CardTitle>
@@ -235,15 +254,100 @@ export function RecordMetadataEditHistorySection({
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2 px-4 pb-4">
-                  {batch.changes.length > 0 ? (
-                    batch.changes.map((change) => (
-                      <MetadataEditFieldChangeRow
-                        key={change.id}
-                        change={change}
-                        isHighlighted={highlightedChangeId === change.id}
-                        onActivate={onFieldActivate}
-                      />
-                    ))
+                  {batch.files.length > 0
+                    ? batch.files.map((file, fileIndex) => {
+                        const canFocus =
+                          Boolean(onFileActivate) &&
+                          (Boolean(file.documentId) || file.groupIndex >= 0)
+                        const fileBlockKey = `${batch.id}-${file.documentId ?? file.fileName}-${file.groupIndex}-${fileIndex}`
+
+                        return (
+                          <div
+                            key={fileBlockKey}
+                            className="space-y-2 rounded-lg border border-border bg-muted/10 p-2.5"
+                          >
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">
+                                {t('recordDetail.editHistory.fileNameLabel')}
+                              </p>
+                              <button
+                                type="button"
+                                className={cn(
+                                  'flex max-w-full items-center gap-1.5 text-left text-sm font-medium',
+                                  canFocus
+                                    ? 'cursor-pointer text-primary underline-offset-2 hover:underline'
+                                    : 'cursor-default text-foreground',
+                                )}
+                                onClick={() => {
+                                  if (!canFocus) return
+                                  onFileActivate?.(file)
+                                }}
+                                disabled={!canFocus}
+                                title={file.fileName}
+                                aria-label={t(
+                                  'recordDetail.editHistory.fileChangesHint',
+                                )}
+                              >
+                                <FileText
+                                  className="size-3.5 shrink-0"
+                                  aria-hidden
+                                />
+                                <span className="min-w-0 truncate">
+                                  {file.fileName.trim() || '—'}
+                                </span>
+                              </button>
+                            </div>
+                            {file.fileChanges.length > 0 ? (
+                              <div className="space-y-2">
+                                <p className="pt-1 text-xs font-medium text-muted-foreground">
+                                  {t(
+                                    'recordDetail.editHistory.metadataChangesLabel',
+                                  )}
+                                </p>
+                                {file.fileChanges.map((change) => (
+                                  <MetadataEditFieldChangeRow
+                                    key={change.id}
+                                    change={change}
+                                    isHighlighted={
+                                      highlightedChangeId === change.id
+                                    }
+                                    onActivate={onFieldActivate}
+                                  />
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        )
+                      })
+                    : null}
+                  {batch.dossierLevelChanges.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        {t('recordDetail.editHistory.metadataChangesLabel')}
+                      </p>
+                      {batch.dossierLevelChanges.map((change) => (
+                        <MetadataEditFieldChangeRow
+                          key={change.id}
+                          change={change}
+                          isHighlighted={highlightedChangeId === change.id}
+                          onActivate={onFieldActivate}
+                        />
+                      ))}
+                    </div>
+                  ) : batch.files.length === 0 && batch.changes.length > 0 ? (
+                    <>
+                      <p className="text-xs font-medium text-muted-foreground">
+                        {t('recordDetail.editHistory.metadataChangesLabel')}
+                      </p>
+                      {batch.changes.map((change) => (
+                        <MetadataEditFieldChangeRow
+                          key={change.id}
+                          change={change}
+                          isHighlighted={highlightedChangeId === change.id}
+                          onActivate={onFieldActivate}
+                        />
+                      ))}
+                    </>
                   ) : batch.notes?.trim() ? (
                     <p className="text-sm text-foreground">{batch.notes}</p>
                   ) : null}

@@ -1,6 +1,7 @@
 import type { KeyboardEvent, ReactNode, Ref } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { DatePickerMask } from '@/components/common/date/DatePickerMask'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -83,14 +84,11 @@ export function MetadataFieldInput({
 
     if (field.type === 'date') {
       return (
-        <Input
+        <DatePickerMask
           id={inputId}
-          type="date"
           value={value}
           placeholder={emptyPlaceholder}
-          onChange={(event) => {
-            onChange(event.target.value)
-          }}
+          onChange={(nextValue) => onChange(nextValue)}
           onClick={canActivate ? handleActivate : undefined}
           onFocus={canActivate ? handleActivate : undefined}
           onKeyDown={
@@ -101,7 +99,7 @@ export function MetadataFieldInput({
               : undefined
           }
           disabled={disabled}
-          ref={fieldRef as Ref<HTMLInputElement | null>}
+          inputRef={fieldRef as Ref<HTMLInputElement | null>}
         />
       )
     }

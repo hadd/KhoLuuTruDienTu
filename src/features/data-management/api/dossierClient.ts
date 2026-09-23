@@ -1,6 +1,13 @@
 import { applyStoragePathPrefix } from '@/features/data-management/lib/uploadPathPrefix'
 import { toScopedProjectCode } from '@/features/data-management/lib/constants'
 import { sumUploadPdfPages } from '@/features/data-management/lib/countPdfFilePages'
+import {
+  isAbortError,
+  mapWithConcurrency,
+  throwIfAborted,
+  UPLOAD_FILE_CONCURRENCY,
+  withUploadRetry,
+} from '@/features/data-management/lib/uploadConcurrency'
 import { checkPageQuotaUpload } from '@/features/metadata-extract/api/pageQuotaClient'
 import { apiClient } from '@/lib/api/apiClient'
 import { streamDownloadToDisk } from '@/lib/api/streamDownload'
@@ -61,6 +68,8 @@ export interface UploadFolderOptions {
   storagePathPrefix?: string
   /** OCR processing mode applied to the whole upload batch. Defaults to 'auto'. */
   runMode?: OcrRunMode
+  /** Abort in-flight MinIO uploads and stop claiming new files. */
+  signal?: AbortSignal
 }
 
 const UPLOAD_EXPIRY_MIN_SECONDS = 86_400
@@ -151,30 +160,6 @@ async function checkFilePath(filePath: string): Promise<boolean> {
   return Boolean(payload.exists)
 }
 
-async function mapWithConcurrency<T, R>(
-  items: Array<T>,
-  concurrency: number,
-  mapper: (item: T, index: number) => Promise<R>,
-): Promise<Array<R>> {
-  const results: Array<R> = new Array(items.length)
-  let nextIndex = 0
-
-  async function worker(): Promise<void> {
-    while (nextIndex < items.length) {
-      const index = nextIndex
-      nextIndex += 1
-      results[index] = await mapper(items[index], index)
-    }
-  }
-
-  const workers = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    () => worker(),
-  )
-  await Promise.all(workers)
-  return results
-}
-
 /** Pre-flight: detect files whose storage path already exists (same check as upload skip). */
 export async function detectUploadPathConflicts(
   files: Array<File>,
@@ -210,6 +195,7 @@ async function createDocumentFromStorage(
   key: string,
   projectCode?: string,
   runMode?: OcrRunMode,
+  signal?: AbortSignal,
 ): Promise<{
   folderId?: string
   dossierId?: string
@@ -224,7 +210,7 @@ async function createDocumentFromStorage(
   const response = await apiClient.post<Record<string, unknown>>(
     '/api/v1/dossiers/create-document-from-storage',
     body,
-    { _skipGlobalErrorToast: true, timeout: 0 },
+    { _skipGlobalErrorToast: true, timeout: 0, signal },
   )
 
   const data = unwrapApiRecord<Record<string, unknown>>(response.data)
@@ -261,13 +247,12 @@ function readId(
   return undefined
 }
 
-async function uploadFileToMinIO(
+function buildMinioUploadForm(
   file: File,
   uploadPoint: UploadPointResponse,
   relativePath: string,
-): Promise<void> {
+): FormData {
   const baseKey = resolveUploadBaseKey(uploadPoint)
-
   const form = new FormData()
   for (const [k, v] of Object.entries(uploadPoint.formData)) {
     if (k === 'key') {
@@ -277,15 +262,32 @@ async function uploadFileToMinIO(
     }
   }
   form.append('file', file)
+  return form
+}
 
-  const response = await fetch(uploadPoint.postURL, {
-    method: 'POST',
-    body: form,
-  })
+async function uploadFileToMinIO(
+  file: File,
+  uploadPoint: UploadPointResponse,
+  relativePath: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  await withUploadRetry(
+    async () => {
+      throwIfAborted(signal)
+      const response = await fetch(uploadPoint.postURL, {
+        method: 'POST',
+        body: buildMinioUploadForm(file, uploadPoint, relativePath),
+        signal,
+      })
 
-  if (!response.ok) {
-    throw new Error(`Upload failed: ${response.status} ${response.statusText}`)
-  }
+      if (!response.ok) {
+        throw new Error(
+          `Upload failed: ${response.status} ${response.statusText}`,
+        )
+      }
+    },
+    { signal },
+  )
 }
 
 function normalizeMetadataExportFileName(fileName: string): string {
@@ -337,6 +339,7 @@ export interface MetadataExportRequestT {
   columns?: Array<MetadataExportColumnRequestT>
   useDocumentNaming?: boolean
   excelOnly?: boolean
+  tiffOnly?: boolean
 }
 
 export interface MetadataExportPreviewRowT {
@@ -415,7 +418,8 @@ export async function exportDossierMetadataExcel(
     config?.presetId ||
     config?.columns ||
     config?.useDocumentNaming ||
-    config?.excelOnly
+    config?.excelOnly ||
+    config?.tiffOnly
   ) {
     await downloadConfiguredMetadataExport(
       path,
@@ -482,7 +486,8 @@ export async function exportFolderMetadataExcel(
     config?.presetId ||
     config?.columns ||
     config?.useDocumentNaming ||
-    config?.excelOnly
+    config?.excelOnly ||
+    config?.tiffOnly
   ) {
     await downloadConfiguredMetadataExport(path, fallbackName, config)
     return
@@ -579,6 +584,10 @@ export async function uploadFolderFiles(
 ): Promise<UploadFolderResult> {
   const allowOverwrite = options?.allowOverwrite === true
   const skipPathCheck = options?.skipPathCheck === true
+  const signal = options?.signal
+
+  throwIfAborted(signal)
+
   onProgress?.({
     total: files.length,
     completed: 0,
@@ -586,7 +595,9 @@ export async function uploadFolderFiles(
     phase: 'preparing',
   })
 
-  const totalPages = await sumUploadPdfPages(files)
+  const totalPages = await sumUploadPdfPages(files, { signal })
+  throwIfAborted(signal)
+
   const quotaCheck = await checkPageQuotaUpload(totalPages)
   if (!quotaCheck.allowed) {
     const message =
@@ -595,6 +606,8 @@ export async function uploadFolderFiles(
     throw new Error(message)
   }
 
+  throwIfAborted(signal)
+
   const uploadPoint =
     options?.uploadPoint ??
     (await createUploadPoint(
@@ -602,57 +615,101 @@ export async function uploadFolderFiles(
       options?.runMode,
     ))
 
-  const results: Array<FileUploadResult> = []
+  throwIfAborted(signal)
 
-  for (const [index, file] of files.entries()) {
-    const relativePath = resolveUploadRelativePath(
-      file,
-      options?.storagePathPrefix,
-    )
-    const fullKey = resolveStorageKey(uploadPoint, relativePath)
+  const slotResults: Array<FileUploadResult | undefined> = new Array(
+    files.length,
+  )
+  let completed = 0
+  let stopClaiming = false
+  let currentFile = ''
 
+  const reportProgress = () => {
     onProgress?.({
       total: files.length,
-      completed: index,
-      currentFile: relativePath,
+      completed,
+      currentFile,
       phase: 'uploading',
     })
-
-    try {
-      const exists =
-        allowOverwrite || skipPathCheck ? false : await checkFilePath(fullKey)
-
-      if (exists) {
-        results.push({
-          file,
-          relativePath,
-          status: 'skipped',
-          storageKey: fullKey,
-        })
-      } else {
-        await uploadFileToMinIO(file, uploadPoint, relativePath)
-        const created = await createDocumentFromStorage(
-          fullKey,
-          options?.projectCode,
-          uploadPoint.runMode ?? options?.runMode,
-        )
-        results.push({
-          file,
-          relativePath,
-          status: 'uploaded',
-          storageKey: fullKey,
-          folderId: created.folderId,
-          dossierId: created.dossierId,
-        })
-      }
-    } catch (err) {
-      const error = translateError(err)
-      results.push({ file, relativePath, status: 'error', error })
-      if (isPageQuotaUploadExceededMessage(error)) {
-        break
-      }
-    }
   }
+
+  reportProgress()
+
+  try {
+    await mapWithConcurrency(
+      files,
+      UPLOAD_FILE_CONCURRENCY,
+      async (file, index) => {
+        throwIfAborted(signal)
+
+        const relativePath = resolveUploadRelativePath(
+          file,
+          options?.storagePathPrefix,
+        )
+        const fullKey = resolveStorageKey(uploadPoint, relativePath)
+        currentFile = relativePath
+        reportProgress()
+
+        try {
+          const exists =
+            allowOverwrite || skipPathCheck
+              ? false
+              : await checkFilePath(fullKey)
+
+          if (exists) {
+            slotResults[index] = {
+              file,
+              relativePath,
+              status: 'skipped',
+              storageKey: fullKey,
+            }
+          } else {
+            await uploadFileToMinIO(file, uploadPoint, relativePath, signal)
+            const created = await withUploadRetry(
+              () =>
+                createDocumentFromStorage(
+                  fullKey,
+                  options?.projectCode,
+                  uploadPoint.runMode ?? options?.runMode,
+                  signal,
+                ),
+              { signal },
+            )
+            slotResults[index] = {
+              file,
+              relativePath,
+              status: 'uploaded',
+              storageKey: fullKey,
+              folderId: created.folderId,
+              dossierId: created.dossierId,
+            }
+          }
+        } catch (err) {
+          if (isAbortError(err)) throw err
+          const error = translateError(err)
+          slotResults[index] = { file, relativePath, status: 'error', error }
+          if (isPageQuotaUploadExceededMessage(error)) {
+            stopClaiming = true
+          }
+        } finally {
+          if (slotResults[index]) {
+            completed += 1
+            reportProgress()
+          }
+        }
+      },
+      {
+        signal,
+        shouldContinue: () => !stopClaiming,
+      },
+    )
+  } catch (err) {
+    if (!isAbortError(err)) throw err
+  }
+
+  const results = slotResults.filter(
+    (item): item is FileUploadResult => item != null,
+  )
 
   onProgress?.({
     total: files.length,

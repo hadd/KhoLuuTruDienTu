@@ -14,6 +14,7 @@ export const dataManagementSearchSchema = z.object({
   /** Navigation key `${groupIndex}-${fieldIndex}` for resume after reload. */
   focusFieldKey: z.string().optional().catch(undefined),
   projectCode: z.string().optional().catch(undefined),
+  detailTab: z.enum(['metadata', 'editHistory']).optional().catch(undefined),
 })
 
 export type DataManagementSearch = z.infer<typeof dataManagementSearchSchema>

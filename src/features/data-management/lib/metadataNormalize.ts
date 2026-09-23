@@ -20,6 +20,32 @@ const DATE_FIELD_NAMES: ReadonlySet<string> = new Set([
 ])
 
 /**
+ * Document number fields that must stay string (alphanumeric) even when OCR
+ * marks them as 'number'. Exact name match only — do not include count fields
+ * like TONG_SO_VAN_BAN.
+ */
+const DOCUMENT_NUMBER_STRING_FIELD_NAMES: ReadonlySet<string> = new Set([
+  'SO_CUA_VAN_BAN',
+  'SO_VAN_BAN',
+])
+
+const DOCUMENT_NUMBER_STRING_DISPLAYS: ReadonlySet<string> = new Set([
+  'SỐ CỦA VĂN BẢN',
+  'SỐ VĂN BẢN',
+])
+
+/** True when the field is the document number (so van ban), not a count field. */
+export function isDocumentNumberStringField(
+  fieldName: string,
+  fieldDisplay?: string,
+): boolean {
+  const normalizedName = fieldName.trim().toUpperCase()
+  if (DOCUMENT_NUMBER_STRING_FIELD_NAMES.has(normalizedName)) return true
+  const normalizedDisplay = fieldDisplay?.trim()?.toUpperCase() ?? ''
+  return DOCUMENT_NUMBER_STRING_DISPLAYS.has(normalizedDisplay)
+}
+
+/**
  * Hardcoded metadata fields hidden from root-level scalar parsing only.
  * Group fields from JSON are shown as-is on the form (admin hidden-fields config may still hide some).
  *
@@ -63,8 +89,8 @@ export function filterHiddenMetadataFields<T extends { name: string }>(
 
 
 /**
- * Returns the effective field type, overriding 'string' → 'date' for
- * known date fields in HO_SO_LUU_TRU and TAI_LIEU_LUU_TRU.
+ * Returns the effective field type, overriding known date fields to 'date'
+ * and document-number fields to 'string' (even when declared as 'number').
  */
 export function resolveEffectiveFieldType(
   groupCode: string,
@@ -72,17 +98,23 @@ export function resolveEffectiveFieldType(
   declaredType: DataDocumentFieldT['type'],
   fieldDisplay?: string,
 ): DataDocumentFieldT['type'] {
+  if (isDocumentNumberStringField(fieldName, fieldDisplay)) {
+    return 'string'
+  }
+
   const normalizedName = fieldName.trim().toUpperCase()
   const normalizedDisplay = fieldDisplay?.trim()?.toUpperCase() ?? ''
-  
-  const isDateName = DATE_FIELD_NAMES.has(normalizedName) || 
-                     normalizedName.includes('THOI_GIAN_BAT_DAU') || 
-                     normalizedName.includes('THOI_GIAN_KET_THUC') ||
-                     normalizedDisplay.includes('THỜI GIAN BẮT ĐẦU') ||
-                     normalizedDisplay.includes('THỜI GIAN KẾT THÚC')
+
+  const isDateName =
+    DATE_FIELD_NAMES.has(normalizedName) ||
+    normalizedName.includes('THOI_GIAN_BAT_DAU') ||
+    normalizedName.includes('THOI_GIAN_KET_THUC') ||
+    normalizedDisplay.includes('THỜI GIAN BẮT ĐẦU') ||
+    normalizedDisplay.includes('THỜI GIAN KẾT THÚC')
 
   if (
-    (groupCode === HO_SO_LUU_TRU_GROUP_CODE || groupCode === TAI_LIEU_LUU_TRU_GROUP_CODE) &&
+    (groupCode === HO_SO_LUU_TRU_GROUP_CODE ||
+      groupCode === TAI_LIEU_LUU_TRU_GROUP_CODE) &&
     isDateName
   ) {
     return 'date'
@@ -360,7 +392,6 @@ export function ensureHoSoFondField(
 
 export const FOND_FIELD_NAMES: ReadonlyArray<string> = [
   HO_SO_FOND_FIELD,
-  'MA_PHONG',
   'TEN_PHONG',
   'PHONG_LUU_TRU',
 ]

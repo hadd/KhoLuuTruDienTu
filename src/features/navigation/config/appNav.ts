@@ -105,10 +105,13 @@ export const APP_SCREENS: Array<AppScreen> = [
     labelKey: 'admin.dashboard',
     icon: LayoutDashboard,
     requiredPermission: [
+      { module: 'dashboard', permissionKey: 'dashboard.personal' },
+      { module: 'dashboard', permissionKey: 'dashboard.team' },
+      { module: 'dashboard', permissionKey: 'dashboard.overview' },
+      { module: 'dashboard', permissionKey: 'dashboard.warehouse' },
       { module: 'dashboard', permissionKey: 'dashboard.editor' },
       { module: 'dashboard', permissionKey: 'dashboard.qc' },
       { module: 'dashboard', permissionKey: 'dashboard.admin' },
-      { module: 'dashboard', permissionKey: 'dashboard.warehouse' },
     ],
   },
   {

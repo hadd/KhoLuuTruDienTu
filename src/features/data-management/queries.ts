@@ -265,6 +265,7 @@ export function useUploadDataFolderMutation(
       storagePathPrefix,
       projectCode: requestProjectCode,
       runMode,
+      signal,
     }) =>
       uploadDataFolder(files, (p) => onProgressRef.current?.(p), {
         uploadPoint,
@@ -273,6 +274,7 @@ export function useUploadDataFolderMutation(
         projectCode: requestProjectCode ?? projectCodeRef.current,
         storagePathPrefix,
         runMode,
+        signal,
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({
@@ -317,6 +319,7 @@ export function useUploadDataDocumentsMutation(
       storagePathPrefix,
       projectCode: requestProjectCode,
       runMode,
+      signal,
     }) =>
       uploadDataDocuments(files, (p) => onProgressRef.current?.(p), {
         uploadPoint,
@@ -325,6 +328,7 @@ export function useUploadDataDocumentsMutation(
         projectCode: requestProjectCode ?? projectCodeRef.current,
         storagePathPrefix,
         runMode,
+        signal,
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({

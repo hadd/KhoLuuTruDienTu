@@ -4,7 +4,11 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { requirePermission } from '@/features/auth/routeGuards'
 import { MetadataHiddenFieldsPage } from '@/features/metadata-extract/components/MetadataHiddenFieldsPage'
-import { metadataHiddenFieldsQueryOptions } from '@/features/metadata-extract/queries'
+import { DEFAULT_METADATA_EXTRACT_MODE } from '@/features/metadata-extract/config/metadataExtractModes'
+import {
+  metadataExtractSettingsQueryOptions,
+  metadataHiddenFieldsQueryOptions,
+} from '@/features/metadata-extract/queries'
 import { APP_SCREEN_ACCESS } from '@/features/permissions/config/screenPermissionMap'
 import i18n from '@/lib/i18n/config'
 import { translateError } from '@/lib/utils/translate-error'
@@ -26,8 +30,15 @@ export const Route = createFileRoute('/app/data-config/metadata-hidden-fields')(
     )
   },
   loader: async ({ context }) => {
+    const settings = await context.queryClient.ensureQueryData(
+      metadataExtractSettingsQueryOptions(),
+    )
+    const mode =
+      settings?.mode && settings.mode !== 'off'
+        ? settings.mode
+        : DEFAULT_METADATA_EXTRACT_MODE
     await context.queryClient.ensureQueryData(
-      metadataHiddenFieldsQueryOptions(),
+      metadataHiddenFieldsQueryOptions(mode),
     )
     return {}
   },

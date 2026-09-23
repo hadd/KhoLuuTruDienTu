@@ -1,6 +1,10 @@
 import type {
+  AdminDashboardDossierChartT,
   AdminDashboardDossierTrendGranularityT,
+  AdminDashboardEmployeeKpiT,
   AdminDashboardT,
+  AdminDashboardWorkloadStatsT,
+  AdminDashboardWorkloadVolumeT,
 } from '@/features/admin-dashboard/types'
 import { apiClient } from '@/lib/api/apiClient'
 import type { SingleResourceResponse } from '@/types/api'
@@ -60,12 +64,23 @@ type AdminDashboardEmployeeKpiRawT = Partial<AdminDashboardEmployeeKpiT> & {
   id?: string
   name?: string
   userFullName?: string
+  avgProcessingTimeSeconds?: number
 }
+
+type AdminDashboardWorkloadVolumeRawT = Partial<AdminDashboardWorkloadVolumeT>
+type AdminDashboardWorkloadStatsRawT = Partial<{
+  total: AdminDashboardWorkloadVolumeRawT
+  unentered: AdminDashboardWorkloadVolumeRawT
+  unassigned: AdminDashboardWorkloadVolumeRawT
+  completed: AdminDashboardWorkloadVolumeRawT
+  error: AdminDashboardWorkloadVolumeRawT
+}>
 
 type AdminDashboardRawT = Partial<AdminDashboardT> & {
   overview?: AdminDashboardOverviewRawT
   systemDossiers?: AdminDashboardSystemDossiersRawT
   systemProjects?: AdminDashboardSystemProjectsRawT
+  workloadStats?: AdminDashboardWorkloadStatsRawT
   dossierChart?: AdminDashboardDossierChartRawT
   performance?: AdminDashboardPerformanceRawT
   groups?: Array<AdminDashboardGroupRawT>
@@ -143,6 +158,8 @@ function normalizeEmployeeKpi(
   const completedDossiersCount = item.completedDossiersCount ?? 0
   const assignedPagesCount = item.assignedPagesCount ?? 0
   const completedPagesCount = item.completedPagesCount ?? 0
+  const assignedFilesCount = item.assignedFilesCount ?? 0
+  const completedFilesCount = item.completedFilesCount ?? 0
 
   const dossierCompletionRate =
     item.dossierCompletionRate ??
@@ -154,6 +171,12 @@ function normalizeEmployeeKpi(
     item.pageCompletionRate ??
     (assignedPagesCount > 0
       ? Math.round((completedPagesCount / assignedPagesCount) * 1000) / 10
+      : 0)
+
+  const fileCompletionRate =
+    item.fileCompletionRate ??
+    (assignedFilesCount > 0
+      ? Math.round((completedFilesCount / assignedFilesCount) * 1000) / 10
       : 0)
 
   const accuracyRate = item.accuracyRate ?? 95
@@ -179,15 +202,21 @@ function normalizeEmployeeKpi(
   const makerCompletedDossiersCount = item.makerCompletedDossiersCount ?? (isEditor ? completedDossiersCount : 0)
   const makerAssignedPagesCount = item.makerAssignedPagesCount ?? (isEditor ? assignedPagesCount : 0)
   const makerCompletedPagesCount = item.makerCompletedPagesCount ?? (isEditor ? completedPagesCount : 0)
+  const makerAssignedFilesCount = item.makerAssignedFilesCount ?? (isEditor ? assignedFilesCount : 0)
+  const makerCompletedFilesCount = item.makerCompletedFilesCount ?? (isEditor ? completedFilesCount : 0)
   const makerDossierCompletionRate = item.makerDossierCompletionRate ?? (makerAssignedDossiersCount > 0 ? Math.round((makerCompletedDossiersCount / makerAssignedDossiersCount) * 1000) / 10 : 0)
   const makerPageCompletionRate = item.makerPageCompletionRate ?? (makerAssignedPagesCount > 0 ? Math.round((makerCompletedPagesCount / makerAssignedPagesCount) * 1000) / 10 : 0)
+  const makerFileCompletionRate = item.makerFileCompletionRate ?? (makerAssignedFilesCount > 0 ? Math.round((makerCompletedFilesCount / makerAssignedFilesCount) * 1000) / 10 : 0)
 
   const qcAssignedDossiersCount = item.qcAssignedDossiersCount ?? (isQc ? assignedDossiersCount : 0)
   const qcCompletedDossiersCount = item.qcCompletedDossiersCount ?? (isQc ? completedDossiersCount : 0)
   const qcAssignedPagesCount = item.qcAssignedPagesCount ?? (isQc ? assignedPagesCount : 0)
   const qcCompletedPagesCount = item.qcCompletedPagesCount ?? (isQc ? completedPagesCount : 0)
+  const qcAssignedFilesCount = item.qcAssignedFilesCount ?? (isQc ? assignedFilesCount : 0)
+  const qcCompletedFilesCount = item.qcCompletedFilesCount ?? (isQc ? completedFilesCount : 0)
   const qcDossierCompletionRate = item.qcDossierCompletionRate ?? (qcAssignedDossiersCount > 0 ? Math.round((qcCompletedDossiersCount / qcAssignedDossiersCount) * 1000) / 10 : 0)
   const qcPageCompletionRate = item.qcPageCompletionRate ?? (qcAssignedPagesCount > 0 ? Math.round((qcCompletedPagesCount / qcAssignedPagesCount) * 1000) / 10 : 0)
+  const qcFileCompletionRate = item.qcFileCompletionRate ?? (qcAssignedFilesCount > 0 ? Math.round((qcCompletedFilesCount / qcAssignedFilesCount) * 1000) / 10 : 0)
 
   return {
     userId: item.userId ?? item.id ?? `user-${index + 1}`,
@@ -200,140 +229,56 @@ function normalizeEmployeeKpi(
     rejectedDossiersCount,
     assignedPagesCount,
     completedPagesCount,
+    assignedFilesCount,
+    completedFilesCount,
     dossierCompletionRate,
     pageCompletionRate,
+    fileCompletionRate,
     makerAssignedDossiersCount,
     makerCompletedDossiersCount,
     makerAssignedPagesCount,
     makerCompletedPagesCount,
+    makerAssignedFilesCount,
+    makerCompletedFilesCount,
     makerDossierCompletionRate,
     makerPageCompletionRate,
+    makerFileCompletionRate,
     qcAssignedDossiersCount,
     qcCompletedDossiersCount,
     qcAssignedPagesCount,
     qcCompletedPagesCount,
+    qcAssignedFilesCount,
+    qcCompletedFilesCount,
     qcDossierCompletionRate,
     qcPageCompletionRate,
+    qcFileCompletionRate,
     accuracyRate,
     avgProcessingTimeMinutes,
     kpiStatus: item.kpiStatus ?? kpiStatus,
   }
 }
 
-const FALLBACK_EMPLOYEE_KPIS: Array<AdminDashboardEmployeeKpiT> = [
-  {
-    userId: 'emp-1',
-    fullName: 'Nguyễn Văn An',
-    role: 'editor',
-    groupName: 'Nhóm Biên Tập 1',
-    assignedDossiersCount: 60,
-    completedDossiersCount: 54,
-    rejectedDossiersCount: 2,
-    assignedPagesCount: 600,
-    completedPagesCount: 540,
-    dossierCompletionRate: 90.0,
-    pageCompletionRate: 90.0,
-    accuracyRate: 98.5,
-    avgProcessingTimeMinutes: 12,
-    kpiStatus: 'EXCELLENT',
-  },
-  {
-    userId: 'emp-2',
-    fullName: 'Trần Thị Bình',
-    role: 'editor',
-    groupName: 'Nhóm Biên Tập 1',
-    assignedDossiersCount: 45,
-    completedDossiersCount: 42,
-    rejectedDossiersCount: 3,
-    assignedPagesCount: 480,
-    completedPagesCount: 450,
-    dossierCompletionRate: 93.3,
-    pageCompletionRate: 93.8,
-    accuracyRate: 96.0,
-    avgProcessingTimeMinutes: 15,
-    kpiStatus: 'EXCELLENT',
-  },
-  {
-    userId: 'emp-3',
-    fullName: 'Lê Hoàng Cường',
-    role: 'qc',
-    groupName: 'Nhóm Kiểm Duyệt A',
-    assignedDossiersCount: 80,
-    completedDossiersCount: 78,
-    rejectedDossiersCount: 1,
-    assignedPagesCount: 850,
-    completedPagesCount: 830,
-    dossierCompletionRate: 97.5,
-    pageCompletionRate: 97.6,
-    accuracyRate: 99.1,
-    avgProcessingTimeMinutes: 8,
-    kpiStatus: 'EXCELLENT',
-  },
-  {
-    userId: 'emp-4',
-    fullName: 'Phạm Minh Đức',
-    role: 'editor',
-    groupName: 'Nhóm Biên Tập 2',
-    assignedDossiersCount: 50,
-    completedDossiersCount: 40,
-    rejectedDossiersCount: 8,
-    assignedPagesCount: 520,
-    completedPagesCount: 410,
-    dossierCompletionRate: 80.0,
-    pageCompletionRate: 78.8,
-    accuracyRate: 84.2,
-    avgProcessingTimeMinutes: 22,
-    kpiStatus: 'GOOD',
-  },
-  {
-    userId: 'emp-5',
-    fullName: 'Đỗ Thị Giang',
-    role: 'qc',
-    groupName: 'Nhóm Kiểm Duyệt B',
-    assignedDossiersCount: 70,
-    completedDossiersCount: 68,
-    rejectedDossiersCount: 2,
-    assignedPagesCount: 750,
-    completedPagesCount: 730,
-    dossierCompletionRate: 97.1,
-    pageCompletionRate: 97.3,
-    accuracyRate: 98.8,
-    avgProcessingTimeMinutes: 10,
-    kpiStatus: 'EXCELLENT',
-  },
-  {
-    userId: 'emp-6',
-    fullName: 'Vũ Quốc Hùng',
-    role: 'editor',
-    groupName: 'Nhóm Biên Tập 2',
-    assignedDossiersCount: 55,
-    completedDossiersCount: 50,
-    rejectedDossiersCount: 6,
-    assignedPagesCount: 580,
-    completedPagesCount: 530,
-    dossierCompletionRate: 90.9,
-    pageCompletionRate: 91.4,
-    accuracyRate: 91.5,
-    avgProcessingTimeMinutes: 18,
-    kpiStatus: 'GOOD',
-  },
-  {
-    userId: 'emp-7',
-    fullName: 'Hoàng Thị Mai',
-    role: 'editor',
-    groupName: 'Nhóm Biên Tập 1',
-    assignedDossiersCount: 40,
-    completedDossiersCount: 38,
-    rejectedDossiersCount: 4,
-    assignedPagesCount: 400,
-    completedPagesCount: 380,
-    dossierCompletionRate: 95.0,
-    pageCompletionRate: 95.0,
-    accuracyRate: 76.8,
-    avgProcessingTimeMinutes: 25,
-    kpiStatus: 'WARNING',
-  },
-]
+function normalizeWorkloadVolume(
+  raw?: AdminDashboardWorkloadVolumeRawT,
+): AdminDashboardWorkloadVolumeT {
+  return {
+    dossiers: raw?.dossiers ?? 0,
+    files: raw?.files ?? 0,
+    pages: raw?.pages ?? 0,
+  }
+}
+
+function normalizeWorkloadStats(
+  raw?: AdminDashboardWorkloadStatsRawT,
+): AdminDashboardWorkloadStatsT {
+  return {
+    total: normalizeWorkloadVolume(raw?.total),
+    unentered: normalizeWorkloadVolume(raw?.unentered),
+    unassigned: normalizeWorkloadVolume(raw?.unassigned),
+    completed: normalizeWorkloadVolume(raw?.completed),
+    error: normalizeWorkloadVolume(raw?.error),
+  }
+}
 
 function normalizeSystemDossiers(
   raw: AdminDashboardSystemDossiersRawT | undefined,
@@ -386,15 +331,12 @@ function normalizeDashboard(raw: AdminDashboardRawT): AdminDashboardT {
   const totalDossiers = raw.totalDossiers ?? overview?.totalDossiers ?? 0
   const rawEmployeeKpis = raw.employeeKpis ?? raw.userKpis
 
-  const employeeKpis = rawEmployeeKpis
-    ? rawEmployeeKpis.map(normalizeEmployeeKpi)
-    : FALLBACK_EMPLOYEE_KPIS
-
   return {
     totalDossiers,
     byStatus: raw.byStatus ?? overview?.byStatus ?? {},
     systemDossiers: normalizeSystemDossiers(raw.systemDossiers, totalDossiers),
     systemProjects: normalizeSystemProjects(raw.systemProjects),
+    workloadStats: normalizeWorkloadStats(raw.workloadStats),
     totalActiveUsers: raw.totalActiveUsers ?? overview?.totalActiveUsers ?? 0,
     totalGroups: raw.totalGroups ?? overview?.totalGroups ?? 0,
     byRole: normalizeByRole(raw.byRole ?? overview?.byRole),
@@ -414,7 +356,7 @@ function normalizeDashboard(raw: AdminDashboardRawT): AdminDashboardT {
     dossierChart: normalizeDossierChart(raw.dossierChart),
     ocrActivityTrend: ocrActivityTrend.map(normalizeOcrTrendPoint),
     recentActivities: recentActivities.map(normalizeActivity),
-    employeeKpis,
+    employeeKpis: rawEmployeeKpis ? rawEmployeeKpis.map(normalizeEmployeeKpi) : [],
   }
 }
 
@@ -428,23 +370,64 @@ function unwrapDashboardResponse(
   return data
 }
 
-export const getAdminDashboard = async (params?: {
-  dossierTrendGranularity?: AdminDashboardDossierTrendGranularityT
-  dateFrom?: string
-  dateTo?: string
-}): Promise<AdminDashboardT> => {
+export const getAdminDashboard = async (): Promise<AdminDashboardT> => {
   const response = await apiClient.get<
     AdminDashboardRawT | SingleResourceResponse<AdminDashboardRawT>
   >('/api/v1/admin/dashboard/', {
     timeout: 90_000,
+  })
+
+  return normalizeDashboard(unwrapDashboardResponse(response.data))
+}
+
+export const getAdminEmployeeKpis = async (params?: {
+  dateFrom?: string
+  dateTo?: string
+}): Promise<Array<AdminDashboardEmployeeKpiT>> => {
+  const response = await apiClient.get<
+    | { employeeKpis?: Array<AdminDashboardEmployeeKpiRawT> }
+    | SingleResourceResponse<{ employeeKpis?: Array<AdminDashboardEmployeeKpiRawT> }>
+  >('/api/v1/admin/dashboard/employee-kpis', {
+    timeout: 90_000,
     params: {
-      ...(params?.dossierTrendGranularity
-        ? { granularity: params.dossierTrendGranularity }
-        : {}),
       ...(params?.dateFrom ? { dateFrom: params.dateFrom } : {}),
       ...(params?.dateTo ? { dateTo: params.dateTo } : {}),
     },
   })
 
-  return normalizeDashboard(unwrapDashboardResponse(response.data))
+  const payload = response.data
+  const raw =
+    typeof payload === 'object' &&
+    payload !== null &&
+    'record' in payload
+      ? (payload as SingleResourceResponse<{ employeeKpis?: Array<AdminDashboardEmployeeKpiRawT> }>).record
+      : (payload as { employeeKpis?: Array<AdminDashboardEmployeeKpiRawT> })
+
+  return (raw.employeeKpis ?? []).map(normalizeEmployeeKpi)
+}
+
+export const getAdminDossierChart = async (params?: {
+  dossierTrendGranularity?: AdminDashboardDossierTrendGranularityT
+  dateFrom?: string
+  dateTo?: string
+}): Promise<AdminDashboardDossierChartT> => {
+  const response = await apiClient.get<
+    AdminDashboardDossierChartRawT | SingleResourceResponse<AdminDashboardDossierChartRawT>
+  >('/api/v1/admin/dashboard/dossier-chart', {
+    timeout: 90_000,
+    params: {
+      chartGranularity: params?.dossierTrendGranularity ?? 'month',
+      ...(params?.dateFrom ? { dateFrom: params.dateFrom } : {}),
+      ...(params?.dateTo ? { dateTo: params.dateTo } : {}),
+    },
+  })
+
+  const raw =
+    typeof response.data === 'object' &&
+    response.data !== null &&
+    'record' in response.data
+      ? (response.data as SingleResourceResponse<AdminDashboardDossierChartRawT>).record
+      : (response.data as AdminDashboardDossierChartRawT)
+
+  return normalizeDossierChart(raw)
 }

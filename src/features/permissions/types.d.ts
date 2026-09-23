@@ -15,6 +15,8 @@ export interface PermissionRoleT {
 export interface RolePermissionRulesT {
   permissions: Array<string>
   restrictions: Array<string>
+  /** Dashboard widget hide list — configured in DB only, not via permission UI. */
+  hidden: Array<string>
 }
 
 export interface RolePermissionsRecordT {

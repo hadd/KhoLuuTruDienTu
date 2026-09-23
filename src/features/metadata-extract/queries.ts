@@ -44,17 +44,27 @@ export const metadataExtractSettingsQueryOptions = () =>
     staleTime: 30_000,
   })
 
-export const metadataHiddenFieldsQueryOptions = () =>
+export const metadataHiddenFieldsQueryOptions = (mode?: string) =>
   queryOptions({
-    queryKey: metadataHiddenFieldsQueryKey,
-    queryFn: getMetadataHiddenFields,
+    queryKey: mode
+      ? ([...metadataHiddenFieldsQueryKey, mode] as const)
+      : metadataHiddenFieldsQueryKey,
+    queryFn: () =>
+      getMetadataHiddenFields(
+        mode ? { metadataExtractModeCode: mode } : undefined,
+      ),
     staleTime: 10_000,
   })
 
-export const activeMetadataHiddenFieldsQueryOptions = () =>
+export const activeMetadataHiddenFieldsQueryOptions = (mode?: string) =>
   queryOptions({
-    queryKey: activeMetadataHiddenFieldsQueryKey,
-    queryFn: getActiveMetadataHiddenFields,
+    queryKey: mode
+      ? ([...activeMetadataHiddenFieldsQueryKey, mode] as const)
+      : activeMetadataHiddenFieldsQueryKey,
+    queryFn: () =>
+      getActiveMetadataHiddenFields(
+        mode ? { metadataExtractModeCode: mode } : undefined,
+      ),
     staleTime: 10_000,
   })
 

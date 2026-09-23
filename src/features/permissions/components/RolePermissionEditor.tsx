@@ -65,11 +65,13 @@ export function RolePermissionEditor({
     nextHiddenPermissions?: Array<string>,
   ) => {
     if (!selectedRoleId) return
+    // Capture role id at call time to avoid racing with role-switch in the UI.
+    const roleId = selectedRoleId
 
     setPendingKey(pendingId)
     updatePermissions.mutate(
       {
-        roleId: selectedRoleId,
+        roleId,
         permissions: nextPermissions,
         restrictions,
         hiddenPermissions: nextHiddenPermissions ?? rolePermissions?.hiddenPermissions,
@@ -658,12 +660,16 @@ function CollapsiblePermissionGroup({
 
   const allGroupItems = [parentItem, ...childItems]
   const isAllGranted = parentGranted && allChildrenGranted
+  const isPartialGranted =
+    !isAllGranted && (parentGranted || grantedChildCount > 0)
 
-  const handleToggleAllSub = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!onToggleItems || disabled) return
-    onToggleItems(allGroupItems, isAllGranted, `group-all:${parentItem.key}`)
+  const handleToggleParent = () => {
+    if (disabled) return
+    if (onToggleItems) {
+      onToggleItems(allGroupItems, isAllGranted, `group-all:${parentItem.key}`)
+      return
+    }
+    onToggle(parentItem, parentGranted)
   }
 
   return (
@@ -701,9 +707,15 @@ function CollapsiblePermissionGroup({
             )}
           >
             <Checkbox
-              checked={parentGranted}
+              checked={
+                isAllGranted
+                  ? true
+                  : isPartialGranted
+                    ? 'indeterminate'
+                    : false
+              }
               disabled={disabled}
-              onCheckedChange={() => onToggle(parentItem, parentGranted)}
+              onCheckedChange={handleToggleParent}
               className="mt-0.5 shrink-0"
             />
             <span className="min-w-0 flex-1">
@@ -719,7 +731,6 @@ function CollapsiblePermissionGroup({
           </label>
         </div>
 
-        {/* Counter & Quick action buttons */}
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs font-medium text-muted-foreground bg-background px-2 py-0.5 rounded border border-border">
             {t('matrix.subPermissionCount', {
@@ -727,20 +738,6 @@ function CollapsiblePermissionGroup({
               total: childItems.length,
             })}
           </span>
-
-          {onToggleItems && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs font-medium px-2.5"
-              disabled={disabled}
-              onClick={handleToggleAllSub}
-              title={t('matrix.quickSelectAllTitle')}
-            >
-              {isAllGranted ? t('matrix.deselectAll') : t('matrix.quickSelectAll')}
-            </Button>
-          )}
 
           {showHideControls && (
             <Button

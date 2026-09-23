@@ -28,6 +28,7 @@ const MODULE_I18N_OVERRIDES: Record<string, string> = {
   notifications: 'modules.notifications',
   watermark: 'modules.watermark',
   roles: 'modules.roles',
+  auth: 'modules.auth',
   'scan-intake': 'modules.scan-intake',
   'ocr-control': 'modules.ocr-control',
   profile: 'modules.profile',

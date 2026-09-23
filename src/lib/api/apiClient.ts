@@ -284,20 +284,42 @@ const request = async <T>(config: RequestConfig): Promise<AxiosResponse<T>> => {
 
     // 4. Handle different error types with toast notifications
     const status = axiosError.response?.status
-    let responseData = axiosError.response?.data as
-      | { message?: unknown; error?: unknown }
-      | undefined
+    let responseData = axiosError.response?.data
     if (axiosError.response?.data instanceof Blob) {
       try {
-        responseData = JSON.parse(await axiosError.response.data.text()) as {
-          message?: unknown
-          error?: unknown
-        }
+        responseData = JSON.parse(await axiosError.response.data.text())
       } catch {
         responseData = undefined
       }
     }
-    const apiErrorMessage = coerceApiErrorMessage(responseData)
+
+    const resolveApiErrorMessage = (data: unknown): string | undefined => {
+      if (!data) return undefined
+      if (typeof data === 'string' && data.trim()) return data.trim()
+      if (typeof data === 'object') {
+        const obj = data as Record<string, unknown>
+        if (typeof obj.message === 'string' && obj.message.trim()) {
+          return obj.message.trim()
+        }
+        if (typeof obj.error === 'string' && obj.error.trim()) {
+          return obj.error.trim()
+        }
+        if (obj.error && typeof obj.error === 'object') {
+          const errObj = obj.error as Record<string, unknown>
+          if (typeof errObj.summary === 'string' && errObj.summary.trim()) {
+            return errObj.summary.trim()
+          }
+          if (typeof errObj.message === 'string' && errObj.message.trim()) {
+            return errObj.message.trim()
+          }
+        }
+        if (typeof obj.detail === 'string' && obj.detail.trim()) {
+          return obj.detail.trim()
+        }
+      }
+      return undefined
+    }
+    const apiErrorMessage = resolveApiErrorMessage(responseData)
 
     // Handle 403 - Access Denied (skip toast for password gates / wrong password — caller shows unlock UI)
     if (status === 403) {

@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
 import {
-  canAccessModule,
   getCurrentUserRoleId,
+  isPermissionGranted,
   resolvePermissionsForUser,
 } from '@/features/auth/lib/permission-access'
 import { profileQueryOptions } from '@/features/auth/queries'
@@ -25,7 +25,11 @@ export function usePermissionManagementAccess() {
 
     return {
       permissions,
-      canViewPermissions: canAccessModule(permissions, 'roles'),
+      canViewPermissions: isPermissionGranted(
+        permissions,
+        'roles.manage',
+        'roles',
+      ),
     }
   }, [user, rolePermissions])
 }

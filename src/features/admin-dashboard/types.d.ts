@@ -19,7 +19,12 @@ export type AdminDashboardDossierStatusT =
   | 'WAITING_CHECKER_5'
   | 'CHECKER_5_PROCESSING'
   | 'CHECKER_5_REJECTED'
+  | 'WAITING_ISSUE_RESOLUTION'
+  | 'ERROR'
   | 'APPROVED'
+  | 'PENDING_ARCHIVE'
+  | 'ARCHIVE_REJECTED'
+  | 'ARCHIVED'
 
 export type AdminDashboardDossierStatusCountsT = Partial<
   Record<AdminDashboardDossierStatusT, number>
@@ -65,6 +70,20 @@ export type AdminDashboardSystemProjectsT = {
   completionRate: number
 }
 
+export type AdminDashboardWorkloadVolumeT = {
+  dossiers: number
+  files: number
+  pages: number
+}
+
+export type AdminDashboardWorkloadStatsT = {
+  total: AdminDashboardWorkloadVolumeT
+  unentered: AdminDashboardWorkloadVolumeT
+  unassigned: AdminDashboardWorkloadVolumeT
+  completed: AdminDashboardWorkloadVolumeT
+  error: AdminDashboardWorkloadVolumeT
+}
+
 export type AdminDashboardOcrTrendPointT = {
   label: string
   count: number
@@ -97,22 +116,29 @@ export type AdminDashboardEmployeeKpiT = {
   rejectedDossiersCount?: number
   assignedPagesCount: number
   completedPagesCount: number
+  assignedFilesCount: number
+  completedFilesCount: number
   dossierCompletionRate: number
   pageCompletionRate: number
-  // Biên tập (Maker)
+  fileCompletionRate: number
   makerAssignedDossiersCount?: number
   makerCompletedDossiersCount?: number
   makerAssignedPagesCount?: number
   makerCompletedPagesCount?: number
+  makerAssignedFilesCount?: number
+  makerCompletedFilesCount?: number
   makerDossierCompletionRate?: number
   makerPageCompletionRate?: number
-  // Duyệt (QC)
+  makerFileCompletionRate?: number
   qcAssignedDossiersCount?: number
   qcCompletedDossiersCount?: number
   qcAssignedPagesCount?: number
   qcCompletedPagesCount?: number
+  qcAssignedFilesCount?: number
+  qcCompletedFilesCount?: number
   qcDossierCompletionRate?: number
   qcPageCompletionRate?: number
+  qcFileCompletionRate?: number
   accuracyRate: number
   avgProcessingTimeMinutes?: number
   kpiStatus?: 'EXCELLENT' | 'GOOD' | 'WARNING' | 'CRITICAL'
@@ -123,6 +149,7 @@ export type AdminDashboardT = {
   byStatus: AdminDashboardDossierStatusCountsT
   systemDossiers: AdminDashboardSystemDossiersT
   systemProjects: AdminDashboardSystemProjectsT
+  workloadStats: AdminDashboardWorkloadStatsT
   totalActiveUsers: number
   totalGroups: number
   byRole: AdminDashboardRoleDistributionT

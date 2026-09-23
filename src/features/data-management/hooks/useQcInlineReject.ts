@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { useRejectCheckerDossierMutation } from '@/features/data-management/queries'
+import { translateError } from '@/lib/utils/translate-error'
 
 export function useQcInlineReject({
   dossierId,
@@ -45,18 +46,19 @@ export function useQcInlineReject({
     setIsHandlingReject(true)
 
     try {
+      const notes =
+        rejectNotes.trim() ||
+        t('metadata.rejectInline.defaultNote', 'QC từ chối')
       await rejectMutation.mutateAsync({
         dossierId,
-        notes: rejectNotes.trim(),
+        notes,
         rejectFields: Array.from(rejectFieldKeys),
       })
       toast.success(t('metadata.rejectSuccess'))
       clearRejectSelection()
       await onSuccess()
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : t('metadata.rejectError')
-      toast.error(message)
+      toast.error(translateError(error) || t('metadata.rejectError'))
     } finally {
       setIsHandlingReject(false)
     }
