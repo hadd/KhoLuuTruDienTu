@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { IdParam } from "@shared/common-lib";
+import { IdParam, httpError } from "@shared/common-lib";
 import { DossierService as service } from "./dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
@@ -598,6 +598,31 @@ export function createDossierRouter(basePath: string = "/dossiers") {
       return { record, status: "updated" };
     },
     docs.update,
+  );
+
+  app.patch(
+    "/:id/fond",
+    async ({ params, body, profile }) => {
+      authHelper.checkPermissionAny(profile, [
+        Permission.DOSSIERS_WRITE,
+        Permission.DATA_ENTRY_MAKER,
+        Permission.DATA_ENTRY_CHECKER,
+      ]);
+      const record = await service.assignFond(params.id, body.fondId ?? null);
+      return { record, status: "updated" };
+    },
+    {
+      params: t.Object({ id: IdParam("Dossier ID") }),
+      body: t.Object({
+        fondId: t.Union([t.String(), t.Null()]),
+      }),
+      detail: {
+        tags,
+        summary: "Gán phông lưu trữ cho hồ sơ tức thì",
+        description:
+          "Cập nhật trường fondId của hồ sơ ngay khi người dùng chọn phông trong dropdown.",
+      },
+    },
   );
 
   app.post(

@@ -1,4 +1,5 @@
 import {
+    boolean,
     integer,
     jsonb,
     text,
@@ -22,6 +23,7 @@ export const documentNamingConfigs = schema.table("document_naming_configs", {
     }),
     segments: jsonb("segments").$type<DocumentNamingSegment[]>().notNull().default([]),
     autoIncrementCounter: integer("auto_increment_counter").notNull().default(1),
+    applyOnApprove: boolean("apply_on_approve").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
