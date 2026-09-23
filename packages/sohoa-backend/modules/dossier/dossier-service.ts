@@ -20,6 +20,7 @@ import { dossiers } from "../../db/schemas/dossier.ts";
 import { getPdfPageCount } from "../../libs/pdf-page-counter.ts";
 import { assertUploadFitsRemaining } from "../page-quota/page-quota-service.ts";
 import { folders } from "../../db/schemas/folder.ts";
+import { fonds } from "../../db/schemas/fond.ts";
 import { userProfiles } from "../../db/schemas/user_profile.ts";
 import {
   AssignmentStatus,
@@ -397,7 +398,7 @@ function isDossierEligibleForProjectAssign(dossier: {
 async function forceReconcileFolderProjectAlongPath(
   tx: DbTx,
   folderPath: string,
-  projectCode: string,
+  projectCode: string | null,
 ) {
   const segments = splitFolderSegments(folderPath);
 
@@ -1299,7 +1300,7 @@ async function buildApprovedMetadataExportZip(
     async (dossier) => {
       const metadata = await loadDossierMetadataFromStorage(dossier);
       const files = input?.skippedFileIds
-        ? (dossier.files ?? []).filter((f) => !input.skippedFileIds!.has(f.id))
+        ? (dossier.files ?? []).filter((f) => !f.id || !input.skippedFileIds!.has(f.id))
         : (dossier.files ?? []);
       return {
         dossier: { ...dossier, files },
@@ -2425,7 +2426,11 @@ export const DossierService = {
       for (const folderId of folderIds) {
         let currentId: string | null = folderId;
         while (currentId) {
-          const folder = await tx.query.folders.findFirst({
+          const folder: {
+            id: string;
+            parentId: string | null;
+            deletedAt: Date | null;
+          } | undefined = await tx.query.folders.findFirst({
             where: eq(folders.id, currentId),
             columns: { id: true, parentId: true, deletedAt: true },
           });
@@ -4086,5 +4091,35 @@ export const DossierService = {
       currentMetadataUrl,
       dossierStatus: updatedDossier.status,
     };
+  },
+
+  async assignFond(dossierId: string, fondId: string | null) {
+    const cleanFondId = fondId?.trim() || null;
+    if (cleanFondId) {
+      const fond = await db.query.fonds.findFirst({
+        where: and(eq(fonds.id, cleanFondId), isNull(fonds.deletedAt)),
+      });
+      if (!fond) {
+        throw httpError.notFound(`Fond not found: ${cleanFondId}`);
+      }
+    }
+
+    const [updated] = await db
+      .update(dossiers)
+      .set({
+        fondId: cleanFondId,
+        updatedAt: new Date(),
+      })
+      .where(activeDossierWhere(eq(dossiers.id, dossierId)))
+      .returning({
+        id: dossiers.id,
+        fondId: dossiers.fondId,
+      });
+
+    if (!updated) {
+      throw httpError.notFound("Dossier not found");
+    }
+
+    return updated;
   },
 };

@@ -108,6 +108,7 @@ export function createDocumentNamingConfigAdminRouter(
                 ),
                 dossierId: t.Optional(t.Nullable(t.String({ format: "uuid" }))),
                 segments: t.Array(namingSegmentSchema, { minItems: 1 }),
+                applyOnApprove: t.Optional(t.Boolean()),
             }),
             detail: {
                 tags,
