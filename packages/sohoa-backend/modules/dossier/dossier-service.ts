@@ -104,6 +104,7 @@ import {
   downloadExportPdfSource,
   tryDownloadBinaryFromStorage,
   downloadJsonFromStorage,
+  listJsonObjectsUnderPrefix,
   resolveMetadataJsonKey,
   uploadJsonToStorage,
 } from "../data-entry/data-entry-s3-utils.ts";
@@ -1548,8 +1549,10 @@ async function loadDossierMetadataFromStorage(dossier: DossierWithFiles) {
       dossierName: dossier.name,
       currentMetadataKey: dossier.currentMetadataKey,
       ocrMetadataKey: dossier.ocrMetadataKey,
+      folderPath: dossier.folderPath,
     },
     downloadJsonFromStorage,
+    { listSiblingJsonKeys: listJsonObjectsUnderPrefix },
   );
   const metadata = parseDossierMetadata(rawMetadata);
 

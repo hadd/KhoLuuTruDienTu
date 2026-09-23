@@ -25,11 +25,14 @@ import {
   AssignmentStatus,
   DossierStatus,
 } from "../../db/schemas/workflow-constants.ts";
-import { buildLinkGet } from "../data-entry/data-entry-s3-utils.ts";
+import {
+  buildLinkGet,
+  listJsonObjectsUnderPrefix,
+} from "../data-entry/data-entry-s3-utils.ts";
+import { resolveReadableMetadataStorageKey } from "../data-entry/load-dossier-metadata-json.ts";
 import {
   findWorkableEditorAssignment,
   resolveDossierDraftKey,
-  resolveDossierMetadataBaseKey,
 } from "../data-entry/metadata-draft-service.ts";
 import {
   getRawStoragePrefix,
@@ -1041,11 +1044,17 @@ async function listDossierFiles(
     ? resolveDossierDraftKey({
         currentMetadataKey: dossier.currentMetadataKey,
         ocrMetadataKey: dossier.ocrMetadataKey,
+        assignmentId: assignment?.id,
       })
-    : resolveDossierMetadataBaseKey({
+    : await resolveReadableMetadataStorageKey(
+      {
+        dossierName: dossier.name,
         currentMetadataKey: dossier.currentMetadataKey,
         ocrMetadataKey: dossier.ocrMetadataKey,
-      });
+        folderPath: dossier.folderPath,
+      },
+      { listSiblingJsonKeys: listJsonObjectsUnderPrefix },
+    );
   const metadataKeyJson =
     rawMetadataKey && !rawMetadataKey.endsWith(".json")
       ? `${rawMetadataKey}.json`
