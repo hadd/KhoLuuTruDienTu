@@ -389,7 +389,7 @@
     "revokeAll": {
       "button": "Thu hồi tất cả",
       "confirmTitle": "Thu hồi toàn bộ phân công?",
-      "confirmDescription": "Thu hồi phân công của {{name}} cho {{count}} hồ sơ (sẵn sàng nhập liệu và đang nhập liệu). Hồ sơ vẫn thuộc nhóm để phân công lại.",
+      "confirmDescription": "Thu hồi phân công của {{name}} cho {{count}} hồ sơ sẵn sàng nhập liệu. Hồ sơ đang nhập liệu được giữ nguyên. Hồ sơ vẫn thuộc nhóm để phân công lại.",
       "confirmSubmit": "Thu hồi",
       "success": "Đã thu hồi {{count}} hồ sơ.",
       "error": "Không thể thu hồi phân công."
