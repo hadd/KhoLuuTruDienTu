@@ -206,9 +206,9 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
             body: revokeByFolderFromGroupBodySchema,
             detail: {
                 tags,
-                summary: "Revoke group folder assignment for ready-for-entry dossiers",
+                summary: "Revoke group folder assignment for unstarted or in-progress entry dossiers",
                 description:
-                    "Cancels IN_PROGRESS/DRAFT MAKER and CHECKER assignments and clears assignedGroupId for dossiers in the given folders that belong to this group and are still READY_FOR_ENTRY. Skips dossiers in ENTRY_PROCESSING, QC, or APPROVED. Accepts multiple folderIds in one request.",
+                    "Cancels IN_PROGRESS/DRAFT MAKER and CHECKER assignments and clears assignedGroupId for dossiers in the given folders that belong to this group and are still READY_FOR_ENTRY or ENTRY_PROCESSING. ENTRY_PROCESSING dossiers are reset to READY_FOR_ENTRY. Skips dossiers already in QC or APPROVED. Accepts multiple folderIds in one request.",
             },
         },
     );
@@ -225,9 +225,9 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
             body: revokeByMemberFromGroupBodySchema,
             detail: {
                 tags,
-                summary: "Revoke all ready-for-entry assignments for one group editor",
+                summary: "Revoke all entry assignments for one group editor",
                 description:
-                    "Cancels IN_PROGRESS/DRAFT MAKER and CHECKER assignments for the given editor's READY_FOR_ENTRY dossiers in this group, clears assignedGroupId, and returns them to the unassigned pool for reassignment. Skips dossiers in ENTRY_PROCESSING, QC, or APPROVED.",
+                    "Cancels IN_PROGRESS/DRAFT MAKER and CHECKER assignments for the given editor's READY_FOR_ENTRY and ENTRY_PROCESSING dossiers in this group, clears assignedGroupId, and returns them to the unassigned pool for reassignment. ENTRY_PROCESSING dossiers are reset to READY_FOR_ENTRY. Skips dossiers in QC or APPROVED.",
             },
         },
     );
@@ -243,9 +243,9 @@ export function createGroupAdminRouter(basePath: string = "/groups") {
             params: t.Object({ id: t.String({ minLength: 1 }) }),
             detail: {
                 tags,
-                summary: "Revoke all ready-for-entry dossiers assigned to a group",
+                summary: "Revoke all unstarted or in-progress entry dossiers assigned to a group",
                 description:
-                    "Cancels IN_PROGRESS/DRAFT MAKER and CHECKER assignments and clears assignedGroupId for every dossier still assigned to this group that is READY_FOR_ENTRY. Skips dossiers in ENTRY_PROCESSING, QC, or APPROVED. Successfully revoked dossiers return to the unassigned pool for reassignment.",
+                    "Cancels IN_PROGRESS/DRAFT MAKER and CHECKER assignments and clears assignedGroupId for every dossier still assigned to this group that is READY_FOR_ENTRY or ENTRY_PROCESSING. ENTRY_PROCESSING dossiers are reset to READY_FOR_ENTRY. Skips dossiers in QC or APPROVED. Successfully revoked dossiers return to the unassigned pool for reassignment.",
             },
         },
     );
