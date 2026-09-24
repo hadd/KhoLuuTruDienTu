@@ -2,6 +2,7 @@ import { applyStoragePathPrefix } from '@/features/data-management/lib/uploadPat
 import { toScopedProjectCode } from '@/features/data-management/lib/constants'
 import { sumUploadPdfPages } from '@/features/data-management/lib/countPdfFilePages'
 import {
+  CHECK_MULTI_FILE_PATH_CHUNK_SIZE,
   CREATE_MULTI_DOCUMENT_CHUNK_SIZE,
   isAbortError,
   mapWithConcurrency,
@@ -59,7 +60,7 @@ export interface UploadFolderOptions {
   /** When true, skip path-exists check and upload to MinIO (fallback after permanent delete). */
   allowOverwrite?: boolean
   /**
-   * When true, skip per-file path-exists check during upload.
+   * When true, skip batch path-exists check during upload.
    * Use after document pre-flight (`detectUploadPathConflicts`) already verified paths.
    */
   skipPathCheck?: boolean
@@ -74,7 +75,6 @@ export interface UploadFolderOptions {
 }
 
 const UPLOAD_EXPIRY_MIN_SECONDS = 86_400
-const CONFLICT_CHECK_CONCURRENCY = 10
 
 export interface UploadPathConflict {
   relativePath: string
@@ -84,6 +84,12 @@ export interface UploadPathConflict {
 export interface UploadConflictCheckResult {
   conflicts: Array<UploadPathConflict>
   uploadPoint: UploadPointResponse
+}
+
+interface CheckMultiFilePathItem {
+  path: string
+  exists: boolean
+  fileId: string | null
 }
 
 function resolveUploadBaseKey(uploadPoint: UploadPointResponse): string {
@@ -152,13 +158,51 @@ async function createUploadPoint(
   return uploadPoint
 }
 
-async function checkFilePath(filePath: string): Promise<boolean> {
-  const response = await apiClient.get<unknown>(
-    `/api/v1/dossiers/check-file-path?filePath=${encodeURIComponent(filePath)}`,
+async function checkMultiFilePath(
+  filePaths: Array<string>,
+): Promise<Array<CheckMultiFilePathItem>> {
+  if (filePaths.length === 0) return []
+
+  const chunks: Array<Array<string>> = []
+  for (let i = 0; i < filePaths.length; i += CHECK_MULTI_FILE_PATH_CHUNK_SIZE) {
+    chunks.push(filePaths.slice(i, i + CHECK_MULTI_FILE_PATH_CHUNK_SIZE))
+  }
+
+  const chunkResults = await Promise.all(
+    chunks.map(async (chunk) => {
+      const normalizedChunk = chunk.map((path) => path.replace(/^\/+/, ''))
+      const response = await apiClient.post<unknown>(
+        '/api/v1/dossiers/check-multi-file-path',
+        { filePaths: normalizedChunk },
+      )
+
+      const payload = unwrapApiRecord<unknown>(response.data)
+      const rawItems = Array.isArray(payload)
+        ? payload
+        : payload &&
+            typeof payload === 'object' &&
+            Array.isArray((payload as { items?: unknown }).items)
+          ? (payload as { items: Array<unknown> }).items
+          : []
+
+      return rawItems.map((raw, index) => {
+        const item =
+          raw && typeof raw === 'object'
+            ? (raw as Partial<CheckMultiFilePathItem>)
+            : {}
+        return {
+          path: String(item.path ?? normalizedChunk[index] ?? ''),
+          exists: Boolean(item.exists),
+          fileId:
+            item.fileId != null && String(item.fileId).trim()
+              ? String(item.fileId)
+              : null,
+        }
+      })
+    }),
   )
 
-  const payload = unwrapApiRecord<{ exists?: boolean }>(response.data)
-  return Boolean(payload.exists)
+  return chunkResults.flat()
 }
 
 /** Pre-flight: detect files whose storage path already exists (same check as upload skip). */
@@ -171,23 +215,20 @@ export async function detectUploadPathConflicts(
     options?.runMode,
   )
 
-  const checks = await mapWithConcurrency(
-    files,
-    CONFLICT_CHECK_CONCURRENCY,
-    async (file) => {
-      const relativePath = resolveUploadRelativePath(
-        file,
-        options?.storagePathPrefix,
-      )
-      const storageKey = resolveStorageKey(uploadPoint, relativePath)
-      const exists = await checkFilePath(storageKey)
-      return exists ? { relativePath, storageKey } : null
-    },
-  )
+  const entries = files.map((file) => {
+    const relativePath = resolveUploadRelativePath(
+      file,
+      options?.storagePathPrefix,
+    )
+    return {
+      relativePath,
+      storageKey: resolveStorageKey(uploadPoint, relativePath),
+    }
+  })
 
-  const conflicts = checks.filter(
-    (item): item is UploadPathConflict => item != null,
-  )
+  const checks = await checkMultiFilePath(entries.map((e) => e.storageKey))
+
+  const conflicts = entries.filter((_, index) => checks[index]?.exists === true)
 
   return { conflicts, uploadPoint }
 }
@@ -710,6 +751,30 @@ export async function uploadFolderFiles(
 
   throwIfAborted(signal)
 
+  const prepared = files.map((file) => {
+    const relativePath = resolveUploadRelativePath(
+      file,
+      options?.storagePathPrefix,
+    )
+    return {
+      file,
+      relativePath,
+      fullKey: resolveStorageKey(uploadPoint, relativePath),
+    }
+  })
+
+  const existingKeys = new Set<string>()
+  if (!allowOverwrite && !skipPathCheck) {
+    const checks = await checkMultiFilePath(prepared.map((p) => p.fullKey))
+    for (let i = 0; i < prepared.length; i += 1) {
+      if (checks[i]?.exists) {
+        existingKeys.add(prepared[i]!.fullKey)
+      }
+    }
+  }
+
+  throwIfAborted(signal)
+
   const slotResults: Array<FileUploadResult | undefined> = new Array(
     files.length,
   )
@@ -736,27 +801,17 @@ export async function uploadFolderFiles(
 
   try {
     await mapWithConcurrency(
-      files,
+      prepared,
       UPLOAD_FILE_CONCURRENCY,
-      async (file, index) => {
+      async ({ file, relativePath, fullKey }, index) => {
         throwIfAborted(signal)
 
-        const relativePath = resolveUploadRelativePath(
-          file,
-          options?.storagePathPrefix,
-        )
-        const fullKey = resolveStorageKey(uploadPoint, relativePath)
         currentFile = relativePath
         reportProgress()
 
         let finished = false
         try {
-          const exists =
-            allowOverwrite || skipPathCheck
-              ? false
-              : await checkFilePath(fullKey)
-
-          if (exists) {
+          if (existingKeys.has(fullKey)) {
             slotResults[index] = {
               file,
               relativePath,
