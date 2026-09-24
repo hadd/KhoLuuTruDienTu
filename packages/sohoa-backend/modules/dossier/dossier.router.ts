@@ -73,6 +73,7 @@ const metadataExportBodySchema = t.Object({
   useDocumentNaming: t.Optional(t.Boolean()),
   excelOnly: t.Optional(t.Boolean()),
   tiffOnly: t.Optional(t.Boolean()),
+  pdfOnly: t.Optional(t.Boolean()),
 });
 
 const multiDossierMetadataExportBodySchema = t.Object({
@@ -87,6 +88,7 @@ const multiDossierMetadataExportBodySchema = t.Object({
   useDocumentNaming: t.Optional(t.Boolean()),
   excelOnly: t.Optional(t.Boolean()),
   tiffOnly: t.Optional(t.Boolean()),
+  pdfOnly: t.Optional(t.Boolean()),
 });
 
 const multiDipExportBodySchema = t.Object({
@@ -422,6 +424,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
               ...body,
               excelOnly: body.excelOnly === true,
               tiffOnly: body.tiffOnly === true,
+              pdfOnly: body.pdfOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
@@ -919,6 +922,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
               ...body,
               excelOnly: body.excelOnly === true,
               tiffOnly: body.tiffOnly === true,
+              pdfOnly: body.pdfOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
@@ -975,6 +979,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
               useDocumentNaming: query.useDocumentNaming === true,
               excelOnly: query.excelOnly === true,
               tiffOnly: query.tiffOnly === true,
+              pdfOnly: query.pdfOnly === true,
               bypassStatus,
             }),
         );
@@ -990,6 +995,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         useDocumentNaming: t.Optional(t.Boolean()),
         excelOnly: t.Optional(t.Boolean()),
         tiffOnly: t.Optional(t.Boolean()),
+        pdfOnly: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,

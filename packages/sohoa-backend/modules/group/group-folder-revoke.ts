@@ -172,7 +172,10 @@ export async function executeGroupFolderRevoke(input: GroupFolderRevokeInput) {
                 .where(activeDossierWhere(
                     eq(dossiers.id, item.dossierId),
                     eq(dossiers.assignedGroupId, input.groupId),
-                    eq(dossiers.status, DossierStatus.READY_FOR_ENTRY),
+                    inArray(dossiers.status, [
+                        DossierStatus.READY_FOR_ENTRY,
+                        DossierStatus.ENTRY_PROCESSING,
+                    ]),
                 ))
                 .returning({ id: dossiers.id });
 
