@@ -1,7 +1,9 @@
-export const UPLOAD_FILE_CONCURRENCY = 4
+export const UPLOAD_FILE_CONCURRENCY = 6
 export const PDF_PAGE_COUNT_CONCURRENCY = 3
 export const UPLOAD_RETRY_ATTEMPTS = 3
 export const UPLOAD_RETRY_BASE_DELAY_MS = 500
+/** Max keys per `create-multi-document-from-storage` request. */
+export const CREATE_MULTI_DOCUMENT_CHUNK_SIZE = 500
 
 export async function mapWithConcurrency<T, R>(
   items: Array<T>,
