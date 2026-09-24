@@ -59,7 +59,8 @@ function buildPdfAXmpMetadata(title?: string, creator?: string): string {
  * 3. Inject MarkInfo & ViewerPreferences dictionaries into Catalog.
  * 4. Inject XMP metadata packet with pdfaid:part=2 and pdfaid:conformance=B.
  */
-export async function convertToPdfA(
+/** In-process PDF/A conversion. Workers call this so raster work is not queued again. */
+export async function convertToPdfAInline(
   pdfBytes: Uint8Array,
   options: PdfAConvertOptions = {},
 ): Promise<Uint8Array> {
@@ -167,6 +168,21 @@ export async function convertToPdfA(
   }
 
   return pdfABytes;
+}
+
+export async function convertToPdfA(
+  pdfBytes: Uint8Array,
+  options: PdfAConvertOptions = {},
+): Promise<Uint8Array> {
+  if (options.forceRasterize && shouldOffloadHeavyWork()) {
+    const { runPdfARaster } = await import("../cpu-worker/cpu-worker-pool.ts");
+    return runPdfARaster(pdfBytes, options);
+  }
+  return convertToPdfAInline(pdfBytes, options);
+}
+
+function shouldOffloadHeavyWork(): boolean {
+  return Deno.env.get("NODE_ENV") !== "test";
 }
 
 export async function convertBatchToPdfA<

@@ -16,7 +16,7 @@ import {
 import { parseDossierMetadata } from "../metadata-normalize.ts";
 import { collectMetadataPdfSources } from "../metadata-export.ts";
 import { convertToPdfA } from "../pdf-a/pdf-a-converter.ts";
-import { convertPdfToTiff } from "../pdf-tiff/pdf-to-tiff-converter.ts";
+import { runConvertPdfToTiff } from "../cpu-worker/cpu-worker-pool.ts";
 import { uploadBinaryToStorage, statStorageObject } from "../archival-storage.ts";
 import { mapWithConcurrency } from "../export-concurrency.ts";
 
@@ -143,7 +143,7 @@ export async function generateAndPersistExportDerivatives(input: {
         }
 
         if (!tiffStat.exists && pdfBytesForDerivatives) {
-          const tiffBytes = await convertPdfToTiff(pdfBytesForDerivatives);
+          const tiffBytes = await runConvertPdfToTiff(pdfBytesForDerivatives);
           await uploadBinaryToStorage(exportTiffKey, tiffBytes, {
             contentType: "image/tiff",
           });

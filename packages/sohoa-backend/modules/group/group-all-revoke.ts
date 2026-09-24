@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/db-conn.ts";
 import { dossierAssignments } from "../../db/schemas/dossier-assignment.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
@@ -18,36 +18,18 @@ import {
     getFolderRevokeBlockReason,
 } from "./group-assignment-guards.ts";
 
-type DossierAssignTarget = {
-    dossierId: string;
-    folderId: string;
-    name: string;
-};
-
-export type GroupFolderRevokeInput = {
+export type GroupAllRevokeInput = {
     groupId: string;
     groupName: string;
     roundNumber: number;
-    folderId: string;
     actorId: string;
-    targets: DossierAssignTarget[];
-    rootFolder: { id: string; folderPath: string; folderName: string };
-    leafFolders: Array<{ id: string; folderPath: string; folderName: string }>;
     qcPeersByStep: Map<number, string[]>;
 };
 
-export async function executeGroupFolderRevoke(input: GroupFolderRevokeInput) {
-    const dossierIds = input.targets.map((t) => t.dossierId);
-
+export async function executeGroupAllRevoke(input: GroupAllRevokeInput) {
     const emptyResult = {
         group: { id: input.groupId, name: input.groupName },
-        folder: {
-            id: input.rootFolder.id,
-            folderPath: input.rootFolder.folderPath,
-            folderName: input.rootFolder.folderName,
-        },
-        leafFolders: input.leafFolders,
-        totalTargeted: input.targets.length,
+        totalTargeted: 0,
         totalRevoked: 0,
         totalSkipped: 0,
         revokedDossierIds: [] as string[],
@@ -55,9 +37,25 @@ export async function executeGroupFolderRevoke(input: GroupFolderRevokeInput) {
         skipped: [] as Array<{ dossierId: string; folderId: string; reason: string }>,
     };
 
-    if (input.targets.length === 0) {
+    const targets = await db.query.dossiers.findMany({
+        where: and(
+            eq(dossiers.assignedGroupId, input.groupId),
+            isNull(dossiers.deletedAt),
+        ),
+        columns: {
+            id: true,
+            folderId: true,
+            name: true,
+            status: true,
+            assignedGroupId: true,
+        },
+    });
+
+    if (targets.length === 0) {
         return emptyResult;
     }
+
+    const dossierIds = targets.map((row) => row.id);
 
     const checkerRoles = [...input.qcPeersByStep.keys()]
         .map((step) => QC_CHECKER_BY_STEP.get(step)?.role)
@@ -68,63 +66,43 @@ export async function executeGroupFolderRevoke(input: GroupFolderRevokeInput) {
         ...checkerRoles,
     ];
 
-    const [dossierRecords, activeMakerAssignments, completedMakerAssignments] =
-        await Promise.all([
-            db.query.dossiers.findMany({
-                where: activeDossierWhere(inArray(dossiers.id, dossierIds)),
-                columns: {
-                    id: true,
-                    status: true,
-                    assignedGroupId: true,
-                },
-            }),
-            db.query.dossierAssignments.findMany({
-                where: and(
-                    inArray(dossierAssignments.dossierId, dossierIds),
-                    eq(dossierAssignments.role, WorkerRole.MAKER),
-                    inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
-                ),
-                columns: { dossierId: true, assigneeId: true },
-            }),
-            db.query.dossierAssignments.findMany({
-                where: and(
-                    inArray(dossierAssignments.dossierId, dossierIds),
-                    eq(dossierAssignments.role, WorkerRole.MAKER),
-                    eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
-                ),
-                columns: { dossierId: true, assigneeId: true },
-            }),
-        ]);
+    const [activeMakerAssignments, completedMakerAssignments] = await Promise.all([
+        db.query.dossierAssignments.findMany({
+            where: and(
+                inArray(dossierAssignments.dossierId, dossierIds),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                inArray(dossierAssignments.status, [...WORKABLE_ASSIGNMENT_STATUSES]),
+            ),
+            columns: { dossierId: true, assigneeId: true },
+        }),
+        db.query.dossierAssignments.findMany({
+            where: and(
+                inArray(dossierAssignments.dossierId, dossierIds),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+            ),
+            columns: { dossierId: true, assigneeId: true },
+        }),
+    ]);
 
-    const dossierById = new Map(dossierRecords.map((d) => [d.id, d]));
     const activeMakerIndex = buildActiveMakerIndex(activeMakerAssignments);
     const completedMakerIndex = buildCompletedMakerIndex(completedMakerAssignments);
 
     const skipped: Array<{ dossierId: string; folderId: string; reason: string }> = [];
     const dossiersToRevoke: Array<{ dossierId: string; folderId: string; status: string }> = [];
 
-    for (const target of input.targets) {
-        const dossier = dossierById.get(target.dossierId);
-        if (!dossier) {
-            skipped.push({
-                dossierId: target.dossierId,
-                folderId: target.folderId,
-                reason: "Dossier not found",
-            });
-            continue;
-        }
-
+    for (const target of targets) {
         const blockReason = getFolderRevokeBlockReason({
-            dossierStatus: dossier.status,
-            dossierId: target.dossierId,
-            assignedGroupId: dossier.assignedGroupId,
+            dossierStatus: target.status,
+            dossierId: target.id,
+            assignedGroupId: target.assignedGroupId,
             groupId: input.groupId,
             activeMakerIndex,
             completedMakerIndex,
         });
         if (blockReason) {
             skipped.push({
-                dossierId: target.dossierId,
+                dossierId: target.id,
                 folderId: target.folderId,
                 reason: blockReason,
             });
@@ -132,15 +110,16 @@ export async function executeGroupFolderRevoke(input: GroupFolderRevokeInput) {
         }
 
         dossiersToRevoke.push({
-            dossierId: target.dossierId,
+            dossierId: target.id,
             folderId: target.folderId,
-            status: dossier.status,
+            status: target.status,
         });
     }
 
     if (dossiersToRevoke.length === 0) {
         return {
             ...emptyResult,
+            totalTargeted: targets.length,
             totalSkipped: skipped.length,
             skipped,
         };
@@ -159,7 +138,7 @@ export async function executeGroupFolderRevoke(input: GroupFolderRevokeInput) {
                 dossierStatus: item.status,
                 now,
                 roles: rolesToCancel,
-                notes: "Cancelled assignments due to folder assignment revoke",
+                notes: "Cancelled assignments due to group revoke-all",
             });
 
             const updated = await tx
@@ -181,12 +160,19 @@ export async function executeGroupFolderRevoke(input: GroupFolderRevokeInput) {
 
             if (updated.length > 0) {
                 revokedDossierIds.push(item.dossierId);
+            } else {
+                skipped.push({
+                    dossierId: item.dossierId,
+                    folderId: item.folderId,
+                    reason: "Dossier could not be unassigned from group",
+                });
             }
         }
     });
 
     return {
         ...emptyResult,
+        totalTargeted: targets.length,
         totalRevoked: revokedDossierIds.length,
         totalSkipped: skipped.length,
         revokedDossierIds,

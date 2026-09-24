@@ -26,6 +26,7 @@ import {
     resolveGroupAssignFolderId,
 } from "../dossier/dossier-service.ts";
 import { getGroupFolderQueue } from "./group-folder-assign.ts";
+import { executeGroupAllRevoke } from "./group-all-revoke.ts";
 import { executeGroupFolderRevoke } from "./group-folder-revoke.ts";
 import { executeGroupMemberRevoke } from "./group-member-revoke.ts";
 import {
@@ -1891,8 +1892,22 @@ export const GroupService = {
         return await executeGroupMemberRevoke({
             groupId: group.id,
             groupName: group.name,
+            roundNumber: group.roundNumber,
             userId: input.userId,
             actorId,
+        });
+    },
+
+    async revokeAll(groupId: string, actorId: string) {
+        const group = await getActiveGroupOrThrow(groupId);
+        const qcPeersByStep = await getActiveQcPeersByLevel(groupId, group.roundNumber);
+
+        return await executeGroupAllRevoke({
+            groupId: group.id,
+            groupName: group.name,
+            roundNumber: group.roundNumber,
+            actorId,
+            qcPeersByStep,
         });
     },
 
