@@ -107,7 +107,6 @@ export function EditorDashboardPage({
     DASHBOARD_PERSONAL_SECTION_KEYS.editorCharts,
   )
 
-  const completedCount = volumeCount(data.completed)
   const completedChartData = useMemo(() => {
     const trend = data.completedTrend ?? []
     if (trend.length > 0) {
