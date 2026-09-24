@@ -1824,8 +1824,14 @@ export async function getSearchTree(
   rootNode.children = children.map((c) =>
     mapSearchTreeChild(c as Record<string, unknown>),
   )
-  rootNode.sizeBytes = rootNode.children.reduce((acc, c) => acc + c.sizeBytes, 0)
-  rootNode.fileCount = rootNode.children.reduce((acc, c) => acc + c.fileCount, 0)
+  rootNode.sizeBytes = rootNode.children.reduce(
+    (acc, c) => acc + c.sizeBytes,
+    0,
+  )
+  rootNode.fileCount = rootNode.children.reduce(
+    (acc, c) => acc + c.fileCount,
+    0,
+  )
   rootNode.pageCount = rootNode.children.reduce(
     (acc, c) => acc + (c.pageCount || 0),
     0,
@@ -1902,7 +1908,10 @@ function mapSearchTreeChild(child: Record<string, unknown>): DataTreeNodeT {
       (acc, c) => acc + (c.type === 'document' ? 1 : c.fileCount),
       0,
     )
-    node.pageCount = node.children.reduce((acc, c) => acc + (c.pageCount || 0), 0)
+    node.pageCount = node.children.reduce(
+      (acc, c) => acc + (c.pageCount || 0),
+      0,
+    )
   }
   return node
 }

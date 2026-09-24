@@ -107,7 +107,9 @@ function tSegmentError(
   })
 }
 
-export function createNamingSegmentsSchema(targetType: DocumentNamingTargetTypeT) {
+export function createNamingSegmentsSchema(
+  targetType: DocumentNamingTargetTypeT,
+) {
   const allowedSources = FIELD_SOURCE_VALUES[targetType]
 
   return z

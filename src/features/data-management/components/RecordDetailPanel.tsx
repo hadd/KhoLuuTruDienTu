@@ -386,13 +386,22 @@ export function RecordDetailPanel({
     [effectiveNode.children],
   )
   const groups = activeMetadata?.metadata_groups ?? []
+  const rejectedFieldSummary = useMemo(() => {
+    if (!isEditorRole || !node.rejectFields?.length || !activeMetadata)
+      return []
+    return buildRejectedFieldsSummaryByDocument(
+      node.rejectFields,
+      activeMetadata,
+    )
+  }, [isEditorRole, node.rejectFields, activeMetadata])
+
   const effectiveFondId =
     node.fondId ??
     (activeMetadata ? findHoSoFondFieldValue(activeMetadata) : undefined)
 
-  const namingConfigQuery = useQuery(
-    documentNamingConfigQueryOptions(
-      effectiveFondId && isActingAsQc
+  const namingConfigQuery = useQuery({
+    ...documentNamingConfigQueryOptions(
+      effectiveFondId
         ? {
             fondId: effectiveFondId,
             targetType: 'file',
@@ -400,7 +409,8 @@ export function RecordDetailPanel({
           }
         : null,
     ),
-  )
+    enabled: Boolean(effectiveFondId && dossierId && isActingAsQc),
+  })
 
   const hasNamingRuleApplied = Boolean(
     namingConfigQuery.data?.applyOnApprove &&
@@ -408,13 +418,6 @@ export function RecordDetailPanel({
       namingConfigQuery.data.segments.length > 0,
   )
 
-  const rejectedFieldSummary = useMemo(() => {
-    if (!isEditorRole || !node.rejectFields?.length || !activeMetadata) return []
-    return buildRejectedFieldsSummaryByDocument(
-      node.rejectFields,
-      activeMetadata,
-    )
-  }, [isEditorRole, node.rejectFields, activeMetadata])
   const metadataDisplayLayout = useMemo(
     () => partitionMetadataGroupsForDisplay(groups),
     [groups],
@@ -483,7 +486,6 @@ export function RecordDetailPanel({
   const [detailTab, setDetailTab] = useState<'metadata' | 'editHistory'>(
     'metadata',
   )
-
 
   // Sync detailTab when focusDocumentId changes from external navigation
   useEffect(() => {
@@ -1292,7 +1294,12 @@ export function RecordDetailPanel({
     // activeMetadata changes identity when fields are edited; the function
     // body reads it via closure so we track the ref rather than the object.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeMetadata?.metadata_groups, documents, focusDocumentId, selectedGroupIndex],
+    [
+      activeMetadata?.metadata_groups,
+      documents,
+      focusDocumentId,
+      selectedGroupIndex,
+    ],
   )
 
   const { suppressScrollSync } = useScrollSyncHighlight({
@@ -1381,7 +1388,11 @@ export function RecordDetailPanel({
       }
 
       // useEffect will sync tab to 'metadata' when focusDocumentId changes
-      onFocusDocument?.(documentId, groupIndex >= 0 ? groupIndex : 0, 'metadata')
+      onFocusDocument?.(
+        documentId,
+        groupIndex >= 0 ? groupIndex : 0,
+        'metadata',
+      )
       window.requestAnimationFrame(() => {
         window.document
           .querySelector(`[data-tree-node-id="${documentId}"]`)
@@ -1466,30 +1477,34 @@ export function RecordDetailPanel({
   }, [canExport, dossierId, activeMetadata?.ho_so_id, node.name])
 
   const handleExport = useCallback(
-    async (mode: ExportMode, options?: ExportOptions) => {
-      if (!exportContext || isExporting) return
+    async (modes: ExportMode[], options?: ExportOptions) => {
+      if (!exportContext || isExporting || modes.length === 0) return
 
       setIsExporting(true)
-      setExportingMode(mode)
       try {
-        await runExport({
-          kind: exportContext.kind,
-          mode,
-          folderId: exportContext.folderId,
-          dossierId: exportContext.dossierId,
-          downloadName: exportContext.downloadName,
-          metadataExportConfig: options?.presetId
-            ? { presetId: options.presetId }
-            : undefined,
-          useDocumentNaming: options?.useDocumentNaming === true,
-        })
-        toast.success(
-          mode === 'dip'
-            ? t('recordDetail.exportDipSuccess')
-            : mode === 'tiff'
-              ? t('recordDetail.exportTiffSuccess')
-              : t('recordDetail.exportExcelSuccess'),
-        )
+        for (const mode of modes) {
+          setExportingMode(mode)
+          await runExport({
+            kind: exportContext.kind,
+            mode,
+            folderId: exportContext.folderId,
+            dossierId: exportContext.dossierId,
+            downloadName: exportContext.downloadName,
+            metadataExportConfig: options?.presetId
+              ? { presetId: options.presetId }
+              : undefined,
+            useDocumentNaming: options?.useDocumentNaming === true,
+          })
+          toast.success(
+            mode === 'dip'
+              ? t('recordDetail.exportDipSuccess')
+              : mode === 'tiff'
+                ? t('recordDetail.exportTiffSuccess')
+                : mode === 'pdf'
+                  ? t('recordDetail.exportPdfSuccess')
+                  : t('recordDetail.exportExcelSuccess'),
+          )
+        }
         setExportDialogOpen(false)
       } catch (error) {
         toast.error(
@@ -1621,7 +1636,6 @@ export function RecordDetailPanel({
     void handleSaveMetadata()
   }
 
-
   if (!activeMetadata) {
     const isMetadataLoading =
       isRecordContentPending ||
@@ -1661,20 +1675,21 @@ export function RecordDetailPanel({
     groupIndex: number,
     field: DataDocumentFieldT,
   ) {
-    if (isActingAsQc && canShowSubmitButton && !canDirectApprove) {
-      const scope = resolveMetadataGroupRejectScope(group, groupIndex)
-      const rejectKey = buildRejectFieldKey(
-        scope.groupCode,
-        field.name,
-        scope.fileRef,
-      )
-      return {
-        id: `qc-reject-${groupIndex}-${rejectKey}`,
-        checked: qcReject.rejectFieldKeys.has(rejectKey),
-        onCheckedChange: (checked: boolean) =>
-          qcReject.toggleRejectField(rejectKey, checked),
-        disabled: isSaving,
-      }
+    if (!isActingAsQc || !canShowSubmitButton || canDirectApprove)
+      return undefined
+
+    const scope = resolveMetadataGroupRejectScope(group, groupIndex)
+    const rejectKey = buildRejectFieldKey(
+      scope.groupCode,
+      field.name,
+      scope.fileRef,
+    )
+    return {
+      id: `qc-reject-${groupIndex}-${rejectKey}`,
+      checked: qcReject.rejectFieldKeys.has(rejectKey),
+      onCheckedChange: (checked: boolean) =>
+        qcReject.toggleRejectField(rejectKey, checked),
+      disabled: isSaving,
     }
 
     if (isEditorRole && canSubmitErrorReport) {

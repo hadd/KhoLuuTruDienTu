@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileArchive, FileSpreadsheet, Files, Image, Info, Loader2 } from 'lucide-react'
+import { FileArchive, FileSpreadsheet, FileText, Image, Info, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -26,11 +26,29 @@ import type {
   ExportMode,
   ExportOptions,
 } from '@/features/data-management/lib/exportHelpers'
+import { env } from '@/lib/utils/env'
 import { cn } from '@/lib/utils/cn'
 
 const DEFAULT_PRESET_VALUE = 'default'
 const FILE_NAMING_ORIGINAL = 'original'
 const FILE_NAMING_CONFIG = 'config'
+
+const FORMAT_ORDER: ExportMode[] = ['excel', 'pdf', 'tiff', 'dip']
+
+function isExportFormatEnabled(mode: ExportMode): boolean {
+  switch (mode) {
+    case 'excel':
+      return env.EXPORT_EXCEL_ENABLED
+    case 'pdf':
+      return env.EXPORT_PDF_ENABLED
+    case 'tiff':
+      return env.EXPORT_TIFF_ENABLED
+    case 'dip':
+      return env.EXPORT_DIP_ENABLED
+    default:
+      return false
+  }
+}
 
 export function ExportChoiceDialog({
   open,
@@ -39,18 +57,18 @@ export function ExportChoiceDialog({
   canExportDip,
   onExport,
   isExporting,
-  exportingMode,
+  exportingMode: _exportingMode,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   context: ExportContext | null
   canExportDip: boolean
-  onExport: (mode: ExportMode, options?: ExportOptions) => Promise<void>
+  onExport: (modes: ExportMode[], options?: ExportOptions) => Promise<void>
   isExporting: boolean
   exportingMode: ExportMode | null
 }) {
   const { t } = useTranslation('data-management')
-  const [selectedMode, setSelectedMode] = useState<ExportMode>('excel')
+  const [selectedModes, setSelectedModes] = useState<ExportMode[]>([])
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_VALUE)
   const [fileNamingMode, setFileNamingMode] = useState(FILE_NAMING_ORIGINAL)
 
@@ -59,26 +77,82 @@ export function ExportChoiceDialog({
     enabled: open,
   })
 
+  const formatOptions = useMemo(() => {
+    const options: Array<{
+      mode: ExportMode
+      icon: typeof FileSpreadsheet
+      titleKey: string
+      descriptionKey: string
+      disabled?: boolean
+    }> = [
+      {
+        mode: 'excel',
+        icon: FileSpreadsheet,
+        titleKey: 'recordDetail.exportDialog.excelOnlyOption',
+        descriptionKey: 'recordDetail.exportDialog.excelOnlyOptionDescription',
+      },
+      {
+        mode: 'pdf',
+        icon: FileText,
+        titleKey: 'recordDetail.exportDialog.pdfOnlyOption',
+        descriptionKey: 'recordDetail.exportDialog.pdfOnlyOptionDescription',
+      },
+      {
+        mode: 'tiff',
+        icon: Image,
+        titleKey: 'recordDetail.exportDialog.tiffOnlyOption',
+        descriptionKey: 'recordDetail.exportDialog.tiffOnlyOptionDescription',
+      },
+      {
+        mode: 'dip',
+        icon: FileArchive,
+        titleKey: 'recordDetail.exportDialog.dipOption',
+        descriptionKey: canExportDip
+          ? 'recordDetail.exportDialog.dipOptionDescription'
+          : 'recordDetail.exportDialog.dipUnavailable',
+        disabled: !canExportDip,
+      },
+    ]
+
+    return options.filter((option) => isExportFormatEnabled(option.mode))
+  }, [canExportDip])
+
   useEffect(() => {
     if (!open) return
-    setSelectedMode('excel')
+    const enabledModes = FORMAT_ORDER.filter((mode) =>
+      formatOptions.some((option) => option.mode === mode),
+    )
+    setSelectedModes(enabledModes.includes('excel') ? ['excel'] : [])
     setSelectedPresetId(DEFAULT_PRESET_VALUE)
     setFileNamingMode(FILE_NAMING_ORIGINAL)
-  }, [open, context?.dossierId, context?.folderId])
+  }, [open, context?.dossierId, context?.folderId, formatOptions])
 
   if (!context) return null
 
-  const needsPreset = selectedMode === 'excel' || selectedMode === 'metadata'
+  const selectedSet = new Set(selectedModes)
+  const needsPreset = selectedSet.has('excel')
   const needsFileNaming =
-    selectedMode === 'metadata' ||
-    selectedMode === 'tiff' ||
-    selectedMode === 'dip'
-  const showPackageNotice = selectedMode === 'metadata'
-  const selectedModeDisabled =
-    selectedMode === 'dip' && !canExportDip
+    selectedSet.has('pdf') || selectedSet.has('tiff') || selectedSet.has('dip')
+  const showPackageNotice = selectedSet.has('pdf')
+  const dipSelectedDisabled = selectedSet.has('dip') && !canExportDip
+  const confirmDisabled =
+    isExporting ||
+    selectedModes.length === 0 ||
+    dipSelectedDisabled
+
+  function toggleMode(mode: ExportMode) {
+    setSelectedModes((prev) => {
+      if (prev.includes(mode)) {
+        return prev.filter((item) => item !== mode)
+      }
+      return FORMAT_ORDER.filter(
+        (item) => item === mode || prev.includes(item),
+      )
+    })
+  }
 
   async function handleConfirmExport() {
-    if (selectedModeDisabled) return
+    if (confirmDisabled) return
 
     const options: ExportOptions = {}
     if (needsPreset && selectedPresetId !== DEFAULT_PRESET_VALUE) {
@@ -89,46 +163,10 @@ export function ExportChoiceDialog({
     }
 
     await onExport(
-      selectedMode,
+      selectedModes,
       Object.keys(options).length > 0 ? options : undefined,
     )
   }
-
-  const formatOptions: Array<{
-    mode: ExportMode
-    icon: typeof FileSpreadsheet
-    titleKey: string
-    descriptionKey: string
-    disabled?: boolean
-  }> = [
-    {
-      mode: 'excel',
-      icon: FileSpreadsheet,
-      titleKey: 'recordDetail.exportDialog.excelOnlyOption',
-      descriptionKey: 'recordDetail.exportDialog.excelOnlyOptionDescription',
-    },
-    {
-      mode: 'metadata',
-      icon: Files,
-      titleKey: 'recordDetail.exportDialog.metadataOption',
-      descriptionKey: 'recordDetail.exportDialog.metadataOptionDescription',
-    },
-    {
-      mode: 'tiff',
-      icon: Image,
-      titleKey: 'recordDetail.exportDialog.tiffOnlyOption',
-      descriptionKey: 'recordDetail.exportDialog.tiffOnlyOptionDescription',
-    },
-    {
-      mode: 'dip',
-      icon: FileArchive,
-      titleKey: 'recordDetail.exportDialog.dipOption',
-      descriptionKey: canExportDip
-        ? 'recordDetail.exportDialog.dipOptionDescription'
-        : 'recordDetail.exportDialog.dipUnavailable',
-      disabled: !canExportDip,
-    },
-  ]
 
   return (
     <Dialog open={open} onOpenChange={isExporting ? undefined : onOpenChange}>
@@ -143,18 +181,18 @@ export function ExportChoiceDialog({
         <div className="flex flex-col gap-4 py-2">
           <div className="space-y-2">
             <Label>{t('recordDetail.exportDialog.formatLabel')}</Label>
-            <div className="flex flex-col gap-2" role="radiogroup">
+            <div className="flex flex-col gap-2" role="group">
               {formatOptions.map((option) => {
                 const Icon = option.icon
-                const selected = selectedMode === option.mode
+                const selected = selectedSet.has(option.mode)
                 return (
                   <button
                     key={option.mode}
                     type="button"
-                    role="radio"
+                    role="checkbox"
                     aria-checked={selected}
                     disabled={isExporting || option.disabled}
-                    onClick={() => setSelectedMode(option.mode)}
+                    onClick={() => toggleMode(option.mode)}
                     className={cn(
                       'flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors',
                       selected
@@ -165,15 +203,23 @@ export function ExportChoiceDialog({
                   >
                     <span
                       className={cn(
-                        'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border',
+                        'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-sm border',
                         selected
-                          ? 'border-primary'
+                          ? 'border-primary bg-primary text-primary-foreground'
                           : 'border-muted-foreground/40',
                       )}
                       aria-hidden
                     >
                       {selected ? (
-                        <span className="size-2 rounded-full bg-primary" />
+                        <svg
+                          viewBox="0 0 16 16"
+                          className="size-3"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
+                          <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
+                        </svg>
                       ) : null}
                     </span>
                     <Icon
@@ -280,9 +326,9 @@ export function ExportChoiceDialog({
           <Button
             type="button"
             onClick={() => void handleConfirmExport()}
-            disabled={isExporting || selectedModeDisabled}
+            disabled={confirmDisabled}
           >
-            {isExporting && exportingMode === selectedMode ? (
+            {isExporting ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
             ) : null}
             {t('recordDetail.exportDialog.confirm')}
@@ -292,4 +338,3 @@ export function ExportChoiceDialog({
     </Dialog>
   )
 }
-

@@ -55,12 +55,22 @@ export function MetadataFieldPickerDialog({
         f.fieldName.toLowerCase().includes(normalizedSearch) ||
         f.key.toLowerCase().includes(normalizedSearch),
     )
-  }, [fields, isFallback, onlyWithValues, fieldsWithValueCount, normalizedSearch])
+  }, [
+    fields,
+    isFallback,
+    onlyWithValues,
+    fieldsWithValueCount,
+    normalizedSearch,
+  ])
 
   const groupedFields = useMemo(() => {
     const groups: Record<
       string,
-      { groupName: string; groupCode: string; items: Array<DocumentNamingMetadataFieldOptionT> }
+      {
+        groupName: string
+        groupCode: string
+        items: Array<DocumentNamingMetadataFieldOptionT>
+      }
     > = {}
 
     for (const field of filteredFields) {
@@ -131,7 +141,10 @@ export function MetadataFieldPickerDialog({
                   onChange={(e) => setOnlyWithValues(e.target.checked)}
                   className="rounded border-border text-primary focus:ring-primary size-3.5"
                 />
-                <span>Chỉ hiện trường có dữ liệu ({fieldsWithValueCount}/{fields.length})</span>
+                <span>
+                  Chỉ hiện trường có dữ liệu ({fieldsWithValueCount}/
+                  {fields.length})
+                </span>
               </label>
             </div>
           ) : null}
@@ -142,13 +155,16 @@ export function MetadataFieldPickerDialog({
             <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-50/70 p-3.5 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200 shadow-sm">
               <Info className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
               <span className="leading-relaxed font-medium">
-                Hồ sơ chưa có metadata. Đang hiển thị danh mục metadata mẫu theo quy định
+                Hồ sơ chưa có metadata. Đang hiển thị danh mục metadata mẫu theo
+                quy định
               </span>
             </div>
           ) : fields.length > 0 ? (
             <div className="flex items-center gap-2 rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
               <Check className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <span>Đang hiển thị danh mục trường metadata có sẵn của hồ sơ này</span>
+              <span>
+                Đang hiển thị danh mục trường metadata có sẵn của hồ sơ này
+              </span>
             </div>
           ) : null}
 
@@ -177,7 +193,8 @@ export function MetadataFieldPickerDialog({
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
                     {group.items.map((field) => {
                       const isSelected =
-                        selectedKey === field.key || selectedKey === field.fieldName
+                        selectedKey === field.key ||
+                        selectedKey === field.fieldName
                       return (
                         <button
                           key={field.key}
@@ -188,7 +205,9 @@ export function MetadataFieldPickerDialog({
                             isSelected
                               ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary/30'
                               : 'border-border/70 bg-card hover:bg-accent/40 hover:border-primary/50 hover:shadow-sm',
-                            !isFallback && !field.hasValue && 'opacity-75 bg-muted/20 border-dashed',
+                            !isFallback &&
+                              !field.hasValue &&
+                              'opacity-75 bg-muted/20 border-dashed',
                           )}
                         >
                           <div className="flex items-start justify-between gap-2 w-full">
@@ -212,12 +231,16 @@ export function MetadataFieldPickerDialog({
                               {field.hasValue ? (
                                 <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-medium">
                                   <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                  <span className="truncate">Giá trị: "{field.sampleValue}"</span>
+                                  <span className="truncate">
+                                    Giá trị: "{field.sampleValue}"
+                                  </span>
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                                   <span className="size-1.5 rounded-full bg-amber-500 shrink-0" />
-                                  <span className="italic">Chưa có dữ liệu</span>
+                                  <span className="italic">
+                                    Chưa có dữ liệu
+                                  </span>
                                 </div>
                               )}
                             </div>
@@ -252,7 +275,10 @@ export function MetadataFieldPickerDialog({
 
         <DialogFooter className="px-6 py-3.5 border-t border-border bg-muted/10 flex items-center justify-between sm:justify-between">
           <span className="text-xs text-muted-foreground">
-            {filteredFields.length} {t('metadataPicker.fieldsFound', { defaultValue: 'trường metadata' })}
+            {filteredFields.length}{' '}
+            {t('metadataPicker.fieldsFound', {
+              defaultValue: 'trường metadata',
+            })}
           </span>
           <Button
             type="button"

@@ -22,7 +22,7 @@ import type {
 } from '@/features/data-management/types'
 
 export type ExportKind = 'folder' | 'dossier' | 'multi_dossiers'
-export type ExportMode = 'metadata' | 'dip' | 'excel' | 'tiff'
+export type ExportMode = 'metadata' | 'dip' | 'excel' | 'tiff' | 'pdf'
 
 export interface ExportOptions {
   presetId?: string
@@ -164,13 +164,15 @@ export async function runExport({
   ]
   const batchDossierIds = [...new Set((dossierIds ?? []).filter(Boolean))]
 
-  if (mode === 'metadata' || mode === 'excel' || mode === 'tiff') {
+  if (mode === 'metadata' || mode === 'excel' || mode === 'tiff' || mode === 'pdf') {
     const configWithFlags: MetadataExportRequestT | undefined =
       mode === 'excel'
         ? { ...metadataConfig, excelOnly: true }
         : mode === 'tiff'
           ? { ...metadataConfig, tiffOnly: true }
-          : metadataConfig
+          : mode === 'pdf'
+            ? { ...metadataConfig, pdfOnly: true }
+            : metadataConfig
     if (kind === 'multi_dossiers') {
       if (batchFolderIds.length > 0) {
         await exportMultiFoldersMetadataExcel(

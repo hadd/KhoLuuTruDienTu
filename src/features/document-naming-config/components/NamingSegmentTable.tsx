@@ -1,5 +1,12 @@
 import { useState } from 'react'
-import { AlertTriangle, ChevronDown, ChevronUp, Database, Plus, Trash2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Database,
+  Plus,
+  Trash2,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -116,10 +123,15 @@ export function NamingSegmentTable({
   onChange,
 }: NamingSegmentTableProps) {
   const { t } = useTranslation('document-naming-config')
-  const [activePickerIndex, setActivePickerIndex] = useState<number | null>(null)
+  const [activePickerIndex, setActivePickerIndex] = useState<number | null>(
+    null,
+  )
   const sourceOptions = SOURCE_OPTIONS_BY_TARGET[targetType]
 
-  const updateSegment = (index: number, patch: Partial<DocumentNamingSegmentT>) => {
+  const updateSegment = (
+    index: number,
+    patch: Partial<DocumentNamingSegmentT>,
+  ) => {
     onChange(
       segments.map((segment, segmentIndex) =>
         segmentIndex === index ? { ...segment, ...patch } : segment,
@@ -181,15 +193,36 @@ export function NamingSegmentTable({
             </TableHeader>
             <TableBody>
               {segments.map((segment, index) => {
-                const fieldOptions = getFieldOptions(segment.source, fieldCatalog)
-                const selectedMetaField = metadataFields?.find(
-                  (f) => f.key === segment.fieldKey || f.fieldName === segment.fieldKey,
+                const fieldOptions = getFieldOptions(
+                  segment.source,
+                  fieldCatalog,
                 )
-                const lengthError = getSegmentFieldError(errors, index, 'length')
-                const sourceError = getSegmentFieldError(errors, index, 'source')
+                const selectedMetaField = metadataFields?.find(
+                  (f) =>
+                    f.key === segment.fieldKey ||
+                    f.fieldName === segment.fieldKey,
+                )
+                const lengthError = getSegmentFieldError(
+                  errors,
+                  index,
+                  'length',
+                )
+                const sourceError = getSegmentFieldError(
+                  errors,
+                  index,
+                  'source',
+                )
                 const valueError = getSegmentFieldError(errors, index, 'value')
-                const fieldKeyError = getSegmentFieldError(errors, index, 'fieldKey')
-                const padCharError = getSegmentFieldError(errors, index, 'padChar')
+                const fieldKeyError = getSegmentFieldError(
+                  errors,
+                  index,
+                  'fieldKey',
+                )
+                const padCharError = getSegmentFieldError(
+                  errors,
+                  index,
+                  'padChar',
+                )
 
                 return (
                   <TableRow key={`segment-${index}`}>
@@ -202,17 +235,23 @@ export function NamingSegmentTable({
                           type="number"
                           min={1}
                           max={64}
-                          className={cn('w-full', lengthError && 'border-destructive')}
+                          className={cn(
+                            'w-full',
+                            lengthError && 'border-destructive',
+                          )}
                           value={segment.length}
                           disabled={disabled}
                           onChange={(event) =>
                             updateSegment(index, {
-                              length: Number.parseInt(event.target.value, 10) || 1,
+                              length:
+                                Number.parseInt(event.target.value, 10) || 1,
                             })
                           }
                         />
                         {lengthError ? (
-                          <p className="text-xs text-destructive">{lengthError}</p>
+                          <p className="text-xs text-destructive">
+                            {lengthError}
+                          </p>
                         ) : null}
                       </div>
                     </TableCell>
@@ -236,7 +275,10 @@ export function NamingSegmentTable({
                           }}
                         >
                           <SelectTrigger
-                            className={cn('w-full', sourceError && 'border-destructive')}
+                            className={cn(
+                              'w-full',
+                              sourceError && 'border-destructive',
+                            )}
                           >
                             <SelectValue />
                           </SelectTrigger>
@@ -249,7 +291,9 @@ export function NamingSegmentTable({
                           </SelectContent>
                         </Select>
                         {sourceError ? (
-                          <p className="text-xs text-destructive">{sourceError}</p>
+                          <p className="text-xs text-destructive">
+                            {sourceError}
+                          </p>
                         ) : null}
                       </div>
                     </TableCell>
@@ -261,26 +305,37 @@ export function NamingSegmentTable({
                               <Input
                                 type="number"
                                 min={1}
-                                className={cn('h-9 w-full', valueError && 'border-destructive')}
+                                className={cn(
+                                  'h-9 w-full',
+                                  valueError && 'border-destructive',
+                                )}
                                 value={segment.value ?? ''}
                                 disabled={disabled}
-                                placeholder={t('segments.autoIncrementPlaceholder')}
+                                placeholder={t(
+                                  'segments.autoIncrementPlaceholder',
+                                )}
                                 onChange={(event) =>
                                   updateSegment(index, {
                                     value: String(
-                                      Number.parseInt(event.target.value, 10) || 1,
+                                      Number.parseInt(event.target.value, 10) ||
+                                        1,
                                     ),
                                   })
                                 }
                               />
                             ) : (
                               <Input
-                                className={cn('h-9 w-full', valueError && 'border-destructive')}
+                                className={cn(
+                                  'h-9 w-full',
+                                  valueError && 'border-destructive',
+                                )}
                                 value={segment.value ?? ''}
                                 disabled={disabled}
                                 placeholder={t('segments.fixedPlaceholder')}
                                 onChange={(event) =>
-                                  updateSegment(index, { value: event.target.value })
+                                  updateSegment(index, {
+                                    value: event.target.value,
+                                  })
                                 }
                               />
                             )
@@ -304,10 +359,15 @@ export function NamingSegmentTable({
                                   <span className="truncate flex items-center gap-1.5 min-w-0">
                                     <Database className="size-3.5 text-primary shrink-0" />
                                     <span className="font-medium text-foreground truncate">
-                                      {selectedMetaField?.display ?? segment.value ?? segment.fieldKey}
+                                      {selectedMetaField?.display ??
+                                        segment.value ??
+                                        segment.fieldKey}
                                     </span>
                                     <span className="text-[11px] font-mono text-muted-foreground truncate">
-                                      ({selectedMetaField?.fieldName ?? segment.fieldKey})
+                                      (
+                                      {selectedMetaField?.fieldName ??
+                                        segment.fieldKey}
+                                      )
                                     </span>
                                   </span>
                                   {!isFallbackMetadata && selectedMetaField ? (
@@ -332,7 +392,10 @@ export function NamingSegmentTable({
                               ) : (
                                 <span className="text-muted-foreground text-xs italic flex items-center gap-1">
                                   <Database className="size-3.5 text-muted-foreground" />
-                                  + {t('segments.selectMetadataField', { defaultValue: 'Chọn trường metadata...' })}
+                                  +{' '}
+                                  {t('segments.selectMetadataField', {
+                                    defaultValue: 'Chọn trường metadata...',
+                                  })}
                                 </span>
                               )}
                             </Button>
@@ -350,7 +413,9 @@ export function NamingSegmentTable({
                                   fieldKeyError && 'border-destructive',
                                 )}
                               >
-                                <SelectValue placeholder={t('segments.selectField')} />
+                                <SelectValue
+                                  placeholder={t('segments.selectField')}
+                                />
                               </SelectTrigger>
                               <SelectContent>
                                 {fieldOptions.map((field) => (
@@ -377,7 +442,9 @@ export function NamingSegmentTable({
                         !selectedMetaField.hasValue ? (
                           <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 leading-tight">
                             <AlertTriangle className="size-3 shrink-0" />
-                            <span>Chưa có dữ liệu trong hồ sơ (sẽ bị rỗng khi xuất)</span>
+                            <span>
+                              Chưa có dữ liệu trong hồ sơ (sẽ bị rỗng khi xuất)
+                            </span>
                           </p>
                         ) : null}
                         {valueError || fieldKeyError ? (
@@ -390,7 +457,10 @@ export function NamingSegmentTable({
                     <TableCell>
                       <div className="space-y-1">
                         <Input
-                          className={cn('w-full', padCharError && 'border-destructive')}
+                          className={cn(
+                            'w-full',
+                            padCharError && 'border-destructive',
+                          )}
                           value={segment.padChar ?? ''}
                           maxLength={1}
                           disabled={disabled}
@@ -402,7 +472,9 @@ export function NamingSegmentTable({
                           }
                         />
                         {padCharError ? (
-                          <p className="text-xs text-destructive">{padCharError}</p>
+                          <p className="text-xs text-destructive">
+                            {padCharError}
+                          </p>
                         ) : null}
                       </div>
                     </TableCell>

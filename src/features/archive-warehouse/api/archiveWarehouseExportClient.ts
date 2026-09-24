@@ -37,7 +37,7 @@ function normalizeExportFileName(fileName: string): string {
 }
 
 /** ~10000 phút — export cây lớn có thể stream rất lâu. */
-const EXPORT_TIMEOUT_MS = 10_000 * 60 * 1000
+const EXPORT_TIMEOUT_MS = 0
 
 const MULTI_DOWNLOAD_GAP_MS = 1200
 

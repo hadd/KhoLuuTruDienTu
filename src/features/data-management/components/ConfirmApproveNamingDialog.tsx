@@ -31,7 +31,10 @@ export function ConfirmApproveNamingDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <div className="flex items-center gap-2">
-            <AlertCircle className="size-5 shrink-0 text-amber-500" aria-hidden />
+            <AlertCircle
+              className="size-5 shrink-0 text-amber-500"
+              aria-hidden
+            />
             <AlertDialogTitle>
               {t('metadata.confirmApproveNamingTitle')}
             </AlertDialogTitle>

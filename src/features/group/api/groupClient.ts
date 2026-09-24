@@ -113,6 +113,26 @@ export const revokeGroupMemberAssignments = async (
   return response.data
 }
 
+export type RevokeGroupAllAssignmentsResponseT = {
+  group: { id: string; name: string }
+  totalTargeted: number
+  totalRevoked: number
+  totalSkipped: number
+  revokedDossierIds: Array<string>
+  assignmentsCancelled: number
+  skipped: Array<{ dossierId: string; folderId: string; reason: string }>
+}
+
+/** POST /api/v1/admin/groups/:id/revoke-all */
+export const revokeGroupAllAssignments = async (
+  groupId: string,
+): Promise<RevokeGroupAllAssignmentsResponseT> => {
+  const response = await apiClient.post<RevokeGroupAllAssignmentsResponseT>(
+    `/api/v1/admin/groups/${encodeURIComponent(groupId)}/revoke-all`,
+  )
+  return response.data
+}
+
 export const deleteAdminGroup = async (groupId: string): Promise<void> => {
   await apiClient.delete(`/api/v1/admin/groups/${encodeURIComponent(groupId)}`)
 }

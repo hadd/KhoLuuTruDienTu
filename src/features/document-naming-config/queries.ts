@@ -1,4 +1,8 @@
-import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  queryOptions,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
 
 import {
   getDocumentNamingConfig,
@@ -28,11 +32,16 @@ export const documentNamingDossierOptionsQueryKeyPrefix = [
   'dossier-options',
 ] as const
 
-export function documentNamingFieldCatalogQueryOptions(params?: {
-  dossierId?: string
-} | null) {
+export function documentNamingFieldCatalogQueryOptions(
+  params?: {
+    dossierId?: string
+  } | null,
+) {
   return queryOptions({
-    queryKey: [...documentNamingFieldCatalogQueryKey, params?.dossierId ?? null],
+    queryKey: [
+      ...documentNamingFieldCatalogQueryKey,
+      params?.dossierId ?? null,
+    ],
     queryFn: () =>
       getDocumentNamingFieldCatalog(
         params?.dossierId ? { dossierId: params.dossierId } : undefined,
@@ -41,11 +50,13 @@ export function documentNamingFieldCatalogQueryOptions(params?: {
   })
 }
 
-export function documentNamingConfigQueryOptions(params: {
-  fondId: string
-  targetType: DocumentNamingTargetTypeT
-  dossierId?: string
-} | null) {
+export function documentNamingConfigQueryOptions(
+  params: {
+    fondId: string
+    targetType: DocumentNamingTargetTypeT
+    dossierId?: string
+  } | null,
+) {
   return queryOptions({
     queryKey: [...documentNamingConfigQueryKeyPrefix, params ?? {}],
     queryFn: () => getDocumentNamingConfig(params!),
@@ -58,28 +69,109 @@ import { fetchDossierMetadataExportFields } from '@/features/data-management/api
 import { getMetadataTemplates } from '@/features/data-config/api/metadataTemplateClient'
 import type { DocumentNamingMetadataFieldOptionT } from '@/features/document-naming-config/types'
 
-export const FALLBACK_TT05_METADATA_FIELDS: Array<DocumentNamingMetadataFieldOptionT> = [
-  { key: 'HO_SO_LUU_TRU.MA_HO_SO', groupCode: 'HO_SO_LUU_TRU', groupName: 'Metadata cấp Hồ sơ', fieldName: 'MA_HO_SO', display: 'Mã hồ sơ / Số ĐVBQ' },
-  { key: 'HO_SO_LUU_TRU.MUC_LUC_SO', groupCode: 'HO_SO_LUU_TRU', groupName: 'Metadata cấp Hồ sơ', fieldName: 'MUC_LUC_SO', display: 'Mục lục số' },
-  { key: 'HO_SO_LUU_TRU.TIEU_DE_HO_SO', groupCode: 'HO_SO_LUU_TRU', groupName: 'Metadata cấp Hồ sơ', fieldName: 'TIEU_DE_HO_SO', display: 'Tiêu đề hồ sơ' },
-  { key: 'HO_SO_LUU_TRU.NAM_HINH_THANH_HO_SO', groupCode: 'HO_SO_LUU_TRU', groupName: 'Metadata cấp Hồ sơ', fieldName: 'NAM_HINH_THANH_HO_SO', display: 'Năm hình thành hồ sơ' },
-  { key: 'HO_SO_LUU_TRU.THOI_HAN_LUU_TRU', groupCode: 'HO_SO_LUU_TRU', groupName: 'Metadata cấp Hồ sơ', fieldName: 'THOI_HAN_LUU_TRU', display: 'Thời hạn bảo quản' },
-  { key: 'TAI_LIEU_LUU_TRU.SO_THU_TU_VAN_BAN', groupCode: 'TAI_LIEU_LUU_TRU', groupName: 'Metadata cấp Văn bản', fieldName: 'SO_THU_TU_VAN_BAN', display: 'Số thứ tự văn bản trong hồ sơ' },
-  { key: 'TAI_LIEU_LUU_TRU.TEN_LOAI_TAI_LIEU', groupCode: 'TAI_LIEU_LUU_TRU', groupName: 'Metadata cấp Văn bản', fieldName: 'TEN_LOAI_TAI_LIEU', display: 'Ký hiệu / Tên loại văn bản' },
-  { key: 'TAI_LIEU_LUU_TRU.SO_CUA_VAN_BAN', groupCode: 'TAI_LIEU_LUU_TRU', groupName: 'Metadata cấp Văn bản', fieldName: 'SO_CUA_VAN_BAN', display: 'Số của văn bản' },
-  { key: 'TAI_LIEU_LUU_TRU.KY_HIEU_CUA_VAN_BAN', groupCode: 'TAI_LIEU_LUU_TRU', groupName: 'Metadata cấp Văn bản', fieldName: 'KY_HIEU_CUA_VAN_BAN', display: 'Ký hiệu của văn bản' },
-  { key: 'TAI_LIEU_LUU_TRU.NAM', groupCode: 'TAI_LIEU_LUU_TRU', groupName: 'Metadata cấp Văn bản', fieldName: 'NAM', display: 'Năm phát hành' },
-  { key: 'TAI_LIEU_LUU_TRU.NGAY_THANG_NAM_BAN_HANH', groupCode: 'TAI_LIEU_LUU_TRU', groupName: 'Metadata cấp Văn bản', fieldName: 'NGAY_THANG_NAM_BAN_HANH', display: 'Ngày tháng năm ban hành' },
-  { key: 'TAI_LIEU_LUU_TRU.TEN_CO_QUAN_BAN_HANH', groupCode: 'TAI_LIEU_LUU_TRU', groupName: 'Metadata cấp Văn bản', fieldName: 'TEN_CO_QUAN_BAN_HANH', display: 'Tên cơ quan ban hành' },
-  { key: 'TAI_LIEU_LUU_TRU.TRICH_YEU_NOI_DUNG', groupCode: 'TAI_LIEU_LUU_TRU', groupName: 'Metadata cấp Văn bản', fieldName: 'TRICH_YEU_NOI_DUNG', display: 'Trích yếu nội dung' },
-]
+export const FALLBACK_TT05_METADATA_FIELDS: Array<DocumentNamingMetadataFieldOptionT> =
+  [
+    {
+      key: 'HO_SO_LUU_TRU.MA_HO_SO',
+      groupCode: 'HO_SO_LUU_TRU',
+      groupName: 'Metadata cấp Hồ sơ',
+      fieldName: 'MA_HO_SO',
+      display: 'Mã hồ sơ / Số ĐVBQ',
+    },
+    {
+      key: 'HO_SO_LUU_TRU.MUC_LUC_SO',
+      groupCode: 'HO_SO_LUU_TRU',
+      groupName: 'Metadata cấp Hồ sơ',
+      fieldName: 'MUC_LUC_SO',
+      display: 'Mục lục số',
+    },
+    {
+      key: 'HO_SO_LUU_TRU.TIEU_DE_HO_SO',
+      groupCode: 'HO_SO_LUU_TRU',
+      groupName: 'Metadata cấp Hồ sơ',
+      fieldName: 'TIEU_DE_HO_SO',
+      display: 'Tiêu đề hồ sơ',
+    },
+    {
+      key: 'HO_SO_LUU_TRU.NAM_HINH_THANH_HO_SO',
+      groupCode: 'HO_SO_LUU_TRU',
+      groupName: 'Metadata cấp Hồ sơ',
+      fieldName: 'NAM_HINH_THANH_HO_SO',
+      display: 'Năm hình thành hồ sơ',
+    },
+    {
+      key: 'HO_SO_LUU_TRU.THOI_HAN_LUU_TRU',
+      groupCode: 'HO_SO_LUU_TRU',
+      groupName: 'Metadata cấp Hồ sơ',
+      fieldName: 'THOI_HAN_LUU_TRU',
+      display: 'Thời hạn bảo quản',
+    },
+    {
+      key: 'TAI_LIEU_LUU_TRU.SO_THU_TU_VAN_BAN',
+      groupCode: 'TAI_LIEU_LUU_TRU',
+      groupName: 'Metadata cấp Văn bản',
+      fieldName: 'SO_THU_TU_VAN_BAN',
+      display: 'Số thứ tự văn bản trong hồ sơ',
+    },
+    {
+      key: 'TAI_LIEU_LUU_TRU.TEN_LOAI_TAI_LIEU',
+      groupCode: 'TAI_LIEU_LUU_TRU',
+      groupName: 'Metadata cấp Văn bản',
+      fieldName: 'TEN_LOAI_TAI_LIEU',
+      display: 'Ký hiệu / Tên loại văn bản',
+    },
+    {
+      key: 'TAI_LIEU_LUU_TRU.SO_CUA_VAN_BAN',
+      groupCode: 'TAI_LIEU_LUU_TRU',
+      groupName: 'Metadata cấp Văn bản',
+      fieldName: 'SO_CUA_VAN_BAN',
+      display: 'Số của văn bản',
+    },
+    {
+      key: 'TAI_LIEU_LUU_TRU.KY_HIEU_CUA_VAN_BAN',
+      groupCode: 'TAI_LIEU_LUU_TRU',
+      groupName: 'Metadata cấp Văn bản',
+      fieldName: 'KY_HIEU_CUA_VAN_BAN',
+      display: 'Ký hiệu của văn bản',
+    },
+    {
+      key: 'TAI_LIEU_LUU_TRU.NAM',
+      groupCode: 'TAI_LIEU_LUU_TRU',
+      groupName: 'Metadata cấp Văn bản',
+      fieldName: 'NAM',
+      display: 'Năm phát hành',
+    },
+    {
+      key: 'TAI_LIEU_LUU_TRU.NGAY_THANG_NAM_BAN_HANH',
+      groupCode: 'TAI_LIEU_LUU_TRU',
+      groupName: 'Metadata cấp Văn bản',
+      fieldName: 'NGAY_THANG_NAM_BAN_HANH',
+      display: 'Ngày tháng năm ban hành',
+    },
+    {
+      key: 'TAI_LIEU_LUU_TRU.TEN_CO_QUAN_BAN_HANH',
+      groupCode: 'TAI_LIEU_LUU_TRU',
+      groupName: 'Metadata cấp Văn bản',
+      fieldName: 'TEN_CO_QUAN_BAN_HANH',
+      display: 'Tên cơ quan ban hành',
+    },
+    {
+      key: 'TAI_LIEU_LUU_TRU.TRICH_YEU_NOI_DUNG',
+      groupCode: 'TAI_LIEU_LUU_TRU',
+      groupName: 'Metadata cấp Văn bản',
+      fieldName: 'TRICH_YEU_NOI_DUNG',
+      display: 'Trích yếu nội dung',
+    },
+  ]
 
 export type DocumentNamingDossierMetadataQueryResultT = {
   fields: Array<DocumentNamingMetadataFieldOptionT>
   isFallback: boolean
 }
 
-export function documentNamingDossierMetadataFieldsQueryOptions(dossierId?: string | null) {
+export function documentNamingDossierMetadataFieldsQueryOptions(
+  dossierId?: string | null,
+) {
   return queryOptions<DocumentNamingDossierMetadataQueryResultT>({
     queryKey: ['document-naming-config', 'dossier-metadata-fields', dossierId],
     queryFn: async (): Promise<DocumentNamingDossierMetadataQueryResultT> => {
@@ -120,16 +212,21 @@ export function documentNamingDossierMetadataFieldsQueryOptions(dossierId?: stri
         // Fallback to static TT05
       }
 
-      return { fields: FALLBACK_TT05_METADATA_FIELDS, isFallback: Boolean(dossierId) }
+      return {
+        fields: FALLBACK_TT05_METADATA_FIELDS,
+        isFallback: Boolean(dossierId),
+      }
     },
     staleTime: 60_000,
   })
 }
 
-export function documentNamingDossierOptionsQueryOptions(params: {
-  fondId: string
-  search?: string
-} | null) {
+export function documentNamingDossierOptionsQueryOptions(
+  params: {
+    fondId: string
+    search?: string
+  } | null,
+) {
   return queryOptions({
     queryKey: [...documentNamingDossierOptionsQueryKeyPrefix, params ?? {}],
     queryFn: () => getDocumentNamingDossierOptions({ ...params!, limit: 50 }),
