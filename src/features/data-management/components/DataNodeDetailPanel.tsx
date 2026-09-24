@@ -72,30 +72,34 @@ function FolderDetailCard({
   }, [exportContext])
 
   const handleExport = useCallback(
-    async (mode: ExportMode, options?: ExportOptions) => {
-      if (!exportContext || isExporting) return
+    async (modes: ExportMode[], options?: ExportOptions) => {
+      if (!exportContext || isExporting || modes.length === 0) return
 
       setIsExporting(true)
-      setExportingMode(mode)
       try {
-        await runExport({
-          kind: exportContext.kind,
-          mode,
-          folderId: exportContext.folderId,
-          dossierId: exportContext.dossierId,
-          downloadName: exportContext.downloadName,
-          metadataExportConfig: options?.presetId
-            ? { presetId: options.presetId }
-            : undefined,
-          useDocumentNaming: options?.useDocumentNaming === true,
-        })
-        toast.success(
-          mode === 'dip'
-            ? t('recordDetail.exportDipSuccess')
-            : mode === 'tiff'
-              ? t('recordDetail.exportTiffSuccess')
-              : t('recordDetail.exportExcelSuccess'),
-        )
+        for (const mode of modes) {
+          setExportingMode(mode)
+          await runExport({
+            kind: exportContext.kind,
+            mode,
+            folderId: exportContext.folderId,
+            dossierId: exportContext.dossierId,
+            downloadName: exportContext.downloadName,
+            metadataExportConfig: options?.presetId
+              ? { presetId: options.presetId }
+              : undefined,
+            useDocumentNaming: options?.useDocumentNaming === true,
+          })
+          toast.success(
+            mode === 'dip'
+              ? t('recordDetail.exportDipSuccess')
+              : mode === 'tiff'
+                ? t('recordDetail.exportTiffSuccess')
+                : mode === 'pdf'
+                  ? t('recordDetail.exportPdfSuccess')
+                  : t('recordDetail.exportExcelSuccess'),
+          )
+        }
         setDialogOpen(false)
       } catch (error) {
         toast.error(
