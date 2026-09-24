@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import {
+  deleteMultiDossiers,
   isDataManagementUploadError,
   validateFolderUploadFiles,
 } from '@/features/data-management/api/dataManagementClient'
@@ -37,7 +38,6 @@ import type { OversizedUploadFile } from '@/features/data-management/lib/uploadP
 import { folderPathToStoragePrefix } from '@/features/data-management/lib/uploadPathPrefix'
 import {
   dataManagementTreeQueryKey,
-  useDeleteDataNodeMutation,
   useLoadNodeChildrenMutation,
   useRefreshDataManagementTreeMutation,
   useUploadDataFolderMutation,
@@ -145,10 +145,6 @@ export function FolderUploadDialog({
     role,
     selectedUploadProjectCode,
     handleProgress,
-  )
-  const deleteMutation = useDeleteDataNodeMutation(
-    role,
-    selectedUploadProjectCode,
   )
   const loadChildrenMutation = useLoadNodeChildrenMutation(
     role,
@@ -401,13 +397,7 @@ export function FolderUploadDialog({
         ...new Set(dossierIdMap.values()),
       ] as Array<string>
 
-      for (const dossierId of uniqueDossierIds) {
-        await deleteMutation.mutateAsync({
-          target: 'dossier',
-          id: dossierId,
-          permanent: true,
-        })
-      }
+      await deleteMultiDossiers(uniqueDossierIds, { permanent: true })
 
       await queryClient.invalidateQueries({
         queryKey: dataManagementTreeQueryKey(role),

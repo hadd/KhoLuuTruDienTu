@@ -1433,6 +1433,21 @@ export async function deleteDataNode({
   await apiClient.delete(`/api/v1/folders/${id}/dossiers`, { params })
 }
 
+/** Permanently or soft-delete multiple dossiers in one request. */
+export async function deleteMultiDossiers(
+  ids: Array<string>,
+  options?: { permanent?: boolean },
+): Promise<void> {
+  const uniqueIds = [...new Set(ids.filter((id) => Boolean(id?.trim())))]
+  if (uniqueIds.length === 0) return
+
+  const permanent = options?.permanent === true
+  await apiClient.delete('/api/v1/dossiers/delete-multi', {
+    params: permanent ? { permanent: true } : undefined,
+    data: { ids: uniqueIds },
+  })
+}
+
 function pruneNodeFromTree(
   root: DataTreeNodeT,
   targetId: string,
