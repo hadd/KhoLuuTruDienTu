@@ -48,6 +48,7 @@ const metadataExportBodySchema = t.Object({
   useDocumentNaming: t.Optional(t.Boolean()),
   excelOnly: t.Optional(t.Boolean()),
   tiffOnly: t.Optional(t.Boolean()),
+  pdfOnly: t.Optional(t.Boolean()),
 });
 
 const multiFolderMetadataExportBodySchema = t.Object({
@@ -60,6 +61,7 @@ const multiFolderMetadataExportBodySchema = t.Object({
   useDocumentNaming: t.Optional(t.Boolean()),
   excelOnly: t.Optional(t.Boolean()),
   tiffOnly: t.Optional(t.Boolean()),
+  pdfOnly: t.Optional(t.Boolean()),
 });
 
 function resolveExportBypassStatus(profile: UserWithRoles): boolean {
@@ -314,6 +316,7 @@ export function createFolderRouter(basePath: string = "/folders") {
               ...body,
               excelOnly: body.excelOnly === true,
               tiffOnly: body.tiffOnly === true,
+              pdfOnly: body.pdfOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
@@ -423,6 +426,7 @@ export function createFolderRouter(basePath: string = "/folders") {
               ...body,
               excelOnly: body.excelOnly === true,
               tiffOnly: body.tiffOnly === true,
+              pdfOnly: body.pdfOnly === true,
               applyWatermark,
               userId: profile.id,
               skippedFileIds,
@@ -481,6 +485,7 @@ export function createFolderRouter(basePath: string = "/folders") {
               useDocumentNaming: query.useDocumentNaming === true,
               excelOnly: query.excelOnly === true,
               tiffOnly: query.tiffOnly === true,
+              pdfOnly: query.pdfOnly === true,
               bypassStatus,
             }),
         );
@@ -499,6 +504,7 @@ export function createFolderRouter(basePath: string = "/folders") {
         useDocumentNaming: t.Optional(t.Boolean()),
         excelOnly: t.Optional(t.Boolean()),
         tiffOnly: t.Optional(t.Boolean()),
+        pdfOnly: t.Optional(t.Boolean()),
       }),
       detail: {
         tags,

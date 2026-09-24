@@ -1268,6 +1268,8 @@ type MetadataExportInput = {
   excelOnly?: boolean | string;
   /** When true, ZIP contains only the TIFF/ tree (no Excel/PDF). */
   tiffOnly?: boolean | string;
+  /** When true, ZIP contains only the PDF/ tree (no Excel/TIFF). */
+  pdfOnly?: boolean | string;
 };
 
 function isTruthyExportFlag(value: unknown): boolean {
@@ -1289,8 +1291,12 @@ async function buildApprovedMetadataExportZip(
 ) {
   const excelOnly = isTruthyExportFlag(input?.excelOnly);
   const tiffOnly = isTruthyExportFlag(input?.tiffOnly);
-  if (excelOnly && tiffOnly) {
-    throw httpError.badRequest("Cannot set both excelOnly and tiffOnly");
+  const pdfOnly = isTruthyExportFlag(input?.pdfOnly);
+  const exclusiveFlags = [excelOnly, tiffOnly, pdfOnly].filter(Boolean).length;
+  if (exclusiveFlags > 1) {
+    throw httpError.badRequest(
+      "Cannot set more than one of excelOnly, tiffOnly, pdfOnly",
+    );
   }
 
   // Early file-count check using metadata JSON only (no PDF download yet).
@@ -1320,8 +1326,9 @@ async function buildApprovedMetadataExportZip(
     assertExportFileLimit(totalPdfFiles);
   }
 
-  // excelOnly / tiffOnly / export_any_status: plain ZIP, no watermark, no password
-  const skipProtect = excelOnly || tiffOnly || input?.bypassStatus === true;
+  // excelOnly / tiffOnly / pdfOnly / export_any_status: plain ZIP, no watermark, no password
+  const skipProtect = excelOnly || tiffOnly || pdfOnly ||
+    input?.bypassStatus === true;
 
   const dossierIds = allDossiers.map((d) => d.id);
   // Hồ sơ ở trạng thái Đã duyệt: Không áp dụng watermark trừ khi người dùng chủ động bật (applyWatermark === true)
@@ -1355,7 +1362,7 @@ async function buildApprovedMetadataExportZip(
 
   let excelFileName: string | undefined;
   let excelBuffer: Uint8Array | undefined;
-  if (!tiffOnly) {
+  if (!tiffOnly && !pdfOnly) {
     const metadataList = metadataForCount.map((item) => item.metadata);
     const exportConfig =
       input?.presetId || input?.columns
@@ -1374,11 +1381,11 @@ async function buildApprovedMetadataExportZip(
       : `${zipBaseName}-metadata-export.xlsx`;
   }
 
-  // Stream ZIP while processing PDFs (or Excel-only / TIFF-only with tailored build).
+  // Stream ZIP while processing PDFs (or Excel-only / TIFF-only / PDF-only with tailored build).
   const stream = buildFolderMetadataExportZipStreamIncremental({
     excelFileName,
     excelBuffer,
-    omitExcel: tiffOnly,
+    omitExcel: tiffOnly || pdfOnly,
     password: zipPassword,
     build: async (add, usedFolderNames) => {
       if (excelOnly) return;
@@ -1477,7 +1484,9 @@ async function buildApprovedMetadataExportZip(
             let tiffData: Uint8Array | null = null;
 
             if (canUsePregen) {
-              const exportTiffKey = toExportTiffKey(source.storageKey);
+              const exportTiffKey = !pdfOnly
+                ? toExportTiffKey(source.storageKey)
+                : null;
               if (exportTiffKey) {
                 tiffData = await tryDownloadBinaryFromStorage(exportTiffKey);
               }
@@ -1489,7 +1498,9 @@ async function buildApprovedMetadataExportZip(
               }
             }
 
-            if (!tiffData || (!tiffOnly && !pdfData)) {
+            const needsPdfForTiff = !pdfOnly && (!tiffData || (!tiffOnly && !pdfData));
+            const needsPdfOnly = pdfOnly && !pdfData;
+            if (needsPdfOnly || needsPdfForTiff) {
               if (!pdfData) {
                 const downloaded = await downloadExportPdfSource(source);
                 let pdfFiles = [
@@ -1510,20 +1521,22 @@ async function buildApprovedMetadataExportZip(
                 });
                 pdfData = pdfFiles[0]!.data;
               }
-              if (!tiffData) {
+              if (!pdfOnly && !tiffData) {
                 tiffData = await runConvertPdfToTiff(pdfData!);
               }
             }
 
-            if (!tiffOnly) {
+            if (!tiffOnly && pdfData) {
               await zipMutex.runExclusive(() =>
                 add(`PDF/${folderPrefix}/${usedNamesEntry}`, pdfData!)
               );
             }
             pdfData = null;
-            await zipMutex.runExclusive(() =>
-              add(`TIFF/${folderPrefix}/${tiffEntryName}`, tiffData!)
-            );
+            if (!pdfOnly && tiffData) {
+              await zipMutex.runExclusive(() =>
+                add(`TIFF/${folderPrefix}/${tiffEntryName}`, tiffData!)
+              );
+            }
             tiffData = null;
           }
         },
@@ -1535,6 +1548,8 @@ async function buildApprovedMetadataExportZip(
     stream,
     filename: tiffOnly
       ? `${zipBaseName}-tiff-export.zip`
+      : pdfOnly
+      ? `${zipBaseName}-pdf-export.zip`
       : `${zipBaseName}-metadata-export.zip`,
     contentType: "application/zip" as const,
     exportedCount: metadataForCount.length,

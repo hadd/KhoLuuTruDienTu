@@ -60,8 +60,9 @@ export type ExportDownloadStatus = {
   expiresAt: number;
 };
 
-const TICKET_TTL_MS = 2 * 60 * 1000;
-const TERMINAL_TTL_MS = 10 * 60 * 1000;
+/** Effectively no expiry — large exports must not lose tickets mid-stream. */
+const TICKET_TTL_MS = Number.MAX_SAFE_INTEGER;
+const TERMINAL_TTL_MS = Number.MAX_SAFE_INTEGER;
 const ALLOWED_EXPORT_PATTERNS = [
   /^\/api\/v1\/dossiers\/metadata\/export$/,
   /^\/api\/v1\/dossiers\/dip\/export$/,
@@ -75,6 +76,8 @@ const tickets = new Map<string, ExportDownloadTicketRecord>();
 
 function cleanupExpiredTickets(now = Date.now()) {
   for (const [id, ticket] of tickets.entries()) {
+    // Never drop an in-flight download — TTL only applies once terminal.
+    if (ticket.state === "started") continue;
     const deadline = ticket.terminalExpiresAt ?? ticket.expiresAt;
     if (deadline <= now) {
       tickets.delete(id);

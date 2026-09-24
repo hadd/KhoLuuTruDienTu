@@ -4,20 +4,11 @@ import { mapInBatches, mapWithConcurrency } from "../libs/export-concurrency.ts"
 import JSZip from "jszip";
 import { jszipToReadableStream, readableStreamToUint8Array } from "../libs/jszip-stream.ts";
 
-Deno.test("assertExportFileLimit allows up to MAX_EXPORT_FILES", () => {
+Deno.test("assertExportFileLimit is a no-op (unlimited)", () => {
     assertExportFileLimit(MAX_EXPORT_FILES);
     assertExportFileLimit(0);
-});
-
-Deno.test("assertExportFileLimit rejects over limit", () => {
-    let thrown: unknown;
-    try {
-        assertExportFileLimit(MAX_EXPORT_FILES + 1);
-    } catch (err) {
-        thrown = err;
-    }
-    assertEquals(thrown instanceof Error, true);
-    assertEquals(String((thrown as Error).message).includes(String(MAX_EXPORT_FILES)), true);
+    assertExportFileLimit(MAX_EXPORT_FILES + 1);
+    assertExportFileLimit(Number.MAX_SAFE_INTEGER);
 });
 
 Deno.test("mapWithConcurrency preserves order", async () => {
