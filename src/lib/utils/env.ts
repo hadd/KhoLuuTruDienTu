@@ -23,6 +23,14 @@ declare global {
       VITE_PDF_MASK_GAUSSIAN_BLUR_PX?: string | number
       /** PDF editor mosaic block size (pixels). */
       VITE_PDF_MASK_MOSAIC_BLOCK_SIZE?: string | number
+      /** Show Excel-only option in export dialog. */
+      VITE_EXPORT_EXCEL_ENABLED?: string | boolean
+      /** Show PDF-only option in export dialog. */
+      VITE_EXPORT_PDF_ENABLED?: string | boolean
+      /** Show TIFF-only option in export dialog. */
+      VITE_EXPORT_TIFF_ENABLED?: string | boolean
+      /** Show DIP option in export dialog. */
+      VITE_EXPORT_DIP_ENABLED?: string | boolean
     }
     /** DEV: inspect active OCR socket instance */
     __ocrSocket?: unknown
@@ -113,6 +121,26 @@ const envSchema = z.object({
     .positive()
     .optional()
     .catch(14),
+  /** Export dialog: show Excel-only option. Default true. */
+  VITE_EXPORT_EXCEL_ENABLED: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((val) => val !== 'false'),
+  /** Export dialog: show PDF-only option. Default true. */
+  VITE_EXPORT_PDF_ENABLED: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((val) => val !== 'false'),
+  /** Export dialog: show TIFF-only option. Default true. */
+  VITE_EXPORT_TIFF_ENABLED: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((val) => val !== 'false'),
+  /** Export dialog: show DIP option. Default true. */
+  VITE_EXPORT_DIP_ENABLED: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((val) => val !== 'false'),
 })
 
 // Use runtime config if available (production), otherwise use build-time env (development)
@@ -154,6 +182,10 @@ export const env = {
     parsedEnv.data.VITE_PDF_MASK_GAUSSIAN_BLUR_PX ?? 18,
   PDF_MASK_MOSAIC_BLOCK_SIZE:
     parsedEnv.data.VITE_PDF_MASK_MOSAIC_BLOCK_SIZE ?? 14,
+  EXPORT_EXCEL_ENABLED: parsedEnv.data.VITE_EXPORT_EXCEL_ENABLED ?? true,
+  EXPORT_PDF_ENABLED: parsedEnv.data.VITE_EXPORT_PDF_ENABLED ?? true,
+  EXPORT_TIFF_ENABLED: parsedEnv.data.VITE_EXPORT_TIFF_ENABLED ?? true,
+  EXPORT_DIP_ENABLED: parsedEnv.data.VITE_EXPORT_DIP_ENABLED ?? true,
 }
 
 export type Env = typeof env

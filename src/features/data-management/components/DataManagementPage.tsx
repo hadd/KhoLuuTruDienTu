@@ -971,11 +971,10 @@ export function DataManagementPage({
   }
 
   const handleExport = useCallback(
-    async (mode: ExportMode, options?: ExportOptions) => {
-      if (!exportContext || isExporting) return
+    async (modes: ExportMode[], options?: ExportOptions) => {
+      if (!exportContext || isExporting || modes.length === 0) return
 
       setIsExporting(true)
-      setExportingMode(mode)
       try {
         let dossierId = exportContext.dossierId
         if (mode === 'dip' && !dossierId && exportContext.kind !== 'multi_dossiers') {
@@ -1042,35 +1041,45 @@ export function DataManagementPage({
   }, [selectedDossierIds, selectedExportFolderIds])
 
   const handleBatchExport = useCallback(
-    async (mode: ExportMode, options?: ExportOptions) => {
-      if (!batchExportContext || isExporting) return
+    async (modes: ExportMode[], options?: ExportOptions) => {
+      if (!batchExportContext || isExporting || modes.length === 0) return
 
       setIsExporting(true)
-      setBatchExportingMode(mode)
       try {
-        await runExport({
-          kind: batchExportContext.kind,
-          mode,
-          folderId: batchExportContext.folderId,
-          folderIds: batchExportContext.folderIds,
-          dossierId: batchExportContext.dossierId,
-          dossierIds: batchExportContext.dossierIds,
-          downloadName: batchExportContext.downloadName,
-          metadataExportConfig: options?.presetId
-            ? { presetId: options.presetId }
-            : undefined,
-          useDocumentNaming: options?.useDocumentNaming === true,
-        })
-        toast.success(
-          mode === 'dip'
-            ? t('recordDetail.exportDipSuccess', 'Đã tải xuống gói DIP.')
-            : mode === 'tiff'
-              ? t(
-                  'recordDetail.exportTiffSuccess',
-                  'Đã tải xuống gói TIFF.',
-                )
-              : t('recordDetail.exportExcelSuccess', 'Đã tải xuống tệp Excel.'),
-        )
+        for (const mode of modes) {
+          setBatchExportingMode(mode)
+          await runExport({
+            kind: batchExportContext.kind,
+            mode,
+            folderId: batchExportContext.folderId,
+            folderIds: batchExportContext.folderIds,
+            dossierId: batchExportContext.dossierId,
+            dossierIds: batchExportContext.dossierIds,
+            downloadName: batchExportContext.downloadName,
+            metadataExportConfig: options?.presetId
+              ? { presetId: options.presetId }
+              : undefined,
+            useDocumentNaming: options?.useDocumentNaming === true,
+          })
+          toast.success(
+            mode === 'dip'
+              ? t('recordDetail.exportDipSuccess', 'Đã tải xuống gói DIP.')
+              : mode === 'tiff'
+                ? t(
+                    'recordDetail.exportTiffSuccess',
+                    'Đã tải xuống gói TIFF.',
+                  )
+                : mode === 'pdf'
+                  ? t(
+                      'recordDetail.exportPdfSuccess',
+                      'Đã tải xuống gói PDF.',
+                    )
+                  : t(
+                      'recordDetail.exportExcelSuccess',
+                      'Đã tải xuống tệp Excel.',
+                    ),
+          )
+        }
         setBatchExportDialogOpen(false)
       } catch (error) {
         toast.error(
@@ -2048,7 +2057,10 @@ export function DataManagementPage({
         open={batchExportDialogOpen}
         onOpenChange={setBatchExportDialogOpen}
         context={batchExportContext}
-        canExportDip={Boolean(batchExportContext?.dossierIds?.length)}
+        canExportDip={Boolean(
+          batchExportContext?.dossierIds?.length ||
+            batchExportContext?.folderIds?.length,
+        )}
         onExport={handleBatchExport}
         isExporting={isExporting}
         exportingMode={batchExportingMode}

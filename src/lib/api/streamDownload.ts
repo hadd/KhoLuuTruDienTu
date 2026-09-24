@@ -7,8 +7,8 @@ import type { SecurityAccessModule } from '@/features/security-level/lib/securit
 import { notifyZipPasswordLocked } from '@/features/security-level/lib/zipPasswordToast'
 import { env } from '@/lib/utils/env'
 
-/** ~10000 phút — export cây lớn có thể stream rất lâu. */
-const EXPORT_TIMEOUT_MS = 10_000 * 60 * 1000
+/** 0 = no AbortController timeout (export streams until server closes). */
+const EXPORT_TIMEOUT_MS = 0
 
 export type StreamDownloadOptions = {
   method?: 'GET' | 'POST'
@@ -336,7 +336,10 @@ export async function streamDownloadToDisk(
 
   const controller = new AbortController()
   const timeoutMs = options.timeoutMs ?? EXPORT_TIMEOUT_MS
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
+  const timeoutId =
+    timeoutMs > 0
+      ? window.setTimeout(() => controller.abort(), timeoutMs)
+      : null
 
   if (!fileHandle) {
     try {
@@ -353,7 +356,7 @@ export async function streamDownloadToDisk(
       }
       throw err
     } finally {
-      window.clearTimeout(timeoutId)
+      if (timeoutId !== null) window.clearTimeout(timeoutId)
     }
   }
 
@@ -368,7 +371,7 @@ export async function streamDownloadToDisk(
       signal: controller.signal,
     })
   } catch (err) {
-    window.clearTimeout(timeoutId)
+    if (timeoutId !== null) window.clearTimeout(timeoutId)
     if (err instanceof DOMException && err.name === 'AbortError') {
       throw new Error('Request timed out. Please try again.')
     }
@@ -376,7 +379,7 @@ export async function streamDownloadToDisk(
   }
 
   if (response.status === 401) {
-    window.clearTimeout(timeoutId)
+    if (timeoutId !== null) window.clearTimeout(timeoutId)
     // One refresh + retry
     const newToken = await ensureFreshAccessToken()
     if (!newToken) {
@@ -395,7 +398,7 @@ export async function streamDownloadToDisk(
         signal: controller.signal,
       })
     } catch (err) {
-      window.clearTimeout(timeoutId)
+      if (timeoutId !== null) window.clearTimeout(timeoutId)
       if (err instanceof DOMException && err.name === 'AbortError') {
         throw new Error('Request timed out. Please try again.')
       }
@@ -404,7 +407,7 @@ export async function streamDownloadToDisk(
   }
 
   if (!response.ok) {
-    window.clearTimeout(timeoutId)
+    if (timeoutId !== null) window.clearTimeout(timeoutId)
     throw new Error(await parseErrorMessage(response))
   }
 
@@ -426,6 +429,6 @@ export async function streamDownloadToDisk(
     }
     notifyZipPasswordLocked(headersToRecord(response.headers))
   } finally {
-    window.clearTimeout(timeoutId)
+    if (timeoutId !== null) window.clearTimeout(timeoutId)
   }
 }

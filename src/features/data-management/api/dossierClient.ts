@@ -18,7 +18,7 @@ import {
 } from '@/lib/utils/translate-error'
 
 /** ~10000 phút — export cây lớn có thể stream rất lâu. */
-const EXPORT_TIMEOUT_MS = 10_000 * 60 * 1000
+const EXPORT_TIMEOUT_MS = 0
 
 export type OcrRunMode = 'auto' | 'manual'
 
@@ -340,6 +340,7 @@ export interface MetadataExportRequestT {
   useDocumentNaming?: boolean
   excelOnly?: boolean
   tiffOnly?: boolean
+  pdfOnly?: boolean
 }
 
 export interface MetadataExportPreviewRowT {
@@ -419,7 +420,8 @@ export async function exportDossierMetadataExcel(
     config?.columns ||
     config?.useDocumentNaming ||
     config?.excelOnly ||
-    config?.tiffOnly
+    config?.tiffOnly ||
+    config?.pdfOnly
   ) {
     await downloadConfiguredMetadataExport(
       path,
@@ -487,7 +489,8 @@ export async function exportFolderMetadataExcel(
     config?.columns ||
     config?.useDocumentNaming ||
     config?.excelOnly ||
-    config?.tiffOnly
+    config?.tiffOnly ||
+    config?.pdfOnly
   ) {
     await downloadConfiguredMetadataExport(path, fallbackName, config)
     return
