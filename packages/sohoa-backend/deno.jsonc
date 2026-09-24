@@ -1,8 +1,8 @@
 {
   "tasks": {
-    "dev": "NODE_ENV=development deno run --watch --allow-all cluster-main.ts",
-    "dev-local": "NODE_ENV=local deno run --watch --allow-all cluster-main.ts",
-    "start": "deno run --allow-all cluster-main.ts",
+    "dev": "NODE_ENV=development deno run --watch --allow-all --unstable-worker-options cluster-main.ts",
+    "dev-local": "NODE_ENV=local deno run --watch --allow-all --unstable-worker-options cluster-main.ts",
+    "start": "deno run --allow-all --unstable-worker-options cluster-main.ts",
     "db:generate": "deno run -A npm:drizzle-kit generate --config=drizzle.config.ts",
     "db:create-schema": "deno run -A ./scripts/migrations/create-schema.ts",
     "db:migrate": "deno run -A ./scripts/migrations/migrate.ts",
@@ -21,7 +21,7 @@
     "db:reset-gen-migrate-seed": "deno task db:reset && deno task db:generate && deno task db:migrate && deno task seed",
     "search:reindex": "deno run -A ./scripts/reindex-search.ts",
     "search:ping": "deno run -A ./scripts/ping-search.ts",
-    "search:verify-nested": "deno run -A ./scripts/verify-nested-search.ts"
+    "search:verify-nested": "deno run -A ./scripts/verify-nested-search.ts",
   },
-  "imports": {}
+  "imports": {},
 }
