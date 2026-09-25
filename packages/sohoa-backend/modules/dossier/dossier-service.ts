@@ -174,6 +174,7 @@ import {
   assignByFolderIdBodySchema,
   assignDossierBodySchema,
   createDocumentFromStorageBodySchema,
+  createMultiDocumentFromStorageBodySchema,
   createDossierSchema,
   createUploadPointBodySchema,
   dossierEntitySchema,
@@ -184,7 +185,10 @@ import {
   updateDossierSchema,
 } from "./types.ts";
 import { ProjectService } from "../project/project-service.ts";
-import { assertNoMixedStorageFolderLayoutOnAdd } from "./storage-folder-layout.ts";
+import {
+  assertNoMixedStorageFolderLayoutOnAdd,
+  assertNoMixedStorageFolderLayoutOnBatchAdd,
+} from "./storage-folder-layout.ts";
 import { buildAccessPasswordPatch } from "../security-level/access-password-patch.ts";
 import { assertActiveSecurityLevelId } from "../security-level/security-clearance.ts";
 import { resolveApplyWatermarkForDossiers } from "../security-level/security-enforcement.ts";
@@ -724,6 +728,87 @@ async function statStorageObject(key: string) {
     }
     throw error;
   }
+}
+
+/**
+ * Helper thực thi mảng tác vụ bất đồng bộ với giới hạn số luồng đồng thời (concurrency limit).
+ */
+async function mapConcurrent<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  if (items.length === 0) return [];
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const idx = nextIndex++;
+      results[idx] = await fn(items[idx]!, idx);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => worker(),
+  );
+  await Promise.all(workers);
+  return results;
+}
+
+/**
+ * Lấy kích thước file từ S3 và đếm số trang PDF cho các file mới.
+ * Tách từ createMultiDocumentFromStorage (Step 3).
+ */
+async function resolveStorageBatchMetadata(
+  uniqueKeys: string[],
+  existingFileMap: Map<string, unknown>,
+  concurrency = 15,
+) {
+  const tStep3Start = performance.now();
+  const fileMetaMap = new Map<
+    string,
+    { fileSizeKb: number | null; pageCount: number }
+  >();
+
+  // 1. Lấy kích thước file song song từ S3
+  const tStatStart = performance.now();
+  await mapConcurrent(uniqueKeys, concurrency, async (filePath) => {
+    const { fileSizeKb } = await statStorageObject(filePath);
+    fileMetaMap.set(filePath, { fileSizeKb, pageCount: 1 });
+  });
+  const statDuration = (performance.now() - tStatStart).toFixed(0);
+  console.info(
+    `[Batch Register][Step 3.1: S3 Stat] Hoàn thành cho ${uniqueKeys.length} files trong ${statDuration}ms`,
+  );
+
+  // 2. Chỉ đếm số trang PDF cho những file CHƯA tồn tại trong DB
+  const newFileKeys = uniqueKeys.filter((k) => !existingFileMap.has(k));
+  let totalNewPages = 0;
+
+  const tPdfStart = performance.now();
+  await mapConcurrent(newFileKeys, concurrency, async (filePath) => {
+    const fileName = storageBasename(filePath);
+    let pageCount = 1;
+    if (fileName.toLowerCase().endsWith(".pdf")) {
+      pageCount = await getPdfPageCount(filePath);
+    }
+    const meta = fileMetaMap.get(filePath)!;
+    meta.pageCount = pageCount;
+    totalNewPages += pageCount;
+  });
+  const pdfDuration = (performance.now() - tPdfStart).toFixed(0);
+  console.info(
+    `[Batch Register][Step 3.2: PDF Page Count] Hoàn thành đếm ${totalNewPages} trang cho ${newFileKeys.length} files mới trong ${pdfDuration}ms`,
+  );
+
+  const step3Duration = (performance.now() - tStep3Start).toFixed(0);
+  console.info(
+    `[Batch Register][Step 3: Tổng thời gian] ${step3Duration}ms`,
+  );
+
+  return { fileMetaMap, totalNewPages, newFileKeys };
 }
 
 async function ensureAssigneeExists(assigneeId: string) {
@@ -1549,8 +1634,8 @@ async function buildApprovedMetadataExportZip(
     filename: tiffOnly
       ? `${zipBaseName}-tiff-export.zip`
       : pdfOnly
-      ? `${zipBaseName}-pdf-export.zip`
-      : `${zipBaseName}-metadata-export.zip`,
+        ? `${zipBaseName}-pdf-export.zip`
+        : `${zipBaseName}-metadata-export.zip`,
     contentType: "application/zip" as const,
     exportedCount: metadataForCount.length,
     zipPasswordSource: zipResolved.source,
@@ -2607,6 +2692,172 @@ export const DossierService = {
     };
   },
 
+  async deleteMulti(ids: string[], options?: { permanent?: boolean }) {
+    if (!ids || ids.length === 0) {
+      return {
+        records: [],
+        status: "deleted" as const,
+      };
+    }
+
+    const uniqueIds = Array.from(new Set(ids));
+
+    if (options?.permanent) {
+      // 1. Lấy danh sách toàn bộ hồ sơ cần xóa trong 1 query duy nhất
+      const targetDossiers = await db.query.dossiers.findMany({
+        where: inArray(dossiers.id, uniqueIds),
+        with: { files: true },
+      });
+
+      if (targetDossiers.length === 0) {
+        throw httpError.notFound("No dossiers found to delete");
+      }
+
+      const foundIds = targetDossiers.map((d) => d.id);
+
+      // 2. Lấy toàn bộ assignments & metadataHistory liên quan theo danh sách (inArray)
+      const assignments = await db.query.dossierAssignments.findMany({
+        where: inArray(dossierAssignments.dossierId, foundIds),
+        columns: { dossierId: true, metadataKey: true },
+      });
+      const assignmentsByDossier = new Map<
+        string,
+        Array<{ metadataKey: string | null }>
+      >();
+      for (const a of assignments) {
+        const list = assignmentsByDossier.get(a.dossierId) ?? [];
+        list.push(a);
+        assignmentsByDossier.set(a.dossierId, list);
+      }
+
+      const historyRows = await db
+        .select({
+          dossierId: metadataHistory.dossierId,
+          s3Key: metadataHistory.s3Key,
+        })
+        .from(metadataHistory)
+        .where(inArray(metadataHistory.dossierId, foundIds));
+      const historyByDossier = new Map<string, string[]>();
+      for (const h of historyRows) {
+        if (h.dossierId && h.s3Key) {
+          const list = historyByDossier.get(h.dossierId) ?? [];
+          list.push(h.s3Key);
+          historyByDossier.set(h.dossierId, list);
+        }
+      }
+
+      // 3. Xóa song song đồng thời trên MinIO (concurrency 10) thay vì chạy tuần tự
+      let totalDeletedObjects = 0;
+      const purgeResults = await mapConcurrent(
+        targetDossiers,
+        10,
+        async (dossier) => {
+          const dossierAssignmentsList =
+            assignmentsByDossier.get(dossier.id) ?? [];
+          const storageKeys = collectDossierStorageKeys(
+            dossier,
+            dossier.files ?? [],
+            dossierAssignmentsList,
+          );
+          const s3Keys = historyByDossier.get(dossier.id) ?? [];
+          for (const s3Key of s3Keys) {
+            storageKeys.add(s3Key);
+          }
+          const count = await purgeDossierFromMinIO(
+            storageKeys,
+            dossier.folderPath,
+          );
+          return { dossierId: dossier.id, count };
+        },
+      );
+
+      const deletedObjectCountMap = new Map<string, number>();
+      for (const r of purgeResults) {
+        deletedObjectCountMap.set(r.dossierId, r.count);
+        totalDeletedObjects += r.count;
+      }
+
+      // 4. Xóa hàng loạt trong Database (1 Transaction duy nhất)
+      const allDeletedFolderIds: string[] = [];
+      await db.transaction(async (tx) => {
+        await purgeLinkedMetadataByDossierIds(tx, foundIds);
+        await tx.delete(dossiers).where(inArray(dossiers.id, foundIds));
+
+        const uniqueFolderIds = Array.from(
+          new Set(targetDossiers.map((d) => d.folderId)),
+        );
+        for (const folderId of uniqueFolderIds) {
+          const deletedFolders = await deleteOrphanFoldersAfterDossier(
+            tx,
+            folderId,
+          );
+          allDeletedFolderIds.push(...deletedFolders);
+        }
+      });
+
+      const records = targetDossiers.map((d) => ({
+        id: d.id,
+        mode: "permanent" as const,
+        deletedObjectCount: deletedObjectCountMap.get(d.id) ?? 0,
+        deletedFolderIds: allDeletedFolderIds,
+      }));
+
+      return {
+        records,
+        status: "deleted" as const,
+      };
+    }
+
+    // Soft delete: Cập nhật deletedAt hàng loạt trong 1 transaction duy nhất
+    const now = new Date();
+    const { updatedDossiers, allDeletedFolderIds } = await db.transaction(
+      async (tx) => {
+        const updated = await tx
+          .update(dossiers)
+          .set({ deletedAt: now, updatedAt: now })
+          .where(and(inArray(dossiers.id, uniqueIds), activeDossierWhere()))
+          .returning({ id: dossiers.id, folderId: dossiers.folderId });
+
+        if (updated.length === 0) {
+          return { updatedDossiers: [], allDeletedFolderIds: [] };
+        }
+
+        const deletedFolders: string[] = [];
+        const uniqueFolderIds = Array.from(
+          new Set(updated.map((d) => d.folderId)),
+        );
+        for (const folderId of uniqueFolderIds) {
+          const deleted = await softDeleteOrphanFoldersAfterDossier(
+            tx,
+            folderId,
+            now,
+          );
+          deletedFolders.push(...deleted);
+        }
+
+        return {
+          updatedDossiers: updated,
+          allDeletedFolderIds: deletedFolders,
+        };
+      },
+    );
+
+    if (updatedDossiers.length === 0) {
+      throw httpError.notFound("No active dossiers found to delete");
+    }
+
+    const records = updatedDossiers.map((d) => ({
+      id: d.id,
+      mode: "soft" as const,
+      deletedFolderIds: allDeletedFolderIds,
+    }));
+
+    return {
+      records,
+      status: "deleted" as const,
+    };
+  },
+
   async deleteFile(fileId: string, _options?: { permanent?: boolean }) {
     const existing = await db.query.dossierFiles.findFirst({
       where: eq(dossierFiles.id, fileId),
@@ -2783,6 +3034,64 @@ export const DossierService = {
     };
   },
 
+  async checkMultiFilePathExists(filePaths: string[]) {
+    if (!filePaths || filePaths.length === 0) {
+      return [];
+    }
+
+    const uniqueNormalizedPaths = Array.from(
+      new Set(filePaths.map((filePath) => normalizeStorageKey(filePath))),
+    );
+
+    const CHUNK_SIZE = 1000;
+    const existingFiles: Array<{
+      id: string;
+      filePath: string;
+      dossier: { id: string; deletedAt: Date | null } | null;
+    }> = [];
+
+    for (let i = 0; i < uniqueNormalizedPaths.length; i += CHUNK_SIZE) {
+      const chunk = uniqueNormalizedPaths.slice(i, i + CHUNK_SIZE);
+      const rows = await db.query.dossierFiles.findMany({
+        where: inArray(dossierFiles.filePath, chunk),
+        columns: {
+          id: true,
+          filePath: true,
+        },
+        with: {
+          dossier: {
+            columns: { id: true, deletedAt: true },
+          },
+        },
+      });
+      existingFiles.push(...rows);
+    }
+
+    const fileMap = new Map<string, string>();
+    for (const file of existingFiles) {
+      if (file.filePath && isActiveDossier(file.dossier)) {
+        fileMap.set(file.filePath, file.id);
+      }
+    }
+
+    return filePaths.map((filePath) => {
+      const normalizedPath = normalizeStorageKey(filePath);
+      const fileId = fileMap.get(normalizedPath);
+      if (fileId) {
+        return {
+          exists: true as const,
+          fileId,
+          filePath,
+        };
+      }
+      return {
+        exists: false as const,
+        fileId: null,
+        filePath,
+      };
+    });
+  },
+
   async createDocumentFromStorage(
     input: Static<typeof createDocumentFromStorageBodySchema>,
   ) {
@@ -2863,6 +3172,237 @@ export const DossierService = {
     }
 
     return result;
+  },
+
+  /**
+   * Tạo / đăng ký nhiều tài liệu cùng lúc từ S3 Storage.
+   * Sửa đổi / phái sinh và tối ưu hóa từ hàm gốc: createDocumentFromStorage
+   *
+   * Các điểm tối ưu hiệu năng:
+   * 1. Validate layout 1 lần duy nhất cho toàn bộ danh sách key bằng assertNoMixedStorageFolderLayoutOnBatchAdd.
+   * 2. Truy vấn DB kiểm tra file đã tồn tại bằng 1 query duy nhất (inArray).
+   * 3. Chạy song song có kiểm soát (concurrency limit) cho S3 Stat và đếm trang PDF.
+   * 4. Tính tổng số trang mới và kiểm tra quota 1 lần duy nhất (assertUploadFitsRemaining).
+   * 5. Gom nhóm file theo folderPath; trong transaction chỉ gọi ensureFolderTree và findOrCreateDossier 1 lần duy nhất cho mỗi folder (memoize), bulk insert bảng dossier_files.
+   * 6. Trigger NiFi OCR ngoài transaction, chạy song song không block.
+   */
+  async createMultiDocumentFromStorage(
+    input: Static<typeof createMultiDocumentFromStorageBodySchema>,
+  ) {
+    const rawKeys = input.keys ?? [];
+    const uniqueKeys = Array.from(
+      new Set(rawKeys.map((k) => normalizeStorageKey(k))),
+    );
+
+    if (uniqueKeys.length === 0) {
+      return {
+        total: 0,
+        createdCount: 0,
+        existingCount: 0,
+        items: [],
+      };
+    }
+
+    const projectCode = input.projectCode ?? null;
+    if (projectCode !== null) {
+      await ProjectService.assertProjectExists(projectCode);
+    }
+
+    // Đảm bảo mọi file key đều có đường dẫn thư mục cha
+    for (const filePath of uniqueKeys) {
+      const folderPath = storageDirname(filePath);
+      if (!folderPath) {
+        throw httpError.badRequest(
+          `File key must include a folder path: ${filePath}`,
+        );
+      }
+    }
+
+    // 1. Kiểm tra cấu trúc thư mục (No mixed storage layout) cho toàn bộ danh sách file
+    await assertNoMixedStorageFolderLayoutOnBatchAdd(uniqueKeys, uniqueKeys);
+
+    const runMode = input.runMode ?? "auto";
+
+    // 2. Kiểm tra các file đã tồn tại trong DB (chia chunk nếu danh sách lớn)
+    const existingFileRows: Array<{
+      id: string;
+      filePath: string;
+      dossierId: string;
+      fileName: string;
+      dossier?: { folderId: string } | null;
+    }> = [];
+    const CHUNK_SIZE = 500;
+    for (let i = 0; i < uniqueKeys.length; i += CHUNK_SIZE) {
+      const chunk = uniqueKeys.slice(i, i + CHUNK_SIZE);
+      const rows = await db.query.dossierFiles.findMany({
+        where: inArray(dossierFiles.filePath, chunk),
+        columns: {
+          id: true,
+          filePath: true,
+          dossierId: true,
+          fileName: true,
+        },
+        with: {
+          dossier: {
+            columns: {
+              folderId: true,
+            },
+          },
+        },
+      });
+      existingFileRows.push(...rows);
+    }
+    const existingFileMap = new Map(
+      existingFileRows.map((f) => [f.filePath, f]),
+    );
+
+    // 3. S3 Stat kích thước file & Đếm số trang PDF (chỉ đếm trang cho file chưa tồn tại)
+    const { fileMetaMap, totalNewPages, newFileKeys } =
+      await resolveStorageBatchMetadata(uniqueKeys, existingFileMap);
+
+    // 4. Kiểm tra Quota 1 lần duy nhất cho toàn bộ số trang mới
+    if (totalNewPages > 0) {
+      await assertUploadFitsRemaining(totalNewPages);
+    }
+
+    // 5. Gom nhóm file theo folderPath
+    const filesByFolder = new Map<string, string[]>();
+    for (const filePath of uniqueKeys) {
+      const folderPath = storageDirname(filePath);
+      const list = filesByFolder.get(folderPath) ?? [];
+      list.push(filePath);
+      filesByFolder.set(folderPath, list);
+    }
+
+    // 6. Mở 1 Transaction duy nhất: Resolve folders/dossiers và Bulk insert files
+    const { createdFileRows, allItems } = await db.transaction(async (tx) => {
+      // Memoize folderId & dossierId cho từng folderPath
+      const folderDossierCache = new Map<
+        string,
+        { folderId: string; dossierId: string }
+      >();
+
+      for (const [folderPath] of filesByFolder) {
+        const folderId = await ensureFolderTree(tx, folderPath, projectCode);
+        const folderName = folderNameFromPath(folderPath);
+        const dossier = await findOrCreateDossier(
+          tx,
+          folderId,
+          folderPath,
+          folderName,
+          projectCode,
+        );
+        folderDossierCache.set(folderPath, {
+          folderId,
+          dossierId: dossier.id,
+        });
+      }
+
+      // Chuẩn bị records insert cho các file mới
+      const insertRows = newFileKeys.map((filePath) => {
+        const folderPath = storageDirname(filePath);
+        const { dossierId } = folderDossierCache.get(folderPath)!;
+        const meta = fileMetaMap.get(filePath)!;
+        const fileName = storageBasename(filePath);
+
+        return {
+          dossierId,
+          fileName,
+          filePath,
+          fileSizeKb: meta.fileSizeKb,
+          pageCount: meta.pageCount,
+          ocrRunMode: runMode,
+          ocrTriggerStatus: runMode === "manual" ? "pending" : null,
+        };
+      });
+
+      const insertedRows: Array<{
+        id: string;
+        filePath: string;
+        dossierId: string;
+        fileName: string;
+      }> = [];
+
+      if (insertRows.length > 0) {
+        // Bulk insert theo chunk 100 rows để tối ưu tham số query
+        for (let i = 0; i < insertRows.length; i += 100) {
+          const chunk = insertRows.slice(i, i + 100);
+          const chunkInserted = await tx
+            .insert(dossierFiles)
+            .values(chunk)
+            .onConflictDoNothing({ target: dossierFiles.filePath })
+            .returning({
+              id: dossierFiles.id,
+              filePath: dossierFiles.filePath,
+              dossierId: dossierFiles.dossierId,
+              fileName: dossierFiles.fileName,
+            });
+          insertedRows.push(...chunkInserted);
+        }
+      }
+
+      const insertedMap = new Map(insertedRows.map((f) => [f.filePath, f]));
+
+      // Xây dựng danh sách kết quả phản hồi
+      const items = uniqueKeys.map((filePath) => {
+        const folderPath = storageDirname(filePath);
+        const cached = folderDossierCache.get(folderPath);
+
+        const existing = existingFileMap.get(filePath);
+        if (existing) {
+          return {
+            filePath,
+            fileName: existing.fileName,
+            dossierId: existing.dossierId,
+            fileId: existing.id,
+            status: "existing" as const,
+            folderId: existing.dossier?.folderId ?? cached?.folderId ?? "",
+          };
+        }
+
+        const inserted = insertedMap.get(filePath);
+        const dossierId = cached?.dossierId ?? "";
+        const folderId = cached?.folderId ?? "";
+
+        return {
+          filePath,
+          fileName: storageBasename(filePath),
+          dossierId,
+          fileId: inserted?.id ?? "",
+          status: (inserted ? "created" : "existing") as "created" | "existing",
+          folderId,
+        };
+      });
+
+      return { createdFileRows: insertedRows, allItems: items };
+    });
+
+    // 7. Kích hoạt NiFi Trigger ngoài transaction (sau khi commit thành công)
+    if (runMode === "auto" && env.NIFI_TRIGGER_URL && createdFileRows.length > 0) {
+      Promise.allSettled(
+        createdFileRows.map((file) =>
+          fetch(env.NIFI_TRIGGER_URL!, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              file_path: normalizeStorageKey(file.filePath),
+            }),
+          }),
+        ),
+      ).catch((err) =>
+        console.warn("[OCR Batch Trigger] Failed to trigger NiFi:", err),
+      );
+    }
+
+    const created = createdFileRows.length > 0;
+    return {
+      created,
+      status: (created ? "created" : "existing") as "created" | "existing",
+      total: uniqueKeys.length,
+      createdCount: createdFileRows.length,
+      existingCount: uniqueKeys.length - createdFileRows.length,
+      items: allItems,
+    };
   },
 
   /**
