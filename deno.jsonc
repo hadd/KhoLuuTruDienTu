@@ -1,7 +1,7 @@
 {
   "tasks": {
     "dev": "deno run -A cli/dev.ts",
-    "dev-sohoa-backend": "cd packages/sohoa-backend &&  deno run --watch --allow-all main.ts",
+    "dev-sohoa-backend": "cd packages/sohoa-backend &&  deno run --watch --allow-all --unstable-worker-options main.ts",
     "test:all": "deno run -A scripts/run-all-tests.ts",
     "docs:view": "cd packages/sohoa-backend && deno run -A scripts/view-docs.ts"
   },
