@@ -1881,18 +1881,10 @@ export function DataManagementPage({
                     type="button"
                     size="sm"
                     className="shrink-0 gap-1.5"
-                    disabled={selectedDossierIds.length === 0 || isExporting}
+                    disabled={batchExportSelectionCount === 0 || isExporting}
                     onClick={() => {
-                      if (selectedDossierIds.length === 0) return
-                      setExportContext({
-                        kind: 'multi_dossiers',
-                        folderId: null,
-                        dossierId: null,
-                        dossierIds: selectedDossierIds,
-                        downloadName: `multi-export-${selectedDossierIds.length}-hoso`,
-                      })
-                      setCanExportDip(true)
-                      setExportDialogOpen(true)
+                      if (batchExportSelectionCount === 0) return
+                      setBatchExportDialogOpen(true)
                     }}
                   >
                     <FolderUp className="size-3.5" aria-hidden />

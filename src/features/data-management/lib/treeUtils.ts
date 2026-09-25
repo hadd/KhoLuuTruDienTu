@@ -261,11 +261,15 @@ export function isDossierWorkflowNode(node: DataTreeNodeT): boolean {
   return node.dossierStatus != null || node.entityType === 'DOCUMENT'
 }
 
-/** True when a node is an exportable hồ sơ leaf (APPROVED or ARCHIVED, or any status when bypass). */
+/** True when a node is an exportable hồ sơ leaf (APPROVED or ARCHIVED, or any status when bypass).
+ * Folder-shaped dossiers are NOT leaves — batch select uses folderId subtree API instead. */
 export function isBatchExportDossierLeafNode(
   node: DataTreeNodeT,
   options?: { bypassStatus?: boolean },
 ): boolean {
+  // Folder nodes always export as subtree via folderIds, never as a single dossierId.
+  if (node.type === 'folder') return false
+
   if (options?.bypassStatus) {
     if (!isDossierWorkflowNode(node) && node.type !== 'record' && !node.dossierId) {
       return false
@@ -307,8 +311,16 @@ export function isBatchExportSelectableNode(
   if (node.id === DATA_TREE_ROOT_ID) return false
   if (isSharedRawRootFolder(node)) return false
   if (isBatchExportDossierLeafNode(node, options)) return true
-  // Non-exportable hồ sơ (e.g. READY_FOR_ENTRY) must not show a checkbox —
-  // clicking them loaded the tree then silently dropped selection.
+
+  // Folder-shaped hồ sơ: tick = export whole subtree via folderId API.
+  if (node.type === 'folder' && isDossierWorkflowNode(node)) {
+    if (options?.bypassStatus) return true
+    return (
+      node.dossierStatus === 'APPROVED' || node.dossierStatus === 'ARCHIVED'
+    )
+  }
+
+  // Non-exportable hồ sơ leaf (e.g. READY_FOR_ENTRY record) must not show a checkbox.
   if (isDossierWorkflowNode(node) && !options?.bypassStatus) return false
   if (isDossierWorkflowNode(node) && options?.bypassStatus) {
     return (

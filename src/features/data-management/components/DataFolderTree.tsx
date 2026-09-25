@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Folder,
   FolderOpen,
+  Minus,
   ShieldCheck,
   UserCheck,
 } from 'lucide-react'
@@ -11,7 +12,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { DossierStatusBadge } from '@/features/data-management/components/DossierStatusBadge'
 import { DATA_TREE_ROOT_ID } from '@/features/data-management/lib/constants'
 import {
@@ -373,12 +373,22 @@ function TreeBranch({
           title={node.name}
         >
           {showMultiSelectCheckbox ? (
-            <Checkbox
-              checked={checkState}
-              className="pointer-events-none mt-0.5 shrink-0"
+            <span
+              className={cn(
+                'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input shadow-xs',
+                checkState === true &&
+                  'border-primary bg-primary text-primary-foreground',
+                checkState === 'indeterminate' &&
+                  'border-primary bg-primary text-primary-foreground',
+              )}
               aria-hidden
-              tabIndex={-1}
-            />
+            >
+              {checkState === true ? (
+                <Check className="size-3.5" />
+              ) : checkState === 'indeterminate' ? (
+                <Minus className="size-3.5" />
+              ) : null}
+            </span>
           ) : null}
           {collapsed ? (
             <span className="inline-flex size-4 shrink-0" aria-hidden />
