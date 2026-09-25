@@ -195,12 +195,14 @@ export function RecordDetailPanel({
   const [dismissedRejectFieldKeys, setDismissedRejectFieldKeys] = useState<
     Set<string>
   >(() => new Set())
-  const { permissions: userPermissions } = useRoleAccess()
-  const canDirectApprove = isPermissionGranted(
-    userPermissions,
-    'dossiers.direct_approve',
-    'dossiers',
-  )
+  const { permissions: userPermissions, isAdmin } = useRoleAccess()
+  const canDirectApprove =
+    isAdmin ||
+    isPermissionGranted(
+      userPermissions,
+      'dossiers.direct_approve',
+      'dossiers',
+    )
   const canSignDossiers = isPermissionGranted(
     userPermissions,
     'dossiers.sign',
