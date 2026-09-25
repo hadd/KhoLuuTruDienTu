@@ -1046,6 +1046,10 @@ async function listDossierFiles(
         ocrMetadataKey: dossier.ocrMetadataKey,
         assignmentId: assignment?.id,
       })
+    : (dossier.status === DossierStatus.NEW ||
+        dossier.status === DossierStatus.OCR_PROCESSING) &&
+        !dossier.ocrMetadataKey
+    ? null
     : await resolveReadableMetadataStorageKey(
       {
         dossierName: dossier.name,

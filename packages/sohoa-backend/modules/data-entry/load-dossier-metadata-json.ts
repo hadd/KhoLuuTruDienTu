@@ -158,7 +158,9 @@ function buildPrimaryMetadataKeys(input: ResolveMetadataKeyInput): {
  * Resolve a metadata object key that exists on storage for UI/export URLs.
  * Prefer current → OCR → folder-derived canonical keys when present in the
  * prefix listing; otherwise pick the best sibling (partial / editor / draft).
- * Falls back to the preferred DB key when listing is unavailable.
+ * When listing runs and finds no objects, returns null (do not invent URLs for
+ * folderPath-derived keys that are not on storage yet — e.g. OCR still pending).
+ * Falls back to the preferred DB key only when listing is unavailable.
  */
 export async function resolveReadableMetadataStorageKey(
   input: ResolveMetadataKeyInput,
@@ -203,7 +205,7 @@ export async function resolveReadableMetadataStorageKey(
   }
 
   if (listedByKey.size === 0) {
-    return preferredKey;
+    return null;
   }
 
   for (const key of primaryKeys) {
@@ -229,7 +231,7 @@ export async function resolveReadableMetadataStorageKey(
     return siblingKey;
   }
 
-  return preferredKey;
+  return null;
 }
 
 /**
