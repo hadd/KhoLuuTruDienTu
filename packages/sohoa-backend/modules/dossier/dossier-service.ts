@@ -1086,6 +1086,7 @@ type DossierWithFiles = {
   projectCode: string | null;
   dossierTypeId: string | null;
   currentMetadataKey: string | null;
+  ocrMetadataKey: string | null;
   files?: Array<{
     id?: string;
     fileName: string;
@@ -1094,6 +1095,13 @@ type DossierWithFiles = {
     signedFilePath?: string | null;
   }>;
 };
+
+function dossierHasExportableMetadata(dossier: {
+  currentMetadataKey: string | null;
+  ocrMetadataKey?: string | null;
+}): boolean {
+  return Boolean(dossier.currentMetadataKey || dossier.ocrMetadataKey);
+}
 
 async function findDossiersInFolderSubtree(folderId: string) {
   const rootFolder = await db.query.folders.findFirst({
@@ -1184,7 +1192,7 @@ async function validateApprovedFoldersMetadataExport(
   }
 
   const withoutMetadata = allDossiers.filter(
-    (dossier) => !dossier.currentMetadataKey,
+    (dossier) => !dossierHasExportableMetadata(dossier),
   );
   if (withoutMetadata.length > 0) {
     const missingNames = withoutMetadata
@@ -1236,7 +1244,9 @@ async function loadDossiersForMetadataExport(
     }
   }
 
-  const withoutMetadata = rows.filter((dossier) => !dossier.currentMetadataKey);
+  const withoutMetadata = rows.filter(
+    (dossier) => !dossierHasExportableMetadata(dossier),
+  );
   if (withoutMetadata.length > 0) {
     const missingNames = withoutMetadata
       .map((dossier) => dossier.name)
