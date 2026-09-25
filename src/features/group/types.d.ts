@@ -214,6 +214,7 @@ export interface AssignGroupByFolderPayloadT {
   folderIds: Array<string>
   dossiersPerEditor?: number
   metadataPermissionConfigId?: string
+  editorIds?: Array<string>
 }
 
 export interface AssignGroupByFolderDistributionT {
