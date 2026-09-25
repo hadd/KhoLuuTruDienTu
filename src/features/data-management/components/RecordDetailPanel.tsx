@@ -343,7 +343,12 @@ export function RecordDetailPanel({
           projectCode: node.projectCode,
           fondId: node.fondId,
         }),
-      enabled: Boolean(dossierId && !node.dossierMetadata),
+      enabled: Boolean(
+        dossierId &&
+          !node.dossierMetadata &&
+          effectiveDossierStatus !== 'NEW' &&
+          effectiveDossierStatus !== 'OCR_PROCESSING',
+      ),
       staleTime: 30_000,
     })
 

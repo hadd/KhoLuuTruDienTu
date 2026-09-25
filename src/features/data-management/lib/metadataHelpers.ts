@@ -1237,10 +1237,48 @@ async function resolveFetchedDossierMetadata(
   fullDossierMetadata?: DataDossierMetadataT
   metadataGroups: Array<MetadataGroup>
 }> {
-  const [metadataGroups, fetchedMetadata] = await Promise.all([
-    fetchMetadataGroups(metaUrl),
-    fetchDossierMetadata(metaUrl),
-  ])
+  if (!metaUrl) {
+    return { metadataGroups: [] }
+  }
+
+  // Single MinIO/API fetch — previously fetchMetadataGroups + fetchDossierMetadata
+  // each called fetchMetadataJson on the same URL.
+  const metadataJson = await fetchMetadataJson(metaUrl)
+  const parsed = parseMetadataResponseBody(metadataJson) ?? metadataJson
+  const fetchedMetadata = parseDossierMetadata(parsed)
+
+  let metadataGroups: Array<MetadataGroup> = []
+  if (parsed && typeof parsed === 'object') {
+    let groupsRaw: unknown[] = []
+    if (Array.isArray(parsed)) {
+      if (
+        parsed.length > 0 &&
+        typeof parsed[0] === 'object' &&
+        parsed[0] != null &&
+        'metadata_groups' in parsed[0]
+      ) {
+        groupsRaw = parsed.flatMap((item: unknown) => {
+          const record = item as Record<string, unknown>
+          return Array.isArray(record?.metadata_groups)
+            ? record.metadata_groups
+            : []
+        })
+      } else {
+        groupsRaw = parsed
+      }
+    } else {
+      const record = parsed as Record<string, unknown>
+      groupsRaw = Array.isArray(record.metadata_groups)
+        ? record.metadata_groups
+        : []
+    }
+    if (groupsRaw.length > 0) {
+      metadataGroups = groupsRaw.map((group) =>
+        normalizeMetadataGroup(group as Record<string, unknown>),
+      )
+    }
+  }
+
   if (!fetchedMetadata) {
     return {
       metadataGroups,
@@ -1414,11 +1452,20 @@ export type BuildDossierRecordContentOptions = {
   filesStatus?: 'draft'
 }
 
+function isOcrMetadataPendingFromMeta(
+  dossierMeta?: Record<string, unknown>,
+): boolean {
+  const status = dossierMeta?.status ?? dossierMeta?.dossierStatus
+  return status === 'NEW' || status === 'OCR_PROCESSING'
+}
+
 export async function buildDossierRecordContent(
   dossierId: string,
   dossierMeta?: Record<string, unknown>,
   options?: BuildDossierRecordContentOptions,
 ): Promise<DossierRecordContent> {
+  const skipMetadataFetch = isOcrMetadataPendingFromMeta(dossierMeta)
+
   try {
     const filesRes = await apiClient.get<DossierFilesResponseT>(
       `/api/v1/folders/dossiers/${dossierId}/files`,
@@ -1427,18 +1474,27 @@ export async function buildDossierRecordContent(
         : undefined,
     )
     const filesData = filesRes.data
-    const inlineMetadata = resolveInlineDossierMetadata(dossierMeta)
-    const metaUrl = inlineMetadata
+    const inlineMetadata = skipMetadataFetch
       ? undefined
-      : resolveMetadataUrl(
-          filesData.currentMetadataUrl,
-          dossierMeta,
-          dossierMeta?.metadata,
-        )
+      : resolveInlineDossierMetadata(dossierMeta)
+    const metaUrl =
+      skipMetadataFetch || inlineMetadata
+        ? undefined
+        : resolveMetadataUrl(
+            filesData.currentMetadataUrl,
+            dossierMeta,
+            dossierMeta?.metadata,
+          )
     const { metadataGroups, dossierMetadata, fullDossierMetadata } =
-      inlineMetadata
-        ? inlineMetadata
-        : await resolveFetchedDossierMetadata(metaUrl, dossierMeta)
+      skipMetadataFetch
+        ? {
+            metadataGroups: [] as Array<MetadataGroup>,
+            dossierMetadata: undefined,
+            fullDossierMetadata: undefined,
+          }
+        : inlineMetadata
+          ? inlineMetadata
+          : await resolveFetchedDossierMetadata(metaUrl, dossierMeta)
     const children = filesData.children ?? []
 
     return {
@@ -1461,14 +1517,23 @@ export async function buildDossierRecordContent(
     const fallbackFiles = Array.isArray(dossierMeta?.files)
       ? dossierMeta.files
       : []
-    const inlineMetadata = resolveInlineDossierMetadata(dossierMeta)
-    const metaUrl = inlineMetadata
+    const inlineMetadata = skipMetadataFetch
       ? undefined
-      : resolveMetadataUrl(dossierMeta, dossierMeta?.metadata)
+      : resolveInlineDossierMetadata(dossierMeta)
+    const metaUrl =
+      skipMetadataFetch || inlineMetadata
+        ? undefined
+        : resolveMetadataUrl(dossierMeta, dossierMeta?.metadata)
     const { metadataGroups, dossierMetadata, fullDossierMetadata } =
-      inlineMetadata
-        ? inlineMetadata
-        : await resolveFetchedDossierMetadata(metaUrl, dossierMeta)
+      skipMetadataFetch
+        ? {
+            metadataGroups: [] as Array<MetadataGroup>,
+            dossierMetadata: undefined,
+            fullDossierMetadata: undefined,
+          }
+        : inlineMetadata
+          ? inlineMetadata
+          : await resolveFetchedDossierMetadata(metaUrl, dossierMeta)
 
     return {
       children: fallbackFiles.map((file) =>

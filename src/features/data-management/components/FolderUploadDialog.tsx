@@ -399,9 +399,7 @@ export function FolderUploadDialog({
 
       await deleteMultiDossiers(uniqueDossierIds, { permanent: true })
 
-      await queryClient.invalidateQueries({
-        queryKey: dataManagementTreeQueryKey(role),
-      })
+      // Defer tree refresh until upload finishes (handleUploadPostProcess).
 
       setConflictPaths([])
       setState({ phase: 'uploading' })

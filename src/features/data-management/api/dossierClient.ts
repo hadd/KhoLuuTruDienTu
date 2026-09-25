@@ -732,15 +732,18 @@ export async function uploadFolderFiles(
     phase: 'preparing',
   })
 
-  const totalPages = await sumUploadPdfPages(files, { signal })
-  throwIfAborted(signal)
+  // TODO: remove client page count + this env when page counting moves to OCR stage.
+  if (env.DATA_UPLOAD_CLIENT_PAGE_COUNT) {
+    const totalPages = await sumUploadPdfPages(files, { signal })
+    throwIfAborted(signal)
 
-  const quotaCheck = await checkPageQuotaUpload(totalPages)
-  if (!quotaCheck.allowed) {
-    const message =
-      quotaCheck.message ??
-      `Không đủ hạn mức bóc tách: lượt tải có ${totalPages} trang, chỉ còn ${quotaCheck.remaining ?? 0} trang. Hãy nạp thêm license hoặc giảm số trang.`
-    throw new Error(message)
+    const quotaCheck = await checkPageQuotaUpload(totalPages)
+    if (!quotaCheck.allowed) {
+      const message =
+        quotaCheck.message ??
+        `Không đủ hạn mức bóc tách: lượt tải có ${totalPages} trang, chỉ còn ${quotaCheck.remaining ?? 0} trang. Hãy nạp thêm license hoặc giảm số trang.`
+      throw new Error(message)
+    }
   }
 
   throwIfAborted(signal)
