@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -76,8 +77,26 @@ export function AssignFolderDialog({
   const assignMutation = useAssignGroupByFolderMutation()
   const [isHandling, setIsHandling] = useState(false)
   const [selectedFolderIds, setSelectedFolderIds] = useState<Array<string>>([])
+  const [selectedEditorIds, setSelectedEditorIds] = useState<Array<string>>([])
   const [searchQuery, setSearchQuery] = useState('')
   const treeScrollRef = useRef<HTMLDivElement>(null)
+
+  const editors = useMemo(() => {
+    return (group?.members ?? []).filter((member) => member.role === 'member')
+  }, [group?.members])
+
+  useEffect(() => {
+    if (open && group) {
+      const editorIds = (group.members ?? [])
+        .filter((member) => member.role === 'member')
+        .map((member) => member.userId)
+      setSelectedEditorIds(editorIds)
+    } else if (!open) {
+      setSelectedEditorIds([])
+      setSelectedFolderIds([])
+      setSearchQuery('')
+    }
+  }, [open, group])
 
   useEffect(() => {
     setSelectedFolderIds([])
@@ -90,6 +109,25 @@ export function AssignFolderDialog({
         : [...prev, folderId],
     )
   }, [])
+
+  const handleToggleEditor = useCallback((userId: string) => {
+    setSelectedEditorIds((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId],
+    )
+  }, [])
+
+  const isAllEditorsSelected =
+    editors.length > 0 && selectedEditorIds.length === editors.length
+
+  const handleToggleSelectAllEditors = useCallback(() => {
+    if (isAllEditorsSelected) {
+      setSelectedEditorIds([])
+    } else {
+      setSelectedEditorIds(editors.map((editor) => editor.userId))
+    }
+  }, [editors, isAllEditorsSelected])
 
   const filteredTree = useMemo(() => {
     if (!tree) return null
@@ -132,6 +170,13 @@ export function AssignFolderDialog({
 
     if (selectedFolderIds.length === 0) {
       toast.error(t('assignFolder.noFolderSelected'))
+      setIsHandling(false)
+      return
+    }
+
+    if (selectedEditorIds.length === 0) {
+      toast.error(t('assignFolder.noMemberSelected'))
+      setIsHandling(false)
       return
     }
 
@@ -141,6 +186,7 @@ export function AssignFolderDialog({
         payload: buildAssignGroupByFolderPayload(
           selectedFolderIds,
           dossiersPerEditor,
+          selectedEditorIds,
         ),
       })
 
@@ -160,6 +206,7 @@ export function AssignFolderDialog({
       )
 
       setSelectedFolderIds([])
+      setSelectedEditorIds([])
       onOpenChange(false)
     } catch (error) {
       toast.error(translateError(error))
@@ -174,12 +221,13 @@ export function AssignFolderDialog({
       onOpenChange={(nextOpen) => {
         if (!nextOpen) {
           setSelectedFolderIds([])
+          setSelectedEditorIds([])
           setSearchQuery('')
         }
         onOpenChange(nextOpen)
       }}
     >
-      <DialogContent className="flex max-h-[80vh] flex-col overflow-hidden sm:max-w-lg">
+      <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-xl">
         <DialogHeader className="shrink-0">
           <DialogTitle>{t('assignFolder.title')}</DialogTitle>
           <DialogDescription>
@@ -187,8 +235,8 @@ export function AssignFolderDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4">
-          <div className="min-h-0 shrink-0">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col gap-2">
             {isLoadingTree ? (
               <div className="flex h-48 items-center justify-center">
                 <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -212,7 +260,7 @@ export function AssignFolderDialog({
                 </Button>
               </div>
             ) : filteredTree ? (
-              <div className="flex flex-col gap-2">
+              <div className="flex min-h-0 flex-1 flex-col gap-2">
                 <div className="relative shrink-0">
                   <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -224,7 +272,7 @@ export function AssignFolderDialog({
                 </div>
                 <div
                   ref={treeScrollRef}
-                  className="h-[min(50vh,22rem)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-1 pr-2"
+                  className="h-[min(38vh,16rem)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-card p-1 pr-2"
                 >
                   <DataFolderTree
                     tree={filteredTree}
@@ -236,7 +284,7 @@ export function AssignFolderDialog({
                   />
                 </div>
                 {selectedFolderIds.length > 0 ? (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="shrink-0 text-xs text-muted-foreground">
                     {t('assignFolder.selectedCount', {
                       count: selectedFolderIds.length,
                     })}
@@ -252,27 +300,93 @@ export function AssignFolderDialog({
             )}
           </div>
 
+          {/* Member Selection Section */}
+          <div className="flex shrink-0 flex-col gap-2 rounded-lg border border-border bg-muted/20 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground">
+                  {t('assignFolder.selectMembers')}
+                </span>
+                {editors.length > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    ({t('assignFolder.selectedMembersCount', {
+                      selected: selectedEditorIds.length,
+                      total: editors.length,
+                    })})
+                  </span>
+                )}
+              </div>
+              {editors.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={handleToggleSelectAllEditors}
+                >
+                  {isAllEditorsSelected
+                    ? t('assignFolder.deselectAll')
+                    : t('assignFolder.selectAll')}
+                </Button>
+              )}
+            </div>
+
+            {editors.length === 0 ? (
+              <p className="py-2 text-center text-xs italic text-muted-foreground">
+                {t('assignFolder.noEditors')}
+              </p>
+            ) : (
+              <div className="max-h-36 overflow-y-auto overscroll-contain rounded-md border border-border bg-card divide-y divide-border/40 p-1">
+                {editors.map((editor) => {
+                  const isChecked = selectedEditorIds.includes(editor.userId)
+                  return (
+                    <label
+                      key={editor.userId}
+                      className="flex cursor-pointer items-center gap-2.5 rounded-sm px-2 py-1.5 transition-colors hover:bg-muted/60"
+                    >
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => handleToggleEditor(editor.userId)}
+                      />
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate text-xs font-medium text-foreground">
+                          {editor.name}
+                        </span>
+                        <span className="truncate text-[11px] text-muted-foreground">
+                          {editor.email}
+                        </span>
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
           <DialogFooter className="shrink-0">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isHandling || assignMutation.isPending}
-          >
-            {tCommon('common.cancel')}
-          </Button>
-          <Button
-            type="button"
-            disabled={
-              selectedFolderIds.length === 0 || isHandling || assignMutation.isPending
-            }
-            onClick={() => void handleSubmit()}
-          >
-            {assignMutation.isPending ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
-            ) : null}
-            {t('assignFolder.submit')}
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isHandling || assignMutation.isPending}
+            >
+              {tCommon('common.cancel')}
+            </Button>
+            <Button
+              type="button"
+              disabled={
+                selectedFolderIds.length === 0 ||
+                selectedEditorIds.length === 0 ||
+                isHandling ||
+                assignMutation.isPending
+              }
+              onClick={() => void handleSubmit()}
+            >
+              {assignMutation.isPending ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : null}
+              {t('assignFolder.submit')}
+            </Button>
           </DialogFooter>
         </div>
       </DialogContent>

@@ -355,6 +355,12 @@
     "success": "Đã gán {{count}} hồ sơ cho nhóm {{groupName}} ({{checkerCount}} phân công duyệt).",
     "noFolderSelected": "Vui lòng chọn ít nhất một thư mục.",
     "noDossiersAssigned": "Không có hồ sơ nào được gán. Các thư mục đã chọn có thể không có hồ sơ khả dụng hoặc đã được gán trước đó.",
+    "selectMembers": "Thành viên nhận hồ sơ",
+    "selectAll": "Chọn tất cả",
+    "deselectAll": "Bỏ chọn tất cả",
+    "selectedMembersCount": "Đã chọn {{selected}} / {{total}} thành viên",
+    "noMemberSelected": "Vui lòng chọn ít nhất một thành viên.",
+    "noEditors": "Nhóm chưa có biên tập viên nào.",
     "checkerPreview": {
       "title": "{{count}} cấp duyệt sẽ được áp dụng",
       "hint": "Tất cả người trong mỗi cấp đều nhận hồ sơ khi đến lượt duyệt.",

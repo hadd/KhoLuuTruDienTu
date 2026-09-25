@@ -355,6 +355,12 @@
     "success": "Assigned {{count}} dossiers to group {{groupName}} ({{checkerCount}} checker assignments).",
     "noFolderSelected": "Please select at least one folder.",
     "noDossiersAssigned": "No dossiers were assigned. The selected folders may have no assignable dossiers or they are already assigned.",
+    "selectMembers": "Members receiving dossiers",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "selectedMembersCount": "{{selected}} of {{total}} members selected",
+    "noMemberSelected": "Please select at least one member.",
+    "noEditors": "This group has no editors.",
     "checkerPreview": {
       "title": "{{count}} approval level(s) will apply",
       "hint": "Everyone in each level receives dossiers when that level becomes active.",
