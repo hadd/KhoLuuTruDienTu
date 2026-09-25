@@ -28,7 +28,13 @@ import {
   refreshDataManagementTreeQuery,
   useLoadNodeChildrenMutation,
 } from '@/features/data-management/queries'
+import type { DataTreeNodeT } from '@/features/data-management/types'
 import { buildAssignGroupByFolderPayload } from '@/features/group/lib/buildAssignGroupByFolderPayload'
+import {
+  computeFolderCheckedState,
+  syncLoadedDescendantsOfSelectedFolders,
+  toggleFolderWithDescendants,
+} from '@/features/group/lib/treeFolderSelection'
 import { useAssignGroupByFolderMutation } from '@/features/group/queries'
 import type { Group } from '@/features/group/types'
 import { translateError } from '@/lib/utils/translate-error'
@@ -102,13 +108,45 @@ export function AssignFolderDialog({
     setSelectedFolderIds([])
   }, [group?.id, projectCode])
 
-  const handleToggleFolder = useCallback((folderId: string) => {
+  const filteredTree = useMemo(() => {
+    if (!tree) return null
+    const foldersOnly = filterTreeFoldersOnly(tree)
+    const unassignedOnly = filterTreeExcludeAssigned(foldersOnly)
+    if (!unassignedOnly) return null
+    if (!searchQuery.trim()) return unassignedOnly
+    return filterTreeForSearch(unassignedOnly, searchQuery)
+  }, [tree, searchQuery])
+
+  // When tree updates (e.g. lazy-loading child folders), auto-select descendants of selected parents
+  useEffect(() => {
+    if (!filteredTree) return
     setSelectedFolderIds((prev) =>
-      prev.includes(folderId)
-        ? prev.filter((id) => id !== folderId)
-        : [...prev, folderId],
+      syncLoadedDescendantsOfSelectedFolders(filteredTree, prev),
     )
-  }, [])
+  }, [filteredTree])
+
+  const handleToggleFolder = useCallback(
+    (folderId: string) => {
+      const activeTree = filteredTree ?? tree
+      if (!activeTree) return
+      setSelectedFolderIds((prev) =>
+        toggleFolderWithDescendants(activeTree, folderId, prev),
+      )
+    },
+    [filteredTree, tree],
+  )
+
+  const selectedFolderIdsSet = useMemo(
+    () => new Set(selectedFolderIds),
+    [selectedFolderIds],
+  )
+
+  const getMultiSelectCheckedState = useCallback(
+    (node: DataTreeNodeT) => {
+      return computeFolderCheckedState(node, selectedFolderIdsSet)
+    },
+    [selectedFolderIdsSet],
+  )
 
   const handleToggleEditor = useCallback((userId: string) => {
     setSelectedEditorIds((prev) =>
@@ -128,15 +166,6 @@ export function AssignFolderDialog({
       setSelectedEditorIds(editors.map((editor) => editor.userId))
     }
   }, [editors, isAllEditorsSelected])
-
-  const filteredTree = useMemo(() => {
-    if (!tree) return null
-    const foldersOnly = filterTreeFoldersOnly(tree)
-    const unassignedOnly = filterTreeExcludeAssigned(foldersOnly)
-    if (!unassignedOnly) return null
-    if (!searchQuery.trim()) return unassignedOnly
-    return filterTreeForSearch(unassignedOnly, searchQuery)
-  }, [tree, searchQuery])
 
   useEffect(() => {
     if (!open || !tree) return
@@ -278,6 +307,7 @@ export function AssignFolderDialog({
                     tree={filteredTree}
                     multiSelect
                     selectedIds={selectedFolderIds}
+                    getMultiSelectCheckedState={getMultiSelectCheckedState}
                     onSelect={handleToggleFolder}
                     onExpandNode={canExpandNodes ? handleExpandNode : undefined}
                     scrollable={false}
