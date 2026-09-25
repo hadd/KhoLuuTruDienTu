@@ -3085,26 +3085,34 @@ export const DossierService = {
       existingFiles.push(...rows);
     }
 
-    const fileMap = new Map<string, string>();
+    const fileMap = new Map<
+      string,
+      { fileId: string; dossierId: string }
+    >();
     for (const file of existingFiles) {
-      if (file.filePath && isActiveDossier(file.dossier)) {
-        fileMap.set(file.filePath, file.id);
+      if (file.filePath && isActiveDossier(file.dossier) && file.dossier?.id) {
+        fileMap.set(file.filePath, {
+          fileId: file.id,
+          dossierId: file.dossier.id,
+        });
       }
     }
 
     return filePaths.map((filePath) => {
       const normalizedPath = normalizeStorageKey(filePath);
-      const fileId = fileMap.get(normalizedPath);
-      if (fileId) {
+      const match = fileMap.get(normalizedPath);
+      if (match) {
         return {
           exists: true as const,
-          fileId,
+          fileId: match.fileId,
+          dossierId: match.dossierId,
           filePath,
         };
       }
       return {
         exists: false as const,
         fileId: null,
+        dossierId: null,
         filePath,
       };
     });

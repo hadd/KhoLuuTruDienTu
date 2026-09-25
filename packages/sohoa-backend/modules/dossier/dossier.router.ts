@@ -208,7 +208,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         tags,
         summary: "Check if multiple file paths exist in database",
         description:
-          "Returns an array of file check results with exists, fileId, and filePath.",
+          "Returns an array of file check results with exists, fileId, dossierId, and filePath.",
       },
     },
   );
