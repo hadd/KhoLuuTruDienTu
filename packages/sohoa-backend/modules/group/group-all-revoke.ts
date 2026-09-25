@@ -151,10 +151,7 @@ export async function executeGroupAllRevoke(input: GroupAllRevokeInput) {
                 .where(activeDossierWhere(
                     eq(dossiers.id, item.dossierId),
                     eq(dossiers.assignedGroupId, input.groupId),
-                    inArray(dossiers.status, [
-                        DossierStatus.READY_FOR_ENTRY,
-                        DossierStatus.ENTRY_PROCESSING,
-                    ]),
+                    eq(dossiers.status, DossierStatus.READY_FOR_ENTRY),
                 ))
                 .returning({ id: dossiers.id });
 
