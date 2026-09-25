@@ -976,29 +976,38 @@ export function DataManagementPage({
 
       setIsExporting(true)
       try {
-        let dossierId = exportContext.dossierId
-        if (mode === 'dip' && !dossierId && exportContext.kind !== 'multi_dossiers') {
-          dossierId = await resolveDossierIdForDip(exportContext)
+        for (const mode of modes) {
+          setExportingMode(mode)
+          let dossierId = exportContext.dossierId
+          if (
+            mode === 'dip' &&
+            !dossierId &&
+            exportContext.kind !== 'multi_dossiers'
+          ) {
+            dossierId = await resolveDossierIdForDip(exportContext)
+          }
+          await runExport({
+            kind: exportContext.kind,
+            mode,
+            folderId: exportContext.folderId,
+            dossierId,
+            dossierIds: exportContext.dossierIds,
+            downloadName: exportContext.downloadName,
+            metadataExportConfig: options?.presetId
+              ? { presetId: options.presetId }
+              : undefined,
+            useDocumentNaming: options?.useDocumentNaming === true,
+          })
+          toast.success(
+            mode === 'dip'
+              ? t('recordDetail.exportDipSuccess')
+              : mode === 'tiff'
+                ? t('recordDetail.exportTiffSuccess')
+                : mode === 'pdf'
+                  ? t('recordDetail.exportPdfSuccess')
+                  : t('recordDetail.exportExcelSuccess'),
+          )
         }
-        await runExport({
-          kind: exportContext.kind,
-          mode,
-          folderId: exportContext.folderId,
-          dossierId,
-          dossierIds: exportContext.dossierIds,
-          downloadName: exportContext.downloadName,
-          metadataExportConfig: options?.presetId
-            ? { presetId: options.presetId }
-            : undefined,
-          useDocumentNaming: options?.useDocumentNaming === true,
-        })
-        toast.success(
-          mode === 'dip'
-            ? t('recordDetail.exportDipSuccess')
-            : mode === 'tiff'
-              ? t('recordDetail.exportTiffSuccess')
-              : t('recordDetail.exportExcelSuccess'),
-        )
         setExportDialogOpen(false)
       } catch (error) {
         toast.error(
