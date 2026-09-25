@@ -151,7 +151,6 @@ export async function assertNoMixedStorageFolderLayoutForKeys(
     assertNoMixedStorageFolderLayout(layout, bypassPaths);
 }
 
-
 export async function assertNoMixedStorageFolderLayoutOnAdd(
     newKey: string,
     excludeKey?: string,
@@ -169,65 +168,3 @@ export async function assertNoMixedStorageFolderLayoutOnAdd(
         },
     );
 }
-
-/**
- * Tải danh sách file keys hiện có trong DB dưới nhiều prefix cùng lúc.
- * Sửa đổi / phái sinh từ hàm gốc: loadExistingStorageFileKeysUnderPrefix
- */
-export async function loadExistingStorageFileKeysUnderPrefixes(
-    prefixes: string[],
-): Promise<string[]> {
-    const normalizedList = Array.from(
-        new Set(prefixes.map((p) => p.replace(/\/+$/, "")).filter(Boolean)),
-    );
-    if (normalizedList.length === 0) return [];
-
-    const { db } = await import("../../db/db-conn.ts");
-    const { dossierFiles } = await import("../../db/schemas/dossier-file.ts");
-    const { dossiers } = await import("../../db/schemas/dossier.ts");
-    const { activeDossierWhere } = await import("./active-query-filters.ts");
-
-    const likeConditions = normalizedList.map((p) =>
-        like(dossierFiles.filePath, `${p}/%`)
-    );
-
-    const rows = await db
-        .select({ filePath: dossierFiles.filePath })
-        .from(dossierFiles)
-        .innerJoin(dossiers, eq(dossiers.id, dossierFiles.dossierId))
-        .where(
-            activeDossierWhere(
-                likeConditions.length === 1 ? likeConditions[0]! : or(...likeConditions)!,
-            ),
-        );
-
-    return rows.map((row) => row.filePath);
-}
-
-/**
- * Kiểm tra No Mixed Storage Folder Layout cho 1 danh sách các file keys cùng lúc.
- * Sửa đổi / phái sinh từ hàm gốc: assertNoMixedStorageFolderLayoutOnAdd
- */
-export async function assertNoMixedStorageFolderLayoutOnBatchAdd(
-    newKeys: string[],
-    excludeKeys?: string[],
-): Promise<void> {
-    const parentPaths = Array.from(
-        new Set(newKeys.map((k) => storageDirname(k)).filter(Boolean)),
-    );
-    if (parentPaths.length === 0) return;
-
-    const queryRoots = Array.from(
-        new Set(parentPaths.map((p) => getLayoutCheckRoot(p)).filter(Boolean)),
-    );
-
-    const existingKeys = await loadExistingStorageFileKeysUnderPrefixes(queryRoots);
-    await assertNoMixedStorageFolderLayoutForKeys(
-        newKeys,
-        {
-            existingKeys,
-            excludeKeys,
-        },
-    );
-}
-

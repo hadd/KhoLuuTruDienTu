@@ -99,38 +99,8 @@ export const createDocumentFromStorageBodySchema = t.Object({
   runMode: t.Optional(ocrRunModeSchema),
 });
 
-/**
- * Schema cho API tạo nhiều tài liệu cùng lúc từ Storage.
- * Sửa đổi / phái sinh từ schema gốc: createDocumentFromStorageBodySchema
- */
-export const createMultiDocumentFromStorageBodySchema = t.Object({
-  keys: t.Array(t.String({ minLength: 1 }), { minItems: 1 }),
-  projectCode: t.Optional(
-    t.Union([t.String({ minLength: 1, maxLength: 50 }), t.Null()]),
-  ),
-  /** Chế độ OCR đã chọn khi upload — được lưu vào files.ocr_run_mode. */
-  runMode: t.Optional(ocrRunModeSchema),
-});
-
 export const checkFilePathQuerySchema = t.Object({
   filePath: t.String({ minLength: 1 }),
-});
-
-export const checkMultiFilePathBodySchema = t.Object({
-  filePaths: t.Array(t.String({ minLength: 1 })),
-});
-
-export const deleteMultiDossierBodySchema = t.Object({
-  ids: t.Array(t.String({ minLength: 1 })),
-  permanent: t.Optional(
-    t.Union([t.Boolean(), t.Literal("true"), t.Literal("false")]),
-  ),
-});
-
-export const deleteMultiDossierQuerySchema = t.Object({
-  permanent: t.Optional(
-    t.Union([t.Boolean(), t.Literal("true"), t.Literal("false")]),
-  ),
 });
 
 export const listPendingManualOcrQuerySchema = t.Object({

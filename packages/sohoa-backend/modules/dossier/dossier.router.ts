@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { httpError, IdParam } from "@shared/common-lib";
+import { IdParam, httpError } from "@shared/common-lib";
 import { DossierService as service } from "./dossier-service.ts";
 import { plugins } from "../../libs/plugins/_index.ts";
 import { authHelper } from "../auth/auth-helper.ts";
@@ -8,12 +8,8 @@ import {
   assignByFolderIdBodySchema,
   assignDossierBodySchema,
   checkFilePathQuerySchema,
-  checkMultiFilePathBodySchema,
   createDocumentFromStorageBodySchema,
-  createMultiDocumentFromStorageBodySchema,
   createUploadPointBodySchema,
-  deleteMultiDossierBodySchema,
-  deleteMultiDossierQuerySchema,
   listAssignmentsByRoleQuerySchema,
   listAssignmentsByRoleResponseSchema,
   listDossierAssignmentsResponseSchema,
@@ -197,23 +193,6 @@ export function createDossierRouter(basePath: string = "/dossiers") {
   );
 
   app.post(
-    "/check-multi-file-path",
-    async ({ body, profile }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_READ);
-      return await service.checkMultiFilePathExists(body.filePaths);
-    },
-    {
-      body: checkMultiFilePathBodySchema,
-      detail: {
-        tags,
-        summary: "Check if multiple file paths exist in database",
-        description:
-          "Returns an array of file check results with exists, fileId, and filePath.",
-      },
-    },
-  );
-
-  app.post(
     "/create-upload-point",
     async ({ body, profile }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
@@ -243,29 +222,6 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         summary: "Register document from S3 storage",
         description:
           "Verifies object exists on S3, ensures folder/dossier records, and creates dossier file if not present.",
-      },
-    },
-  );
-
-  /**
-   * Endpoint tạo nhiều tài liệu cùng lúc từ S3 Storage.
-   * Sửa đổi / phái sinh từ endpoint gốc: /create-document-from-storage
-   */
-  app.post(
-    "/create-multi-document-from-storage",
-    async ({ body, profile, set }) => {
-      authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
-      const result = await service.createMultiDocumentFromStorage(body);
-      set.status = result.created ? 201 : 200;
-      return result;
-    },
-    {
-      body: createMultiDocumentFromStorageBodySchema,
-      detail: {
-        tags,
-        summary: "Batch register documents from S3 storage",
-        description:
-          "Verifies objects exist on S3, validates layout, ensures folder/dossier records, and batch creates dossier files.",
       },
     },
   );
@@ -419,7 +375,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
           Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
         );
       }
-
+      
       let applyWatermark = false;
       let skippedFileIds = new Set<string>();
 
@@ -524,7 +480,7 @@ export function createDossierRouter(basePath: string = "/dossiers") {
           Permission.ARCHIVE_WAREHOUSE_DOWNLOAD,
         );
       }
-
+      
       let applyWatermark = false;
       let skippedFileIds = new Set<string>();
 
@@ -696,27 +652,6 @@ export function createDossierRouter(basePath: string = "/dossiers") {
         summary: "Xác thực mật khẩu truy cập hồ sơ",
         description:
           "Trả về JWT ngắn hạn (scope dossier) dùng header x-dossier-access-token khi truy cập nội dung bảo vệ.",
-      },
-    },
-  );
-
-  const deleteMultiHandler = async ({ body, query, profile }: any) => {
-    authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
-    const permanent = isPermanentDeleteFlag(query?.permanent ?? body?.permanent);
-    return await service.deleteMulti(body.ids, { permanent });
-  };
-
-  app.delete(
-    "/delete-multi",
-    deleteMultiHandler,
-    {
-      body: deleteMultiDossierBodySchema,
-      query: deleteMultiDossierQuerySchema,
-      detail: {
-        tags,
-        summary: "Delete multiple dossiers (soft or permanent)",
-        description:
-          "Deletes multiple dossiers by IDs. When permanent=true, purges MinIO and hard deletes DB records.",
       },
     },
   );
