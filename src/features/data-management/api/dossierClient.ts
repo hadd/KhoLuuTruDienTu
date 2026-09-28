@@ -79,6 +79,9 @@ const UPLOAD_EXPIRY_MIN_SECONDS = 86_400
 export interface UploadPathConflict {
   relativePath: string
   storageKey: string
+  /** From check-multi-file-path when the path already exists in DB. */
+  dossierId?: string | null
+  fileId?: string | null
 }
 
 export interface UploadConflictCheckResult {
@@ -90,6 +93,7 @@ interface CheckMultiFilePathItem {
   path: string
   exists: boolean
   fileId: string | null
+  dossierId: string | null
 }
 
 function resolveUploadBaseKey(uploadPoint: UploadPointResponse): string {
@@ -197,6 +201,10 @@ async function checkMultiFilePath(
             item.fileId != null && String(item.fileId).trim()
               ? String(item.fileId)
               : null,
+          dossierId:
+            item.dossierId != null && String(item.dossierId).trim()
+              ? String(item.dossierId)
+              : null,
         }
       })
     }),
@@ -228,7 +236,18 @@ export async function detectUploadPathConflicts(
 
   const checks = await checkMultiFilePath(entries.map((e) => e.storageKey))
 
-  const conflicts = entries.filter((_, index) => checks[index]?.exists === true)
+  const conflicts: Array<UploadPathConflict> = []
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index]!
+    const check = checks[index]
+    if (!check?.exists) continue
+    conflicts.push({
+      relativePath: entry.relativePath,
+      storageKey: entry.storageKey,
+      dossierId: check.dossierId,
+      fileId: check.fileId,
+    })
+  }
 
   return { conflicts, uploadPoint }
 }
@@ -769,12 +788,20 @@ export async function uploadFolderFiles(
     }
   })
 
-  const existingKeys = new Set<string>()
+  const existingByKey = new Map<
+    string,
+    { dossierId: string | null; fileId: string | null }
+  >()
   if (!allowOverwrite && !skipPathCheck) {
     const checks = await checkMultiFilePath(prepared.map((p) => p.fullKey))
     for (let i = 0; i < prepared.length; i += 1) {
-      if (checks[i]?.exists) {
-        existingKeys.add(prepared[i]!.fullKey)
+      const check = checks[i]
+      const fullKey = prepared[i]!.fullKey
+      if (check?.exists) {
+        existingByKey.set(fullKey, {
+          dossierId: check.dossierId,
+          fileId: check.fileId,
+        })
       }
     }
   }
@@ -817,12 +844,14 @@ export async function uploadFolderFiles(
 
         let finished = false
         try {
-          if (existingKeys.has(fullKey)) {
+          const existing = existingByKey.get(fullKey)
+          if (existing) {
             slotResults[index] = {
               file,
               relativePath,
               status: 'skipped',
               storageKey: fullKey,
+              dossierId: existing.dossierId ?? undefined,
             }
           } else {
             await uploadFileToMinIO(file, uploadPoint, relativePath, signal)
