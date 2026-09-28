@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { httpError } from "@shared/common-lib";
+import { env } from "../../env.ts";
 import { db } from "../../db/db-conn.ts";
 import { dossiers } from "../../db/schemas/dossier.ts";
 import { activeDossierWhere } from "../../modules/dossier/active-query-filters.ts";
@@ -38,6 +39,17 @@ export type GenerateExportDerivativesResult = {
 export async function generateAndPersistExportDerivatives(input: {
   dossierId: string;
 }): Promise<GenerateExportDerivativesResult> {
+  if (!env.EXPORT_DERIVATIVES_ENABLED) {
+    console.info(`[ExportDerivatives] Tính năng bị tắt qua biến môi trường. Bỏ qua cho hồ sơ ${input.dossierId}`);
+    return {
+      dossierId: input.dossierId,
+      pdfUploaded: 0,
+      tiffUploaded: 0,
+      skipped: 0,
+      failed: 0,
+    };
+  }
+
   const dossier = await db.query.dossiers.findFirst({
     where: activeDossierWhere(eq(dossiers.id, input.dossierId)),
     with: { files: true },

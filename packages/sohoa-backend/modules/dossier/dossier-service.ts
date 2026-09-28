@@ -1226,7 +1226,7 @@ async function validateApprovedFolderMetadataExport(
 
 async function validateApprovedFoldersMetadataExport(
   folderIds: string[],
-  options?: { bypassStatus?: boolean },
+  options?: { bypassStatus?: boolean; skipMetadataCheck?: boolean },
 ) {
   const uniqueIds = [
     ...new Set(folderIds.map((id) => id.trim()).filter(Boolean)),
@@ -1271,16 +1271,18 @@ async function validateApprovedFoldersMetadataExport(
     }
   }
 
-  const withoutMetadata = allDossiers.filter(
-    (dossier) => !dossier.currentMetadataKey,
-  );
-  if (withoutMetadata.length > 0) {
-    const missingNames = withoutMetadata
-      .map((dossier) => dossier.name)
-      .join(", ");
-    throw httpError.badRequest(
-      `Cannot export: some dossiers are missing metadata: ${missingNames}`,
+  if (!options?.skipMetadataCheck) {
+    const withoutMetadata = allDossiers.filter(
+      (dossier) => !dossier.currentMetadataKey,
     );
+    if (withoutMetadata.length > 0) {
+      const missingNames = withoutMetadata
+        .map((dossier) => dossier.name)
+        .join(", ");
+      throw httpError.badRequest(
+        `Cannot export: some dossiers are missing metadata: ${missingNames}`,
+      );
+    }
   }
 
   return { rootFolders, dossiers: allDossiers };
@@ -1288,7 +1290,7 @@ async function validateApprovedFoldersMetadataExport(
 
 async function loadDossiersForMetadataExport(
   dossierIds: string[],
-  options?: { bypassStatus?: boolean },
+  options?: { bypassStatus?: boolean; skipMetadataCheck?: boolean },
 ) {
   const uniqueIds = [
     ...new Set(dossierIds.map((id) => id.trim()).filter(Boolean)),
@@ -1324,14 +1326,16 @@ async function loadDossiersForMetadataExport(
     }
   }
 
-  const withoutMetadata = rows.filter((dossier) => !dossier.currentMetadataKey);
-  if (withoutMetadata.length > 0) {
-    const missingNames = withoutMetadata
-      .map((dossier) => dossier.name)
-      .join(", ");
-    throw httpError.badRequest(
-      `Cannot export: some dossiers are missing metadata: ${missingNames}`,
-    );
+  if (!options?.skipMetadataCheck) {
+    const withoutMetadata = rows.filter((dossier) => !dossier.currentMetadataKey);
+    if (withoutMetadata.length > 0) {
+      const missingNames = withoutMetadata
+        .map((dossier) => dossier.name)
+        .join(", ");
+      throw httpError.badRequest(
+        `Cannot export: some dossiers are missing metadata: ${missingNames}`,
+      );
+    }
   }
 
   return rows.sort((a, b) => a.name.localeCompare(b.name));
@@ -1392,7 +1396,15 @@ async function buildApprovedMetadataExportZip(
     allDossiers,
     EXPORT_DOSSIER_CONCURRENCY,
     async (dossier) => {
-      const metadata = await loadDossierMetadataFromStorage(dossier);
+      let metadata: any;
+      if (dossier.currentMetadataKey) {
+        metadata = await loadDossierMetadataFromStorage(dossier);
+      } else if (pdfOnly || tiffOnly) {
+        metadata = { metadata_groups: [] };
+      } else {
+        throw httpError.badRequest(`Missing metadata for dossier: ${dossier.name}`);
+      }
+
       const files = input?.skippedFileIds
         ? (dossier.files ?? []).filter(
             (f) => !f.id || !input.skippedFileIds!.has(f.id),
@@ -4362,8 +4374,10 @@ export const DossierService = {
     dossierIds: string[],
     input?: MetadataExportInput,
   ) {
+    const skipMetadataCheck = isTruthyExportFlag(input?.pdfOnly) || isTruthyExportFlag(input?.tiffOnly);
     const rows = await loadDossiersForMetadataExport(dossierIds, {
       bypassStatus: input?.bypassStatus === true,
+      skipMetadataCheck,
     });
     const layout = rows.length === 1 ? "dossier-single" : "folder";
     const zipBaseName = rows.length === 1 ? rows[0]!.name : "multi-dossiers";
@@ -4528,7 +4542,10 @@ export const DossierService = {
     options?: { bypassStatus?: boolean },
   ): Promise<string[]> {
     const { dossiers: allDossiers } =
-      await validateApprovedFoldersMetadataExport(folderIds, options);
+      await validateApprovedFoldersMetadataExport(folderIds, {
+        ...options,
+        skipMetadataCheck: true,
+      });
     return allDossiers.map((d) => d.id);
   },
 
@@ -4536,9 +4553,11 @@ export const DossierService = {
     folderIds: string[],
     input?: MetadataExportInput,
   ) {
+    const skipMetadataCheck = isTruthyExportFlag(input?.pdfOnly) || isTruthyExportFlag(input?.tiffOnly);
     const { rootFolders, dossiers: allDossiers } =
       await validateApprovedFoldersMetadataExport(folderIds, {
         bypassStatus: input?.bypassStatus === true,
+        skipMetadataCheck,
       });
 
     const zipBaseName =
