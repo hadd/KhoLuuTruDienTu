@@ -273,8 +273,17 @@ function AdminSection({
     dateFrom?: string
     dateTo?: string
   }>({})
+  const [dossierStatusDateRange, setDossierStatusDateRange] = useState<{
+    dateFrom?: string
+    dateTo?: string
+  }>({})
 
-  const overviewQuery = useQuery(adminDashboardOverviewQueryOptions())
+  const overviewQuery = useQuery(
+    adminDashboardOverviewQueryOptions(
+      dossierStatusDateRange.dateFrom,
+      dossierStatusDateRange.dateTo,
+    ),
+  )
   const kpiQuery = useQuery(
     adminEmployeeKpisQueryOptions(kpiDateRange.dateFrom, kpiDateRange.dateTo),
   )
@@ -307,6 +316,9 @@ function AdminSection({
       }
       onTrendDateRangeChange={(dateFrom, dateTo) =>
         setTrendDateRange({ dateFrom, dateTo })
+      }
+      onDossierStatusDateRangeChange={(dateFrom, dateTo) =>
+        setDossierStatusDateRange({ dateFrom, dateTo })
       }
     />
   )

@@ -417,11 +417,18 @@ function unwrapDashboardResponse(
   return data
 }
 
-export const getAdminDashboard = async (): Promise<AdminDashboardT> => {
+export const getAdminDashboard = async (params?: {
+  dateFrom?: string
+  dateTo?: string
+}): Promise<AdminDashboardT> => {
   const response = await apiClient.get<
     AdminDashboardRawT | SingleResourceResponse<AdminDashboardRawT>
   >('/api/v1/admin/dashboard/', {
     timeout: 90_000,
+    params: {
+      ...(params?.dateFrom ? { dateFrom: params.dateFrom } : {}),
+      ...(params?.dateTo ? { dateTo: params.dateTo } : {}),
+    },
   })
 
   return normalizeDashboard(unwrapDashboardResponse(response.data))
