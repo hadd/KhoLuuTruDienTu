@@ -1402,15 +1402,38 @@ export const DashboardService = {
         options?: {
             projectCodes?: string[];
             includeUnassigned?: boolean;
+            dateFrom?: string | Date;
+            dateTo?: string | Date;
         },
     ) {
         const projectCodes = options?.projectCodes;
         const includeUnassigned = options?.includeUnassigned ?? false;
+        const dateFrom = options?.dateFrom;
+        const dateTo = options?.dateTo;
         const isScoped = projectCodes !== undefined;
         const todayStart = startOfToday();
         const weekStart = startOfWeek();
 
         const dossierScope = scopedDossierCondition(projectCodes, includeUnassigned);
+        const dossierConditions = [dossierScope];
+
+        if (dateFrom) {
+            const dFrom = typeof dateFrom === "string" ? new Date(dateFrom) : dateFrom;
+            if (!isNaN(dFrom.getTime())) {
+                dossierConditions.push(gte(dossiers.createdAt, dFrom));
+            }
+        }
+        if (dateTo) {
+            const dTo = typeof dateTo === "string" ? new Date(dateTo) : dateTo;
+            if (!isNaN(dTo.getTime())) {
+                if (typeof dateTo === "string" && dateTo.length === 10) {
+                    dTo.setHours(23, 59, 59, 999);
+                }
+                dossierConditions.push(lte(dossiers.createdAt, dTo));
+            }
+        }
+        const filteredDossierCondition = and(...dossierConditions);
+
         const groupConditions = [isNull(groups.deletedAt)];
         if (projectCodes) {
             if (projectCodes.length === 0) {
@@ -1449,7 +1472,7 @@ export const DashboardService = {
                     count: sql<number>`count(*)`.mapWith(Number),
                 })
                 .from(dossiers)
-                .where(dossierScope)
+                .where(filteredDossierCondition)
                 .groupBy(dossiers.status),
             isScoped
                 ? Promise.resolve([{ count: 0 }])
