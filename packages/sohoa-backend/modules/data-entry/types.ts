@@ -47,6 +47,11 @@ export const claimFileSchema = t.Object({
     fileUrl: t.String(),
     searchablePdfPath: t.Union([t.String(), t.Null()]),
     searchablePdfUrl: t.Union([t.String(), t.Null()]),
+    filePath: t.Optional(t.String()),
+    fileSizeKb: t.Optional(t.Number()),
+    createdAt: t.Optional(t.String()),
+    signedFilePath: t.Optional(t.Union([t.String(), t.Null()])),
+    signedFileUrl: t.Optional(t.Union([t.String(), t.Null()])),
 });
 
 export const claimResponseSchema = t.Object({
