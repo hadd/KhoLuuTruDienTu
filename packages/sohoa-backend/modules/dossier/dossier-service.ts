@@ -66,8 +66,10 @@ import {
 import {
   collectDossierStorageKeys,
   deleteOrphanFoldersAfterDossier,
+  escapeSqlLike,
   hardDeleteFoldersByIds,
   purgeDossierFromMinIO,
+  purgeFolderTreeFromMinIO,
   purgeSingleFileFromMinIO,
   softDeleteFoldersByIds,
   softDeleteOrphanFoldersAfterDossier,
@@ -538,8 +540,8 @@ export async function assignFolderProjectCode(
       folderIds.length === 0
         ? []
         : await tx.query.dossiers.findMany({
-            where: activeDossierWhere(inArray(dossiers.folderId, folderIds)),
-          });
+          where: activeDossierWhere(inArray(dossiers.folderId, folderIds)),
+        });
 
     for (const dossier of subtreeDossiers) {
       if (
@@ -1407,8 +1409,8 @@ async function buildApprovedMetadataExportZip(
 
       const files = input?.skippedFileIds
         ? (dossier.files ?? []).filter(
-            (f) => !f.id || !input.skippedFileIds!.has(f.id),
-          )
+          (f) => !f.id || !input.skippedFileIds!.has(f.id),
+        )
         : (dossier.files ?? []);
       return {
         dossier: { ...dossier, files },
@@ -1445,10 +1447,10 @@ async function buildApprovedMetadataExportZip(
   const zipResolved =
     !skipProtect && input?.userId
       ? await resolveExportZipPassword({
-          userId: input.userId,
-          dossierIds,
-          dossierAccessPassword: input.dossierAccessPassword,
-        })
+        userId: input.userId,
+        dossierIds,
+        dossierAccessPassword: input.dossierAccessPassword,
+      })
       : { password: undefined, source: "none" as const };
   const zipPassword = zipResolved.password;
 
@@ -1457,8 +1459,8 @@ async function buildApprovedMetadataExportZip(
     options.layout === "dossier-single" && metadataForCount.length === 1;
   const singleFolderName = first
     ? sanitizeExportBaseName(
-        first.metadata.ho_so_id || first.dossier.name || first.dossier.id,
-      )
+      first.metadata.ho_so_id || first.dossier.name || first.dossier.id,
+    )
     : sanitizeExportBaseName(options.zipBaseName);
   const zipBaseName = isSingleDossier
     ? singleFolderName
@@ -1564,15 +1566,15 @@ async function buildApprovedMetadataExportZip(
           const namedSources = pdfSources.map((source, sourceIndex) => {
             const fileName = namingContext
               ? resolveNamedPdfFileName({
-                  context: namingContext,
-                  metadata,
-                  originalFileName: source.fileName,
-                  storageKey: source.storageKey,
-                  sourceIndex,
-                  dossierFiles: dossier.files,
-                  dossierIndex,
-                  usedNames,
-                })
+                context: namingContext,
+                metadata,
+                originalFileName: source.fileName,
+                storageKey: source.storageKey,
+                sourceIndex,
+                dossierFiles: dossier.files,
+                dossierIndex,
+                usedNames,
+              })
               : source.fileName;
 
             const usedNamesEntry = uniqueZipEntryName(fileName, usedPdfNames);
@@ -1754,13 +1756,13 @@ async function assignDossiersByFolderId(input: {
       }),
       input.role === WorkerRole.MAKER
         ? db.query.dossierAssignments.findMany({
-            where: and(
-              inArray(dossierAssignments.dossierId, dossierIds),
-              eq(dossierAssignments.role, WorkerRole.MAKER),
-              eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
-            ),
-            columns: { dossierId: true, assigneeId: true },
-          })
+          where: and(
+            inArray(dossierAssignments.dossierId, dossierIds),
+            eq(dossierAssignments.role, WorkerRole.MAKER),
+            eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+          ),
+          columns: { dossierId: true, assigneeId: true },
+        })
         : Promise.resolve([]),
     ]);
 
@@ -2146,9 +2148,9 @@ async function mapAssignmentRowsToResponse(
           currentMetadataUrl,
           ...(issueReportsByDossierId
             ? {
-                issueReports:
-                  issueReportsByDossierId.get(row.dossier!.id) ?? [],
-              }
+              issueReports:
+                issueReportsByDossierId.get(row.dossier!.id) ?? [],
+            }
             : {}),
           dossier: {
             ...row.dossier!,
@@ -2209,8 +2211,8 @@ async function listMyAssignmentsByRole(
   const includeIssueReports = input.role !== WorkerRole.MAKER;
   const issueReportsByDossierId = includeIssueReports
     ? await IssueReportService.listOpenForDossiers(
-        rows.map((row) => row.dossier?.id).filter((id): id is string => !!id),
-      )
+      rows.map((row) => row.dossier?.id).filter((id): id is string => !!id),
+    )
     : undefined;
 
   const assignments = await mapAssignmentRowsToResponse(
@@ -2304,15 +2306,71 @@ async function loadFolderSubtreeForBulkDelete(
 
   const subtreeFolderCondition = permanent
     ? or(
+      eq(folders.id, folderId),
+      like(folders.folderPath, `${rootFolder.folderPath}/%`),
+    )
+    : activeFolderWhere(
+      or(
         eq(folders.id, folderId),
         like(folders.folderPath, `${rootFolder.folderPath}/%`),
-      )
+      ),
+    );
+
+  const subtreeFolders = await db.query.folders.findMany({
+    where: subtreeFolderCondition,
+    orderBy: asc(folders.folderPath),
+  });
+
+  const folderIds = subtreeFolders.map((folder) => folder.id);
+  if (folderIds.length === 0) {
+    return {
+      rootFolder,
+      subtreeFolders,
+      dossiers: [] as Array<
+        typeof dossiers.$inferSelect & {
+          files: (typeof dossierFiles.$inferSelect)[];
+        }
+      >,
+    };
+  }
+
+  const dossierRows = await db.query.dossiers.findMany({
+    where: permanent
+      ? inArray(dossiers.folderId, folderIds)
+      : activeDossierWhere(inArray(dossiers.folderId, folderIds)),
+    with: { files: true },
+    orderBy: asc(dossiers.name),
+  });
+
+  return { rootFolder, subtreeFolders, dossiers: dossierRows };
+}
+
+async function loadFolderSubtreeForBulkDeleteV2(
+  folderId: string,
+  permanent: boolean,
+) {
+  const rootFolder = await db.query.folders.findFirst({
+    where: permanent
+      ? eq(folders.id, folderId)
+      : activeFolderWhere(eq(folders.id, folderId)),
+  });
+
+  if (!rootFolder) {
+    throw httpError.notFound("Folder not found");
+  }
+
+  const escapedRootPath = escapeSqlLike(rootFolder.folderPath);
+  const subtreeFolderCondition = permanent
+    ? or(
+      eq(folders.id, folderId),
+      like(folders.folderPath, `${escapedRootPath}/%`),
+    )
     : activeFolderWhere(
-        or(
-          eq(folders.id, folderId),
-          like(folders.folderPath, `${rootFolder.folderPath}/%`),
-        ),
-      );
+      or(
+        eq(folders.id, folderId),
+        like(folders.folderPath, `${escapedRootPath}/%`),
+      ),
+    );
 
   const subtreeFolders = await db.query.folders.findMany({
     where: subtreeFolderCondition,
@@ -2556,14 +2614,14 @@ export const DossierService = {
         while (currentId) {
           const folder:
             | {
-                id: string;
-                parentId: string | null;
-                deletedAt: Date | null;
-              }
+              id: string;
+              parentId: string | null;
+              deletedAt: Date | null;
+            }
             | undefined = await tx.query.folders.findFirst({
-            where: eq(folders.id, currentId),
-            columns: { id: true, parentId: true, deletedAt: true },
-          });
+              where: eq(folders.id, currentId),
+              columns: { id: true, parentId: true, deletedAt: true },
+            });
 
           if (!folder) break;
 
@@ -2979,12 +3037,131 @@ export const DossierService = {
       const deletedDossierRows =
         dossierIds.length > 0
           ? await tx
-              .update(dossiers)
-              .set({ deletedAt: now, updatedAt: now })
-              .where(
-                and(inArray(dossiers.id, dossierIds), activeDossierWhere()),
-              )
-              .returning({ id: dossiers.id })
+            .update(dossiers)
+            .set({ deletedAt: now, updatedAt: now })
+            .where(
+              and(inArray(dossiers.id, dossierIds), activeDossierWhere()),
+            )
+            .returning({ id: dossiers.id })
+          : [];
+
+      const deletedFolderIds = await softDeleteFoldersByIds(
+        tx,
+        folderIdsOrdered,
+        now,
+      );
+
+      return {
+        deletedDossierIds: deletedDossierRows.map((row) => row.id),
+        deletedFolderIds,
+      };
+    });
+
+    return {
+      folderId,
+      folderPath: rootFolder.folderPath,
+      mode: "soft" as const,
+      deletedDossierIds: softResult.deletedDossierIds,
+      deletedFolderIds: softResult.deletedFolderIds,
+      totalDossiers: softResult.deletedDossierIds.length,
+    };
+  },
+
+  async deleteByFolderIdV2(
+    folderId: string,
+    options?: { permanent?: boolean },
+  ) {
+    const permanent = options?.permanent === true;
+    const {
+      rootFolder,
+      subtreeFolders,
+      dossiers: dossierList,
+    } = await loadFolderSubtreeForBulkDeleteV2(folderId, permanent);
+
+    const dossierIds = dossierList.map((d) => d.id);
+    const folderIdsOrdered = sortFoldersDeepestFirst(subtreeFolders).map(
+      (f) => f.id,
+    );
+
+    if (permanent) {
+      const explicitKeys = new Set<string>();
+
+      if (dossierIds.length > 0) {
+        const assignments = await db.query.dossierAssignments.findMany({
+          where: inArray(dossierAssignments.dossierId, dossierIds),
+          columns: { dossierId: true, metadataKey: true },
+        });
+
+        const historyRows = await db
+          .select({ dossierId: metadataHistory.dossierId, s3Key: metadataHistory.s3Key })
+          .from(metadataHistory)
+          .where(inArray(metadataHistory.dossierId, dossierIds));
+
+        const assignmentsByDossier = new Map<string, Array<{ metadataKey: string | null }>>();
+        for (const a of assignments) {
+          const list = assignmentsByDossier.get(a.dossierId) ?? [];
+          list.push(a);
+          assignmentsByDossier.set(a.dossierId, list);
+        }
+
+        for (const dossier of dossierList) {
+          const dossierAssigns = assignmentsByDossier.get(dossier.id) ?? [];
+          const keys = collectDossierStorageKeys(
+            dossier,
+            dossier.files ?? [],
+            dossierAssigns,
+          );
+          for (const k of keys) explicitKeys.add(k);
+        }
+
+        for (const { s3Key } of historyRows) {
+          if (s3Key) explicitKeys.add(normalizeStorageKey(s3Key));
+        }
+      }
+
+      const deletedFolderIds = await db.transaction(async (tx) => {
+        await purgeLinkedMetadataByDossierIds(tx, dossierIds);
+        if (dossierIds.length > 0) {
+          await tx.delete(dossiers).where(inArray(dossiers.id, dossierIds));
+        }
+        return await hardDeleteFoldersByIds(tx, folderIdsOrdered);
+      });
+
+      let deletedObjectCount = 0;
+      try {
+        deletedObjectCount = await purgeFolderTreeFromMinIO(
+          rootFolder.folderPath,
+          explicitKeys,
+        );
+      } catch (err) {
+        console.error(
+          `[deleteByFolderIdV2] DB transaction succeeded but MinIO purge failed for folder ${folderId} (${rootFolder.folderPath}):`,
+          err,
+        );
+      }
+
+      return {
+        folderId,
+        folderPath: rootFolder.folderPath,
+        mode: "permanent" as const,
+        deletedDossierIds: dossierIds,
+        deletedFolderIds,
+        deletedObjectCount,
+        totalDossiers: dossierIds.length,
+      };
+    }
+
+    const now = new Date();
+    const softResult = await db.transaction(async (tx) => {
+      const deletedDossierRows =
+        dossierIds.length > 0
+          ? await tx
+            .update(dossiers)
+            .set({ deletedAt: now, updatedAt: now })
+            .where(
+              and(inArray(dossiers.id, dossierIds), activeDossierWhere()),
+            )
+            .returning({ id: dossiers.id })
           : [];
 
       const deletedFolderIds = await softDeleteFoldersByIds(
