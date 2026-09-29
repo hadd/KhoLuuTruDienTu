@@ -282,7 +282,8 @@ Deno.test("buildDynamicMetadataExcel expands multi-file dossier into rows withou
 });
 
 Deno.test("buildDynamicMetadataExcel exports PVEP sample metadata with file_name MA_DINH_DANH_VAN_BAN", async () => {
-    const jsonText = await Deno.readTextFile("packages/sohoa-backend/assets/metadata_Pvep_sample.json");
+    const assetUrl = new URL("../assets/metadata_Pvep_sample.json", import.meta.url);
+    const jsonText = await Deno.readTextFile(assetUrl);
     const pvepMetadata: DossierMetadata = JSON.parse(jsonText);
 
     const columns = buildDefaultExportConfig([pvepMetadata]);
@@ -533,7 +534,7 @@ Deno.test("resolveExportColumnValue joins fields without surrounding separator s
     assertEquals(value, "001122334455/Nguyễn Văn A\nTrần Thị B");
 });
 
-Deno.test("__row_number increments across dossiers", async () => {
+Deno.test("__row_number resets per dossier", async () => {
     const columns = [
         { header: "STT_HANG", fieldKeys: ["__row_number"], separator: "" },
         { header: "Mã", fieldKeys: ["__ho_so_id"], separator: "" },
@@ -578,7 +579,7 @@ Deno.test("__row_number increments across dossiers", async () => {
     const sheet = workbook.getWorksheet("Metadata");
     assertEquals(sheet!.getCell(2, 1).value, "1");
     assertEquals(sheet!.getCell(3, 1).value, "2");
-    assertEquals(sheet!.getCell(4, 1).value, "3");
+    assertEquals(sheet!.getCell(4, 1).value, "1");
 });
 
 Deno.test("__dossier_folder resolves from dossier folder path and joins with file name", async () => {

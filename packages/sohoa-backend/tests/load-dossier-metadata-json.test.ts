@@ -325,3 +325,41 @@ Deno.test(
     );
   },
 );
+
+Deno.test(
+  "resolveReadableMetadataStorageKey returns null when listing is empty",
+  async () => {
+    const key = await resolveReadableMetadataStorageKey(
+      {
+        dossierName: "0007",
+        currentMetadataKey: null,
+        ocrMetadataKey: null,
+        folderPath: "raw/CSDL_SOHOA_TUTQ/028.23.05/01/0007",
+      },
+      {
+        listSiblingJsonKeys: async () => [],
+      },
+    );
+    assertEquals(key, null);
+  },
+);
+
+Deno.test(
+  "resolveReadableMetadataStorageKey returns null when DB key set but listing empty",
+  async () => {
+    const key = await resolveReadableMetadataStorageKey(
+      {
+        dossierName: "0007",
+        currentMetadataKey:
+          "tuyen_quang_metadata/CSDL_SOHOA_TUTQ/028.23.05/01/0007/0007.json",
+        ocrMetadataKey:
+          "tuyen_quang_metadata/CSDL_SOHOA_TUTQ/028.23.05/01/0007/0007.json",
+        folderPath: "raw/CSDL_SOHOA_TUTQ/028.23.05/01/0007",
+      },
+      {
+        listSiblingJsonKeys: async () => [],
+      },
+    );
+    assertEquals(key, null);
+  },
+);

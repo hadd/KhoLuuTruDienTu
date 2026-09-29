@@ -50,3 +50,6 @@ scope.onmessage = async (event: MessageEvent<CpuJob>) => {
     scope.postMessage({ id: job.id, ok: false, error: message });
   }
 };
+
+scope.postMessage({ kind: "ready" });
+

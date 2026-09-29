@@ -1810,11 +1810,16 @@ export const GroupService = {
             });
 
             await tx
-                .delete(groupMembers)
-                .where(eq(groupMembers.groupId, groupId));
+                .update(groupMembers)
+                .set({ expiredAt: now })
+                .where(and(
+                    eq(groupMembers.groupId, groupId),
+                    isNull(groupMembers.expiredAt)
+                ));
 
             await tx
-                .delete(groups)
+                .update(groups)
+                .set({ deletedAt: now })
                 .where(eq(groups.id, groupId));
         });
 

@@ -5,6 +5,7 @@ const command = new Deno.Command("deno", {
         "run",
         "--watch",
         "--allow-all",
+        "--unstable-worker-options",
         `./packages/sohoa-backend/main.ts`,
     ],
     stdout: "inherit",

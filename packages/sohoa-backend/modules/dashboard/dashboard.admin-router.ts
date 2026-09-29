@@ -11,6 +11,7 @@ import {
 import { projectAccessHelper } from "../auth/project-access-helper.ts";
 import { DashboardService as service } from "./dashboard-service.ts";
 import {
+    adminDashboardQuerySchema,
     adminDossierChartQuerySchema,
     adminDossierChartResponseSchema,
     adminEmployeeKpisQuerySchema,
@@ -48,11 +49,16 @@ export function createDashboardAdminRouter(basePath: string = "/dashboard") {
 
     app.get(
         "/",
-        async ({ profile }) => {
+        async ({ profile, query }) => {
             const scope = await resolveAdminDashboardScope(profile);
-            return await service.getAdminDashboard(scope);
+            return await service.getAdminDashboard({
+                ...scope,
+                dateFrom: query.dateFrom,
+                dateTo: query.dateTo,
+            });
         },
         {
+            query: adminDashboardQuerySchema,
             response: adminDashboardResponseSchema,
             detail: {
                 tags,

@@ -100,7 +100,7 @@ Deno.test("countFieldSplitAssignedDossierOrdinals counts active and completed do
     );
 });
 
-Deno.test("getDossierRevokeBlockReason allows READY_FOR_ENTRY and ENTRY_PROCESSING dossiers", () => {
+Deno.test("getDossierRevokeBlockReason allows READY_FOR_ENTRY and blocks ENTRY_PROCESSING", () => {
     const active = buildActiveMakerIndex([
         { dossierId: "d-individual", assigneeId: "editor-a" },
         { dossierId: "d-busy", assigneeId: "editor-a" },
@@ -149,7 +149,7 @@ Deno.test("getDossierRevokeBlockReason allows READY_FOR_ENTRY and ENTRY_PROCESSI
             completedMakerIndex: completed,
             hasWorkableAssignment: true,
         }),
-        null,
+        "Dossier is currently in entry processing",
     );
     assertEquals(
         getDossierRevokeBlockReason({
@@ -166,7 +166,7 @@ Deno.test("getDossierRevokeBlockReason allows READY_FOR_ENTRY and ENTRY_PROCESSI
     );
 });
 
-Deno.test("getFolderRevokeBlockReason allows READY_FOR_ENTRY and ENTRY_PROCESSING group dossiers", () => {
+Deno.test("getFolderRevokeBlockReason allows READY_FOR_ENTRY and blocks ENTRY_PROCESSING group dossiers", () => {
     const active = buildActiveMakerIndex([
         { dossierId: "d1", assigneeId: "editor-a" },
     ]);
@@ -192,7 +192,7 @@ Deno.test("getFolderRevokeBlockReason allows READY_FOR_ENTRY and ENTRY_PROCESSIN
             activeMakerIndex: active,
             completedMakerIndex: completed,
         }),
-        null,
+        "Dossier is currently in entry processing",
     );
     assertEquals(
         getFolderRevokeBlockReason({

@@ -109,7 +109,7 @@ function startChildren(count: number): number[] {
     const port = env.PORT + 1 + index;
     ports.push(port);
     const child = new Deno.Command(Deno.execPath(), {
-      args: ["run", "--allow-all", "main.ts"],
+      args: ["run", "--allow-all", "--unstable-worker-options", "main.ts"],
       cwd,
       env: {
         ...Deno.env.toObject(),

@@ -258,6 +258,8 @@ function createEnvObject() {
          * Không khai báo thì 1. Đóng khi hết việc.
          */
         EXPORT_WORKER_COUNT: getPositiveIntEnv("EXPORT_WORKER_COUNT", 1),
+        /** Bật/tắt tự động xuất PDF/A và TIFF lên thư mục export/ trên MinIO sau khi duyệt */
+        EXPORT_DERIVATIVES_ENABLED: getBooleanEnv("EXPORT_DERIVATIVES_ENABLED", true),
         PAGE_QUOTA_ENFORCE: (() => {
             const raw = Deno.env.get("PAGE_QUOTA_ENFORCE");
             if (raw !== undefined && raw !== null && raw.trim() !== "") {

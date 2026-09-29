@@ -91,7 +91,6 @@ export async function buildDynamicMetadataExcel(
     writeHeaders(sheet, columns);
 
     let currentRow = FIRST_DATA_ROW;
-    let documentRowNumber = 0;
 
     metadataList.forEach((metadata, dossierIndex) => {
         const dossierFiles = options.dossierFilesList?.[dossierIndex] ?? [];
@@ -107,12 +106,10 @@ export async function buildDynamicMetadataExcel(
             const fileItem = fileItems[k]!;
             const kind = fileItem.kind ?? "document";
             const isExcludedFromStt = kind === "bia" || kind === "mucluc" || kind === "chung_tu_ket_thuc";
-            const rowNumber = isExcludedFromStt
-                ? undefined
-                : ++documentRowNumber;
             const docIndexInDossier = isExcludedFromStt
                 ? undefined
                 : ++dossierDocIndex;
+            const rowNumber = docIndexInDossier;
 
             columns.forEach((column, colIdx) => {
                 const colNum = colIdx + 1;
