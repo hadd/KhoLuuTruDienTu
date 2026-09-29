@@ -1187,26 +1187,47 @@ export async function loadNodeChildren(
 
     // OCR poll: update status/stats from listing only — no MinIO metadata storm.
     if (allOcrPending) {
-      const listingChildren = dossiers.map((dossier) =>
-        mapDossierListingStub(dossier as Record<string, unknown>, nodeId),
-      )
-      const { children: mergedChildren, changed: childrenChanged } =
-        mergeListingChildren(node.children, listingChildren)
+      const firstDossier = dossiers[0] as Record<string, unknown> | undefined
+      const isAssigned = parseIsAssigned(data)
+      const statusChanged = firstDossierStatus && node.dossierStatus !== firstDossierStatus
+      const typeChanged = node.parentId === DATA_TREE_ROOT_ID ? false : node.type !== 'record'
+      const assignedChanged = isAssigned !== node.isAssigned
 
-      if (!childrenChanged) {
+      if (!statusChanged && !typeChanged && !assignedChanged) {
         if (firstDossierStatus) node.dossierStatus = firstDossierStatus
         applyNodeSizeFromPayload(node, data)
         loadedNodes.add(nodeId)
         return loadNodeChildrenResult(false)
       }
 
-      evictRemovedChildren(node.children, mergedChildren)
-      node.children = mergedChildren
-      node.type = 'folder'
-      node.dossierMetadata = undefined
-      node.fullDossierMetadata = undefined
+      if (node.parentId === DATA_TREE_ROOT_ID) {
+        node.dossierId = undefined
+        if (statusChanged) {
+          evictOldChildren(node.children)
+          node.children = []
+        }
+      } else {
+        if (typeChanged) {
+          evictOldChildren(node.children)
+          node.children = []
+          node.type = 'record'
+          node.entityType = 'DOCUMENT'
+          node.folderId = nodeId
+          node.dossierMetadata = undefined
+          node.fullDossierMetadata = undefined
+        }
+        applyDossierFields(node, data)
+        if (firstDossier) applyDossierFields(node, firstDossier)
+      }
+
       if (firstDossierStatus) node.dossierStatus = firstDossierStatus
-      applyNodeSizeFromPayload(node, data)
+      const childSum = sumChildrenSizeBytes(node.children)
+      if (childSum > 0) {
+        node.sizeBytes = childSum
+      } else {
+        applyNodeSizeFromPayload(node, data)
+      }
+
       loadedNodes.add(nodeId)
       return loadNodeChildrenResult(true)
     }
