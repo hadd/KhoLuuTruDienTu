@@ -21,12 +21,14 @@ type JobMessage = {
   title?: string;
 };
 
-type JobResult = {
-  id: number;
-  ok: boolean;
-  bytes?: Uint8Array;
-  error?: string;
-};
+type JobResult =
+  | { kind: "ready" }
+  | {
+      id: number;
+      ok: boolean;
+      bytes?: Uint8Array;
+      error?: string;
+    };
 
 type PendingJob = {
   message: JobMessage;
@@ -37,6 +39,7 @@ type PendingJob = {
 
 type Slot = {
   worker: Worker;
+  ready: boolean;
   busy: boolean;
   current: PendingJob | null;
 };
@@ -63,8 +66,13 @@ function spawnSlot(): Slot {
     type: "module",
     deno: { permissions: "inherit" },
   });
-  const slot: Slot = { worker, busy: false, current: null };
+  const slot: Slot = { worker, ready: false, busy: false, current: null };
   worker.onmessage = (event: MessageEvent<JobResult>) => {
+    if ("kind" in event.data && event.data.kind === "ready") {
+      slot.ready = true;
+      dispatch();
+      return;
+    }
     const pending = slot.current;
     slot.current = null;
     slot.busy = false;
@@ -85,6 +93,7 @@ function spawnSlot(): Slot {
     const pending = slot.current;
     slot.current = null;
     slot.busy = false;
+    slot.ready = false;
     const message = event.message || "CPU worker crashed";
     pending?.reject(new Error(message));
     const index = slots.indexOf(slot);
@@ -116,7 +125,7 @@ function busyCount(): number {
 function dispatch() {
   ensureCapacity();
   for (const slot of slots) {
-    if (slot.busy) continue;
+    if (!slot.ready || slot.busy) continue;
     const job = queue.shift();
     if (!job) break;
     slot.busy = true;

@@ -111,44 +111,46 @@ export async function generateAndPersistExportDerivatives(input: {
 
         let pdfBytesForDerivatives: Uint8Array | null = null;
 
-        if (pdfStat.exists) {
-          pdfBytesForDerivatives = await tryDownloadBinaryFromStorage(
-            exportPdfKey,
-          );
-        }
-
-        if (!pdfBytesForDerivatives) {
-          const downloaded = await downloadExportPdfSource(source);
-          if (!pdfStat.exists) {
-            if (downloaded.preserveSignature) {
-              // Keep signed PDF as-is under Export/PDF so export can still hit cache.
-              await uploadBinaryToStorage(exportPdfKey, downloaded.data, {
-                contentType: "application/pdf",
-              });
-              pdfBytesForDerivatives = downloaded.data;
-            } else {
-              pdfBytesForDerivatives = await convertToPdfA(downloaded.data, {
-                title: metadata.ho_so_id || dossier.name,
-              });
-              await uploadBinaryToStorage(
-                exportPdfKey,
-                pdfBytesForDerivatives,
-                { contentType: "application/pdf" },
-              );
-            }
-            pdfUploaded += 1;
+        let downloadedPdfBytes: Uint8Array | null = null;
+        if (!pdfStat.exists || !tiffStat.exists) {
+          if (pdfBytesForDerivatives) {
+            downloadedPdfBytes = pdfBytesForDerivatives;
           } else {
-            pdfBytesForDerivatives = downloaded.data;
+            const downloaded = await downloadExportPdfSource(source);
+            downloadedPdfBytes = downloaded.data;
+            if (pdfStat.exists) {
+              pdfBytesForDerivatives = downloaded.data;
+            }
           }
         }
 
-        if (!tiffStat.exists && pdfBytesForDerivatives) {
-          const tiffBytes = await runConvertPdfToTiff(pdfBytesForDerivatives);
+        const pdfTask = async () => {
+          if (pdfStat.exists) return;
+          const downloaded = await downloadExportPdfSource(source);
+          let pdfBytes: Uint8Array;
+          if (downloaded.preserveSignature) {
+            pdfBytes = downloaded.data;
+          } else {
+            pdfBytes = await convertToPdfA(downloaded.data, {
+              title: metadata.ho_so_id || dossier.name,
+            });
+          }
+          await uploadBinaryToStorage(exportPdfKey, pdfBytes, {
+            contentType: "application/pdf",
+          });
+          pdfUploaded += 1;
+        };
+
+        const tiffTask = async () => {
+          if (tiffStat.exists || !downloadedPdfBytes) return;
+          const tiffBytes = await runConvertPdfToTiff(downloadedPdfBytes);
           await uploadBinaryToStorage(exportTiffKey, tiffBytes, {
             contentType: "image/tiff",
           });
           tiffUploaded += 1;
-        }
+        };
+
+        await Promise.all([pdfTask(), tiffTask()]);
       } catch (err) {
         failed += 1;
         console.error(
