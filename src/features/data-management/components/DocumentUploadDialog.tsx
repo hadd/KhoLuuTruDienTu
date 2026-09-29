@@ -375,7 +375,15 @@ export function DocumentUploadDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent
+          className="sm:max-w-md"
+          onInteractOutside={(e) => {
+            if (state.phase === 'uploading') e.preventDefault()
+          }}
+          onEscapeKeyDown={(e) => {
+            if (state.phase === 'uploading') e.preventDefault()
+          }}
+        >
           {renderDialogHeader()}
 
           {state.phase === 'idle' && (

@@ -508,7 +508,15 @@ export function FolderUploadDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-md overflow-x-hidden">
+        <DialogContent
+          className="sm:max-w-md overflow-x-hidden"
+          onInteractOutside={(e) => {
+            if (state.phase === 'uploading') e.preventDefault()
+          }}
+          onEscapeKeyDown={(e) => {
+            if (state.phase === 'uploading') e.preventDefault()
+          }}
+        >
           {renderDialogHeader()}
 
           {state.phase === 'idle' && (
