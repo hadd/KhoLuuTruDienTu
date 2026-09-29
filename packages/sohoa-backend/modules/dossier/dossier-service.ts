@@ -1212,7 +1212,7 @@ async function findDossiersInFolderSubtree(folderId: string) {
 
 async function validateApprovedFolderMetadataExport(
   folderId: string,
-  options?: { bypassStatus?: boolean },
+  options?: { bypassStatus?: boolean; skipMetadataCheck?: boolean },
 ) {
   const result = await validateApprovedFoldersMetadataExport(
     [folderId],
