@@ -9,12 +9,15 @@ import type { AdminDashboardDossierTrendGranularityT } from './types'
 
 export const adminDashboardQueryKey = ['admin', 'dashboard'] as const
 
-export const adminDashboardOverviewQueryOptions = () =>
+export const adminDashboardOverviewQueryOptions = (
+  dateFrom?: string,
+  dateTo?: string,
+) =>
   queryOptions({
-    queryKey: [...adminDashboardQueryKey, 'overview'],
-    queryFn: () => getAdminDashboard(),
+    queryKey: [...adminDashboardQueryKey, 'overview', dateFrom, dateTo],
+    queryFn: () => getAdminDashboard({ dateFrom, dateTo }),
     staleTime: 60_000,
-    refetchInterval: 120_000,
+    placeholderData: keepPreviousData,
   })
 
 /** @deprecated Use adminDashboardOverviewQueryOptions */

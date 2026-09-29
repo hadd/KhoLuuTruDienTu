@@ -78,6 +78,9 @@ export async function submitEditorErrorReport(input: {
   await saveDossierMetadataWithIssueReport(input.dossierId, input.metadata, {
     type: mapEditorErrorReportTypeToApiLabel(input.payload.errorType),
     notes: input.payload.description,
+    fileId: input.payload.fileId ?? null,
+    fileName: input.payload.fileName ?? null,
+    fields: input.payload.fields ?? [],
   })
 }
 

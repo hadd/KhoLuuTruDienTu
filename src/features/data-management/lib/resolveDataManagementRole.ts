@@ -38,15 +38,15 @@ export function hasDataEntryCheckerPermission(
 
 /**
  * Resolve which data-management UI to show from permissions:
- * - Full access or both maker + checker → admin folder tree
+ * - System admin role / full access / both maker + checker → admin folder tree
  * - Maker only → editor view
  * - Checker only → QC view
  */
 export function resolveDataManagementRole(
   permissions: Array<string>,
-  _primaryAppRole?: AppRoleT | null,
+  primaryAppRole?: AppRoleT | null,
 ): DataManagementRole {
-  if (hasFullAccess(permissions)) {
+  if (primaryAppRole === 'admin' || hasFullAccess(permissions)) {
     return 'admin'
   }
 

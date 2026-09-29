@@ -2,6 +2,8 @@ import { applyStoragePathPrefix } from '@/features/data-management/lib/uploadPat
 import { toScopedProjectCode } from '@/features/data-management/lib/constants'
 import { sumUploadPdfPages } from '@/features/data-management/lib/countPdfFilePages'
 import {
+  CHECK_MULTI_FILE_PATH_CHUNK_SIZE,
+  CREATE_MULTI_DOCUMENT_CHUNK_SIZE,
   isAbortError,
   mapWithConcurrency,
   throwIfAborted,
@@ -58,7 +60,7 @@ export interface UploadFolderOptions {
   /** When true, skip path-exists check and upload to MinIO (fallback after permanent delete). */
   allowOverwrite?: boolean
   /**
-   * When true, skip per-file path-exists check during upload.
+   * When true, skip batch path-exists check during upload.
    * Use after document pre-flight (`detectUploadPathConflicts`) already verified paths.
    */
   skipPathCheck?: boolean
@@ -73,16 +75,25 @@ export interface UploadFolderOptions {
 }
 
 const UPLOAD_EXPIRY_MIN_SECONDS = 86_400
-const CONFLICT_CHECK_CONCURRENCY = 10
 
 export interface UploadPathConflict {
   relativePath: string
   storageKey: string
+  /** From check-multi-file-path when the path already exists in DB. */
+  dossierId?: string | null
+  fileId?: string | null
 }
 
 export interface UploadConflictCheckResult {
   conflicts: Array<UploadPathConflict>
   uploadPoint: UploadPointResponse
+}
+
+interface CheckMultiFilePathItem {
+  path: string
+  exists: boolean
+  fileId: string | null
+  dossierId: string | null
 }
 
 function resolveUploadBaseKey(uploadPoint: UploadPointResponse): string {
@@ -151,13 +162,55 @@ async function createUploadPoint(
   return uploadPoint
 }
 
-async function checkFilePath(filePath: string): Promise<boolean> {
-  const response = await apiClient.get<unknown>(
-    `/api/v1/dossiers/check-file-path?filePath=${encodeURIComponent(filePath)}`,
+async function checkMultiFilePath(
+  filePaths: Array<string>,
+): Promise<Array<CheckMultiFilePathItem>> {
+  if (filePaths.length === 0) return []
+
+  const chunks: Array<Array<string>> = []
+  for (let i = 0; i < filePaths.length; i += CHECK_MULTI_FILE_PATH_CHUNK_SIZE) {
+    chunks.push(filePaths.slice(i, i + CHECK_MULTI_FILE_PATH_CHUNK_SIZE))
+  }
+
+  const chunkResults = await Promise.all(
+    chunks.map(async (chunk) => {
+      const normalizedChunk = chunk.map((path) => path.replace(/^\/+/, ''))
+      const response = await apiClient.post<unknown>(
+        '/api/v1/dossiers/check-multi-file-path',
+        { filePaths: normalizedChunk },
+      )
+
+      const payload = unwrapApiRecord<unknown>(response.data)
+      const rawItems = Array.isArray(payload)
+        ? payload
+        : payload &&
+            typeof payload === 'object' &&
+            Array.isArray((payload as { items?: unknown }).items)
+          ? (payload as { items: Array<unknown> }).items
+          : []
+
+      return rawItems.map((raw, index) => {
+        const item =
+          raw && typeof raw === 'object'
+            ? (raw as Partial<CheckMultiFilePathItem>)
+            : {}
+        return {
+          path: String(item.path ?? normalizedChunk[index] ?? ''),
+          exists: Boolean(item.exists),
+          fileId:
+            item.fileId != null && String(item.fileId).trim()
+              ? String(item.fileId)
+              : null,
+          dossierId:
+            item.dossierId != null && String(item.dossierId).trim()
+              ? String(item.dossierId)
+              : null,
+        }
+      })
+    }),
   )
 
-  const payload = unwrapApiRecord<{ exists?: boolean }>(response.data)
-  return Boolean(payload.exists)
+  return chunkResults.flat()
 }
 
 /** Pre-flight: detect files whose storage path already exists (same check as upload skip). */
@@ -170,68 +223,168 @@ export async function detectUploadPathConflicts(
     options?.runMode,
   )
 
-  const checks = await mapWithConcurrency(
-    files,
-    CONFLICT_CHECK_CONCURRENCY,
-    async (file) => {
-      const relativePath = resolveUploadRelativePath(
-        file,
-        options?.storagePathPrefix,
-      )
-      const storageKey = resolveStorageKey(uploadPoint, relativePath)
-      const exists = await checkFilePath(storageKey)
-      return exists ? { relativePath, storageKey } : null
-    },
-  )
+  const entries = files.map((file) => {
+    const relativePath = resolveUploadRelativePath(
+      file,
+      options?.storagePathPrefix,
+    )
+    return {
+      relativePath,
+      storageKey: resolveStorageKey(uploadPoint, relativePath),
+    }
+  })
 
-  const conflicts = checks.filter(
-    (item): item is UploadPathConflict => item != null,
-  )
+  const checks = await checkMultiFilePath(entries.map((e) => e.storageKey))
+
+  const conflicts: Array<UploadPathConflict> = []
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index]!
+    const check = checks[index]
+    if (!check?.exists) continue
+    conflicts.push({
+      relativePath: entry.relativePath,
+      storageKey: entry.storageKey,
+      dossierId: check.dossierId,
+      fileId: check.fileId,
+    })
+  }
 
   return { conflicts, uploadPoint }
 }
 
-async function createDocumentFromStorage(
-  key: string,
+async function createMultiDocumentsFromStorage(
+  keys: Array<string>,
   projectCode?: string,
   runMode?: OcrRunMode,
   signal?: AbortSignal,
-): Promise<{
-  folderId?: string
-  dossierId?: string
-}> {
-  const body: { key: string; projectCode: string | null; runMode: OcrRunMode } =
-  {
-    key,
+): Promise<
+  Array<{
+    filePath: string
+    dossierId?: string
+    folderId?: string
+    status?: string
+    error?: string
+  }>
+> {
+  if (keys.length === 0) return []
+
+  const chunks: Array<Array<string>> = []
+  for (let i = 0; i < keys.length; i += CREATE_MULTI_DOCUMENT_CHUNK_SIZE) {
+    chunks.push(keys.slice(i, i + CREATE_MULTI_DOCUMENT_CHUNK_SIZE))
+  }
+
+  const bodyBase = {
     projectCode: toScopedProjectCode(projectCode) ?? null,
     runMode: runMode ?? 'auto',
   }
 
-  const response = await apiClient.post<Record<string, unknown>>(
-    '/api/v1/dossiers/create-document-from-storage',
-    body,
-    { _skipGlobalErrorToast: true, timeout: 0, signal },
+  const chunkResults = await Promise.all(
+    chunks.map(async (chunk) => {
+      const normalizedChunk = chunk.map(normalizeUploadKey)
+      const response = await withUploadRetry(
+        async () => {
+          throwIfAborted(signal)
+          return await apiClient.post<unknown>(
+            '/api/v1/dossiers/create-multi-document-from-storage',
+            { ...bodyBase, keys: normalizedChunk },
+            { _skipGlobalErrorToast: true, timeout: 0, signal },
+          )
+        },
+        { signal },
+      )
+
+      const payload = unwrapApiRecord<unknown>(response.data)
+      const rawItems = Array.isArray(payload)
+        ? payload
+        : payload &&
+            typeof payload === 'object' &&
+            Array.isArray((payload as { items?: unknown }).items)
+          ? (payload as { items: Array<unknown> }).items
+          : []
+
+      return rawItems.map((raw, index) =>
+        parseCreateMultiDocumentItem(raw, normalizedChunk[index] ?? ''),
+      )
+    }),
   )
 
-  const data = unwrapApiRecord<Record<string, unknown>>(response.data)
-  const record = data
+  return chunkResults.flat()
+}
 
-  const dossier = record.dossier
-  const folder = record.folder
+function parseCreateMultiDocumentItem(
+  raw: unknown,
+  fallbackPath: string,
+): {
+  filePath: string
+  dossierId?: string
+  folderId?: string
+  status?: string
+  error?: string
+} {
+  if (!raw || typeof raw !== 'object') {
+    return { filePath: fallbackPath }
+  }
 
-  const dossierId =
-    readId(record, ['dossierId', 'dossier_id']) ??
-    (dossier && typeof dossier === 'object'
-      ? readId(dossier as Record<string, unknown>, ['id'])
-      : undefined)
+  const record = raw as Record<string, unknown>
+  const filePath =
+    readId(record, ['filePath', 'file_path', 'key', 'path']) ?? fallbackPath
+  const dossierId = readId(record, ['dossierId', 'dossier_id'])
+  const folderId = readId(record, ['folderId', 'folder_id'])
+  const status =
+    typeof record.status === 'string' && record.status.trim()
+      ? record.status.trim()
+      : undefined
 
-  const folderId =
-    readId(record, ['folderId', 'folder_id']) ??
-    (folder && typeof folder === 'object'
-      ? readId(folder as Record<string, unknown>, ['id'])
-      : undefined)
+  const errorRaw = record.error
+  const error =
+    typeof errorRaw === 'string' && errorRaw.trim()
+      ? errorRaw
+      : errorRaw != null && typeof errorRaw === 'object'
+        ? translateError(errorRaw)
+        : undefined
 
-  return { dossierId, folderId }
+  return { filePath, dossierId, folderId, status, error }
+}
+
+function normalizeUploadKey(key: string): string {
+  return key.replace(/^\/+/, '')
+}
+
+function matchCreateMultiItem(
+  items: Array<{
+    filePath: string
+    dossierId?: string
+    folderId?: string
+    status?: string
+    error?: string
+  }>,
+  fullKey: string,
+  index: number,
+):
+  | {
+      filePath: string
+      dossierId?: string
+      folderId?: string
+      status?: string
+      error?: string
+    }
+  | undefined {
+  const exact = items.find((item) => item.filePath === fullKey)
+  if (exact) return exact
+
+  const normalized = normalizeUploadKey(fullKey)
+  const byNormalized = items.find(
+    (item) => normalizeUploadKey(item.filePath) === normalized,
+  )
+  if (byNormalized) return byNormalized
+
+  return items[index]
+}
+
+function isSuccessfulCreateMultiStatus(status?: string): boolean {
+  if (!status) return true
+  const normalized = status.toLowerCase()
+  return normalized === 'created' || normalized === 'existing'
 }
 
 function readId(
@@ -598,15 +751,18 @@ export async function uploadFolderFiles(
     phase: 'preparing',
   })
 
-  const totalPages = await sumUploadPdfPages(files, { signal })
-  throwIfAborted(signal)
+  // TODO: remove client page count + this env when page counting moves to OCR stage.
+  if (env.DATA_UPLOAD_CLIENT_PAGE_COUNT) {
+    const totalPages = await sumUploadPdfPages(files, { signal })
+    throwIfAborted(signal)
 
-  const quotaCheck = await checkPageQuotaUpload(totalPages)
-  if (!quotaCheck.allowed) {
-    const message =
-      quotaCheck.message ??
-      `Không đủ hạn mức bóc tách: lượt tải có ${totalPages} trang, chỉ còn ${quotaCheck.remaining ?? 0} trang. Hãy nạp thêm license hoặc giảm số trang.`
-    throw new Error(message)
+    const quotaCheck = await checkPageQuotaUpload(totalPages)
+    if (!quotaCheck.allowed) {
+      const message =
+        quotaCheck.message ??
+        `Không đủ hạn mức bóc tách: lượt tải có ${totalPages} trang, chỉ còn ${quotaCheck.remaining ?? 0} trang. Hãy nạp thêm license hoặc giảm số trang.`
+      throw new Error(message)
+    }
   }
 
   throwIfAborted(signal)
@@ -620,9 +776,47 @@ export async function uploadFolderFiles(
 
   throwIfAborted(signal)
 
+  const prepared = files.map((file) => {
+    const relativePath = resolveUploadRelativePath(
+      file,
+      options?.storagePathPrefix,
+    )
+    return {
+      file,
+      relativePath,
+      fullKey: resolveStorageKey(uploadPoint, relativePath),
+    }
+  })
+
+  const existingByKey = new Map<
+    string,
+    { dossierId: string | null; fileId: string | null }
+  >()
+  if (!allowOverwrite && !skipPathCheck) {
+    const checks = await checkMultiFilePath(prepared.map((p) => p.fullKey))
+    for (let i = 0; i < prepared.length; i += 1) {
+      const check = checks[i]
+      const fullKey = prepared[i]!.fullKey
+      if (check?.exists) {
+        existingByKey.set(fullKey, {
+          dossierId: check.dossierId,
+          fileId: check.fileId,
+        })
+      }
+    }
+  }
+
+  throwIfAborted(signal)
+
   const slotResults: Array<FileUploadResult | undefined> = new Array(
     files.length,
   )
+  const minioPending: Array<{
+    index: number
+    file: File
+    relativePath: string
+    fullKey: string
+  }> = []
   let completed = 0
   let stopClaiming = false
   let currentFile = ''
@@ -640,62 +834,40 @@ export async function uploadFolderFiles(
 
   try {
     await mapWithConcurrency(
-      files,
+      prepared,
       UPLOAD_FILE_CONCURRENCY,
-      async (file, index) => {
+      async ({ file, relativePath, fullKey }, index) => {
         throwIfAborted(signal)
 
-        const relativePath = resolveUploadRelativePath(
-          file,
-          options?.storagePathPrefix,
-        )
-        const fullKey = resolveStorageKey(uploadPoint, relativePath)
         currentFile = relativePath
         reportProgress()
 
+        let finished = false
         try {
-          const exists =
-            allowOverwrite || skipPathCheck
-              ? false
-              : await checkFilePath(fullKey)
-
-          if (exists) {
+          const existing = existingByKey.get(fullKey)
+          if (existing) {
             slotResults[index] = {
               file,
               relativePath,
               status: 'skipped',
               storageKey: fullKey,
+              dossierId: existing.dossierId ?? undefined,
             }
           } else {
             await uploadFileToMinIO(file, uploadPoint, relativePath, signal)
-            const created = await withUploadRetry(
-              () =>
-                createDocumentFromStorage(
-                  fullKey,
-                  options?.projectCode,
-                  uploadPoint.runMode ?? options?.runMode,
-                  signal,
-                ),
-              { signal },
-            )
-            slotResults[index] = {
-              file,
-              relativePath,
-              status: 'uploaded',
-              storageKey: fullKey,
-              folderId: created.folderId,
-              dossierId: created.dossierId,
-            }
+            minioPending.push({ index, file, relativePath, fullKey })
           }
+          finished = true
         } catch (err) {
           if (isAbortError(err)) throw err
           const error = translateError(err)
           slotResults[index] = { file, relativePath, status: 'error', error }
+          finished = true
           if (isPageQuotaUploadExceededMessage(error)) {
             stopClaiming = true
           }
         } finally {
-          if (slotResults[index]) {
+          if (finished) {
             completed += 1
             reportProgress()
           }
@@ -708,6 +880,78 @@ export async function uploadFolderFiles(
     )
   } catch (err) {
     if (!isAbortError(err)) throw err
+  }
+
+  if (minioPending.length > 0 && !signal?.aborted) {
+    currentFile = ''
+    reportProgress()
+
+    try {
+      const createdItems = await createMultiDocumentsFromStorage(
+        minioPending.map((p) => p.fullKey),
+        options?.projectCode,
+        uploadPoint.runMode ?? options?.runMode,
+        signal,
+      )
+
+      for (let i = 0; i < minioPending.length; i += 1) {
+        const pending = minioPending[i]!
+        const item = matchCreateMultiItem(
+          createdItems,
+          pending.fullKey,
+          i,
+        )
+
+        if (!item) {
+          slotResults[pending.index] = {
+            file: pending.file,
+            relativePath: pending.relativePath,
+            status: 'error',
+            error: 'Create document failed: missing result',
+            storageKey: pending.fullKey,
+          }
+          continue
+        }
+
+        if (item.error || !isSuccessfulCreateMultiStatus(item.status)) {
+          slotResults[pending.index] = {
+            file: pending.file,
+            relativePath: pending.relativePath,
+            status: 'error',
+            error:
+              item.error ??
+              (item.status
+                ? `Create document failed: ${item.status}`
+                : 'Create document failed: missing result'),
+            storageKey: pending.fullKey,
+          }
+          continue
+        }
+
+        slotResults[pending.index] = {
+          file: pending.file,
+          relativePath: pending.relativePath,
+          status: 'uploaded',
+          storageKey: pending.fullKey,
+          folderId: item.folderId,
+          dossierId: item.dossierId,
+        }
+      }
+    } catch (err) {
+      if (!isAbortError(err)) {
+        const error = translateError(err)
+        for (const pending of minioPending) {
+          if (slotResults[pending.index]) continue
+          slotResults[pending.index] = {
+            file: pending.file,
+            relativePath: pending.relativePath,
+            status: 'error',
+            error,
+            storageKey: pending.fullKey,
+          }
+        }
+      }
+    }
   }
 
   const results = slotResults.filter(

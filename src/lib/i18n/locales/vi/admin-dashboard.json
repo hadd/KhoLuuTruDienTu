@@ -33,16 +33,16 @@
       "description": "Chưa bắt đầu biên tập"
     },
     "unassigned": {
-      "title": "Chưa gán người",
-      "description": "Chưa có phân công active"
+      "title": "Số hồ sơ chưa được phân công",
+      "description": "Chưa có phân công"
     },
     "completed": {
-      "title": "Đã làm",
+      "title": "Hoàn thành",
       "description": "Hồ sơ đã duyệt hoàn tất"
     },
     "error": {
-      "title": "Bị báo lỗi",
-      "description": "Đang xử lý lỗi / trạng thái Error"
+      "title": "Báo lỗi",
+      "description": "Đang xử lý lỗi"
     }
   },
   "charts": {
@@ -64,7 +64,7 @@
       "paused": "Tạm dừng"
     },
     "dossierTrend": {
-      "title": "Xu hướng hoàn thành hồ sơ",
+      "title": "Tiến độ hoàn thành hồ sơ",
       "description": "{{from}} – {{to}}",
       "periodLabel": "Thời gian",
       "period": {

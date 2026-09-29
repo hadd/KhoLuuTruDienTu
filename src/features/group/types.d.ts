@@ -105,11 +105,11 @@ export interface UpdateAdminGroupPayloadT {
   name: string
   projectCode: string
   description: string
-  roundNumber: number
+  roundNumber?: number
   editorIds: Array<string>
   /** Chỉ gửi khi roundNumber = 0. */
   leaderId?: string
-  qcLevels: Array<CreateAdminGroupQcLevelPayloadT>
+  qcLevels?: Array<CreateAdminGroupQcLevelPayloadT>
 }
 
 export interface AdminGroupMemberUserProfileT {
@@ -214,6 +214,7 @@ export interface AssignGroupByFolderPayloadT {
   folderIds: Array<string>
   dossiersPerEditor?: number
   metadataPermissionConfigId?: string
+  editorIds?: Array<string>
 }
 
 export interface AssignGroupByFolderDistributionT {

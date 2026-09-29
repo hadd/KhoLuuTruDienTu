@@ -242,11 +242,10 @@ export const dataManagementTreeQueryOptions = (
   })
 
 export function useUploadDataFolderMutation(
-  role: DataManagementRole,
+  _role: DataManagementRole,
   projectCode?: string,
   onProgress?: (p: UploadProgress) => void,
 ) {
-  const qc = useQueryClient()
   const onProgressRef = useRef(onProgress)
   onProgressRef.current = onProgress
   const projectCodeRef = useRef(projectCode)
@@ -276,11 +275,8 @@ export function useUploadDataFolderMutation(
         runMode,
         signal,
       }),
-    onSuccess: async () => {
-      await qc.invalidateQueries({
-        queryKey: dataManagementTreeQueryKey(role, projectCodeRef.current),
-      })
-    },
+    // Tree refresh is owned by DataManagementPage.handleUploadPostProcess
+    // (single reload after upload completes — avoid double invalidate).
   })
 }
 
@@ -296,11 +292,10 @@ export function useRenameDataNodeMutation(role: DataManagementRole) {
 }
 
 export function useUploadDataDocumentsMutation(
-  role: DataManagementRole,
+  _role: DataManagementRole,
   projectCode?: string,
   onProgress?: (p: UploadProgress) => void,
 ) {
-  const qc = useQueryClient()
   const onProgressRef = useRef(onProgress)
   onProgressRef.current = onProgress
   const projectCodeRef = useRef(projectCode)
@@ -330,11 +325,7 @@ export function useUploadDataDocumentsMutation(
         runMode,
         signal,
       }),
-    onSuccess: async () => {
-      await qc.invalidateQueries({
-        queryKey: dataManagementTreeQueryKey(role, projectCodeRef.current),
-      })
-    },
+    // Tree refresh is owned by DataManagementPage.handleUploadPostProcess.
   })
 }
 

@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import {
+  deleteMultiDossiers,
   isDataManagementUploadError,
   validateFolderUploadFiles,
 } from '@/features/data-management/api/dataManagementClient'
@@ -22,6 +23,7 @@ import type {
   FileUploadResult,
   OcrRunMode,
   UploadFolderResult,
+  UploadPathConflict,
   UploadPointResponse,
   UploadProgress,
 } from '@/features/data-management/api/dossierClient'
@@ -37,7 +39,6 @@ import type { OversizedUploadFile } from '@/features/data-management/lib/uploadP
 import { folderPathToStoragePrefix } from '@/features/data-management/lib/uploadPathPrefix'
 import {
   dataManagementTreeQueryKey,
-  useDeleteDataNodeMutation,
   useLoadNodeChildrenMutation,
   useRefreshDataManagementTreeMutation,
   useUploadDataFolderMutation,
@@ -110,9 +111,9 @@ export function FolderUploadDialog({
   const abortControllerRef = useRef<AbortController | null>(null)
   const [state, setState] = useState<DialogState>({ phase: 'idle' })
   const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null)
-  const [conflictPaths, setConflictPaths] = useState<
-    Array<{ relativePath: string; storageKey: string }>
-  >([])
+  const [conflictPaths, setConflictPaths] = useState<Array<UploadPathConflict>>(
+    [],
+  )
   const [conflictOpen, setConflictOpen] = useState(false)
   const [isConflictConfirming, setIsConflictConfirming] = useState(false)
   const [localProjectCode, setLocalProjectCode] = useState<string | undefined>()
@@ -145,10 +146,6 @@ export function FolderUploadDialog({
     role,
     selectedUploadProjectCode,
     handleProgress,
-  )
-  const deleteMutation = useDeleteDataNodeMutation(
-    role,
-    selectedUploadProjectCode,
   )
   const loadChildrenMutation = useLoadNodeChildrenMutation(
     role,
@@ -290,6 +287,7 @@ export function FolderUploadDialog({
           .map((item) => ({
             relativePath: item.relativePath,
             storageKey: item.storageKey,
+            dossierId: item.dossierId ?? null,
           }))
 
         if (conflicts.length > 0) {
@@ -372,25 +370,43 @@ export function FolderUploadDialog({
     setState({ phase: 'deleting' })
 
     try {
-      let tree = queryClient.getQueryData<DataTreeNodeT>(
-        dataManagementTreeQueryKey(role, selectedUploadProjectCode),
-      )
-      if (!tree) {
-        tree = await refreshTreeMutation.mutateAsync(undefined)
+      const dossierIdMap = new Map<string, string>()
+      for (const conflict of conflicts) {
+        const dossierId = conflict.dossierId?.trim()
+        if (dossierId) {
+          dossierIdMap.set(conflict.storageKey, dossierId)
+        }
       }
 
-      const dossierIdMap = await resolveDossierIdsForUploadConflicts(
-        conflicts,
-        tree,
-        (nodeId) =>
-          loadChildrenMutation.mutateAsync(nodeId).then((r) => r.tree),
+      const unresolvedConflicts = conflicts.filter(
+        (conflict) => !dossierIdMap.has(conflict.storageKey),
       )
 
-      const unresolvedCount = conflicts.filter(
+      // Fallback: tree walk only for conflicts missing dossierId from API.
+      if (unresolvedConflicts.length > 0) {
+        let tree = queryClient.getQueryData<DataTreeNodeT>(
+          dataManagementTreeQueryKey(role, selectedUploadProjectCode),
+        )
+        if (!tree) {
+          tree = await refreshTreeMutation.mutateAsync(undefined)
+        }
+
+        const treeResolved = await resolveDossierIdsForUploadConflicts(
+          unresolvedConflicts,
+          tree,
+          (nodeId) =>
+            loadChildrenMutation.mutateAsync(nodeId).then((r) => r.tree),
+        )
+        for (const [storageKey, dossierId] of treeResolved) {
+          dossierIdMap.set(storageKey, dossierId)
+        }
+      }
+
+      const stillUnresolved = conflicts.filter(
         (conflict) => !dossierIdMap.has(conflict.storageKey),
       ).length
-      if (unresolvedCount > 0) {
-        toast.error(t('upload.conflict.unresolved', { count: unresolvedCount }))
+      if (stillUnresolved > 0) {
+        toast.error(t('upload.conflict.unresolved', { count: stillUnresolved }))
         setState({ phase: 'idle' })
         setConflictPaths(conflicts)
         setConflictOpen(true)
@@ -401,17 +417,9 @@ export function FolderUploadDialog({
         ...new Set(dossierIdMap.values()),
       ] as Array<string>
 
-      for (const dossierId of uniqueDossierIds) {
-        await deleteMutation.mutateAsync({
-          target: 'dossier',
-          id: dossierId,
-          permanent: true,
-        })
-      }
+      await deleteMultiDossiers(uniqueDossierIds, { permanent: true })
 
-      await queryClient.invalidateQueries({
-        queryKey: dataManagementTreeQueryKey(role),
-      })
+      // Defer tree refresh until upload finishes (handleUploadPostProcess).
 
       setConflictPaths([])
       setState({ phase: 'uploading' })
@@ -500,7 +508,15 @@ export function FolderUploadDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-md overflow-x-hidden">
+        <DialogContent
+          className="sm:max-w-md overflow-x-hidden"
+          onInteractOutside={(e) => {
+            if (state.phase === 'uploading') e.preventDefault()
+          }}
+          onEscapeKeyDown={(e) => {
+            if (state.phase === 'uploading') e.preventDefault()
+          }}
+        >
           {renderDialogHeader()}
 
           {state.phase === 'idle' && (

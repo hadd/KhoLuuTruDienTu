@@ -15,6 +15,11 @@ declare global {
       VITE_DATA_UPLOAD_EXPIRY_SECONDS_PER_FILE?: string | number
       /** Max PDF file size for folder upload (megabytes). */
       VITE_DATA_UPLOAD_MAX_FILE_SIZE_MB?: string | number
+      /**
+       * Temporary: client-side PDF page count before upload (quota pre-check).
+       * Remove when page counting moves to the OCR stage.
+       */
+      VITE_DATA_UPLOAD_CLIENT_PAGE_COUNT?: string | boolean
       /** Axios request timeout (milliseconds). */
       VITE_API_TIMEOUT_MS?: string | number
       /** PDF editor mask style: 'gaussian' | 'mosaic'. */
@@ -95,6 +100,15 @@ const envSchema = z.object({
     .positive()
     .optional()
     .catch(10),
+  /**
+   * Temporary bridge: client PDF page count + quota pre-check before upload.
+   * Default true. Set false to skip (rely on BE assertUploadFitsRemaining).
+   * TODO: remove when page counting is implemented at the OCR stage.
+   */
+  VITE_DATA_UPLOAD_CLIENT_PAGE_COUNT: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((val) => val !== 'false'),
   /** Axios request timeout (ms). Default 30000. */
   VITE_API_TIMEOUT_MS: z.coerce
     .number()
@@ -176,6 +190,9 @@ export const env = {
     parsedEnv.data.VITE_DATA_UPLOAD_MAX_FILE_SIZE_MB ?? 10,
   DATA_UPLOAD_MAX_FILE_SIZE_BYTES:
     (parsedEnv.data.VITE_DATA_UPLOAD_MAX_FILE_SIZE_MB ?? 10) * 1024 * 1024,
+  /** Temporary — remove with FE page count when OCR-stage counting ships. */
+  DATA_UPLOAD_CLIENT_PAGE_COUNT:
+    parsedEnv.data.VITE_DATA_UPLOAD_CLIENT_PAGE_COUNT ?? true,
   API_TIMEOUT_MS: parsedEnv.data.VITE_API_TIMEOUT_MS ?? 30_000,
   PDF_MASK_TYPE: parsedEnv.data.VITE_PDF_MASK_TYPE ?? 'gaussian',
   PDF_MASK_GAUSSIAN_BLUR_PX:

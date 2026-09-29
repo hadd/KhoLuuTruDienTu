@@ -132,15 +132,14 @@ export function canManageDossierMetadata({
   canDirectApprove?: boolean
   canDirectEdit?: boolean
 }): boolean {
-  if (!baseCanManage && !canDirectEdit) return false
   if (isDossierMetadataLocked(dossierStatus)) return false
-  if (canDirectEdit) return true
+  if (canDirectApprove || canDirectEdit) return true
+  if (!baseCanManage) return false
   if (role !== 'qc') return baseCanManage
 
   const checkerLevel = getCheckerLevelForDossierStatus(dossierStatus)
   if (checkerLevel == null) return false
 
-  if (canDirectApprove) return true
   return canCheckerEditDossier(dossierStatus, checkerLevel)
 }
 

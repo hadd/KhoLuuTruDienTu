@@ -24,6 +24,8 @@ import {
   resolveClaimMetadata,
   resolveMetadataUrl,
   sizeKbToBytes,
+  applyDossierFondContext,
+  isOcrMetadataPendingFromMeta,
 } from '@/features/data-management/lib/metadataHelpers'
 import {
   normalizeAllowedFields,
@@ -257,46 +259,30 @@ async function assembleEditorTreeFromClaim(
     dossierMeta.rejectFields = claim.rejectFields
   }
 
-  const recordContent = await buildDossierRecordContent(
-    dossierId,
-    dossierMeta,
-    editorDraftDossierId === dossierId ? { filesStatus: 'draft' } : undefined,
-  )
-
   const claimMetadata = await resolveClaimMetadata(claim)
 
-  let children = recordContent.children
-  let dossierMetadata =
-    claimMetadata.dossierMetadata ?? recordContent.dossierMetadata
-  let fullDossierMetadata =
-    claimMetadata.fullDossierMetadata ??
-    recordContent.fullDossierMetadata ??
-    recordContent.dossierMetadata
+  const children = (claim.files ?? []).map((file) =>
+    mapFileToDocumentNode(
+      file as unknown as Record<string, unknown>,
+      dossierId,
+      claimMetadata.metadataGroups,
+    ),
+  )
 
   const allowedFields = normalizeAllowedFields(claim.allowedFields)
-  if (allowedFields?.length && dossierMetadata) {
-    const unfilteredContent = await buildDossierRecordContent(dossierId, {
-      name: String(dossier.name),
-      dossierId,
-      status: dossier.status,
-    })
-    if (unfilteredContent.fullDossierMetadata) {
-      fullDossierMetadata = unfilteredContent.fullDossierMetadata
-    }
-  }
+  const isOcrPending = isOcrMetadataPendingFromMeta(dossierMeta)
 
-  if (children.length === 0 && (claim.files?.length ?? 0) > 0) {
-    dossierMetadata = dossierMetadata ?? claimMetadata.dossierMetadata
-    fullDossierMetadata =
-      fullDossierMetadata ??
-      claimMetadata.fullDossierMetadata ??
-      claimMetadata.dossierMetadata
-    children = claim.files.map((file) =>
-      mapFileToDocumentNode(
-        file as unknown as Record<string, unknown>,
-        dossierId,
-        claimMetadata.metadataGroups,
-      ),
+  let dossierMetadata = undefined
+  let fullDossierMetadata = undefined
+
+  if (!isOcrPending) {
+    dossierMetadata = applyDossierFondContext(
+      claimMetadata.dossierMetadata,
+      dossierMeta,
+    )
+    fullDossierMetadata = applyDossierFondContext(
+      claimMetadata.fullDossierMetadata ?? claimMetadata.dossierMetadata,
+      dossierMeta,
     )
   }
 
@@ -444,6 +430,44 @@ function parseDossierStatus(value: unknown): DataDossierStatus | undefined {
     return value as DataDossierStatus
   }
   return undefined
+}
+
+/** OCR chưa xong — listing chỉ cần status, không hydrate MinIO metadata. */
+function isOcrMetadataPendingStatus(
+  status: DataDossierStatus | undefined | null,
+): boolean {
+  return status === 'NEW' || status === 'OCR_PROCESSING'
+}
+
+function mapDossierListingStub(
+  dossier: Record<string, unknown>,
+  parentId: string,
+): DataTreeNodeT {
+  const dossierId = extractDossierId(dossier) ?? String(dossier.id)
+  const dossierStatus = parseDossierStatus(dossier.status)
+  return {
+    id: dossierId,
+    name: String(dossier.name || dossier.folderName || dossierId),
+    type: 'folder',
+    parentId,
+    children: [],
+    sizeBytes: sizeKbToBytes(dossier.totalSizeKb ?? dossier.total_size_kb),
+    fileCount: Number(dossier.fileCount ?? dossier.file_count ?? 0),
+    pageCount: Number(dossier.pageCount ?? dossier.page_count ?? 0),
+    uploadedAt: String(dossier.createdAt || new Date().toISOString()),
+    uploadedBy: 'System',
+    entityType: 'DOCUMENT',
+    dossierId,
+    ...(extractDossierFolderId(dossier)
+      ? { folderId: extractDossierFolderId(dossier) }
+      : {}),
+    ...(dossierStatus ? { dossierStatus } : {}),
+    ...(extractProjectCode(dossier)
+      ? { projectCode: extractProjectCode(dossier) }
+      : {}),
+    ...(dossier.folderPath ? { folderPath: String(dossier.folderPath) } : {}),
+    isAssigned: parseIsAssigned(dossier),
+  }
 }
 
 function isDossierFolderChild(child: Record<string, unknown>): boolean {
@@ -1020,6 +1044,16 @@ export async function loadNodeChildren(
       return loadNodeChildrenResult(false)
     }
 
+    // OCR poll may refresh:true on an expanded record — skip MinIO while pending.
+    if (
+      isOcrMetadataPendingStatus(node.dossierStatus) &&
+      node.children.length > 0 &&
+      !node.dossierMetadata
+    ) {
+      loadedNodes.add(nodeId)
+      return loadNodeChildrenResult(false)
+    }
+
     const dossierId = node.dossierId ?? node.id
     const recordContent = await buildDossierRecordContent(dossierId, {
       name: node.name,
@@ -1140,18 +1174,76 @@ export async function loadNodeChildren(
     applyNodeSizeFromPayload(node, data)
   } else if (data.nodeType === 'dossier') {
     const dossiers = Array.isArray(data.children) ? data.children : []
+    const firstDossierStatus = parseDossierStatus(
+      (dossiers[0] as Record<string, unknown> | undefined)?.status,
+    )
+    const allOcrPending =
+      dossiers.length > 0 &&
+      dossiers.every((dossier) =>
+        isOcrMetadataPendingStatus(
+          parseDossierStatus((dossier as Record<string, unknown>).status),
+        ),
+      )
+
+    // OCR poll: update status/stats from listing only — no MinIO metadata storm.
+    if (allOcrPending) {
+      const firstDossier = dossiers[0] as Record<string, unknown> | undefined
+      const isAssigned = parseIsAssigned(data)
+      const statusChanged = firstDossierStatus && node.dossierStatus !== firstDossierStatus
+      const typeChanged = node.parentId === DATA_TREE_ROOT_ID ? false : node.type !== 'record'
+      const assignedChanged = isAssigned !== node.isAssigned
+
+      if (!statusChanged && !typeChanged && !assignedChanged) {
+        if (firstDossierStatus) node.dossierStatus = firstDossierStatus
+        applyNodeSizeFromPayload(node, data)
+        loadedNodes.add(nodeId)
+        return loadNodeChildrenResult(false)
+      }
+
+      if (node.parentId === DATA_TREE_ROOT_ID) {
+        node.dossierId = undefined
+        if (statusChanged) {
+          evictOldChildren(node.children)
+          node.children = []
+        }
+      } else {
+        if (typeChanged) {
+          evictOldChildren(node.children)
+          node.children = []
+          node.type = 'record'
+          node.entityType = 'DOCUMENT'
+          node.folderId = nodeId
+          node.dossierMetadata = undefined
+          node.fullDossierMetadata = undefined
+        }
+        applyDossierFields(node, data)
+        if (firstDossier) applyDossierFields(node, firstDossier)
+      }
+
+      if (firstDossierStatus) node.dossierStatus = firstDossierStatus
+      const childSum = sumChildrenSizeBytes(node.children)
+      if (childSum > 0) {
+        node.sizeBytes = childSum
+      } else {
+        applyNodeSizeFromPayload(node, data)
+      }
+
+      loadedNodes.add(nodeId)
+      return loadNodeChildrenResult(true)
+    }
 
     const allFiles: Array<DataTreeNodeT> = []
     let dossierMetadata
     let fullDossierMetadata
-    const firstDossierStatus = parseDossierStatus(
-      (dossiers[0] as Record<string, unknown> | undefined)?.status,
-    )
 
     for (const dossier of dossiers) {
       const dossierRecord = dossier as Record<string, unknown>
       if (!node.dossierId && dossierRecord.id != null) {
         node.dossierId = String(dossierRecord.id)
+      }
+      const dossierStatus = parseDossierStatus(dossierRecord.status)
+      if (isOcrMetadataPendingStatus(dossierStatus)) {
+        continue
       }
       const recordContent = await buildDossierRecordContent(
         String(dossierRecord.id),
@@ -1207,15 +1299,27 @@ export async function loadNodeChildren(
       applyNodeSizeFromPayload(node, data)
     }
   } else if (data.nodeType === 'file') {
-    const metaUrl = resolveMetadataUrl(data)
-    const [metadataGroups, fetchedMetadata] = await Promise.all([
-      fetchMetadataGroups(metaUrl),
-      fetchDossierMetadata(metaUrl),
-    ])
-    const dossierMetadata = fetchedMetadata
-      ? dedupeDossierMetadataMergeArtifacts(fetchedMetadata)
-      : undefined
     const children = Array.isArray(data.children) ? data.children : []
+    const fileNodeStatus =
+      parseDossierStatus(data.status) ?? node.dossierStatus
+    const skipMetadata = isOcrMetadataPendingStatus(fileNodeStatus)
+
+    let metadataGroups: Awaited<ReturnType<typeof fetchMetadataGroups>> = []
+    let dossierMetadata: ReturnType<
+      typeof dedupeDossierMetadataMergeArtifacts
+    > = undefined
+
+    if (!skipMetadata) {
+      const metaUrl = resolveMetadataUrl(data)
+      const [groups, fetchedMetadata] = await Promise.all([
+        fetchMetadataGroups(metaUrl),
+        fetchDossierMetadata(metaUrl),
+      ])
+      metadataGroups = groups
+      dossierMetadata = fetchedMetadata
+        ? dedupeDossierMetadataMergeArtifacts(fetchedMetadata)
+        : undefined
+    }
 
     evictOldChildren(node.children)
     node.children = children.map((child) =>
@@ -1232,6 +1336,7 @@ export async function loadNodeChildren(
     node.folderId = nodeId
     node.dossierMetadata = dossierMetadata
     node.fullDossierMetadata = dossierMetadata
+    if (fileNodeStatus) node.dossierStatus = fileNodeStatus
     const childSum = sumChildrenSizeBytes(node.children)
     if (childSum > 0) {
       node.sizeBytes = childSum
@@ -1431,6 +1536,21 @@ export async function deleteDataNode({
   }
 
   await apiClient.delete(`/api/v1/folders/${id}/dossiers`, { params })
+}
+
+/** Permanently or soft-delete multiple dossiers in one request. */
+export async function deleteMultiDossiers(
+  ids: Array<string>,
+  options?: { permanent?: boolean },
+): Promise<void> {
+  const uniqueIds = [...new Set(ids.filter((id) => Boolean(id?.trim())))]
+  if (uniqueIds.length === 0) return
+
+  const permanent = options?.permanent === true
+  await apiClient.delete('/api/v1/dossiers/delete-multi', {
+    params: permanent ? { permanent: true } : undefined,
+    data: { ids: uniqueIds },
+  })
 }
 
 function pruneNodeFromTree(

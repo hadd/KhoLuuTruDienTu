@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,14 +17,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { DataConfigSectionTabs } from '@/features/data-config/components/DataConfigSectionTabs'
 import { activeArchiveFondsQueryOptions } from '@/features/archive-fond/queries'
+import { DataConfigSectionTabs } from '@/features/data-config/components/DataConfigSectionTabs'
 import { NamingSegmentTable } from '@/features/document-naming-config/components/NamingSegmentTable'
-import {
-  validateDocumentNamingSegments,
-  type DocumentNamingSearchT,
-  type NamingSegmentFieldErrorT,
-} from '@/features/document-naming-config/schemas'
 import {
   documentNamingConfigQueryOptions,
   documentNamingDossierMetadataFieldsQueryOptions,
@@ -32,17 +28,25 @@ import {
   usePreviewDocumentNamingConfig,
   useUpsertDocumentNamingConfig,
 } from '@/features/document-naming-config/queries'
+import type {DocumentNamingSearchT, NamingSegmentFieldErrorT} from '@/features/document-naming-config/schemas';
+import {
+  validateDocumentNamingSegments
+} from '@/features/document-naming-config/schemas'
 import type { DocumentNamingSegmentT } from '@/features/document-naming-config/types'
 
+
 const routeApi = getRouteApi('/app/data-config/document-naming')
+
 
 export function DocumentNamingConfigPage() {
   const { t } = useTranslation('document-naming-config')
   const navigate = routeApi.useNavigate()
-  const search = routeApi.useSearch() as DocumentNamingSearchT
+  const search = routeApi.useSearch()
+
 
   const fondId = search.fondId ?? ''
   const dossierId = search.dossierId ?? ''
+
 
   const [dossierSearch, setDossierSearch] = useState('')
   const [dossierSegments, setDossierSegments] = useState<
@@ -62,6 +66,7 @@ export function DocumentNamingConfigPage() {
     Array<NamingSegmentFieldErrorT>
   >([])
   const [fileApplyOnApprove, setFileApplyOnApprove] = useState<boolean>(false)
+
 
   const fondsQuery = useQuery(activeArchiveFondsQueryOptions())
   const fieldCatalogQuery = useQuery(
@@ -86,8 +91,10 @@ export function DocumentNamingConfigPage() {
     documentNamingDossierMetadataFieldsQueryOptions(dossierId || undefined),
   )
 
+
   const upsertMutation = useUpsertDocumentNamingConfig()
   const previewMutation = usePreviewDocumentNamingConfig()
+
 
   const fonds = fondsQuery.data?.items ?? []
   const fieldCatalog = fieldCatalogQuery.data ?? {
@@ -100,11 +107,13 @@ export function DocumentNamingConfigPage() {
   const metadataFields = metadataFieldsQuery.data?.fields ?? []
   const isFallbackMetadata = metadataFieldsQuery.data?.isFallback ?? false
 
+
   useEffect(() => {
     setDossierSegments(dossierConfigQuery.data?.segments ?? [])
     setDossierPreviewItems([])
     setDossierSegmentErrors([])
   }, [dossierConfigQuery.data?.segments, fondId])
+
 
   useEffect(() => {
     setFileSegments(fileConfigQuery.data?.segments ?? [])
@@ -118,10 +127,12 @@ export function DocumentNamingConfigPage() {
     dossierId,
   ])
 
+
   const selectedDossier = useMemo(
     () => dossierOptions.find((item) => item.id === dossierId) ?? null,
     [dossierOptions, dossierId],
   )
+
 
   const handleFondChange = (nextFondId: string) => {
     void navigate({
@@ -133,6 +144,7 @@ export function DocumentNamingConfigPage() {
     })
   }
 
+
   const handleDossierChange = (nextDossierId: string) => {
     void navigate({
       search: (prev) => ({
@@ -141,6 +153,7 @@ export function DocumentNamingConfigPage() {
       }),
     })
   }
+
 
   const handleDossierSegmentsChange = (
     segments: Array<DocumentNamingSegmentT>,
@@ -154,6 +167,7 @@ export function DocumentNamingConfigPage() {
     }
   }
 
+
   const handleFileSegmentsChange = (
     segments: Array<DocumentNamingSegmentT>,
   ) => {
@@ -164,8 +178,10 @@ export function DocumentNamingConfigPage() {
     }
   }
 
+
   const handleSaveDossierConfig = async () => {
     if (!fondId) return
+
 
     const errors = validateDocumentNamingSegments(dossierSegments, 'dossier')
     setDossierSegmentErrors(errors)
@@ -173,6 +189,7 @@ export function DocumentNamingConfigPage() {
       toast.error(errors[0]?.message ?? t('errors.segmentsRequired'))
       return
     }
+
 
     try {
       await upsertMutation.mutateAsync({
@@ -188,8 +205,10 @@ export function DocumentNamingConfigPage() {
     }
   }
 
+
   const handlePreviewDossierConfig = async () => {
     if (!fondId) return
+
 
     const errors = validateDocumentNamingSegments(dossierSegments, 'dossier')
     setDossierSegmentErrors(errors)
@@ -197,6 +216,7 @@ export function DocumentNamingConfigPage() {
       toast.error(errors[0]?.message ?? t('errors.segmentsRequired'))
       return
     }
+
 
     try {
       const result = await previewMutation.mutateAsync({
@@ -212,8 +232,10 @@ export function DocumentNamingConfigPage() {
     }
   }
 
+
   const handleSaveFileConfig = async () => {
     if (!fondId || !dossierId) return
+
 
     const errors = validateDocumentNamingSegments(fileSegments, 'file')
     setFileSegmentErrors(errors)
@@ -221,6 +243,7 @@ export function DocumentNamingConfigPage() {
       toast.error(errors[0]?.message ?? t('errors.segmentsRequired'))
       return
     }
+
 
     try {
       await upsertMutation.mutateAsync({
@@ -238,8 +261,10 @@ export function DocumentNamingConfigPage() {
     }
   }
 
+
   const handlePreviewFileConfig = async () => {
     if (!fondId || !dossierId) return
+
 
     const errors = validateDocumentNamingSegments(fileSegments, 'file')
     setFileSegmentErrors(errors)
@@ -247,6 +272,7 @@ export function DocumentNamingConfigPage() {
       toast.error(errors[0]?.message ?? t('errors.segmentsRequired'))
       return
     }
+
 
     try {
       const result = await previewMutation.mutateAsync({
@@ -263,10 +289,10 @@ export function DocumentNamingConfigPage() {
     }
   }
 
+
   const isLoading =
-    fondsQuery.isLoading ||
-    fieldCatalogQuery.isLoading ||
-    (Boolean(fondId) && dossierConfigQuery.isLoading)
+    fondsQuery.isLoading || (Boolean(fondId) && dossierConfigQuery.isLoading)
+
 
   if (isLoading) {
     return (
@@ -276,9 +302,11 @@ export function DocumentNamingConfigPage() {
     )
   }
 
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <DataConfigSectionTabs active="document-naming" />
+
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="flex flex-col gap-8 pb-6">
@@ -297,6 +325,7 @@ export function DocumentNamingConfigPage() {
               </SelectContent>
             </Select>
           </div>
+
 
           {fondId ? (
             <section className="space-y-4 rounded-lg border border-transparent p-4">
@@ -330,6 +359,7 @@ export function DocumentNamingConfigPage() {
                   {t('form.actions.saveDossier')}
                 </Button>
               </div>
+
 
               {dossierPreviewItems.length > 0 ? (
                 <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
@@ -384,6 +414,7 @@ export function DocumentNamingConfigPage() {
             </section>
           ) : null}
 
+
           {fondId ? (
             <section className="space-y-4 rounded-lg border border-border p-4">
               <div className="grid gap-4 md:grid-cols-2">
@@ -414,6 +445,7 @@ export function DocumentNamingConfigPage() {
                 </div>
               </div>
 
+
               {dossierId ? (
                 <>
                   {selectedDossier ? (
@@ -424,6 +456,7 @@ export function DocumentNamingConfigPage() {
                       })}
                     </p>
                   ) : null}
+
 
                   {fileConfigQuery.isLoading ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -443,6 +476,7 @@ export function DocumentNamingConfigPage() {
                       onChange={handleFileSegmentsChange}
                     />
                   )}
+
 
                   <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4 shadow-xs">
                     <div className="space-y-0.5 pr-4">
@@ -464,6 +498,7 @@ export function DocumentNamingConfigPage() {
                     />
                   </div>
 
+
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     <Button
                       type="button"
@@ -483,6 +518,7 @@ export function DocumentNamingConfigPage() {
                       {t('form.actions.saveFile')}
                     </Button>
                   </div>
+
 
                   {filePreviewItems.length > 0 ? (
                     <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
@@ -550,3 +586,6 @@ export function DocumentNamingConfigPage() {
     </div>
   )
 }
+
+
+

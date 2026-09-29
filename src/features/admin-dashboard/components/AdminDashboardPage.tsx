@@ -132,6 +132,7 @@ type AdminDashboardPageProps = {
   groupId?: string
   onKpiDateRangeChange?: (dateFrom?: string, dateTo?: string) => void
   onTrendDateRangeChange?: (dateFrom?: string, dateTo?: string) => void
+  onDossierStatusDateRangeChange?: (dateFrom?: string, dateTo?: string) => void
   embedInGroup?: boolean
   sectionGroups?: Array<'overview' | 'team'>
 }
@@ -201,18 +202,31 @@ export function AdminDashboardPage({
   groupId,
   onKpiDateRangeChange,
   onTrendDateRangeChange,
+  onDossierStatusDateRangeChange,
   embedInGroup = false,
   sectionGroups = ['overview', 'team'],
 }: AdminDashboardPageProps) {
   const { t } = useTranslation('admin-dashboard')
   const language = useCurrentLanguage()
   const navigate = dashboardRouteApi.useNavigate()
+  const [dossierStatusDateFrom, setDossierStatusDateFrom] = useState('')
+  const [dossierStatusDateTo, setDossierStatusDateTo] = useState('')
   const [trendPeriod, setTrendPeriod] = useState<TrendPeriodT>('30d')
   const [trendDateFrom, setTrendDateFrom] = useState('')
   const [trendDateTo, setTrendDateTo] = useState('')
   const [hasInitializedTrendPeriod, setHasInitializedTrendPeriod] = useState(false)
 
   const activeDossierChart = dossierChart ?? data.dossierChart
+
+  const handleDossierStatusDateFromChange = (val: string) => {
+    setDossierStatusDateFrom(val)
+    onDossierStatusDateRangeChange?.(val || undefined, dossierStatusDateTo || undefined)
+  }
+
+  const handleDossierStatusDateToChange = (val: string) => {
+    setDossierStatusDateTo(val)
+    onDossierStatusDateRangeChange?.(dossierStatusDateFrom || undefined, val || undefined)
+  }
 
   useEffect(() => {
     if (hasInitializedTrendPeriod || !onTrendDateRangeChange) {
@@ -511,11 +525,15 @@ export function AdminDashboardPage({
                 <div className="flex flex-wrap items-center gap-2">
                   <Input
                     type="date"
+                    value={dossierStatusDateFrom}
+                    onChange={(e) => handleDossierStatusDateFromChange(e.target.value)}
                     aria-label={t('charts.dossierStatus.dateFrom')}
                     className="h-8 w-[130px] text-xs"
                   />
                   <Input
                     type="date"
+                    value={dossierStatusDateTo}
+                    onChange={(e) => handleDossierStatusDateToChange(e.target.value)}
                     aria-label={t('charts.dossierStatus.dateTo')}
                     className="h-8 w-[130px] text-xs"
                   />

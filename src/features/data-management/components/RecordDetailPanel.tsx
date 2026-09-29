@@ -193,14 +193,17 @@ export function RecordDetailPanel({
   const [isConfirmApproveDialogOpen, setIsConfirmApproveDialogOpen] =
     useState(false)
   const [dismissedRejectFieldKeys, setDismissedRejectFieldKeys] = useState<
+
     Set<string>
   >(() => new Set())
-  const { permissions: userPermissions } = useRoleAccess()
-  const canDirectApprove = isPermissionGranted(
-    userPermissions,
-    'dossiers.direct_approve',
-    'dossiers',
-  )
+  const { permissions: userPermissions, isAdmin } = useRoleAccess()
+  const canDirectApprove =
+    isAdmin ||
+    isPermissionGranted(
+      userPermissions,
+      'dossiers.direct_approve',
+      'dossiers',
+    )
   const canDirectEdit = isPermissionGranted(
     userPermissions,
     'dossiers.direct_edit',
@@ -308,6 +311,26 @@ export function RecordDetailPanel({
   const isApproveBlockedByErrorReports =
     isActingAsQc && pendingErrorReportCount > 0
 
+  const [selectedErrorFieldKeys, setSelectedErrorFieldKeys] = useState<
+    Set<string>
+  >(new Set())
+
+  useEffect(() => {
+    setSelectedErrorFieldKeys(new Set())
+  }, [dossierId])
+
+  const reportedIssueFieldKeys = useMemo(() => {
+    const keys = new Set<string>()
+    for (const r of pendingErrorReports) {
+      if (r.fields) {
+        for (const f of r.fields) {
+          keys.add(f)
+        }
+      }
+    }
+    return keys
+  }, [pendingErrorReports])
+
   useEffect(() => {
     if (pendingErrorReportCount === 0 && errorReportReviewOpen) {
       setErrorReportReviewOpen(false)
@@ -327,7 +350,12 @@ export function RecordDetailPanel({
           projectCode: node.projectCode,
           fondId: node.fondId,
         }),
-      enabled: Boolean(dossierId && !node.dossierMetadata),
+      enabled: Boolean(
+        dossierId &&
+          !node.dossierMetadata &&
+          effectiveDossierStatus !== 'NEW' &&
+          effectiveDossierStatus !== 'OCR_PROCESSING',
+      ),
       staleTime: 30_000,
     })
 
@@ -1027,7 +1055,6 @@ export function RecordDetailPanel({
     groupIndex: number,
     fieldName: string,
   ): boolean {
-    if (!isEditorRole) return false
     const scope = resolveMetadataGroupRejectScope(group, groupIndex)
     const scopedKey = buildRejectFieldKey(
       scope.groupCode,
@@ -1037,8 +1064,15 @@ export function RecordDetailPanel({
     const baseKey = buildRejectFieldKey(scope.groupCode, fieldName)
     const legacyKey = buildRejectFieldKey(group.group_code, fieldName)
 
-    return [scopedKey, baseKey, legacyKey].some(
-      (key) => qcRejectFieldKeys.has(key) && !dismissedRejectFieldKeys.has(key),
+    if (isEditorRole) {
+      const isQcRejected = [scopedKey, baseKey, legacyKey].some(
+        (key) => qcRejectFieldKeys.has(key) && !dismissedRejectFieldKeys.has(key),
+      )
+      if (isQcRejected) return true
+    }
+
+    return [scopedKey, baseKey, legacyKey].some((key) =>
+      reportedIssueFieldKeys.has(key),
     )
   }
 
@@ -1671,6 +1705,33 @@ export function RecordDetailPanel({
         qcReject.toggleRejectField(rejectKey, checked),
       disabled: isSaving,
     }
+
+    if (isEditorRole && canSubmitErrorReport) {
+      const scope = resolveMetadataGroupRejectScope(group, groupIndex)
+      const errorFieldKey = buildRejectFieldKey(
+        scope.groupCode,
+        field.name,
+        scope.fileRef,
+      )
+      return {
+        id: `editor-error-${groupIndex}-${errorFieldKey}`,
+        checked: selectedErrorFieldKeys.has(errorFieldKey),
+        onCheckedChange: (checked: boolean) => {
+          setSelectedErrorFieldKeys((prev) => {
+            const next = new Set(prev)
+            if (checked) {
+              next.add(errorFieldKey)
+            } else {
+              next.delete(errorFieldKey)
+            }
+            return next
+          })
+        },
+        disabled: isSaving,
+      }
+    }
+
+    return undefined
   }
 
   function renderMetadataGroupCard(
@@ -1868,7 +1929,9 @@ export function RecordDetailPanel({
               disabled={!canSubmitErrorReport || !activeMetadata}
             >
               <AlertTriangle className="size-3.5" aria-hidden />
-              {t('editorErrorReport.actions.report')}
+              {selectedErrorFieldKeys.size > 0
+                ? `${t('editorErrorReport.actions.report')} (${selectedErrorFieldKeys.size})`
+                : t('editorErrorReport.actions.report')}
             </Button>
           ) : null}
           {canDigitalSign ? (
@@ -1926,7 +1989,7 @@ export function RecordDetailPanel({
                 type="button"
                 size="sm"
                 className="gap-1.5"
-                onClick={() => void handleSaveMetadata()}
+                onClick={handleApproveOrSaveClick}
                 disabled={isSaving || isApproveBlockedByErrorReports}
                 ref={saveButtonRef}
                 title={
@@ -1991,6 +2054,7 @@ export function RecordDetailPanel({
                       : t('metadata.save')}
                 </Button>
               </>
+
             )
           ) : null}
         </div>
@@ -2217,12 +2281,16 @@ export function RecordDetailPanel({
           onOpenChange={setErrorReportDialogOpen}
           dossierId={dossierId}
           dossierName={node.name}
+          documents={documents}
+          activeDocumentId={focusDocumentId ?? selectedDocument?.id ?? null}
+          initialSelectedFields={Array.from(selectedErrorFieldKeys)}
           metadata={mergeMetadataFieldChanges(
             baseMetadataRef.current ?? activeMetadata,
             activeMetadata,
           )}
           onSubmitReport={async (input) => {
             await editorErrorReports.submitReport(input)
+            setSelectedErrorFieldKeys(new Set())
             if (isEditorRole) {
               await onWorkflowComplete?.(dossierId, 'error_report')
             }
@@ -2280,3 +2348,4 @@ export function RecordDetailPanel({
     </div>
   )
 }
+
