@@ -33,7 +33,7 @@
       "description": "Chưa bắt đầu biên tập"
     },
     "unassigned": {
-      "title": "Chưa được phân công",
+      "title": "Số hồ sơ chưa được phân công",
       "description": "Chưa có phân công"
     },
     "completed": {
