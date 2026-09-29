@@ -100,7 +100,15 @@ export function ArchiveWarehouseReuploadDialog({
         if (!next) setMode('choose')
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        onInteractOutside={(e) => {
+          if (mode === 'uploading' || mutation.isPending) e.preventDefault()
+        }}
+        onEscapeKeyDown={(e) => {
+          if (mode === 'uploading' || mutation.isPending) e.preventDefault()
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{t('reupload.title')}</DialogTitle>
           <DialogDescription>
