@@ -1336,18 +1336,7 @@ async function loadDossiersForMetadataExport(
     }
   }
 
-<<<<<<< HEAD
-  const withoutMetadata = rows.filter(
-    (dossier) => !dossierHasExportableMetadata(dossier),
-  );
-  if (withoutMetadata.length > 0) {
-    const missingNames = withoutMetadata
-      .map((dossier) => dossier.name)
-      .join(", ");
-    throw httpError.badRequest(
-      `Cannot export: some dossiers are missing metadata: ${missingNames}`,
-    );
-=======
+
   if (!options?.skipMetadataCheck) {
     const withoutMetadata = rows.filter((dossier) => !dossier.currentMetadataKey);
     if (withoutMetadata.length > 0) {
@@ -1358,7 +1347,7 @@ async function loadDossiersForMetadataExport(
         `Cannot export: some dossiers are missing metadata: ${missingNames}`,
       );
     }
->>>>>>> new-origin/backend_Nodejs
+
   }
 
   return rows.sort((a, b) => a.name.localeCompare(b.name));
