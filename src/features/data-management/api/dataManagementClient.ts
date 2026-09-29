@@ -24,6 +24,8 @@ import {
   resolveClaimMetadata,
   resolveMetadataUrl,
   sizeKbToBytes,
+  applyDossierFondContext,
+  isOcrMetadataPendingFromMeta,
 } from '@/features/data-management/lib/metadataHelpers'
 import {
   normalizeAllowedFields,
@@ -257,46 +259,30 @@ async function assembleEditorTreeFromClaim(
     dossierMeta.rejectFields = claim.rejectFields
   }
 
-  const recordContent = await buildDossierRecordContent(
-    dossierId,
-    dossierMeta,
-    editorDraftDossierId === dossierId ? { filesStatus: 'draft' } : undefined,
-  )
-
   const claimMetadata = await resolveClaimMetadata(claim)
 
-  let children = recordContent.children
-  let dossierMetadata =
-    claimMetadata.dossierMetadata ?? recordContent.dossierMetadata
-  let fullDossierMetadata =
-    claimMetadata.fullDossierMetadata ??
-    recordContent.fullDossierMetadata ??
-    recordContent.dossierMetadata
+  const children = (claim.files ?? []).map((file) =>
+    mapFileToDocumentNode(
+      file as unknown as Record<string, unknown>,
+      dossierId,
+      claimMetadata.metadataGroups,
+    ),
+  )
 
   const allowedFields = normalizeAllowedFields(claim.allowedFields)
-  if (allowedFields?.length && dossierMetadata) {
-    const unfilteredContent = await buildDossierRecordContent(dossierId, {
-      name: String(dossier.name),
-      dossierId,
-      status: dossier.status,
-    })
-    if (unfilteredContent.fullDossierMetadata) {
-      fullDossierMetadata = unfilteredContent.fullDossierMetadata
-    }
-  }
+  const isOcrPending = isOcrMetadataPendingFromMeta(dossierMeta)
 
-  if (children.length === 0 && (claim.files?.length ?? 0) > 0) {
-    dossierMetadata = dossierMetadata ?? claimMetadata.dossierMetadata
-    fullDossierMetadata =
-      fullDossierMetadata ??
-      claimMetadata.fullDossierMetadata ??
-      claimMetadata.dossierMetadata
-    children = claim.files.map((file) =>
-      mapFileToDocumentNode(
-        file as unknown as Record<string, unknown>,
-        dossierId,
-        claimMetadata.metadataGroups,
-      ),
+  let dossierMetadata = undefined
+  let fullDossierMetadata = undefined
+
+  if (!isOcrPending) {
+    dossierMetadata = applyDossierFondContext(
+      claimMetadata.dossierMetadata,
+      dossierMeta,
+    )
+    fullDossierMetadata = applyDossierFondContext(
+      claimMetadata.fullDossierMetadata ?? claimMetadata.dossierMetadata,
+      dossierMeta,
     )
   }
 

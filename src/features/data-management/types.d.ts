@@ -414,7 +414,13 @@ export interface MakerClaimFileT {
   id: string
   fileName: string
   fileUrl: string
-  searchablePdfUrl?: string
+  filePath?: string
+  fileSizeKb?: number
+  createdAt?: string
+  searchablePdfPath?: string | null
+  searchablePdfUrl?: string | null
+  signedFilePath?: string | null
+  signedFileUrl?: string | null
 }
 
 export interface MakerClaimT {
