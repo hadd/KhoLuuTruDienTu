@@ -38,12 +38,14 @@ export function openStreamingZip(
     readable,
     async add(name: string, data: Uint8Array) {
       if (closed) throw new Error("StreamingZipWriter is already closed");
+      const isAlreadyCompressed = /\.(tiff|tif|jpeg|jpg|png|zip|rar|7z|gz|mp4)$/i.test(name);
       await zipWriter.add(
         name,
         new Uint8ArrayReader(data),
-        password
-          ? { password, encryptionStrength: 3 as const }
-          : undefined,
+        {
+          ...(password ? { password, encryptionStrength: 3 as const } : {}),
+          ...(isAlreadyCompressed ? { level: 0 } : {}),
+        },
       );
     },
     async close() {
