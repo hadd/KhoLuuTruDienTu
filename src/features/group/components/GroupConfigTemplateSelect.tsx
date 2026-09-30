@@ -48,30 +48,34 @@ export function GroupConfigTemplateSelect({
   const { mutate: assignMetadataPermissionConfig } =
     useAssignGroupMetadataPermissionConfig()
 
+  const permTemplateId = permissionConfig?.template?.id
+  const permTemplateName = permissionConfig?.template?.name
   const templateOptions = useMemo(() => {
     const map = new Map(
       templateOptionsFromApi.map((template) => [template.id, template]),
     )
 
-    if (
-      permissionConfig?.template &&
-      !map.has(permissionConfig.template.id)
-    ) {
-      map.set(permissionConfig.template.id, {
-        id: permissionConfig.template.id,
-        name: permissionConfig.template.name,
+    if (permTemplateId && !map.has(permTemplateId)) {
+      map.set(permTemplateId, {
+        id: permTemplateId,
+        name: permTemplateName || permTemplateId,
         updatedAt: '',
       })
     }
 
     return Array.from(map.values())
-  }, [permissionConfig?.template, templateOptionsFromApi])
+  }, [permTemplateId, permTemplateName, templateOptionsFromApi])
 
   const selectedMetadataTemplateId =
     metadataTemplateId &&
     templateOptions.some((item) => item.id === metadataTemplateId)
       ? metadataTemplateId
       : templateOptions[0]?.id
+
+  const permConfigId = permissionConfig?.id
+  const permConfigTemplateId = permissionConfig?.templateId
+  const permConfigName = permissionConfig?.name
+  const permConfigSlotsCount = permissionConfig?.slots?.length ?? 0
 
   const filteredConfigs = useMemo(() => {
     const configs = selectedMetadataTemplateId
@@ -81,23 +85,23 @@ export function GroupConfigTemplateSelect({
       : []
 
     if (
-      permissionConfig &&
-      selectedMetadataTemplateId === permissionConfig.templateId &&
-      !configs.some((item) => item.id === permissionConfig.id)
+      permConfigId &&
+      selectedMetadataTemplateId === permConfigTemplateId &&
+      !configs.some((item) => item.id === permConfigId)
     ) {
       return [
         {
-          id: permissionConfig.id,
-          name: permissionConfig.name,
+          id: permConfigId,
+          name: permConfigName || permConfigId,
           description: '',
-          templateId: permissionConfig.templateId,
-          status: 'ready',
+          templateId: permConfigTemplateId,
+          status: 'ready' as const,
           createdAt: '',
           updatedAt: '',
-          slotCount: permissionConfig.slots.length,
-          template: permissionConfig.template ?? {
-            id: permissionConfig.templateId,
-            name: permissionConfig.templateId,
+          slotCount: permConfigSlotsCount,
+          template: {
+            id: permConfigTemplateId,
+            name: permTemplateName || permConfigTemplateId,
           },
         },
         ...configs,
@@ -105,7 +109,15 @@ export function GroupConfigTemplateSelect({
     }
 
     return configs
-  }, [metadataConfigs, permissionConfig, selectedMetadataTemplateId])
+  }, [
+    metadataConfigs,
+    permConfigId,
+    permConfigTemplateId,
+    permConfigName,
+    permConfigSlotsCount,
+    permTemplateName,
+    selectedMetadataTemplateId,
+  ])
 
   const selectedMetadataConfigId =
     metadataPermissionConfigId &&
@@ -139,38 +151,37 @@ export function GroupConfigTemplateSelect({
   useEffect(() => {
     if (!useMetadataPermissionConfig) return
 
-    if (permissionConfig?.templateId && !metadataTemplateId) {
-      groupConfigStore.setGroupMetadataTemplate(
-        groupId,
-        permissionConfig.templateId,
-      )
+    if (permConfigTemplateId && !metadataTemplateId) {
+      groupConfigStore.setGroupMetadataTemplate(groupId, permConfigTemplateId)
     }
 
-    if (permissionConfig?.id && !metadataPermissionConfigId) {
-      handleAssignMetadataPermissionConfig(permissionConfig.id)
+    if (permConfigId && !metadataPermissionConfigId) {
+      groupConfigStore.setGroupMetadataPermissionConfig(groupId, permConfigId)
       return
     }
 
     if (templateOptions.length === 0) return
 
-    if (!metadataTemplateId) {
+    if (!metadataTemplateId && templateOptions[0]) {
       groupConfigStore.setGroupMetadataTemplate(groupId, templateOptions[0].id)
       return
     }
 
     if (!metadataPermissionConfigId && filteredConfigs[0]) {
-      handleAssignMetadataPermissionConfig(filteredConfigs[0].id)
+      groupConfigStore.setGroupMetadataPermissionConfig(
+        groupId,
+        filteredConfigs[0].id,
+      )
     }
   }, [
     filteredConfigs,
     groupId,
     metadataPermissionConfigId,
     metadataTemplateId,
-    permissionConfig?.id,
-    permissionConfig?.templateId,
+    permConfigId,
+    permConfigTemplateId,
     templateOptions,
     useMetadataPermissionConfig,
-    serverMetadataPermissionConfigId,
   ])
 
   return (

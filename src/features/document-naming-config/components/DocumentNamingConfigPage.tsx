@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { AlertTriangle, Eye, Loader2, Save } from 'lucide-react'
+import { Eye, Loader2, Save } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
