@@ -112,7 +112,7 @@ export function PersonalKpiTable({
 
   const days = data?.days ?? []
   const total = data?.total
-  const colSpan = 1 + (showMaker ? 3 : 0) + (showQc ? 3 : 0) + 3
+  const colSpan = 1 + (showMaker ? 2 : 0) + (showQc ? 2 : 0) + 3
 
   const handlePeriodChange = (
     nextPeriod: PersonalKpiPeriodT,
@@ -232,7 +232,7 @@ export function PersonalKpiTable({
                 {t('personalKpi.columns.date')}
               </TableHead>
               {volumeGroups.map((group) => (
-                <TableHead key={group.key} colSpan={3} className={group.headerClass}>
+                <TableHead key={group.key} colSpan={2} className={group.headerClass}>
                   {group.title}
                 </TableHead>
               ))}
@@ -259,12 +259,6 @@ export function PersonalKpiTable({
                   className="text-center border-r text-xs font-semibold py-1.5 w-[145px]"
                 >
                   {t('employeeKpi.columns.fileCount')}
-                </TableHead>,
-                <TableHead
-                  key={`${group.key}-page`}
-                  className="text-center border-r text-xs font-medium py-1.5 w-[145px]"
-                >
-                  {t('employeeKpi.columns.pageCount')}
                 </TableHead>,
               ])}
             </TableRow>
@@ -358,14 +352,6 @@ function PersonalKpiRow({
             rateClass="text-blue-600 dark:text-blue-400"
             className="border-r"
           />
-          <VolumeCell
-            completed={row.makerCompletedPagesCount}
-            assigned={row.makerAssignedPagesCount}
-            rate={row.makerPageCompletionRate}
-            unit="tr"
-            rateClass="text-blue-600 dark:text-blue-400"
-            className="border-r"
-          />
         </>
       ) : null}
       {showQc ? (
@@ -383,14 +369,6 @@ function PersonalKpiRow({
             assigned={row.qcAssignedFilesCount}
             rate={row.qcFileCompletionRate}
             unit="file"
-            rateClass="text-indigo-600 dark:text-indigo-400"
-            className="border-r bg-muted/10"
-          />
-          <VolumeCell
-            completed={row.qcCompletedPagesCount}
-            assigned={row.qcAssignedPagesCount}
-            rate={row.qcPageCompletionRate}
-            unit="tr"
             rateClass="text-indigo-600 dark:text-indigo-400"
             className="border-r bg-muted/10"
           />
