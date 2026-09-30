@@ -94,7 +94,9 @@ export async function executeListOperation<Entity, ID extends string | number = 
         (requireJoins && requireJoins.length > 0)
     );
 
-    let countQuery = (db as any).select({ count: sql<number>`cast(count(*) as int)` }).from(table as any);
+    let countQuery = requiresJoins
+        ? (db as any).select({ count: sql<number>`cast(count(distinct ${(table as any).id}) as int)` }).from(table as any)
+        : (db as any).select({ count: sql<number>`cast(count(*) as int)` }).from(table as any);
     let selectQuery = (db as any).select({ id: (table as any).id }).from(table as any);
 
     if (requiresJoins) {
@@ -275,6 +277,10 @@ export async function executeListOperation<Entity, ID extends string | number = 
         selectQuery = selectQuery.where(where as SQL);
     }
 
+    if (requiresJoins) {
+        selectQuery = selectQuery.groupBy((table as any).id);
+    }
+
     if (debug) {
         try {
             const countSQL = countQuery.toSQL();
@@ -304,7 +310,7 @@ export async function executeListOperation<Entity, ID extends string | number = 
         .limit(limit)
         .offset(offset);
 
-    const ids = idRows.map((r) => r.id);
+    const ids = Array.from(new Set(idRows.map((r) => r.id)));
     const totalPages = disablePaging ? 1 : Math.max(Math.ceil(count / limit), 1);
     const hasNextPage = disablePaging ? false : (page < totalPages);
     const hasPreviousPage = disablePaging ? false : (page > 1);
@@ -331,8 +337,12 @@ export async function executeListOperation<Entity, ID extends string | number = 
     const sanitizedWith = sanitizeWithObject(effectiveWith);
     
     if (debug) {
-        console.log("[BaseService Debug] Effective with:", JSON.stringify(effectiveWith, null, 2));
-        console.log("[BaseService Debug] Sanitized with:", JSON.stringify(sanitizedWith, null, 2));
+        try {
+            console.log("[BaseService Debug] Effective with:", JSON.stringify(effectiveWith, null, 2));
+            console.log("[BaseService Debug] Sanitized with:", JSON.stringify(sanitizedWith, null, 2));
+        } catch (_e) {
+            // ignore circular structure in debug log
+        }
     }
 
     const relRows: Entity[] | undefined = await (db as any).query?.[resolvedQueryKey as string]?.findMany?.({

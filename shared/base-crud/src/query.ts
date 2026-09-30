@@ -278,7 +278,16 @@ function normalizeFilterObject(obj: unknown): FilterNode | undefined {
             }
             
             if ((op === "$in" || op === "$nin") && typeof value === "string") {
-                value = value.split(",").map(s => s.trim()).filter(Boolean);
+                try {
+                    const parsed = JSON.parse(value);
+                    if (Array.isArray(parsed)) {
+                        value = parsed;
+                    } else {
+                        value = value.split(",").map((s) => s.trim().replace(/^["'\[]+|["'\]]+$/g, "")).filter(Boolean);
+                    }
+                } catch {
+                    value = value.split(",").map((s) => s.trim().replace(/^["'\[]+|["'\]]+$/g, "")).filter(Boolean);
+                }
             }
             
             // Check if field is nested (e.g., "student.createdAt" or deep path like "books.bookDetails.isbn")
