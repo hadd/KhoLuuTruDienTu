@@ -279,29 +279,40 @@ export const DocumentNamingConfigService = {
         dossierId?: string | null;
     }) {
         await this.assertFondExists(input.fondId);
-        if (input.targetType === "file") {
-            if (!input.dossierId) {
-                throw httpError.badRequest("dossierId is required for file naming config");
-            }
+        if (input.targetType === "file" && input.dossierId) {
             await this.assertDossierInFond(input.fondId, input.dossierId);
         }
 
-        const row = await db.query.documentNamingConfigs.findFirst({
-            where: and(
-                eq(documentNamingConfigs.fondId, input.fondId),
-                eq(documentNamingConfigs.targetType, input.targetType),
-                input.targetType === "dossier"
-                    ? isNull(documentNamingConfigs.dossierId)
-                    : eq(documentNamingConfigs.dossierId, input.dossierId!),
-                isNull(documentNamingConfigs.deletedAt),
-            ),
-        });
+        let row = null;
+        if (input.targetType === "file" && input.dossierId) {
+            // Check dossier-specific override first if provided
+            row = await db.query.documentNamingConfigs.findFirst({
+                where: and(
+                    eq(documentNamingConfigs.fondId, input.fondId),
+                    eq(documentNamingConfigs.targetType, input.targetType),
+                    eq(documentNamingConfigs.dossierId, input.dossierId),
+                    isNull(documentNamingConfigs.deletedAt),
+                ),
+            });
+        }
+
+        // Query fond-level config
+        if (!row) {
+            row = await db.query.documentNamingConfigs.findFirst({
+                where: and(
+                    eq(documentNamingConfigs.fondId, input.fondId),
+                    eq(documentNamingConfigs.targetType, input.targetType),
+                    isNull(documentNamingConfigs.dossierId),
+                    isNull(documentNamingConfigs.deletedAt),
+                ),
+            });
+        }
 
         if (!row) {
             return {
                 fondId: input.fondId,
                 targetType: input.targetType,
-                dossierId: input.targetType === "file" ? input.dossierId ?? null : null,
+                dossierId: null,
                 segments: [] as DocumentNamingSegment[],
                 autoIncrementCounter: 1,
                 applyOnApprove: false,
@@ -319,10 +330,7 @@ export const DocumentNamingConfigService = {
         applyOnApprove?: boolean;
     }) {
         await this.assertFondExists(input.fondId);
-        if (input.targetType === "file") {
-            if (!input.dossierId) {
-                throw httpError.badRequest("dossierId is required for file naming config");
-            }
+        if (input.targetType === "file" && input.dossierId) {
             await this.assertDossierInFond(input.fondId, input.dossierId);
         }
 
@@ -334,13 +342,17 @@ export const DocumentNamingConfigService = {
             );
         }
 
+        const normalizedDossierId = (input.targetType === "dossier" || !input.dossierId)
+            ? null
+            : input.dossierId;
+
         const existing = await db.query.documentNamingConfigs.findFirst({
             where: and(
                 eq(documentNamingConfigs.fondId, input.fondId),
                 eq(documentNamingConfigs.targetType, input.targetType),
-                input.targetType === "dossier"
-                    ? isNull(documentNamingConfigs.dossierId)
-                    : eq(documentNamingConfigs.dossierId, input.dossierId!),
+                normalizedDossierId
+                    ? eq(documentNamingConfigs.dossierId, normalizedDossierId)
+                    : isNull(documentNamingConfigs.dossierId),
                 isNull(documentNamingConfigs.deletedAt),
             ),
         });
@@ -363,10 +375,126 @@ export const DocumentNamingConfigService = {
         const [row] = await db.insert(documentNamingConfigs).values({
             fondId: input.fondId,
             targetType: input.targetType,
-            dossierId: input.targetType === "file" ? input.dossierId ?? null : null,
+            dossierId: normalizedDossierId,
             segments: input.segments,
             autoIncrementCounter,
             applyOnApprove: input.applyOnApprove ?? false,
+        }).returning();
+
+        return mapConfig(row);
+    },
+
+    async getBulkApplyOnApproveStatus() {
+        const fondRows = await db.query.fonds.findMany({
+            where: isNull(fonds.deletedAt),
+            columns: { id: true },
+        });
+        const totalFonds = fondRows.length;
+
+        const configRows = await db.query.documentNamingConfigs.findMany({
+            where: and(
+                eq(documentNamingConfigs.targetType, "file"),
+                isNull(documentNamingConfigs.dossierId),
+                isNull(documentNamingConfigs.deletedAt),
+            ),
+            columns: { id: true, applyOnApprove: true },
+        });
+
+        const enabledCount = configRows.filter((r) => r.applyOnApprove).length;
+        const applyOnApprove = configRows.length > 0 && enabledCount === configRows.length;
+
+        return {
+            applyOnApprove,
+            enabledCount,
+            totalConfigs: configRows.length,
+            totalFonds,
+        };
+    },
+
+    async bulkUpdateApplyOnApprove(applyOnApprove: boolean) {
+        // 1. Update existing fond-level and legacy file configs
+        await db.update(documentNamingConfigs)
+            .set({
+                applyOnApprove,
+                updatedAt: new Date(),
+            })
+            .where(
+                and(
+                    eq(documentNamingConfigs.targetType, "file"),
+                    isNull(documentNamingConfigs.deletedAt),
+                ),
+            );
+
+        // 2. Ensure all active fonds have a fond-level file config record
+        const activeFonds = await db.query.fonds.findMany({
+            where: isNull(fonds.deletedAt),
+            columns: { id: true },
+        });
+
+        const existingConfigs = await db.query.documentNamingConfigs.findMany({
+            where: and(
+                eq(documentNamingConfigs.targetType, "file"),
+                isNull(documentNamingConfigs.dossierId),
+                isNull(documentNamingConfigs.deletedAt),
+            ),
+            columns: { fondId: true },
+        });
+        const existingFondIds = new Set(existingConfigs.map((c) => c.fondId));
+
+        const missingFonds = activeFonds.filter((f) => !existingFondIds.has(f.id));
+        if (missingFonds.length > 0) {
+            await db.insert(documentNamingConfigs).values(
+                missingFonds.map((f) => ({
+                    fondId: f.id,
+                    targetType: "file",
+                    dossierId: null,
+                    segments: [],
+                    autoIncrementCounter: 1,
+                    applyOnApprove,
+                })),
+            );
+        }
+
+        return {
+            success: true,
+            applyOnApprove,
+            updatedCount: existingConfigs.length + missingFonds.length,
+        };
+    },
+
+    async updateFondApplyOnApprove(input: {
+        fondId: string;
+        applyOnApprove: boolean;
+    }) {
+        await this.assertFondExists(input.fondId);
+
+        const existing = await db.query.documentNamingConfigs.findFirst({
+            where: and(
+                eq(documentNamingConfigs.fondId, input.fondId),
+                eq(documentNamingConfigs.targetType, "file"),
+                isNull(documentNamingConfigs.dossierId),
+                isNull(documentNamingConfigs.deletedAt),
+            ),
+        });
+
+        if (existing) {
+            const [row] = await db.update(documentNamingConfigs)
+                .set({
+                    applyOnApprove: input.applyOnApprove,
+                    updatedAt: new Date(),
+                })
+                .where(eq(documentNamingConfigs.id, existing.id))
+                .returning();
+            return mapConfig(row);
+        }
+
+        const [row] = await db.insert(documentNamingConfigs).values({
+            fondId: input.fondId,
+            targetType: "file",
+            dossierId: null,
+            segments: [],
+            autoIncrementCounter: 1,
+            applyOnApprove: input.applyOnApprove,
         }).returning();
 
         return mapConfig(row);
@@ -395,6 +523,14 @@ export const DocumentNamingConfigService = {
                     eq(dossiers.fondId, input.fondId),
                     isNull(dossiers.deletedAt),
                 ),
+            }) ?? null;
+        } else {
+            dossier = await db.query.dossiers.findFirst({
+                where: and(
+                    eq(dossiers.fondId, input.fondId),
+                    isNull(dossiers.deletedAt),
+                ),
+                orderBy: desc(dossiers.updatedAt),
             }) ?? null;
         }
 

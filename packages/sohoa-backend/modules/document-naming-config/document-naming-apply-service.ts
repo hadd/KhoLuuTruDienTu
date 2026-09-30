@@ -73,22 +73,38 @@ export const DocumentNamingApplyService = {
         finalMetadata?: unknown,
     ): Promise<void> {
         try {
-            const config = await (tx ?? db).query.documentNamingConfigs.findFirst({
-                where: and(
-                    eq(documentNamingConfigs.targetType, "file"),
-                    eq(documentNamingConfigs.dossierId, dossierId),
-                    isNull(documentNamingConfigs.deletedAt),
-                ),
-            });
-
-            if (!config || !config.applyOnApprove || !Array.isArray(config.segments) || config.segments.length === 0) {
-                return;
-            }
-
             const dossier = await (tx ?? db).query.dossiers.findFirst({
                 where: and(eq(dossiers.id, dossierId), isNull(dossiers.deletedAt)),
             });
             if (!dossier) return;
+
+            let config = null;
+            if (dossier.fondId) {
+                // Priority 1: Fond-level file naming config (dossierId IS NULL)
+                config = await (tx ?? db).query.documentNamingConfigs.findFirst({
+                    where: and(
+                        eq(documentNamingConfigs.targetType, "file"),
+                        eq(documentNamingConfigs.fondId, dossier.fondId),
+                        isNull(documentNamingConfigs.dossierId),
+                        isNull(documentNamingConfigs.deletedAt),
+                    ),
+                });
+            }
+
+            // Priority 2: Fallback to legacy dossier-specific config if any
+            if (!config) {
+                config = await (tx ?? db).query.documentNamingConfigs.findFirst({
+                    where: and(
+                        eq(documentNamingConfigs.targetType, "file"),
+                        eq(documentNamingConfigs.dossierId, dossierId),
+                        isNull(documentNamingConfigs.deletedAt),
+                    ),
+                });
+            }
+
+            if (!config || !config.applyOnApprove || !Array.isArray(config.segments) || config.segments.length === 0) {
+                return;
+            }
 
             const fond = dossier.fondId
                 ? await (tx ?? db).query.fonds.findFirst({
