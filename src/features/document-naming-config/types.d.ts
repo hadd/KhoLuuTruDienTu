@@ -72,3 +72,14 @@ export type DocumentNamingPreviewPayloadT = UpsertDocumentNamingConfigPayloadT
 export type DocumentNamingPreviewResponseT = {
   previews: Array<string>
 }
+
+export type BulkApplyOnApproveStatusT = {
+  applyOnApprove: boolean
+  enabledCount: number
+  totalConfigs: number
+  totalFonds: number
+}
+
+export type BulkUpdateApplyOnApprovePayloadT = {
+  applyOnApprove: boolean
+}

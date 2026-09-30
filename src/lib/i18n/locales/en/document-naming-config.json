@@ -4,6 +4,20 @@
   "pageTitles": {
     "documentNaming": "Document naming"
   },
+  "subTabs": {
+    "general": "General configuration",
+    "byFond": "Fond-specific configuration",
+    "generalEmpty": "No general configuration yet"
+  },
+  "general": {
+    "title": "Global configuration",
+    "description": "System-wide settings applied across all fonds.",
+    "bulkApplyOnApproveTitle": "Rename PDF files upon dossier approval (Apply to all fonds)",
+    "bulkApplyOnApproveDesc": "Enabling or disabling this will update the auto-rename switch across all fonds simultaneously.",
+    "saveBulkApply": "Apply to all fonds",
+    "saveSuccess": "Updated configuration for all fonds successfully",
+    "status": "Currently {{enabledCount}}/{{totalFonds}} fonds have auto-rename enabled on approval."
+  },
   "fond": {
     "title": "Select fond",
     "description": "Choose a fond to configure naming rules.",
@@ -16,16 +30,10 @@
   },
   "fileNaming": {
     "title": "File naming rules",
-    "description": "Select a dossier, then configure how file names are generated within that dossier.",
-    "dossierSearch": "Search dossier",
-    "dossierSearchPlaceholder": "Search by name or folder path...",
-    "dossierLabel": "Dossier",
-    "dossierPlaceholder": "Select a dossier...",
-    "selectedDossier": "Selected dossier: {{name}} ({{path}})",
-    "selectDossierHint": "Select a dossier to configure file naming rules.",
+    "description": "Configure how PDF file names are generated for dossiers within the selected fond.",
     "loading": "Loading file naming configuration...",
     "applyOnApprove": "Automatically rename PDF files upon dossier approval",
-    "applyOnApproveHint": "When enabled, PDF files in this dossier will automatically be renamed according to this rule as soon as the dossier is approved."
+    "applyOnApproveHint": "When enabled, PDF files in dossiers under this fond will automatically be renamed according to this rule as soon as the dossier is approved."
   },
   "segments": {
     "dossierTitle": "Dossier naming rules",
