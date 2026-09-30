@@ -129,3 +129,20 @@ export interface AddMemberDialogProps {
   group: Group | null
   mode?: 'add' | 'edit'
 }
+
+export type {
+  AdminGroupEditorT,
+  AdminGroupLeaderSummaryT,
+  AdminGroupListItemT,
+  AdminGroupMemberDetailT,
+  AdminGroupQcT,
+  AdminGroupsListParamsT,
+  AdminGroupsListResponseT,
+  AssignGroupByFolderPayloadT,
+  AssignGroupMetadataPermissionConfigPayloadT,
+  CreateAdminGroupPayloadT,
+  GroupMemberAssignmentsQueryT,
+  UpdateAdminGroupPayloadT,
+  UpdateGroupPermissionAssignmentsPayloadT,
+} from './types.d'
+
