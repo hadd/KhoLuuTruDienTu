@@ -70,6 +70,55 @@ export function createDocumentNamingConfigAdminRouter(
     );
 
     app.get(
+        "/apply-on-approve-all",
+        async ({ profile }) => {
+            authHelper.checkPermission(profile, Permission.METADATA_NAMING_MANAGE);
+            return await service.getBulkApplyOnApproveStatus();
+        },
+        {
+            detail: {
+                tags,
+                summary: "Get status of auto-renaming files upon approval across all fonds",
+            },
+        },
+    );
+
+    app.put(
+        "/apply-on-approve-all",
+        async ({ body, profile }) => {
+            authHelper.checkPermission(profile, Permission.METADATA_NAMING_MANAGE);
+            return await service.bulkUpdateApplyOnApprove(body.applyOnApprove);
+        },
+        {
+            body: t.Object({
+                applyOnApprove: t.Boolean(),
+            }),
+            detail: {
+                tags,
+                summary: "Bulk update applyOnApprove for all fonds",
+            },
+        },
+    );
+
+    app.put(
+        "/apply-on-approve-fond",
+        async ({ body, profile }) => {
+            authHelper.checkPermission(profile, Permission.METADATA_NAMING_MANAGE);
+            return await service.updateFondApplyOnApprove(body);
+        },
+        {
+            body: t.Object({
+                fondId: t.String({ minLength: 1 }),
+                applyOnApprove: t.Boolean(),
+            }),
+            detail: {
+                tags,
+                summary: "Update applyOnApprove for a specific fond",
+            },
+        },
+    );
+
+    app.get(
         "/",
         async ({ query, profile }) => {
             authHelper.checkPermission(profile, Permission.METADATA_NAMING_MANAGE);
@@ -85,7 +134,7 @@ export function createDocumentNamingConfigAdminRouter(
                 targetType: t.Union(
                     DOCUMENT_NAMING_TARGET_TYPES.map((value) => t.Literal(value)),
                 ),
-                dossierId: t.Optional(t.String({ format: "uuid" })),
+                dossierId: t.Optional(t.Nullable(t.String({ format: "uuid" }))),
             }),
             detail: {
                 tags,

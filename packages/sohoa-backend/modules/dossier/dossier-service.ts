@@ -4331,6 +4331,7 @@ export const DossierService = {
       );
 
       let finalMetadataKey = storedKey;
+      let effectiveMetadata: unknown = metadata;
 
       const hasMultipleMakers = completedMakers.length > 1;
       const hasFieldLevelAcl =
@@ -4367,6 +4368,7 @@ export const DossierService = {
         }
 
         const merged = mergePartialMetadata(parsedBase, partials);
+        effectiveMetadata = merged;
         finalMetadataKey = await uploadJsonToStorage(
           buildEditorMergedMetadataKey(ocrMetadataKey, editorAttemptNumber),
           merged,
@@ -4377,6 +4379,7 @@ export const DossierService = {
         );
         const parsedPartial = parseDossierMetadata(rawPartial);
         const merged = parsedPartial ? parsedPartial : rawPartial;
+        effectiveMetadata = merged;
         finalMetadataKey = await uploadJsonToStorage(
           buildEditorMergedMetadataKey(ocrMetadataKey, editorAttemptNumber),
           merged,
@@ -4407,6 +4410,17 @@ export const DossierService = {
         })
         .where(activeDossierWhere(eq(dossiers.id, dossierId)))
         .returning();
+
+      if (toStatus === DossierStatus.APPROVED) {
+        const { DocumentNamingApplyService } = await import(
+          "../document-naming-config/document-naming-apply-service.ts"
+        );
+        await DocumentNamingApplyService.applyNamingOnDossierApproved(
+          tx,
+          dossierId,
+          effectiveMetadata,
+        );
+      }
 
       // After resubmit, QC restarts at CHECKER_1 (skip when no QC levels configured).
       if (!skipQc) {
@@ -4446,10 +4460,14 @@ export const DossierService = {
         partial: false,
         metadataKey: finalMetadataKey,
         dossierStatus: dossierRow?.status ?? toStatus,
+        effectiveMetadata,
       };
     });
 
-    await syncDossierFondIdFromMetadata(dossierId, metadata);
+    await syncDossierFondIdFromMetadata(
+      dossierId,
+      result.effectiveMetadata ?? metadata,
+    );
 
     const currentMetadataUrl = await buildLinkGet(result.metadataKey);
 
@@ -4468,6 +4486,19 @@ export const DossierService = {
     });
 
     if (!result.partial && result.dossierStatus === DossierStatus.APPROVED) {
+      const { syncDocumentTypesFromOcrMetadata } = await import(
+        "../../libs/document-type-sync.ts"
+      );
+      await syncDocumentTypesFromOcrMetadata(
+        dossierId,
+        result.effectiveMetadata ?? metadata,
+      ).catch((err) => {
+        console.error(
+          "[DocumentTypeSync] Failed to sync document types on approval:",
+          err,
+        );
+      });
+
       generateAndPersistAip({ dossierId }).catch((err) => {
         console.error("[AIP] Failed to generate archival package:", err);
       });
