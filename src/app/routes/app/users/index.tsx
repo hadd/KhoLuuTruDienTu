@@ -219,14 +219,29 @@ function ManageUserRoute() {
     }
   }, [safePage, currentPage, navigate, isLoading, isFetching, data])
 
-  const roleOptions = useMemo(
-    () =>
-      roles.map((role) => ({
-        value: role.id,
-        label: getRoleLabel(role.id, role.name) ?? role.name,
-      })),
-    [roles],
-  )
+  const roleOptions = useMemo(() => {
+    const items: Array<{ value: string; label: string }> = []
+    let hasAdmin = false
+
+    for (const role of roles) {
+      const isRoleAdmin = role.id === 'admin' || role.id === 'quantri'
+      if (isRoleAdmin) {
+        if (!hasAdmin) {
+          hasAdmin = true
+          items.push({
+            value: 'quantri',
+            label: getRoleLabel('quantri', 'Quản trị hệ thống') ?? 'Quản trị hệ thống',
+          })
+        }
+      } else {
+        items.push({
+          value: role.id,
+          label: getRoleLabel(role.id, role.name) ?? role.name,
+        })
+      }
+    }
+    return items
+  }, [roles])
 
   return (
     <div className="flex min-h-0 flex-1 w-full max-w-full flex-col gap-3">
@@ -252,7 +267,13 @@ function ManageUserRoute() {
               </button>
             </div>
             <Select
-              value={roleFilter ?? 'all'}
+              value={
+                roleFilter
+                  ? roleFilter === 'admin'
+                    ? 'quantri'
+                    : roleFilter
+                  : 'all'
+              }
               onValueChange={(value) => {
                 void navigate({
                   search: (prev) => ({
