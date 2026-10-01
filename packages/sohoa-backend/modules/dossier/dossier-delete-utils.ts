@@ -400,3 +400,100 @@ export async function purgeLinkedMetadataByDossierIds(
         .delete(metadataTemplates)
         .where(inArray(metadataTemplates.id, templateIds));
 }
+
+/**
+ * Escape các ký tự đặc biệt của SQL LIKE ('%', '_', '\')
+ */
+export function escapeSqlLike(value: string): string {
+    return value.replace(/([%_\\])/g, "\\$1");
+}
+
+type PurgeFolderTreeFn = (rootFolderPath: string, explicitKeys?: Set<string>) => Promise<number>;
+
+let purgeFolderTreeOverride: PurgeFolderTreeFn | null = null;
+
+export function setPurgeFolderTreeFromMinIOOverrideForTests(fn: PurgeFolderTreeFn | null) {
+    purgeFolderTreeOverride = fn;
+}
+
+/**
+ * Dọn dẹp toàn bộ file vật lý trên MinIO cho một cây thư mục (V2).
+ *
+ * Tối ưu hóa:
+ * 1. Chỉ quét 4 root prefix 1 lần duy nhất cho toàn bộ cây (raw/, doc_json/, export_pdf/, export_tiff/).
+ * 2. Gom thêm explicit storage keys trích xuất từ database.
+ * 3. Xóa hàng loạt bằng minioClient.removeObjects theo batch (chunk 1.000 files) để tránh timeout.
+ */
+export async function purgeFolderTreeFromMinIO(
+    rootFolderPath: string,
+    explicitKeys: Set<string> = new Set(),
+): Promise<number> {
+    if (purgeFolderTreeOverride) {
+        return await purgeFolderTreeOverride(rootFolderPath, explicitKeys);
+    }
+
+    const s3 = await getS3Client();
+    if (!s3) return 0;
+
+    const bucket = resolveS3Bucket();
+    const minioClient = s3.getMinIOClient();
+
+    const normalizedRoot = normalizeStorageKey(rootFolderPath).replace(/\/?$/, "/");
+    const prefixesToScan = [normalizedRoot];
+
+    const docJsonPrefix = toDocJsonDataLakePrefix(rootFolderPath);
+    if (docJsonPrefix) {
+        prefixesToScan.push(normalizeStorageKey(docJsonPrefix).replace(/\/?$/, "/"));
+    }
+
+    const exportPdfPrefix = toExportPdfPrefix(rootFolderPath);
+    if (exportPdfPrefix) {
+        prefixesToScan.push(normalizeStorageKey(exportPdfPrefix).replace(/\/?$/, "/"));
+    }
+
+    const exportTiffPrefix = toExportTiffPrefix(rootFolderPath);
+    if (exportTiffPrefix) {
+        prefixesToScan.push(normalizeStorageKey(exportTiffPrefix).replace(/\/?$/, "/"));
+    }
+
+    const allKeys = new Set<string>(explicitKeys);
+    for (const prefix of prefixesToScan) {
+        const keys = await listKeysUnderPrefix(bucket, prefix);
+        for (const k of keys) {
+            allKeys.add(k);
+        }
+    }
+
+    for (const key of allKeys) {
+        if (isProtectedArchivalKey(key)) {
+            allKeys.delete(key);
+        }
+    }
+
+    const objectsToDelete = Array.from(allKeys);
+    if (objectsToDelete.length === 0) return 0;
+
+    const CHUNK_SIZE = 1000;
+    let deletedCount = 0;
+
+    for (let i = 0; i < objectsToDelete.length; i += CHUNK_SIZE) {
+        const chunk = objectsToDelete.slice(i, i + CHUNK_SIZE);
+        try {
+            await minioClient.removeObjects(bucket, chunk);
+            deletedCount += chunk.length;
+        } catch (err) {
+            console.error("[purgeFolderTreeFromMinIO] Batch removeObjects error, falling back to sequential delete:", err);
+            for (const objectName of chunk) {
+                try {
+                    await s3.deleteFile({ bucket, objectName });
+                    deletedCount++;
+                } catch {
+                    // ignore missing individual file
+                }
+            }
+        }
+    }
+
+    return deletedCount;
+}
+

@@ -629,7 +629,7 @@ export function createFolderRouter(basePath: string = "/folders") {
     "/:id/dossiers",
     async ({ params, query, profile }) => {
       authHelper.checkPermission(profile, Permission.DOSSIERS_WRITE);
-      const record = await dossierService.deleteByFolderId(params.id, {
+      const record = await dossierService.deleteByFolderIdV2(params.id, {
         permanent: isPermanentDeleteFlag(query.permanent),
       });
       return { record, status: "deleted" };

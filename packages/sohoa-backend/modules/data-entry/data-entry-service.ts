@@ -327,6 +327,13 @@ async function buildClaimPayload(
                 searchablePdfUrl: searchablePdfPath
                     ? (await buildLinkGet(searchablePdfPath)) ?? ""
                     : null,
+                filePath: file.filePath,
+                fileSizeKb: file.fileSizeKb ?? undefined,
+                createdAt: file.createdAt?.toISOString(),
+                signedFilePath: file.signedFilePath,
+                signedFileUrl: file.signedFilePath
+                    ? (await buildLinkGet(file.signedFilePath)) ?? null
+                    : null,
             };
         }),
     );
