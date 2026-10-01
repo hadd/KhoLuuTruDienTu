@@ -143,7 +143,7 @@ export const ProjectPlanService = {
         if (input?.search?.trim()) {
             const term = `%${input.search.trim()}%`;
             conditions.push(
-                sql`(${projectPlans.name} ILIKE ${term} OR ${projectPlans.projectCode} ILIKE ${term} OR EXISTS (SELECT 1 FROM ${projects} WHERE ${projects.projectCode} = ${projectPlans.projectCode} AND ${projects.projectName} ILIKE ${term}))`,
+                sql`(${projectPlans.name} ILIKE ${term} OR ${projectPlans.projectCode} ILIKE ${term} OR EXISTS (SELECT 1 FROM ${projects} p WHERE p.project_code = ${projectPlans.projectCode} AND p.project_name ILIKE ${term}))`,
             );
         }
 
