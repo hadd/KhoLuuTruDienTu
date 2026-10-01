@@ -415,6 +415,9 @@ export function PdfViewer({
   const panGestureRef = useRef<PdfPanGesture | null>(null)
   const suppressContextMenuRef = useRef(false)
   const [panCursor, setPanCursor] = useState<'grabbing' | null>(null)
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingVisiblePageRef = useRef<number | null>(null)
+  const previousPagesToRenderRef = useRef<Set<number>>(new Set())
 
   const {
     displayUrl,
@@ -455,6 +458,12 @@ export function PdfViewer({
     setVisiblePageNumber(1)
     pageWrapperRefs.current.clear()
     pageCanvasHostRefs.current.clear()
+    previousPagesToRenderRef.current.clear()
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+    }
+    pendingVisiblePageRef.current = null
   }, [effectiveFileUrl])
 
   useEffect(() => {
@@ -527,6 +536,24 @@ export function PdfViewer({
       activeSet.add(visiblePageNumber)
     }
 
+    // Stability check: only update if the set actually changed
+    const previousSet = previousPagesToRenderRef.current
+    let hasChanged = false
+    if (previousSet.size !== activeSet.size) {
+      hasChanged = true
+    } else {
+      for (const page of activeSet) {
+        if (!previousSet.has(page)) {
+          hasChanged = true
+          break
+        }
+      }
+    }
+
+    if (hasChanged) {
+      previousPagesToRenderRef.current = new Set(activeSet)
+    }
+
     return activeSet
   }, [numPages, visiblePageNumber, scrollToPage, highlight?.page])
 
@@ -560,10 +587,29 @@ export function PdfViewer({
             bestPage = page
           }
         }
-        if (bestPage !== lastReported && bestRatio > 0) {
-          lastReported = bestPage
-          setVisiblePageNumber(bestPage)
-          onVisiblePageChange?.(bestPage)
+
+        // Hysteresis: only change if new page is significantly more visible
+        const currentRatio = ratios.get(lastReported) ?? 0
+        const HYSTERESIS_THRESHOLD = 0.6
+        const shouldChange =
+          bestPage !== lastReported &&
+          bestRatio > 0 &&
+          (bestRatio > HYSTERESIS_THRESHOLD || currentRatio < 0.4)
+
+        if (shouldChange) {
+          // Debounce the update to prevent rapid changes during scroll
+          if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current)
+          }
+          pendingVisiblePageRef.current = bestPage
+          debounceTimerRef.current = setTimeout(() => {
+            if (pendingVisiblePageRef.current !== null) {
+              lastReported = pendingVisiblePageRef.current
+              setVisiblePageNumber(lastReported)
+              onVisiblePageChange?.(lastReported)
+              pendingVisiblePageRef.current = null
+            }
+          }, 150)
         }
       },
       {
@@ -577,7 +623,12 @@ export function PdfViewer({
       observer.observe(el)
     }
 
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
   }, [onVisiblePageChange, numPages, pageRenderVersions, pagesToRender.size])
 
   useEffect(() => {

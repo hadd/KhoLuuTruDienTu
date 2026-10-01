@@ -20,6 +20,17 @@ export function buildUpdateGroupPayload(
   group: Group,
   overrides: Partial<UpdateAdminGroupPayloadT> = {},
 ): UpdateAdminGroupPayloadT {
+  const payload: UpdateAdminGroupPayloadT = {
+    name: overrides.name ?? group.name,
+    projectCode: overrides.projectCode ?? group.projectCode ?? '',
+    description: overrides.description ?? group.description,
+    editorIds: overrides.editorIds ?? group.editorUserIds,
+  }
+
+  const touchesApproval =
+    overrides.qcLevels !== undefined || overrides.roundNumber !== undefined
+  if (!touchesApproval) return payload
+
   const qcLevels: Array<CreateAdminGroupQcLevelPayloadT> =
     overrides.qcLevels ??
     getQcLevelUserIdsFromGroup(group).map((userIds) => ({ userIds }))
@@ -28,14 +39,8 @@ export function buildUpdateGroupPayload(
     overrides.roundNumber ?? (qcLevels.length > 0 ? qcLevels.length : 0)
   const usesLeaderOnly = roundNumber === 0
 
-  const payload: UpdateAdminGroupPayloadT = {
-    name: overrides.name ?? group.name,
-    projectCode: overrides.projectCode ?? group.projectCode ?? '',
-    description: overrides.description ?? group.description,
-    roundNumber,
-    editorIds: overrides.editorIds ?? group.editorUserIds,
-    qcLevels: usesLeaderOnly ? [] : qcLevels,
-  }
+  payload.roundNumber = roundNumber
+  payload.qcLevels = usesLeaderOnly ? [] : qcLevels
 
   if (usesLeaderOnly) {
     const leaderId = overrides.leaderId ?? getLeaderUserIdFromGroup(group)

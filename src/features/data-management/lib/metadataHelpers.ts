@@ -1187,7 +1187,7 @@ function extractFondIdFromDossierMeta(
   return trimmed || undefined
 }
 
-function applyDossierFondContext(
+export function applyDossierFondContext(
   metadata: DataDossierMetadataT | undefined,
   dossierMeta?: Record<string, unknown>,
 ): DataDossierMetadataT | undefined {
@@ -1452,7 +1452,7 @@ export type BuildDossierRecordContentOptions = {
   filesStatus?: 'draft'
 }
 
-function isOcrMetadataPendingFromMeta(
+export function isOcrMetadataPendingFromMeta(
   dossierMeta?: Record<string, unknown>,
 ): boolean {
   const status = dossierMeta?.status ?? dossierMeta?.dossierStatus

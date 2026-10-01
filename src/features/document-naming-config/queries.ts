@@ -1,8 +1,10 @@
 import {
+  keepPreviousData,
   queryOptions,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
+
 
 import {
   getDocumentNamingConfig,
@@ -12,25 +14,29 @@ import {
   upsertDocumentNamingConfig,
 } from '@/features/document-naming-config/api/documentNamingConfigClient'
 import type {
+DocumentNamingMetadataFieldOptionT,
   DocumentNamingPreviewPayloadT,
   DocumentNamingTargetTypeT,
-  UpsertDocumentNamingConfigPayloadT,
-} from '@/features/document-naming-config/types'
+  UpsertDocumentNamingConfigPayloadT} from '@/features/document-naming-config/types'
+
 
 export const documentNamingFieldCatalogQueryKey = [
   'document-naming-config',
   'field-catalog',
 ] as const
 
+
 export const documentNamingConfigQueryKeyPrefix = [
   'document-naming-config',
   'config',
 ] as const
 
+
 export const documentNamingDossierOptionsQueryKeyPrefix = [
   'document-naming-config',
   'dossier-options',
 ] as const
+
 
 export function documentNamingFieldCatalogQueryOptions(
   params?: {
@@ -47,8 +53,10 @@ export function documentNamingFieldCatalogQueryOptions(
         params?.dossierId ? { dossierId: params.dossierId } : undefined,
       ),
     staleTime: 60_000,
+    placeholderData: keepPreviousData,
   })
 }
+
 
 export function documentNamingConfigQueryOptions(
   params: {
@@ -65,9 +73,10 @@ export function documentNamingConfigQueryOptions(
   })
 }
 
-import { fetchDossierMetadataExportFields } from '@/features/data-management/api/dossierClient'
+
 import { getMetadataTemplates } from '@/features/data-config/api/metadataTemplateClient'
-import type { DocumentNamingMetadataFieldOptionT } from '@/features/document-naming-config/types'
+import { fetchDossierMetadataExportFields } from '@/features/data-management/api/dossierClient'
+
 
 export const FALLBACK_TT05_METADATA_FIELDS: Array<DocumentNamingMetadataFieldOptionT> =
   [
@@ -164,10 +173,12 @@ export const FALLBACK_TT05_METADATA_FIELDS: Array<DocumentNamingMetadataFieldOpt
     },
   ]
 
+
 export type DocumentNamingDossierMetadataQueryResultT = {
   fields: Array<DocumentNamingMetadataFieldOptionT>
   isFallback: boolean
 }
+
 
 export function documentNamingDossierMetadataFieldsQueryOptions(
   dossierId?: string | null,
@@ -185,6 +196,7 @@ export function documentNamingDossierMetadataFieldsQueryOptions(
           // Dossier may not have S3 file yet, fall through to templates
         }
       }
+
 
       try {
         const templates = await getMetadataTemplates()
@@ -212,14 +224,17 @@ export function documentNamingDossierMetadataFieldsQueryOptions(
         // Fallback to static TT05
       }
 
+
       return {
         fields: FALLBACK_TT05_METADATA_FIELDS,
         isFallback: Boolean(dossierId),
       }
     },
     staleTime: 60_000,
+    placeholderData: keepPreviousData,
   })
 }
+
 
 export function documentNamingDossierOptionsQueryOptions(
   params: {
@@ -235,8 +250,10 @@ export function documentNamingDossierOptionsQueryOptions(
   })
 }
 
+
 export function useUpsertDocumentNamingConfig() {
   const queryClient = useQueryClient()
+
 
   return useMutation({
     mutationFn: (payload: UpsertDocumentNamingConfigPayloadT) =>
@@ -259,9 +276,13 @@ export function useUpsertDocumentNamingConfig() {
   })
 }
 
+
 export function usePreviewDocumentNamingConfig() {
   return useMutation({
     mutationFn: (payload: DocumentNamingPreviewPayloadT) =>
       previewDocumentNamingConfig(payload),
   })
 }
+
+
+
