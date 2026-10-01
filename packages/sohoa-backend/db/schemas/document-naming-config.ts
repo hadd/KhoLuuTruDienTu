@@ -32,8 +32,8 @@ export const documentNamingConfigs = schema.table("document_naming_configs", {
         .on(table.fondId)
         .where(sql`${table.targetType} = 'dossier' AND ${table.deletedAt} IS NULL`),
     uniqueIndex("uq_document_naming_configs_fond_file")
-        .on(table.fondId, table.dossierId)
-        .where(sql`${table.targetType} = 'file' AND ${table.deletedAt} IS NULL`),
+        .on(table.fondId)
+        .where(sql`${table.targetType} = 'file' AND ${table.dossierId} IS NULL AND ${table.deletedAt} IS NULL`),
 ]);
 
 export type DocumentNamingConfig = typeof documentNamingConfigs.$inferSelect;

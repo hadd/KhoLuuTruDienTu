@@ -282,7 +282,8 @@ Deno.test("buildDynamicMetadataExcel expands multi-file dossier into rows withou
 });
 
 Deno.test("buildDynamicMetadataExcel exports PVEP sample metadata with file_name MA_DINH_DANH_VAN_BAN", async () => {
-    const jsonText = await Deno.readTextFile("packages/sohoa-backend/assets/metadata_Pvep_sample.json");
+    const assetUrl = new URL("../assets/metadata_Pvep_sample.json", import.meta.url);
+    const jsonText = await Deno.readTextFile(assetUrl);
     const pvepMetadata: DossierMetadata = JSON.parse(jsonText);
 
     const columns = buildDefaultExportConfig([pvepMetadata]);
