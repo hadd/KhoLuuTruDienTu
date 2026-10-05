@@ -1,14 +1,14 @@
 import { z } from 'zod'
 
-import i18n from '@/lib/i18n/config'
-
 import type {
   DocumentNamingSegmentSourceT,
   DocumentNamingSegmentT,
   DocumentNamingTargetTypeT,
 } from '@/features/document-naming-config/types'
+import i18n from '@/lib/i18n/config'
 
 export const documentNamingSearchSchema = z.object({
+  tab: z.enum(['general', 'fond']).optional().catch(undefined),
   fondId: z.string().optional().catch(undefined),
   dossierId: z.string().uuid().optional().catch(undefined),
 })
@@ -163,7 +163,7 @@ export function createNamingSegmentsSchema(
 export function validateDocumentNamingSegments(
   segments: Array<DocumentNamingSegmentT>,
   targetType: DocumentNamingTargetTypeT,
-): NamingSegmentFieldErrorT[] {
+): Array<NamingSegmentFieldErrorT> {
   const result = createNamingSegmentsSchema(targetType).safeParse(segments)
   if (result.success) return []
 

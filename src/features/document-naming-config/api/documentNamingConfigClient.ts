@@ -1,5 +1,3 @@
-import { apiClient } from '@/lib/api/apiClient'
-
 import type {
   DocumentNamingConfigT,
   DocumentNamingDossierOptionT,
@@ -9,6 +7,7 @@ import type {
   DocumentNamingTargetTypeT,
   UpsertDocumentNamingConfigPayloadT,
 } from '@/features/document-naming-config/types'
+import { apiClient } from '@/lib/api/apiClient'
 
 export const getDocumentNamingFieldCatalog = async (params?: {
   dossierId?: string
@@ -76,3 +75,42 @@ export const previewDocumentNamingConfig = async (
   )
   return response.data
 }
+
+export const getBulkApplyOnApproveStatus = async (): Promise<{
+  applyOnApprove: boolean
+  enabledCount: number
+  totalConfigs: number
+  totalFonds: number
+}> => {
+  const response = await apiClient.get<{
+    applyOnApprove: boolean
+    enabledCount: number
+    totalConfigs: number
+    totalFonds: number
+  }>('/api/v1/admin/document-naming-configs/apply-on-approve-all')
+  return response.data
+}
+
+export const bulkUpdateApplyOnApprove = async (payload: {
+  applyOnApprove: boolean
+}): Promise<{ success: boolean; applyOnApprove: boolean; updatedCount: number }> => {
+  const response = await apiClient.put<{
+    success: boolean
+    applyOnApprove: boolean
+    updatedCount: number
+  }>('/api/v1/admin/document-naming-configs/apply-on-approve-all', payload)
+  return response.data
+}
+
+export const updateFondApplyOnApprove = async (payload: {
+  fondId: string
+  applyOnApprove: boolean
+}): Promise<DocumentNamingConfigT> => {
+  const response = await apiClient.put<DocumentNamingConfigT>(
+    '/api/v1/admin/document-naming-configs/apply-on-approve-fond',
+    payload,
+  )
+  return response.data
+}
+
+

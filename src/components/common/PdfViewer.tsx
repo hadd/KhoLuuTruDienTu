@@ -418,6 +418,10 @@ export function PdfViewer({
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingVisiblePageRef = useRef<number | null>(null)
   const previousPagesToRenderRef = useRef<Set<number>>(new Set())
+  const isProgrammaticScrollRef = useRef(false)
+  const programmaticScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastScrolledToPageRef = useRef<number | null>(null)
+  const currentVisiblePageRef = useRef<number>(visiblePageNumber || 1)
 
   const {
     displayUrl,
@@ -477,16 +481,7 @@ export function PdfViewer({
     }
   }, [urlError, documentError, onLoadFailed])
 
-  useEffect(() => {
-    if (
-      scrollToPage &&
-      scrollToPage >= 1 &&
-      numPages &&
-      scrollToPage <= numPages
-    ) {
-      setVisiblePageNumber(scrollToPage)
-    }
-  }, [scrollToPage, numPages])
+
 
   const estimatedPageHeight = useMemo(() => {
     if (pageMetrics.size > 0) {
@@ -509,7 +504,7 @@ export function PdfViewer({
 
     const targetCenter =
       scrollToPage ?? highlight?.page ?? visiblePageNumber ?? 1
-    const buffer = 3
+    const buffer = 4
     const start = Math.max(1, targetCenter - buffer)
     const end = Math.min(numPages, targetCenter + buffer)
 
@@ -558,63 +553,98 @@ export function PdfViewer({
   }, [numPages, visiblePageNumber, scrollToPage, highlight?.page])
 
   useEffect(() => {
-    if (!scrollToPage || scrollToPage < 1) return
+    if (scrollToPage === null) {
+      lastScrolledToPageRef.current = null
+      return
+    }
+    if (scrollToPage < 1 || (numPages && scrollToPage > numPages)) return
+    if (lastScrolledToPageRef.current === scrollToPage) return
+    lastScrolledToPageRef.current = scrollToPage
+
+    // Khóa tạm thời IntersectionObserver để không bắt nhầm trang khi animation cuộn
+    isProgrammaticScrollRef.current = true
+    if (programmaticScrollTimeoutRef.current) {
+      clearTimeout(programmaticScrollTimeoutRef.current)
+    }
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+    }
+    pendingVisiblePageRef.current = null
+
+    currentVisiblePageRef.current = scrollToPage
+    setVisiblePageNumber(scrollToPage)
+
     const pageWrapper = pageWrapperRefs.current.get(scrollToPage)
-    if (!pageWrapper) return
-    pageWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [scrollToPage, numPages, pageMetrics.size])
+    const container = containerRef.current
+    if (pageWrapper && container) {
+      const containerRect = container.getBoundingClientRect()
+      const wrapperRect = pageWrapper.getBoundingClientRect()
+      const targetTop =
+        container.scrollTop + (wrapperRect.top - containerRect.top)
+      container.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' })
+    } else if (pageWrapper) {
+      pageWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+
+    programmaticScrollTimeoutRef.current = setTimeout(() => {
+      isProgrammaticScrollRef.current = false
+      programmaticScrollTimeoutRef.current = null
+    }, 450)
+  }, [scrollToPage, numPages])
 
   useEffect(() => {
     if (!containerRef.current || !numPages) return
 
     const container = containerRef.current
-    const ratios = new Map<number, number>()
-    let lastReported = 0
+    const visibleHeights = new Map<number, number>()
 
     const observer = new IntersectionObserver(
       (entries) => {
+        // Luôn cập nhật visibleHeights để dữ liệu không bị thiếu/cũ
         for (const entry of entries) {
           const pageAttr = (entry.target as HTMLElement).dataset.pageNumber
           const pageNumber = pageAttr ? Number(pageAttr) : NaN
           if (!Number.isFinite(pageNumber)) continue
-          ratios.set(pageNumber, entry.intersectionRatio)
+          visibleHeights.set(
+            pageNumber,
+            entry.isIntersecting ? entry.intersectionRect.height : 0,
+          )
         }
-        let bestPage = lastReported || 1
-        let bestRatio = -1
-        for (const [page, ratio] of ratios) {
-          if (ratio > bestRatio) {
-            bestRatio = ratio
+
+        // Nếu đang cuộn theo lệnh (bấm nút / nhập số trang), không cập nhật page để tránh bắt nhầm trang lướt qua
+        if (isProgrammaticScrollRef.current) return
+
+        // Tìm trang có chiều cao pixel hiển thị lớn nhất trong khung nhìn
+        let bestPage = currentVisiblePageRef.current
+        let maxVisibleHeight = 0
+        for (const [page, height] of visibleHeights) {
+          if (height > maxVisibleHeight) {
+            maxVisibleHeight = height
             bestPage = page
           }
         }
 
-        // Hysteresis: only change if new page is significantly more visible
-        const currentRatio = ratios.get(lastReported) ?? 0
-        const HYSTERESIS_THRESHOLD = 0.6
-        const shouldChange =
-          bestPage !== lastReported &&
-          bestRatio > 0 &&
-          (bestRatio > HYSTERESIS_THRESHOLD || currentRatio < 0.4)
-
-        if (shouldChange) {
-          // Debounce the update to prevent rapid changes during scroll
+        if (bestPage !== currentVisiblePageRef.current && maxVisibleHeight > 30) {
           if (debounceTimerRef.current) {
             clearTimeout(debounceTimerRef.current)
           }
           pendingVisiblePageRef.current = bestPage
           debounceTimerRef.current = setTimeout(() => {
+            if (isProgrammaticScrollRef.current) return
             if (pendingVisiblePageRef.current !== null) {
-              lastReported = pendingVisiblePageRef.current
-              setVisiblePageNumber(lastReported)
-              onVisiblePageChange?.(lastReported)
+              const targetPage = pendingVisiblePageRef.current
+              currentVisiblePageRef.current = targetPage
+              setVisiblePageNumber(targetPage)
+              onVisiblePageChange?.(targetPage)
               pendingVisiblePageRef.current = null
             }
-          }, 150)
+          }, 80)
         }
       },
       {
         root: container,
-        threshold: [0, 0.25, 0.5, 0.75, 1],
+        threshold: [0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
       },
     )
 
@@ -627,6 +657,9 @@ export function PdfViewer({
       observer.disconnect()
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
+      }
+      if (programmaticScrollTimeoutRef.current) {
+        clearTimeout(programmaticScrollTimeoutRef.current)
       }
     }
   }, [onVisiblePageChange, numPages, pageRenderVersions, pagesToRender.size])

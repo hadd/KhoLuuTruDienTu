@@ -4,6 +4,20 @@
   "pageTitles": {
     "documentNaming": "Cấu hình tên tài liệu"
   },
+  "subTabs": {
+    "general": "Cấu hình chung",
+    "byFond": "Cấu hình riêng từng phông",
+    "generalEmpty": "Chưa có cấu hình chung"
+  },
+  "general": {
+    "title": "Cấu hình chung toàn hệ thống",
+    "description": "Thiết lập cấu hình đổi tên file khi duyệt áp dụng cho toàn bộ các phông trong hệ thống.",
+    "bulkApplyOnApproveTitle": "Đổi tên file PDF khi duyệt hồ sơ (Áp dụng cho tất cả phông)",
+    "bulkApplyOnApproveDesc": "Khi bật hoặc tắt cài đặt này, toàn bộ công tắc đổi tên file khi duyệt hồ sơ của tất cả các phông sẽ được cập nhật đồng bộ.",
+    "saveBulkApply": "Áp dụng cho tất cả phông",
+    "saveSuccess": "Đã cập nhật cấu hình cho tất cả các phông thành công",
+    "status": "Hiện có {{enabledCount}}/{{totalFonds}} phông đang bật tính năng đổi tên file khi duyệt."
+  },
   "fond": {
     "title": "Chọn phông",
     "description": "Chọn phông để cấu hình quy tắc đặt tên.",
@@ -16,16 +30,10 @@
   },
   "fileNaming": {
     "title": "Thiết lập quy tắc sinh tên file",
-    "description": "Chọn một hồ sơ, sau đó cấu hình cách sinh tên file trong hồ sơ đó.",
-    "dossierSearch": "Tìm hồ sơ",
-    "dossierSearchPlaceholder": "Tìm theo tên hoặc đường dẫn...",
-    "dossierLabel": "Hồ sơ",
-    "dossierPlaceholder": "Chọn hồ sơ...",
-    "selectedDossier": "Hồ sơ đã chọn: {{name}} ({{path}})",
-    "selectDossierHint": "Chọn một hồ sơ để cấu hình quy tắc sinh tên file.",
+    "description": "Cấu hình cách sinh tên file PDF cho các hồ sơ thuộc phông đã chọn.",
     "loading": "Đang tải cấu hình tên file...",
     "applyOnApprove": "Tự động áp dụng đổi tên file PDF khi duyệt hồ sơ",
-    "applyOnApproveHint": "Khi bật, các file PDF trong hồ sơ này sẽ tự động được cập nhật lại tên theo quy tắc trên ngay khi hồ sơ chuyển sang trạng thái Đã duyệt."
+    "applyOnApproveHint": "Khi bật, các file PDF trong các hồ sơ thuộc phông này sẽ tự động được cập nhật lại tên theo quy tắc trên ngay khi hồ sơ chuyển sang trạng thái Đã duyệt."
   },
   "segments": {
     "dossierTitle": "Thiết lập quy tắc tên hồ sơ",

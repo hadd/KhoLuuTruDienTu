@@ -27,7 +27,11 @@ export const getAllUsers = async (
     search: params?.search,
   })
   if (params?.roleId) {
-    searchParams.set('filter[userRoles.roleId][$eq]', params.roleId)
+    if (params.roleId === 'quantri' || params.roleId === 'admin') {
+      searchParams.set('filter[userRoles.roleId][$in]', 'admin,quantri')
+    } else {
+      searchParams.set('filter[userRoles.roleId][$eq]', params.roleId)
+    }
   }
 
   const queryString = searchParams.toString()

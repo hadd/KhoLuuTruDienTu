@@ -27,7 +27,6 @@ import {
   updateGroupPermissionAssignments,
 } from './api/metadataApi'
 import type {
-  AdminGroupsListParams,
   AdminGroupsQueryDataT,
   AssignGroupByFolderPayloadT,
   CreateAdminGroupPayloadT,
@@ -369,24 +368,37 @@ export function useAssignGroupMetadataPermissionConfig() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       groupId,
       permissionConfigId,
     }: {
       groupId: string
       permissionConfigId: string | null
-    }) => {
-      await updateGroupMetadataPermissionConfig(groupId, { permissionConfigId })
-      await getMetadataPermissionConfigs({ status: 'ready' })
-    },
+    }) => updateGroupMetadataPermissionConfig(groupId, { permissionConfigId }),
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({
         queryKey: metadataPermissionConfigsQueryKey,
       })
-      void queryClient.invalidateQueries({ queryKey: adminGroupsQueryKey })
       void queryClient.invalidateQueries({
         queryKey: groupKeys.detail(variables.groupId),
       })
+      queryClient.setQueriesData<AdminGroupsQueryDataT>(
+        { queryKey: adminGroupsQueryKey },
+        (old) => {
+          if (!old?.groups) return old
+          return {
+            ...old,
+            groups: old.groups.map((g) =>
+              g.id === variables.groupId
+                ? {
+                    ...g,
+                    metadataPermissionConfigId: variables.permissionConfigId,
+                  }
+                : g,
+            ),
+          }
+        },
+      )
     },
     onError: (error: unknown) => {
       toast.error(

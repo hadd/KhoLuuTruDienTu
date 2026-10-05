@@ -170,7 +170,7 @@
   },
   "personalKpi": {
     "title": "Personal daily KPI",
-    "description": "Your daily assigned and completed dossiers, files and pages",
+    "description": "Your daily assigned and completed dossiers and files",
     "columns": {
       "date": "Date",
       "avgTime": "Avg. time",

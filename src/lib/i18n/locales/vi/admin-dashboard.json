@@ -170,7 +170,7 @@
   },
   "personalKpi": {
     "title": "KPI cá nhân theo ngày",
-    "description": "Tiến độ hồ sơ, file và trang được giao / hoàn thành theo từng ngày của bạn",
+    "description": "Tiến độ hồ sơ và file được giao / hoàn thành theo từng ngày của bạn",
     "columns": {
       "date": "Ngày",
       "avgTime": "Thời gian TB",

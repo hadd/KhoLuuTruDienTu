@@ -5,19 +5,22 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 
-
 import {
+  bulkUpdateApplyOnApprove,
+  getBulkApplyOnApproveStatus,
   getDocumentNamingConfig,
   getDocumentNamingDossierOptions,
   getDocumentNamingFieldCatalog,
   previewDocumentNamingConfig,
+  updateFondApplyOnApprove,
   upsertDocumentNamingConfig,
 } from '@/features/document-naming-config/api/documentNamingConfigClient'
 import type {
-DocumentNamingMetadataFieldOptionT,
+  DocumentNamingMetadataFieldOptionT,
   DocumentNamingPreviewPayloadT,
   DocumentNamingTargetTypeT,
-  UpsertDocumentNamingConfigPayloadT} from '@/features/document-naming-config/types'
+  UpsertDocumentNamingConfigPayloadT,
+} from '@/features/document-naming-config/types'
 
 
 export const documentNamingFieldCatalogQueryKey = [
@@ -283,6 +286,67 @@ export function usePreviewDocumentNamingConfig() {
       previewDocumentNamingConfig(payload),
   })
 }
+
+export const bulkApplyOnApproveStatusQueryKey = [
+  'document-naming-config',
+  'apply-on-approve-all',
+] as const
+
+export function bulkApplyOnApproveStatusQueryOptions() {
+  return queryOptions({
+    queryKey: bulkApplyOnApproveStatusQueryKey,
+    queryFn: () => getBulkApplyOnApproveStatus(),
+    staleTime: 0,
+  })
+}
+
+export function useBulkUpdateApplyOnApprove() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: { applyOnApprove: boolean }) =>
+      bulkUpdateApplyOnApprove(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: documentNamingConfigQueryKeyPrefix,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: bulkApplyOnApproveStatusQueryKey,
+      })
+    },
+  })
+}
+
+export function useUpdateFondApplyOnApprove() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: { fondId: string; applyOnApprove: boolean }) =>
+      updateFondApplyOnApprove(payload),
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(
+        [
+          ...documentNamingConfigQueryKeyPrefix,
+          {
+            fondId: variables.fondId,
+            targetType: 'file',
+          },
+        ],
+        (prev: any) =>
+          prev
+            ? {
+                ...prev,
+                applyOnApprove: variables.applyOnApprove,
+              }
+            : data,
+      )
+      void queryClient.invalidateQueries({
+        queryKey: bulkApplyOnApproveStatusQueryKey,
+      })
+    },
+  })
+}
+
 
 
 
