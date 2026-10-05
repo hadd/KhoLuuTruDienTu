@@ -247,11 +247,18 @@ export function EditorDashboardPage({
         <h2 className="text-lg font-medium text-foreground">
           {t('sections.performance.title')}
         </h2>
-        <KpiCard
-          icon={Timer}
-          label={t('sections.performance.avgProcessingTime')}
-          value={formatDurationSeconds(data.avgProcessingTimeSeconds)}
-        />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <KpiCard
+            icon={Timer}
+            label="Thời gian TB / file"
+            value={formatDurationSeconds(data.avgProcessingTimeFileSeconds ?? data.avgProcessingTimeSeconds)}
+          />
+          <KpiCard
+            icon={Timer}
+            label="Thời gian TB / hồ sơ"
+            value={formatDurationSeconds(data.avgProcessingTimeDossierSeconds ?? 0)}
+          />
+        </div>
       </section>
       ) : null}
 

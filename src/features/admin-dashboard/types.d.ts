@@ -154,6 +154,8 @@ export type AdminDashboardT = {
   totalGroups: number
   byRole: AdminDashboardRoleDistributionT
   avgProcessingTimeSeconds: number
+  avgProcessingTimeFileSeconds?: number
+  avgProcessingTimeDossierSeconds?: number
   overallApprovalRate: number
   dossiersApprovedToday: number
   dossiersApprovedThisWeek: number

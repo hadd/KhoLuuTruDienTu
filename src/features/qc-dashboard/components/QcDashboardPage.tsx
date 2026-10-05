@@ -269,7 +269,8 @@ export function QcDashboardPage({
               : 'grid gap-4'
           }
         >
-          {canViewByStep && hasStepChartData ? (
+          {canViewByStep ? (
+            hasStepChartData ? (
             <Card>
               <CardHeader>
                 <CardTitle>{t('sections.byStep.title')}</CardTitle>
@@ -318,6 +319,21 @@ export function QcDashboardPage({
                 </div>
               </CardContent>
             </Card>
+            ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('sections.byStep.title')}</CardTitle>
+                <CardDescription>
+                  {t('sections.byStep.description')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="py-12 text-center text-sm text-muted-foreground">
+                  {t('chart.noData', { defaultValue: 'Chưa có dữ liệu kiểm duyệt theo bước' })}
+                </p>
+              </CardContent>
+            </Card>
+            )
           ) : null}
 
           {canViewEfficiency ? (

@@ -12,6 +12,7 @@ export const DASHBOARD_PERSONAL_SECTION_KEYS = {
   qcSummary: 'dashboard.personal.qc_summary',
   qcByStep: 'dashboard.personal.qc_by_step',
   qcEfficiency: 'dashboard.personal.qc_efficiency',
+  personalDailyKpiTable: 'dashboard.personal.daily_kpi_table',
 } as const
 
 export const DASHBOARD_TEAM_SECTION_KEYS = {
@@ -88,12 +89,14 @@ const LEGACY_GRANT_EXPANSIONS: Record<string, ReadonlyArray<string>> = {
     DASHBOARD_PERSONAL_SECTION_KEYS.editorAccuracy,
     DASHBOARD_PERSONAL_SECTION_KEYS.editorPerformance,
     DASHBOARD_PERSONAL_SECTION_KEYS.editorCharts,
+    DASHBOARD_PERSONAL_SECTION_KEYS.personalDailyKpiTable,
   ],
   'dashboard.qc': [
     DASHBOARD_PERSONAL_SECTION_KEYS.qcSummary,
     DASHBOARD_PERSONAL_SECTION_KEYS.qcByStep,
     DASHBOARD_PERSONAL_SECTION_KEYS.qcEfficiency,
     DASHBOARD_TEAM_SECTION_KEYS.qcGroup,
+    DASHBOARD_PERSONAL_SECTION_KEYS.personalDailyKpiTable,
   ],
   'dashboard.admin': [
     ...Object.values(DASHBOARD_OVERVIEW_SECTION_KEYS),
@@ -341,6 +344,17 @@ export function needsQcDashboardData(
     DASHBOARD_PERSONAL_SECTION_KEYS.qcByStep,
     DASHBOARD_PERSONAL_SECTION_KEYS.qcEfficiency,
   ].some((key) => isDashboardSectionVisible(permissions, hidden, key))
+}
+
+export function needsPersonalDailyKpiTable(
+  permissions: Array<string>,
+  hidden: Array<string> = [],
+): boolean {
+  return isDashboardSectionVisible(
+    permissions,
+    hidden,
+    DASHBOARD_PERSONAL_SECTION_KEYS.personalDailyKpiTable,
+  )
 }
 
 export function needsQcGroupDashboardData(

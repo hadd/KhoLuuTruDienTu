@@ -22,6 +22,7 @@ import {
   hasAnyTeamDashboardSection,
   isDashboardSectionVisible,
   needsEditorDashboardData,
+  needsPersonalDailyKpiTable,
   needsQcDashboardData,
   needsQcGroupDashboardData,
 } from '@/features/permissions/lib/dashboardAccess'
@@ -57,6 +58,7 @@ export function ModularOverviewDashboard({
   const showEditor = needsEditorDashboardData(permissions, hidden)
   const showQcPersonal = needsQcDashboardData(permissions, hidden)
   const showQcGroup = needsQcGroupDashboardData(permissions, hidden)
+  const showPersonalKpiTable = needsPersonalDailyKpiTable(permissions, hidden)
   const showAdminTeam =
     isDashboardSectionVisible(
       permissions,
@@ -126,7 +128,9 @@ export function ModularOverviewDashboard({
               includeGroup={false}
             />
           ) : null}
-          <PersonalKpiTable permissions={permissions} hidden={hidden} />
+          {showPersonalKpiTable ? (
+            <PersonalKpiTable permissions={permissions} hidden={hidden} />
+          ) : null}
         </DashboardGroup>
       ) : null}
 
