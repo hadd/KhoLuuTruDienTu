@@ -391,6 +391,16 @@ function normalizeDashboard(raw: AdminDashboardRawT): AdminDashboardT {
       raw.avgProcessingTimeSeconds ??
       performance?.avgProcessingTimeSeconds ??
       0,
+    avgProcessingTimeFileSeconds:
+      raw.avgProcessingTimeFileSeconds ??
+      performance?.avgProcessingTimeFileSeconds ??
+      raw.avgProcessingTimeSeconds ??
+      performance?.avgProcessingTimeSeconds ??
+      0,
+    avgProcessingTimeDossierSeconds:
+      raw.avgProcessingTimeDossierSeconds ??
+      performance?.avgProcessingTimeDossierSeconds ??
+      0,
     overallApprovalRate:
       raw.overallApprovalRate ?? performance?.overallApprovalRate ?? 0,
     dossiersApprovedToday:

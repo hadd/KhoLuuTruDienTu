@@ -401,7 +401,7 @@ function PersonalKpiRow({
           <Clock className="size-3 text-muted-foreground" />
           <span>
             {t('personalKpi.columns.minutes', {
-              count: row.avgProcessingTimeMinutes ?? 0,
+              count: formatNumber(row.avgProcessingTimeMinutes ?? 0, { maximumFractionDigits: 1 }),
             })}
           </span>
         </div>

@@ -83,7 +83,7 @@ export async function exportEmployeeKpiToExcel(
     { key: 'qcCompletedFiles', header: 'Số file hoàn thành', width: 18 },
     { key: 'qcAssignedFiles', header: 'Số file phân công', width: 18 },
     { key: 'qcFileRate', header: 'Tỷ lệ file (%)', width: 14 },
-    { key: 'avgProcessingTimeMinutes', header: 'Thời gian TB (phút)', width: 20 },
+    { key: 'avgProcessingTimeMinutes', header: 'Thời gian TB/file (phút)', width: 22 },
     { key: 'rejectedDossiersCount', header: 'Số lượt bị trả về', width: 18 },
     { key: 'accuracyRate', header: 'Tỷ lệ chính xác KPI (%)', width: 22 },
     { key: 'kpiStatus', header: 'Đánh giá KPI', width: 16 },
@@ -131,7 +131,7 @@ export async function exportEmployeeKpiToExcel(
   sheet.getCell('V5').value = 'Tỷ lệ file'
 
   sheet.mergeCells('W4:W5')
-  sheet.getCell('W4').value = 'Thời gian TB (phút)'
+  sheet.getCell('W4').value = 'Thời gian TB/file (phút)'
 
   sheet.mergeCells('X4:X5')
   sheet.getCell('X4').value = 'Số lượt bị trả về'
@@ -263,9 +263,12 @@ export async function exportEmployeeKpiToExcel(
       } else if ([7, 10, 13, 16, 19, 22, 25].includes(colNumber)) {
         cell.alignment = { horizontal: 'right', vertical: 'middle' }
         cell.numFmt = '0.0%'
-      } else if ([5, 6, 8, 9, 11, 12, 14, 15, 17, 18, 20, 21, 23, 24].includes(colNumber)) {
+      } else if ([5, 6, 8, 9, 11, 12, 14, 15, 17, 18, 20, 21, 24].includes(colNumber)) {
         cell.alignment = { horizontal: 'right', vertical: 'middle' }
         cell.numFmt = '#,##0'
+      } else if (colNumber === 23) {
+        cell.alignment = { horizontal: 'right', vertical: 'middle' }
+        cell.numFmt = '#,##0.0'
       } else if (colNumber === 26) {
         cell.alignment = { horizontal: 'center', vertical: 'middle' }
         cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: statusFgColor } }

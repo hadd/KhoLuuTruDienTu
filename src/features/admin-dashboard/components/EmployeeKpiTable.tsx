@@ -398,11 +398,12 @@ export function EmployeeKpiTable({
     const avgTime =
       activeTimeUsers.length > 0
         ? Math.round(
-          activeTimeUsers.reduce(
+          (activeTimeUsers.reduce(
             (sum, item) => sum + (item.avgProcessingTimeMinutes ?? 0),
             0,
-          ) / activeTimeUsers.length,
-        )
+          ) / activeTimeUsers.length) *
+          10,
+        ) / 10
         : 0
 
     return { totalUsers, avgAccuracy, totalRejected, avgTime }
@@ -509,8 +510,8 @@ export function EmployeeKpiTable({
               <Clock className="size-4" />
             </div>
             <div>
-              <p className="text-[11px] font-medium text-muted-foreground">Thời gian TB/hồ sơ</p>
-              <p className="text-sm font-bold">{summaryMetrics.avgTime} phút</p>
+              <p className="text-[11px] font-medium text-muted-foreground">Thời gian TB/file</p>
+              <p className="text-sm font-bold">{formatNumber(summaryMetrics.avgTime, { maximumFractionDigits: 1 })} phút</p>
             </div>
           </div>
         </div>
@@ -678,7 +679,7 @@ export function EmployeeKpiTable({
                   onClick={() => handleSort('time')}
                   className="h-8 text-xs font-semibold text-foreground hover:bg-muted"
                 >
-                  <span>Thời gian TB</span>
+                  <span>Thời gian TB/file</span>
                   <ArrowUpDown className="ml-1.5 size-3" />
                 </Button>
               </TableHead>
@@ -909,7 +910,7 @@ export function EmployeeKpiTable({
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground font-medium">
                         <Clock className="size-3 text-muted-foreground" />
-                        <span>{row.avgProcessingTimeMinutes ?? 0} phút</span>
+                        <span>{formatNumber(row.avgProcessingTimeMinutes ?? 0, { maximumFractionDigits: 1 })} phút</span>
                       </div>
                     </TableCell>
 

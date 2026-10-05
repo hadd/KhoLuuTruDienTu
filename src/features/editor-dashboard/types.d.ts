@@ -23,5 +23,7 @@ export type EditorDashboardT = {
   inProgress: EditorDashboardVolumeT
   accuracy: EditorDashboardAccuracyT
   avgProcessingTimeSeconds: number
+  avgProcessingTimeFileSeconds?: number
+  avgProcessingTimeDossierSeconds?: number
   completedTrend: Array<EditorDashboardCompletedPointT>
 }

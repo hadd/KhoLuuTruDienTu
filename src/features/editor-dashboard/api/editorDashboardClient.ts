@@ -57,6 +57,8 @@ function normalizeDashboard(raw: EditorDashboardRawT): EditorDashboardT {
       rate: raw.accuracy?.rate ?? 0,
     },
     avgProcessingTimeSeconds: raw.avgProcessingTimeSeconds ?? 0,
+    avgProcessingTimeFileSeconds: (raw as any).avgProcessingTimeFileSeconds ?? raw.avgProcessingTimeSeconds ?? 0,
+    avgProcessingTimeDossierSeconds: (raw as any).avgProcessingTimeDossierSeconds ?? 0,
     completedTrend,
   }
 }

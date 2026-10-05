@@ -725,8 +725,13 @@ export function AdminDashboardPage({
               <CardContent className="grid gap-3 flex-1 flex-col justify-center">
                 <KpiInline
                   icon={Timer}
-                  label={t('sections.performance.avgProcessingTime')}
-                  value={formatDurationSeconds(data.avgProcessingTimeSeconds)}
+                  label="Thời gian TB / file"
+                  value={formatDurationSeconds(data.avgProcessingTimeFileSeconds ?? data.avgProcessingTimeSeconds)}
+                />
+                <KpiInline
+                  icon={Timer}
+                  label="Thời gian TB / hồ sơ"
+                  value={formatDurationSeconds(data.avgProcessingTimeDossierSeconds ?? 0)}
                 />
                 <KpiInline
                   icon={CheckCircle2}
