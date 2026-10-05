@@ -51,6 +51,8 @@ export const editorDashboardResponseSchema = t.Object({
     inProgress: workloadVolumeSchema,
     accuracy: editorAccuracySchema,
     avgProcessingTimeSeconds: t.Number(),
+    avgProcessingTimeFileSeconds: t.Optional(t.Number()),
+    avgProcessingTimeDossierSeconds: t.Optional(t.Number()),
 });
 
 export const qcEfficiencySchema = t.Object({
@@ -116,6 +118,8 @@ export const adminOverviewSchema = t.Object({
 export const adminPerformanceSchema = t.Object({
     overallApprovalRate: t.Number(),
     avgProcessingTimeSeconds: t.Number(),
+    avgProcessingTimeFileSeconds: t.Optional(t.Number()),
+    avgProcessingTimeDossierSeconds: t.Optional(t.Number()),
     dossiersApprovedToday: t.Number(),
     dossiersApprovedThisWeek: t.Number(),
 });

@@ -453,10 +453,33 @@ async function loadDuplicateRules() {
     return db.select().from(duplicateDetectionRules);
 }
 
+function parseStrictDate(value?: string): Date | null {
+    if (!value?.trim()) return null;
+    const trimmed = value.trim();
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+    if (match) {
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+        const d = new Date(Date.UTC(year, month - 1, day));
+        if (
+            d.getUTCFullYear() === year &&
+            d.getUTCMonth() === month - 1 &&
+            d.getUTCDate() === day
+        ) {
+            return d;
+        }
+        return null;
+    }
+    const date = new Date(trimmed);
+    if (Number.isNaN(date.getTime())) return null;
+    return date;
+}
+
 function parseDateBoundary(value?: string, endOfDay = false): Date | null {
     if (!value?.trim()) return null;
-    const date = new Date(value.trim());
-    if (Number.isNaN(date.getTime())) return null;
+    const date = parseStrictDate(value);
+    if (!date) return null;
     if (endOfDay) {
         date.setHours(23, 59, 59, 999);
     }
@@ -1079,8 +1102,8 @@ export const ArchiveDisposalService = {
     ) {
         await assertCouncilReviewWorkflowEnabled();
 
-        const catalogDate = new Date(input.catalogDate);
-        if (Number.isNaN(catalogDate.getTime())) {
+        const catalogDate = parseStrictDate(input.catalogDate);
+        if (!catalogDate) {
             throw httpError.badRequest("Ngày lập không hợp lệ");
         }
 
@@ -1118,8 +1141,8 @@ export const ArchiveDisposalService = {
         if (input.name !== undefined) patch.name = input.name.trim();
         if (input.notes !== undefined) patch.notes = input.notes?.trim() ?? "";
         if (input.catalogDate !== undefined) {
-            const catalogDate = new Date(input.catalogDate);
-            if (Number.isNaN(catalogDate.getTime())) {
+            const catalogDate = parseStrictDate(input.catalogDate);
+            if (!catalogDate) {
                 throw httpError.badRequest("Ngày lập không hợp lệ");
             }
             patch.catalogDate = catalogDate;
