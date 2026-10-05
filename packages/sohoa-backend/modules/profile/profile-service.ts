@@ -637,6 +637,7 @@ export const ProfileService = {
     },
 
     async getAllActiveUsers(query: Record<string, unknown> = {}, profile?: UserWithRoles) {
+        const hasUserRolesFilter = JSON.stringify(query).includes("userRoles");
         return await crud.list(query, {
             withOverride: {
                 userRoles: {
@@ -647,18 +648,24 @@ export const ProfileService = {
                 },
             },
             internalFilterQuery: () => {
+                const filters: SQL[] = [];
                 if (profile && !authHelper.isAdmin(profile)) {
-                    return notExists(
-                        db.select()
-                            .from(userRoles)
-                            .where(and(
-                                eq(userRoles.userId, userProfiles.id),
-                                eq(userRoles.roleId, "admin"),
-                                isNull(userRoles.expiredAt)
-                            ))
+                    filters.push(
+                        notExists(
+                            db.select()
+                                .from(userRoles)
+                                .where(and(
+                                    eq(userRoles.userId, userProfiles.id),
+                                    eq(userRoles.roleId, "admin"),
+                                    isNull(userRoles.expiredAt)
+                                ))
+                        )
                     );
                 }
-                return undefined;
+                if (hasUserRolesFilter) {
+                    filters.push(isNull(userRoles.expiredAt));
+                }
+                return filters.length ? and(...filters) : undefined;
             }
         });
     },
