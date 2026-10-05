@@ -224,6 +224,9 @@ type AssignmentVolumeStats = {
     makerCompletedFilesCount: number;
     qcAssignedFilesCount: number;
     qcCompletedFilesCount: number;
+    totalWorkingMinutes?: number;
+    minCompletedAt?: Date | null;
+    maxCompletedAt?: Date | null;
 };
 
 function toVolume(dossiers = 0, files = 0, pages = 0): WorkloadVolume {
@@ -255,6 +258,49 @@ function resolveKpiStatus(accuracyRate: number, dossierCompletionRate: number) {
     return "CRITICAL" as const;
 }
 
+function calculateDailyWorkingMinutes(tFirst: Date, tLast: Date): number {
+    if (tFirst > tLast) {
+        return 0;
+    }
+
+    const year = tFirst.getFullYear();
+    const month = tFirst.getMonth();
+    const date = tFirst.getDate();
+    const hour = tFirst.getHours();
+
+    const shiftStart = hour < 12
+        ? new Date(year, month, date, 8, 0, 0, 0)
+        : new Date(year, month, date, 13, 0, 0, 0);
+
+    const dayEnd = new Date(year, month, date, 17, 0, 0, 0);
+    const end = tLast > dayEnd ? dayEnd : tLast;
+
+    if (end <= shiftStart) {
+        return 0;
+    }
+
+    const morningStart = new Date(year, month, date, 8, 0, 0, 0);
+    const morningEnd = new Date(year, month, date, 12, 0, 0, 0);
+    const afternoonStart = new Date(year, month, date, 13, 0, 0, 0);
+    const afternoonEnd = new Date(year, month, date, 17, 0, 0, 0);
+
+    let morningMins = 0;
+    const mStart = shiftStart > morningStart ? shiftStart : morningStart;
+    const mEnd = end < morningEnd ? end : morningEnd;
+    if (mStart < mEnd) {
+        morningMins = Math.round((mEnd.getTime() - mStart.getTime()) / 60000);
+    }
+
+    let afternoonMins = 0;
+    const aStart = shiftStart > afternoonStart ? shiftStart : afternoonStart;
+    const aEnd = end < afternoonEnd ? end : afternoonEnd;
+    if (aStart < aEnd) {
+        afternoonMins = Math.round((aEnd.getTime() - aStart.getTime()) / 60000);
+    }
+
+    return morningMins + afternoonMins;
+}
+
 function buildPersonalKpiRow(date: string, stats: AssignmentVolumeStats) {
     const dossierCompletionRate = calcRate(stats.completedDossiersCount, stats.assignedDossiersCount);
     const pageCompletionRate = calcRate(stats.completedPagesCount, stats.assignedPagesCount);
@@ -269,6 +315,11 @@ function buildPersonalKpiRow(date: string, stats: AssignmentVolumeStats) {
     const accuracyRate = reviewedForAccuracy > 0
         ? calcRate(stats.correctCount, reviewedForAccuracy)
         : (stats.completedDossiersCount > 0 ? 100 : 0);
+
+    const workingMins = stats.totalWorkingMinutes ?? 0;
+    const avgProcessingTimeMinutes = stats.completedFilesCount > 0 && workingMins > 0
+        ? Math.round((workingMins / stats.completedFilesCount) * 10) / 10
+        : Math.round((stats.avgProcessingTimeSeconds / 60) * 10) / 10;
 
     return {
         date,
@@ -301,7 +352,7 @@ function buildPersonalKpiRow(date: string, stats: AssignmentVolumeStats) {
         qcPageCompletionRate,
         qcFileCompletionRate,
         accuracyRate,
-        avgProcessingTimeMinutes: Math.round(stats.avgProcessingTimeSeconds / 60),
+        avgProcessingTimeMinutes,
         kpiStatus: resolveKpiStatus(accuracyRate, dossierCompletionRate),
     };
 }
@@ -314,6 +365,7 @@ function emptyAssignmentVolumeStats(): AssignmentVolumeStats {
         correctCount: 0,
         incorrectCount: 0,
         avgProcessingTimeSeconds: 0,
+        totalWorkingMinutes: 0,
         makerAssignedDossiersCount: 0,
         makerCompletedDossiersCount: 0,
         qcAssignedDossiersCount: 0,
@@ -335,6 +387,8 @@ function emptyAssignmentVolumeStats(): AssignmentVolumeStats {
 
 function sumAssignmentVolumeStats(rows: AssignmentVolumeStats[]): AssignmentVolumeStats {
     const total = emptyAssignmentVolumeStats();
+    let totalWorkingMinutes = 0;
+    let totalCompletedFiles = 0;
     let weightedSeconds = 0;
     let completedWeight = 0;
     for (const row of rows) {
@@ -359,10 +413,15 @@ function sumAssignmentVolumeStats(rows: AssignmentVolumeStats[]): AssignmentVolu
         total.makerCompletedFilesCount += row.makerCompletedFilesCount;
         total.qcAssignedFilesCount += row.qcAssignedFilesCount;
         total.qcCompletedFilesCount += row.qcCompletedFilesCount;
+        totalWorkingMinutes += row.totalWorkingMinutes ?? 0;
+        totalCompletedFiles += row.completedFilesCount;
         weightedSeconds += row.avgProcessingTimeSeconds * row.completedDossiersCount;
         completedWeight += row.completedDossiersCount;
     }
-    total.avgProcessingTimeSeconds = completedWeight > 0 ? weightedSeconds / completedWeight : 0;
+    total.totalWorkingMinutes = totalWorkingMinutes;
+    total.avgProcessingTimeSeconds = totalCompletedFiles > 0
+        ? (totalWorkingMinutes * 60) / totalCompletedFiles
+        : (completedWeight > 0 ? weightedSeconds / completedWeight : 0);
     return total;
 }
 
@@ -797,6 +856,41 @@ export const DashboardService = {
                 ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
             ));
 
+        const dailyCompletedRows = await db
+            .select({
+                completedFiles: sql<number>`coalesce(sum(coalesce(${dossierFileCounts.fileCount}, 0)), 0)`.mapWith(Number),
+                completedDossiers: sql<number>`count(*)`.mapWith(Number),
+                minCompletedAt: sql<Date | null>`min(${dossierAssignments.completedAt})`.mapWith((v) => (v ? new Date(v) : null)),
+                maxCompletedAt: sql<Date | null>`max(${dossierAssignments.completedAt})`.mapWith((v) => (v ? new Date(v) : null)),
+            })
+            .from(dossierAssignments)
+            .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
+            .leftJoin(dossierFileCounts, eq(dossierAssignments.dossierId, dossierFileCounts.dossierId))
+            .where(activeDossierWhere(
+                eq(dossierAssignments.assigneeId, userId),
+                eq(dossierAssignments.role, WorkerRole.MAKER),
+                eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+            ))
+            .groupBy(sql`to_char(date_trunc('day', coalesce(${dossierAssignments.completedAt}, ${dossierAssignments.assignedAt})), 'YYYY-MM-DD')`);
+
+        let totalWorkingMinutes = 0;
+        let totalCompletedFilesForTime = 0;
+        let totalCompletedDossiersForTime = 0;
+        for (const row of dailyCompletedRows) {
+            totalCompletedFilesForTime += row.completedFiles;
+            totalCompletedDossiersForTime += row.completedDossiers;
+            if (row.minCompletedAt && row.maxCompletedAt) {
+                totalWorkingMinutes += calculateDailyWorkingMinutes(row.minCompletedAt, row.maxCompletedAt);
+            }
+        }
+
+        const avgProcessingTimeFileSeconds = totalCompletedFilesForTime > 0
+            ? Math.round((totalWorkingMinutes * 60) / totalCompletedFilesForTime)
+            : roundSeconds(summary?.avgProcessingTimeSeconds ?? 0);
+        const avgProcessingTimeDossierSeconds = totalCompletedDossiersForTime > 0
+            ? Math.round((totalWorkingMinutes * 60) / totalCompletedDossiersForTime)
+            : roundSeconds(summary?.avgProcessingTimeSeconds ?? 0);
+
         const correct = summary?.correct ?? 0;
         const incorrect = summary?.incorrect ?? 0;
         const reviewedForAccuracy = correct + incorrect;
@@ -822,7 +916,9 @@ export const DashboardService = {
                 incorrect,
                 rate: calcRate(correct, reviewedForAccuracy),
             },
-            avgProcessingTimeSeconds: roundSeconds(summary?.avgProcessingTimeSeconds ?? 0),
+            avgProcessingTimeSeconds: avgProcessingTimeFileSeconds,
+            avgProcessingTimeFileSeconds,
+            avgProcessingTimeDossierSeconds,
         };
     },
 
@@ -923,16 +1019,17 @@ export const DashboardService = {
             eq(dossierAssignments.assigneeId, userId),
             ne(dossierAssignments.status, AssignmentStatus.TRANSFERRED),
         ];
+        const effectiveDateSql = sql`coalesce(${dossierAssignments.completedAt}, ${dossierAssignments.assignedAt})`;
         const parsedFrom = parseOptionalDate(dateFrom);
         const parsedTo = parseOptionalDate(dateTo, true);
         if (parsedFrom) {
-            assignmentConditions.push(gte(dossierAssignments.assignedAt, parsedFrom));
+            assignmentConditions.push(sql`${effectiveDateSql} >= ${parsedFrom.toISOString()}::timestamptz`);
         }
         if (parsedTo) {
-            assignmentConditions.push(lte(dossierAssignments.assignedAt, parsedTo));
+            assignmentConditions.push(sql`${effectiveDateSql} <= ${parsedTo.toISOString()}::timestamptz`);
         }
 
-        const dayKeySql = sql`to_char(date_trunc('day', ${dossierAssignments.assignedAt}), 'YYYY-MM-DD')`;
+        const dayKeySql = sql`to_char(date_trunc('day', ${effectiveDateSql}), 'YYYY-MM-DD')`;
         const rows = await db
             .select({
                 date: sql<string>`${dayKeySql}`.mapWith(String),
@@ -958,6 +1055,8 @@ export const DashboardService = {
                 makerCompletedFilesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} = ${WorkerRole.MAKER} and ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then coalesce(${dossierFileCounts.fileCount}, 0) else 0 end), 0)`.mapWith(Number),
                 qcAssignedFilesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} <> ${WorkerRole.MAKER} then coalesce(${dossierFileCounts.fileCount}, 0) else 0 end), 0)`.mapWith(Number),
                 qcCompletedFilesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} <> ${WorkerRole.MAKER} and ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then coalesce(${dossierFileCounts.fileCount}, 0) else 0 end), 0)`.mapWith(Number),
+                minCompletedAt: sql<Date | null>`min(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then ${dossierAssignments.completedAt} end)`.mapWith((v) => (v ? new Date(v) : null)),
+                maxCompletedAt: sql<Date | null>`max(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then ${dossierAssignments.completedAt} end)`.mapWith((v) => (v ? new Date(v) : null)),
             })
             .from(dossierAssignments)
             .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
@@ -966,31 +1065,37 @@ export const DashboardService = {
             .groupBy(dayKeySql)
             .orderBy(dayKeySql);
 
-        const dayStats: Array<AssignmentVolumeStats & { date: string }> = rows.map((row) => ({
-            date: row.date,
-            assignedDossiersCount: row.assignedDossiersCount,
-            completedDossiersCount: row.completedDossiersCount,
-            rejectedDossiersCount: row.rejectedDossiersCount,
-            correctCount: row.correctCount,
-            incorrectCount: row.incorrectCount,
-            avgProcessingTimeSeconds: row.avgProcessingTimeSeconds,
-            makerAssignedDossiersCount: row.makerAssignedDossiersCount,
-            makerCompletedDossiersCount: row.makerCompletedDossiersCount,
-            qcAssignedDossiersCount: row.qcAssignedDossiersCount,
-            qcCompletedDossiersCount: row.qcCompletedDossiersCount,
-            assignedPagesCount: row.assignedPagesCount,
-            completedPagesCount: row.completedPagesCount,
-            makerAssignedPagesCount: row.makerAssignedPagesCount,
-            makerCompletedPagesCount: row.makerCompletedPagesCount,
-            qcAssignedPagesCount: row.qcAssignedPagesCount,
-            qcCompletedPagesCount: row.qcCompletedPagesCount,
-            assignedFilesCount: row.assignedFilesCount,
-            completedFilesCount: row.completedFilesCount,
-            makerAssignedFilesCount: row.makerAssignedFilesCount,
-            makerCompletedFilesCount: row.makerCompletedFilesCount,
-            qcAssignedFilesCount: row.qcAssignedFilesCount,
-            qcCompletedFilesCount: row.qcCompletedFilesCount,
-        }));
+        const dayStats: Array<AssignmentVolumeStats & { date: string }> = rows.map((row) => {
+            const workingMins = (row.minCompletedAt && row.maxCompletedAt)
+                ? calculateDailyWorkingMinutes(row.minCompletedAt, row.maxCompletedAt)
+                : 0;
+            return {
+                date: row.date,
+                assignedDossiersCount: row.assignedDossiersCount,
+                completedDossiersCount: row.completedDossiersCount,
+                rejectedDossiersCount: row.rejectedDossiersCount,
+                correctCount: row.correctCount,
+                incorrectCount: row.incorrectCount,
+                avgProcessingTimeSeconds: row.completedFilesCount > 0 ? (workingMins * 60) / row.completedFilesCount : row.avgProcessingTimeSeconds,
+                totalWorkingMinutes: workingMins,
+                makerAssignedDossiersCount: row.makerAssignedDossiersCount,
+                makerCompletedDossiersCount: row.makerCompletedDossiersCount,
+                qcAssignedDossiersCount: row.qcAssignedDossiersCount,
+                qcCompletedDossiersCount: row.qcCompletedDossiersCount,
+                assignedPagesCount: row.assignedPagesCount,
+                completedPagesCount: row.completedPagesCount,
+                makerAssignedPagesCount: row.makerAssignedPagesCount,
+                makerCompletedPagesCount: row.makerCompletedPagesCount,
+                qcAssignedPagesCount: row.qcAssignedPagesCount,
+                qcCompletedPagesCount: row.qcCompletedPagesCount,
+                assignedFilesCount: row.assignedFilesCount,
+                completedFilesCount: row.completedFilesCount,
+                makerAssignedFilesCount: row.makerAssignedFilesCount,
+                makerCompletedFilesCount: row.makerCompletedFilesCount,
+                qcAssignedFilesCount: row.qcAssignedFilesCount,
+                qcCompletedFilesCount: row.qcCompletedFilesCount,
+            };
+        });
 
         const days = dayStats.map((row) => buildPersonalKpiRow(row.date, row));
         const total = buildPersonalKpiRow("total", sumAssignmentVolumeStats(dayStats));
@@ -1192,10 +1297,11 @@ export const DashboardService = {
             dossierProjectCondition(projectCodes, includeUnassigned),
         ];
 
+        const effectiveDateSql = sql`coalesce(${dossierAssignments.completedAt}, ${dossierAssignments.assignedAt})`;
         if (dateFrom) {
             const dFrom = typeof dateFrom === "string" ? new Date(dateFrom) : dateFrom;
             if (!isNaN(dFrom.getTime())) {
-                assignmentConditions.push(gte(dossierAssignments.assignedAt, dFrom));
+                assignmentConditions.push(sql`${effectiveDateSql} >= ${dFrom.toISOString()}::timestamptz`);
             }
         }
         if (dateTo) {
@@ -1204,7 +1310,7 @@ export const DashboardService = {
                 if (typeof dateTo === "string" && dateTo.length === 10) {
                     dTo.setHours(23, 59, 59, 999);
                 }
-                assignmentConditions.push(lte(dossierAssignments.assignedAt, dTo));
+                assignmentConditions.push(sql`${effectiveDateSql} <= ${dTo.toISOString()}::timestamptz`);
             }
         }
 
@@ -1233,12 +1339,40 @@ export const DashboardService = {
                 makerCompletedFilesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} = ${WorkerRole.MAKER} and ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then coalesce(${dossierFileCounts.fileCount}, 0) else 0 end), 0)`.mapWith(Number),
                 qcAssignedFilesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} <> ${WorkerRole.MAKER} then coalesce(${dossierFileCounts.fileCount}, 0) else 0 end), 0)`.mapWith(Number),
                 qcCompletedFilesCount: sql<number>`coalesce(sum(case when ${dossierAssignments.role} <> ${WorkerRole.MAKER} and ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then coalesce(${dossierFileCounts.fileCount}, 0) else 0 end), 0)`.mapWith(Number),
+                minCompletedAt: sql<Date | null>`min(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then ${dossierAssignments.completedAt} end)`.mapWith((v) => (v ? new Date(v) : null)),
+                maxCompletedAt: sql<Date | null>`max(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} then ${dossierAssignments.completedAt} end)`.mapWith((v) => (v ? new Date(v) : null)),
             })
             .from(dossierAssignments)
             .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
             .leftJoin(dossierFileCounts, eq(dossierAssignments.dossierId, dossierFileCounts.dossierId))
             .where(activeDossierWhere(...assignmentConditions))
             .groupBy(dossierAssignments.assigneeId);
+
+        const dailyWorkingRows = await db
+            .select({
+                assigneeId: dossierAssignments.assigneeId,
+                minCompletedAt: sql<Date | null>`min(${dossierAssignments.completedAt})`.mapWith((v) => (v ? new Date(v) : null)),
+                maxCompletedAt: sql<Date | null>`max(${dossierAssignments.completedAt})`.mapWith((v) => (v ? new Date(v) : null)),
+            })
+            .from(dossierAssignments)
+            .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
+            .where(activeDossierWhere(
+                ...assignmentConditions,
+                eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
+            ))
+            .groupBy(
+                dossierAssignments.assigneeId,
+                sql`to_char(date_trunc('day', coalesce(${dossierAssignments.completedAt}, ${dossierAssignments.assignedAt})), 'YYYY-MM-DD')`
+            );
+
+        const workingMinutesPerUser = new Map<string, number>();
+        for (const row of dailyWorkingRows) {
+            if (row.assigneeId && row.minCompletedAt && row.maxCompletedAt) {
+                const mins = calculateDailyWorkingMinutes(row.minCompletedAt, row.maxCompletedAt);
+                const current = workingMinutesPerUser.get(row.assigneeId) ?? 0;
+                workingMinutesPerUser.set(row.assigneeId, current + mins);
+            }
+        }
 
         const statsMap = new Map(assignmentStats.map((row) => [row.assigneeId, row]));
 
@@ -1333,7 +1467,10 @@ export const DashboardService = {
                 ? calcRate(stats.correctCount, reviewedForAccuracy)
                 : (stats.completedDossiersCount > 0 ? 100 : 0);
 
-            const avgProcessingTimeMinutes = Math.round(stats.avgProcessingTimeSeconds / 60);
+            const workingMins = workingMinutesPerUser.get(user.id) ?? 0;
+            const avgProcessingTimeMinutes = completedFilesCount > 0 && workingMins > 0
+                ? Math.round((workingMins / completedFilesCount) * 10) / 10
+                : Math.round((stats.avgProcessingTimeSeconds / 60) * 10) / 10;
 
             let kpiStatus: "EXCELLENT" | "GOOD" | "WARNING" | "CRITICAL" = "GOOD";
             if (accuracyRate >= 95 && dossierCompletionRate >= 90) {
@@ -1452,6 +1589,8 @@ export const DashboardService = {
             }
         }
 
+        const dossierFileCounts = dossierFileCountsSubquery();
+
         const [
             statusRows,
             activeUsersRow,
@@ -1519,14 +1658,23 @@ export const DashboardService = {
                 )),
             db
                 .select({
-                    avgProcessingTimeSeconds: sql<number>`coalesce(avg(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.completedAt} is not null then extract(epoch from (${dossierAssignments.completedAt} - ${dossierAssignments.assignedAt})) end), 0)`.mapWith(Number),
+                    completedFiles: sql<number>`coalesce(sum(coalesce(${dossierFileCounts.fileCount}, 0)), 0)`.mapWith(Number),
+                    completedDossiers: sql<number>`count(*)`.mapWith(Number),
+                    minCompletedAt: sql<Date | null>`min(${dossierAssignments.completedAt})`.mapWith((v) => (v ? new Date(v) : null)),
+                    maxCompletedAt: sql<Date | null>`max(${dossierAssignments.completedAt})`.mapWith((v) => (v ? new Date(v) : null)),
                 })
                 .from(dossierAssignments)
                 .innerJoin(dossiers, eq(dossierAssignments.dossierId, dossiers.id))
+                .leftJoin(dossierFileCounts, eq(dossierAssignments.dossierId, dossierFileCounts.dossierId))
                 .where(activeDossierWhere(
                     eq(dossierAssignments.role, WorkerRole.MAKER),
+                    eq(dossierAssignments.status, AssignmentStatus.COMPLETED),
                     dossierProjectCondition(projectCodes, includeUnassigned),
-                )),
+                ))
+                .groupBy(
+                    dossierAssignments.assigneeId,
+                    sql`to_char(date_trunc('day', coalesce(${dossierAssignments.completedAt}, ${dossierAssignments.assignedAt})), 'YYYY-MM-DD')`
+                ),
             db
                 .select({
                     correct: sql<number>`coalesce(sum(case when ${dossierAssignments.status} = ${AssignmentStatus.COMPLETED} and ${dossierAssignments.workQuality} = ${WorkQuality.CORRECT} then 1 else 0 end), 0)`.mapWith(Number),
@@ -1612,6 +1760,23 @@ export const DashboardService = {
             }
         }
 
+        let totalAdminWorkingMinutes = 0;
+        let totalAdminCompletedFiles = 0;
+        let totalAdminCompletedDossiers = 0;
+        for (const row of makerPerformanceRow) {
+            totalAdminCompletedFiles += row.completedFiles;
+            totalAdminCompletedDossiers += row.completedDossiers;
+            if (row.minCompletedAt && row.maxCompletedAt) {
+                totalAdminWorkingMinutes += calculateDailyWorkingMinutes(row.minCompletedAt, row.maxCompletedAt);
+            }
+        }
+        const adminAvgTimeFileSeconds = totalAdminCompletedFiles > 0
+            ? Math.round((totalAdminWorkingMinutes * 60) / totalAdminCompletedFiles)
+            : 0;
+        const adminAvgTimeDossierSeconds = totalAdminCompletedDossiers > 0
+            ? Math.round((totalAdminWorkingMinutes * 60) / totalAdminCompletedDossiers)
+            : 0;
+
         const groupSummaries = await buildGroupSummaries(activeGroups);
 
             return {
@@ -1636,9 +1801,9 @@ export const DashboardService = {
                 workloadStats,
                 performance: {
                     overallApprovalRate: calcRate(qcApproved, qcReviewed),
-                    avgProcessingTimeSeconds: roundSeconds(
-                        makerPerformanceRow[0]?.avgProcessingTimeSeconds ?? 0,
-                    ),
+                    avgProcessingTimeSeconds: adminAvgTimeFileSeconds,
+                    avgProcessingTimeFileSeconds: adminAvgTimeFileSeconds,
+                    avgProcessingTimeDossierSeconds: adminAvgTimeDossierSeconds,
                     dossiersApprovedToday: approvedTodayRow[0]?.count ?? 0,
                     dossiersApprovedThisWeek: approvedWeekRow[0]?.count ?? 0,
                 },
