@@ -22,19 +22,43 @@ async function ensureClient(): Promise<ReturnType<typeof createS3Client> | null>
   return cachedClient
 }
 
+interface PresignedUrlCache {
+  url: string
+  expiresAt: number
+}
+const urlCache = new Map<string, PresignedUrlCache>()
+
 export async function buildFileUrlFromRegistry(
   fileRegistry?: { bucket?: string; filePath?: string },
   options: { expirySeconds?: number } = {},
 ): Promise<string | undefined> {
   const { expirySeconds = DEFAULT_EXPIRY_SECONDS } = options
   if (!fileRegistry?.bucket || !fileRegistry?.filePath) return undefined
+  
+  const cacheKey = `${fileRegistry.bucket}:${fileRegistry.filePath}`
+  const now = Date.now()
+  const cached = urlCache.get(cacheKey)
+
+  // Serve from cache if it exists and is valid for at least 5 more minutes
+  if (cached && cached.expiresAt > now + 300 * 1000) {
+    return cached.url
+  }
+
   const s3 = await ensureClient()
   if (!s3) return undefined
-  return await s3.getMinIOClient().presignedGetObject(
+
+  const url = await s3.getMinIOClient().presignedGetObject(
     fileRegistry.bucket,
     fileRegistry.filePath,
     expirySeconds,
   )
+  
+  urlCache.set(cacheKey, {
+    url,
+    expiresAt: now + expirySeconds * 1000,
+  })
+
+  return url
 }
 
 export async function attachFileUrl<T extends { fileRegistry?: any }>(
