@@ -12,17 +12,20 @@ export const adminDashboardQuerySchema = t.Object({
     chartGranularity: t.Optional(adminChartGranularitySchema),
     dateFrom: t.Optional(t.String()),
     dateTo: t.Optional(t.String()),
+    projectCode: t.Optional(t.String()),
 });
 
 export const adminEmployeeKpisQuerySchema = t.Object({
     dateFrom: t.Optional(t.String()),
     dateTo: t.Optional(t.String()),
+    projectCode: t.Optional(t.String()),
 });
 
 export const adminDossierChartQuerySchema = t.Object({
     chartGranularity: t.Optional(adminChartGranularitySchema),
     dateFrom: t.Optional(t.String()),
     dateTo: t.Optional(t.String()),
+    projectCode: t.Optional(t.String()),
 });
 
 export const workloadVolumeSchema = t.Object({

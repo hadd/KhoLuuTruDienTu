@@ -167,11 +167,12 @@ function dossierProjectCondition(projectCodes?: string[], includeUnassigned: boo
     if (!projectCodes) {
         return undefined;
     }
+    const unassignedCond = or(isNull(dossiers.projectCode), eq(dossiers.projectCode, ""));
     if (projectCodes.length === 0) {
-        return includeUnassigned ? isNull(dossiers.projectCode) : sql`false`;
+        return includeUnassigned ? unassignedCond : sql`false`;
     }
     return includeUnassigned
-        ? or(inArray(dossiers.projectCode, projectCodes), isNull(dossiers.projectCode))
+        ? or(inArray(dossiers.projectCode, projectCodes), unassignedCond)
         : inArray(dossiers.projectCode, projectCodes);
 }
 
