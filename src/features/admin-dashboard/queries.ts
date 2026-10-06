@@ -12,10 +12,11 @@ export const adminDashboardQueryKey = ['admin', 'dashboard'] as const
 export const adminDashboardOverviewQueryOptions = (
   dateFrom?: string,
   dateTo?: string,
+  projectCode?: string,
 ) =>
   queryOptions({
-    queryKey: [...adminDashboardQueryKey, 'overview', dateFrom, dateTo],
-    queryFn: () => getAdminDashboard({ dateFrom, dateTo }),
+    queryKey: [...adminDashboardQueryKey, 'overview', dateFrom, dateTo, projectCode ?? ''],
+    queryFn: () => getAdminDashboard({ dateFrom, dateTo, projectCode }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   })
@@ -26,10 +27,11 @@ export const adminDashboardQueryOptions = adminDashboardOverviewQueryOptions
 export const adminEmployeeKpisQueryOptions = (
   dateFrom?: string,
   dateTo?: string,
+  projectCode?: string,
 ) =>
   queryOptions({
-    queryKey: [...adminDashboardQueryKey, 'employee-kpis', dateFrom, dateTo],
-    queryFn: () => getAdminEmployeeKpis({ dateFrom, dateTo }),
+    queryKey: [...adminDashboardQueryKey, 'employee-kpis', dateFrom, dateTo, projectCode ?? ''],
+    queryFn: () => getAdminEmployeeKpis({ dateFrom, dateTo, projectCode }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   })
@@ -38,6 +40,7 @@ export const adminDossierChartQueryOptions = (
   dossierTrendGranularity: AdminDashboardDossierTrendGranularityT = 'month',
   dateFrom?: string,
   dateTo?: string,
+  projectCode?: string,
 ) =>
   queryOptions({
     queryKey: [
@@ -46,12 +49,14 @@ export const adminDossierChartQueryOptions = (
       dossierTrendGranularity,
       dateFrom,
       dateTo,
+      projectCode ?? '',
     ],
     queryFn: () =>
       getAdminDossierChart({
         dossierTrendGranularity,
         dateFrom,
         dateTo,
+        projectCode,
       }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,

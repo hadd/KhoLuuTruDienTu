@@ -22,6 +22,7 @@ import {
   hasAnyTeamDashboardSection,
   isDashboardSectionVisible,
   needsEditorDashboardData,
+  needsPersonalDailyKpiTable,
   needsQcDashboardData,
   needsQcGroupDashboardData,
 } from '@/features/permissions/lib/dashboardAccess'
@@ -39,6 +40,7 @@ type ModularOverviewDashboardProps = {
   roleChart: AdminRoleChartTypeT
   dossierTrendGranularity: AdminDashboardDossierTrendGranularityT
   groupId?: string
+  projectCode?: string
 }
 
 export function ModularOverviewDashboard({
@@ -48,6 +50,7 @@ export function ModularOverviewDashboard({
   roleChart,
   dossierTrendGranularity,
   groupId,
+  projectCode,
 }: ModularOverviewDashboardProps) {
   const { t } = useTranslation('common')
   const showPersonal = hasAnyPersonalDashboardSection(permissions, hidden)
@@ -57,6 +60,7 @@ export function ModularOverviewDashboard({
   const showEditor = needsEditorDashboardData(permissions, hidden)
   const showQcPersonal = needsQcDashboardData(permissions, hidden)
   const showQcGroup = needsQcGroupDashboardData(permissions, hidden)
+  const showPersonalKpiTable = needsPersonalDailyKpiTable(permissions, hidden)
   const showAdminTeam =
     isDashboardSectionVisible(
       permissions,
@@ -100,6 +104,7 @@ export function ModularOverviewDashboard({
             permissions={permissions}
             hidden={hidden}
             groupId={groupId}
+            projectCode={projectCode}
             sectionGroups={['overview']}
           />
         </DashboardGroup>
@@ -126,7 +131,9 @@ export function ModularOverviewDashboard({
               includeGroup={false}
             />
           ) : null}
-          <PersonalKpiTable permissions={permissions} hidden={hidden} />
+          {showPersonalKpiTable ? (
+            <PersonalKpiTable permissions={permissions} hidden={hidden} />
+          ) : null}
         </DashboardGroup>
       ) : null}
 
@@ -151,6 +158,7 @@ export function ModularOverviewDashboard({
               permissions={permissions}
               hidden={hidden}
               groupId={groupId}
+              projectCode={projectCode}
               sectionGroups={['team']}
             />
           ) : null}
@@ -256,6 +264,7 @@ function AdminSection({
   permissions,
   hidden,
   groupId,
+  projectCode,
   sectionGroups,
 }: {
   roleChart: AdminRoleChartTypeT
@@ -263,6 +272,7 @@ function AdminSection({
   permissions: Array<string>
   hidden: Array<string>
   groupId?: string
+  projectCode?: string
   sectionGroups: Array<'overview' | 'team'>
 }) {
   const [kpiDateRange, setKpiDateRange] = useState<{
@@ -282,16 +292,22 @@ function AdminSection({
     adminDashboardOverviewQueryOptions(
       dossierStatusDateRange.dateFrom,
       dossierStatusDateRange.dateTo,
+      projectCode,
     ),
   )
   const kpiQuery = useQuery(
-    adminEmployeeKpisQueryOptions(kpiDateRange.dateFrom, kpiDateRange.dateTo),
+    adminEmployeeKpisQueryOptions(
+      kpiDateRange.dateFrom,
+      kpiDateRange.dateTo,
+      projectCode,
+    ),
   )
   const chartQuery = useQuery(
     adminDossierChartQueryOptions(
       dossierTrendGranularity,
       trendDateRange.dateFrom,
       trendDateRange.dateTo,
+      projectCode,
     ),
   )
 

@@ -12,6 +12,7 @@ import { adminDashboardQueryOptions } from '@/features/admin-dashboard/queries'
 import { loadPermissionContext } from '@/features/auth/lib/permission-access'
 import { requirePermission } from '@/features/auth/routeGuards'
 import { ModularOverviewDashboard } from '@/features/dashboard/components/ModularOverviewDashboard'
+import { ProjectFilterCombobox } from '@/features/dashboard/components/ProjectFilterCombobox'
 import { personalDailyKpisQueryOptions } from '@/features/dashboard/queries'
 import { editorDashboardQueryOptions } from '@/features/editor-dashboard/queries'
 import type { EditorDashboardPeriodT } from '@/features/editor-dashboard/types'
@@ -55,6 +56,7 @@ const dashboardSearchSchema = z.object({
     .optional()
     .catch('month' satisfies WarehouseDashboardIntakeGranularityT),
   groupId: z.string().optional().catch(undefined),
+  projectCode: z.string().optional().catch(undefined),
 })
 
 export type DashboardSearchT = z.infer<typeof dashboardSearchSchema>
@@ -159,7 +161,7 @@ export const Route = createFileRoute('/app/dashboard/')({
 function DashboardRoute() {
   const { permissions, hidden } = Route.useLoaderData()
   const navigate = routeApi.useNavigate()
-  const { tab, roleChart, dossierTrendGranularity, period, groupId } =
+  const { tab, roleChart, dossierTrendGranularity, period, groupId, projectCode } =
     routeApi.useSearch()
 
   const { hasOverviewAccess, hasWarehouseAccess, isWarehouseOnly } = useMemo(
@@ -195,34 +197,47 @@ function DashboardRoute() {
           </p>
         </div>
 
-        {showTabSelector ? (
-          <Tabs
-            value={activeTab}
-            onValueChange={(val) => {
-              void navigate({
-                search: (prev) => ({
-                  ...prev,
-                  tab: val as 'overview' | 'warehouse',
-                }),
-              })
-            }}
-            className="w-auto"
-          >
-            <TabsList className="h-9 p-1">
-              <TabsTrigger value="overview" className="h-7 text-xs gap-1.5 px-3">
-                <LayoutDashboard className="size-3.5" />
-                <span>Tổng Quan Hệ Thống</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="warehouse"
-                className="h-7 text-xs gap-1.5 px-3"
-              >
-                <Warehouse className="size-3.5" />
-                <span>Dashboard Kho</span>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {activeTab !== 'warehouse' ? (
+            <ProjectFilterCombobox
+              value={projectCode}
+              onChange={(code) => {
+                void navigate({
+                  search: (prev) => ({ ...prev, projectCode: code }),
+                })
+              }}
+            />
+          ) : null}
+
+          {showTabSelector ? (
+            <Tabs
+              value={activeTab}
+              onValueChange={(val) => {
+                void navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    tab: val as 'overview' | 'warehouse',
+                  }),
+                })
+              }}
+              className="w-auto"
+            >
+              <TabsList className="h-9 p-1">
+                <TabsTrigger value="overview" className="h-7 text-xs gap-1.5 px-3">
+                  <LayoutDashboard className="size-3.5" />
+                  <span>Tổng Quan Hệ Thống</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="warehouse"
+                  className="h-7 text-xs gap-1.5 px-3"
+                >
+                  <Warehouse className="size-3.5" />
+                  <span>Dashboard Kho</span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          ) : null}
+        </div>
       </div>
 
       {activeTab === 'warehouse' ? (
@@ -235,6 +250,7 @@ function DashboardRoute() {
           roleChart={roleChart ?? 'pie'}
           dossierTrendGranularity={dossierTrendGranularity ?? 'month'}
           groupId={groupId}
+          projectCode={projectCode}
         />
       )}
     </div>
