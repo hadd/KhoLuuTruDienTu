@@ -504,9 +504,17 @@ export function PdfViewer({
 
     const targetCenter =
       scrollToPage ?? highlight?.page ?? visiblePageNumber ?? 1
-    const buffer = 4
-    const start = Math.max(1, targetCenter - buffer)
-    const end = Math.min(numPages, targetCenter + buffer)
+    const buffer = numPages && numPages <= 30 ? 30 : 8
+    let start = targetCenter - buffer
+    let end = targetCenter + buffer
+
+    if (start < 1) {
+      end = Math.min(numPages, end + (1 - start))
+      start = 1
+    } else if (end > numPages) {
+      start = Math.max(1, start - (end - numPages))
+      end = numPages
+    }
 
     for (let p = start; p <= end; p++) {
       activeSet.add(p)
@@ -1255,6 +1263,17 @@ export function PdfViewer({
                         renderAnnotationLayer && !onPageClick
                       }
                       canvasBackground="white"
+                      loading={
+                        <div
+                          className="flex items-center justify-center rounded border border-dashed border-border/40 bg-muted/15 text-xs font-medium text-muted-foreground/50 transition-all select-none"
+                          style={{
+                            width: pageWidth,
+                            height: pageHeight,
+                          }}
+                        >
+                          Trang {pageNumber} / {numPages}
+                        </div>
+                      }
                       onLoadSuccess={(page) =>
                         handlePageLoadSuccess(pageNumber, page)
                       }
