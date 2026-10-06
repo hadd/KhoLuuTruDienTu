@@ -430,6 +430,7 @@ function unwrapDashboardResponse(
 export const getAdminDashboard = async (params?: {
   dateFrom?: string
   dateTo?: string
+  projectCode?: string
 }): Promise<AdminDashboardT> => {
   const response = await apiClient.get<
     AdminDashboardRawT | SingleResourceResponse<AdminDashboardRawT>
@@ -438,6 +439,7 @@ export const getAdminDashboard = async (params?: {
     params: {
       ...(params?.dateFrom ? { dateFrom: params.dateFrom } : {}),
       ...(params?.dateTo ? { dateTo: params.dateTo } : {}),
+      ...(params?.projectCode ? { projectCode: params.projectCode } : {}),
     },
   })
 
@@ -447,6 +449,7 @@ export const getAdminDashboard = async (params?: {
 export const getAdminEmployeeKpis = async (params?: {
   dateFrom?: string
   dateTo?: string
+  projectCode?: string
 }): Promise<Array<AdminDashboardEmployeeKpiT>> => {
   const response = await apiClient.get<
     | { employeeKpis?: Array<AdminDashboardEmployeeKpiRawT> }
@@ -456,6 +459,7 @@ export const getAdminEmployeeKpis = async (params?: {
     params: {
       ...(params?.dateFrom ? { dateFrom: params.dateFrom } : {}),
       ...(params?.dateTo ? { dateTo: params.dateTo } : {}),
+      ...(params?.projectCode ? { projectCode: params.projectCode } : {}),
     },
   })
 
@@ -474,6 +478,7 @@ export const getAdminDossierChart = async (params?: {
   dossierTrendGranularity?: AdminDashboardDossierTrendGranularityT
   dateFrom?: string
   dateTo?: string
+  projectCode?: string
 }): Promise<AdminDashboardDossierChartT> => {
   const response = await apiClient.get<
     AdminDashboardDossierChartRawT | SingleResourceResponse<AdminDashboardDossierChartRawT>
@@ -483,6 +488,7 @@ export const getAdminDossierChart = async (params?: {
       chartGranularity: params?.dossierTrendGranularity ?? 'month',
       ...(params?.dateFrom ? { dateFrom: params.dateFrom } : {}),
       ...(params?.dateTo ? { dateTo: params.dateTo } : {}),
+      ...(params?.projectCode ? { projectCode: params.projectCode } : {}),
     },
   })
 
