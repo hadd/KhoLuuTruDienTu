@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Check, ChevronsUpDown, FolderKanban, X } from 'lucide-react'
-import { useState } from 'react'
+import { startTransition, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -47,17 +47,21 @@ export function ProjectFilterCombobox({
   }
 
   function handleSelect(projectCode: string) {
-    if (projectCode === value) {
-      onChange(undefined)
-    } else {
-      onChange(projectCode)
-    }
+    startTransition(() => {
+      if (projectCode === value) {
+        onChange(undefined)
+      } else {
+        onChange(projectCode)
+      }
+    })
     setOpen(false)
   }
 
   function handleClear(e: React.MouseEvent) {
     e.stopPropagation()
-    onChange(undefined)
+    startTransition(() => {
+      onChange(undefined)
+    })
   }
 
   return (
