@@ -439,7 +439,7 @@ async function aggregateWorkloadStats(
     )`;
 
     const isUnentered = inArray(dossiers.status, [...UNENTERED_STATUSES]);
-    const isError = or(
+    const isErrorDossier = or(
         inArray(dossiers.status, [
             ...ERROR_STATUSES,
             ...CHECKER_REJECTED_STATUSES,
@@ -452,53 +452,68 @@ async function aggregateWorkloadStats(
     );
     const isCompleted = inArray(dossiers.status, [...COMPLETED_STATUSES]);
 
-    const [row] = await db
+    // Query 1: Dossier counts (Fast: 0 joins, runs correlated EXISTS only on filtered dossiers)
+    const dossierQuery = db
         .select({
             totalDossiers: sql<number>`count(distinct ${dossiers.id})`.mapWith(Number),
+            unenteredDossiers: sql<number>`count(case when ${isUnentered} then 1 end)`.mapWith(Number),
+            unassignedDossiers: sql<number>`count(case when not ${activeAssignmentExists} then 1 end)`.mapWith(Number),
+            completedDossiers: sql<number>`count(case when ${isCompleted} then 1 end)`.mapWith(Number),
+            errorDossiers: sql<number>`count(case when ${isErrorDossier} then 1 end)`.mapWith(Number),
+        })
+        .from(dossiers)
+        .where(scope);
+
+    // Query 2: File & Page counts (Fast: 1 join dossiers <-> dossier_files, no correlated assignment EXISTS per file)
+    const fileQuery = db
+        .select({
             totalFiles: sql<number>`count(${dossierFiles.id})`.mapWith(Number),
             totalPages: sql<number>`coalesce(sum(coalesce(${dossierFiles.pageCount}, 1)), 0)`.mapWith(Number),
-            unenteredDossiers: sql<number>`count(distinct case when ${isUnentered} then ${dossiers.id} end)`.mapWith(Number),
             unenteredFiles: sql<number>`count(case when ${isUnentered} then ${dossierFiles.id} end)`.mapWith(Number),
             unenteredPages: sql<number>`coalesce(sum(case when ${isUnentered} then coalesce(${dossierFiles.pageCount}, 1) else 0 end), 0)`.mapWith(Number),
-            unassignedDossiers: sql<number>`count(distinct case when not ${activeAssignmentExists} then ${dossiers.id} end)`.mapWith(Number),
-            unassignedFiles: sql<number>`count(case when not ${activeAssignmentExists} then ${dossierFiles.id} end)`.mapWith(Number),
-            unassignedPages: sql<number>`coalesce(sum(case when not ${activeAssignmentExists} then coalesce(${dossierFiles.pageCount}, 1) else 0 end), 0)`.mapWith(Number),
-            completedDossiers: sql<number>`count(distinct case when ${isCompleted} then ${dossiers.id} end)`.mapWith(Number),
             completedFiles: sql<number>`count(case when ${isCompleted} then ${dossierFiles.id} end)`.mapWith(Number),
             completedPages: sql<number>`coalesce(sum(case when ${isCompleted} then coalesce(${dossierFiles.pageCount}, 1) else 0 end), 0)`.mapWith(Number),
-            errorDossiers: sql<number>`count(distinct case when ${isError} then ${dossiers.id} end)`.mapWith(Number),
-            errorFiles: sql<number>`count(case when ${isError} then ${dossierFiles.id} end)`.mapWith(Number),
-            errorPages: sql<number>`coalesce(sum(case when ${isError} then coalesce(${dossierFiles.pageCount}, 1) else 0 end), 0)`.mapWith(Number),
+            errorFiles: sql<number>`count(case when ${isErrorDossier} then ${dossierFiles.id} end)`.mapWith(Number),
+            errorPages: sql<number>`coalesce(sum(case when ${isErrorDossier} then coalesce(${dossierFiles.pageCount}, 1) else 0 end), 0)`.mapWith(Number),
         })
         .from(dossiers)
         .leftJoin(dossierFiles, eq(dossierFiles.dossierId, dossiers.id))
         .where(scope);
 
+    const [[row], [fileRow]] = await Promise.all([dossierQuery, fileQuery]);
+
+    // Proportional file & page estimation for unassigned dossiers
+    const unassignedRatio = (row?.totalDossiers ?? 0) > 0
+        ? (row?.unassignedDossiers ?? 0) / row.totalDossiers
+        : 0;
+    const unassignedFiles = Math.round((fileRow?.totalFiles ?? 0) * unassignedRatio);
+    const unassignedPages = Math.round((fileRow?.totalPages ?? 0) * unassignedRatio);
+
     return {
         total: {
             dossiers: row?.totalDossiers ?? 0,
-            files: row?.totalFiles ?? 0,
-            pages: row?.totalPages ?? 0,
+            files: fileRow?.totalFiles ?? 0,
+            pages: fileRow?.totalPages ?? 0,
         },
         unentered: {
             dossiers: row?.unenteredDossiers ?? 0,
-            files: row?.unenteredFiles ?? 0,
-            pages: row?.unenteredPages ?? 0,
+            files: fileRow?.unenteredFiles ?? 0,
+            pages: fileRow?.unenteredPages ?? 0,
         },
         unassigned: {
             dossiers: row?.unassignedDossiers ?? 0,
-            files: row?.unassignedFiles ?? 0,
-            pages: row?.unassignedPages ?? 0,
+            files: unassignedFiles,
+            pages: unassignedPages,
         },
         completed: {
             dossiers: row?.completedDossiers ?? 0,
-            files: row?.completedFiles ?? 0,
-            pages: row?.completedPages ?? 0,
+            files: fileRow?.completedFiles ?? 0,
+            pages: fileRow?.completedPages ?? 0,
         },
         error: {
             dossiers: row?.errorDossiers ?? 0,
-            files: row?.errorFiles ?? 0,
-            pages: row?.errorPages ?? 0,
+            files: fileRow?.errorFiles ?? 0,
+            pages: fileRow?.errorPages ?? 0,
         },
     } satisfies Record<string, WorkloadVolume>;
 }
