@@ -80,6 +80,7 @@ export const Permission = {
   DASHBOARD_PERSONAL_QC_SUMMARY: "dashboard.personal.qc_summary",
   DASHBOARD_PERSONAL_QC_BY_STEP: "dashboard.personal.qc_by_step",
   DASHBOARD_PERSONAL_QC_EFFICIENCY: "dashboard.personal.qc_efficiency",
+  DASHBOARD_PERSONAL_DAILY_KPI_TABLE: "dashboard.personal.daily_kpi_table",
 
   DASHBOARD_TEAM: "dashboard.team",
   DASHBOARD_TEAM_QC_GROUP: "dashboard.team.qc_group",
@@ -368,6 +369,12 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     module: "dashboard",
     label: "Hiệu suất QC",
     description: "Xem tỷ lệ duyệt / từ chối của QC",
+  },
+  {
+    key: Permission.DASHBOARD_PERSONAL_DAILY_KPI_TABLE,
+    module: "dashboard",
+    label: "Bảng KPI cá nhân theo ngày",
+    description: "Xem bảng thể hiện số hồ sơ cá nhân duyệt hoặc biên tập tính theo ngày, số thời gian xử lý trung bình của từng hồ sơ, số hồ sơ bị trả về, tỷ lệ xử lý chính xác",
   },
   {
     key: Permission.DASHBOARD_TEAM,
@@ -1264,6 +1271,7 @@ export const DASHBOARD_PERSONAL_SECTION_PERMISSIONS = [
   Permission.DASHBOARD_PERSONAL_QC_SUMMARY,
   Permission.DASHBOARD_PERSONAL_QC_BY_STEP,
   Permission.DASHBOARD_PERSONAL_QC_EFFICIENCY,
+  Permission.DASHBOARD_PERSONAL_DAILY_KPI_TABLE,
 ] as const;
 
 export const DASHBOARD_PERSONAL_EDITOR_PERMISSIONS = [
@@ -1271,12 +1279,14 @@ export const DASHBOARD_PERSONAL_EDITOR_PERMISSIONS = [
   Permission.DASHBOARD_PERSONAL_EDITOR_ACCURACY,
   Permission.DASHBOARD_PERSONAL_EDITOR_PERFORMANCE,
   Permission.DASHBOARD_PERSONAL_EDITOR_CHARTS,
+  Permission.DASHBOARD_PERSONAL_DAILY_KPI_TABLE,
 ] as const;
 
 export const DASHBOARD_PERSONAL_QC_PERMISSIONS = [
   Permission.DASHBOARD_PERSONAL_QC_SUMMARY,
   Permission.DASHBOARD_PERSONAL_QC_BY_STEP,
   Permission.DASHBOARD_PERSONAL_QC_EFFICIENCY,
+  Permission.DASHBOARD_PERSONAL_DAILY_KPI_TABLE,
 ] as const;
 
 export const DASHBOARD_TEAM_SECTION_PERMISSIONS = [
